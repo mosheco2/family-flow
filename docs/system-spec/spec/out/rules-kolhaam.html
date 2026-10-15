@@ -1,0 +1,643 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>לוגיקה · קול העם · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>לוגיקה · קול העם</h1><span class="meta">50 תהליכים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="cur">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro"><strong>לוגיקה עסקית לבנייה מחדש.</strong> בכל תהליך מתועדים, לפי סדר: מטרה וטריגר, תנאים ואימותים, שלבי עיבוד (כולל סדר הכתיבות ל-DB), חישובים ונוסחאות, מכונת מצבים, תופעות לוואי (התראות, מטבעות, AI, cron), התנהגות הממשק, ולבסוף פערים. רוב התוכן מתאר את ההתנהגות כפי שהיא ממומשת. "פערים" הוא החלק האחרון, ומופיע רק כשנמצא בקוד. כל כלל מגובה במספר שורה (server.js:N או file.js:N). החוזה הטכני של כל נתיב נמצא בעמודי ה-API, והסכמה במילון הנתונים.</div><h2 class="grp">קול העם — תשתית, מודל נתונים ופרופיל כותב</h2>
+
+ <section class="proc" data-f="kol haam init tables schema categories seed phase1 phase2 phase3 phase4 content_items"><h3>אתחול טבלאות קול העם וזריעת קטגוריות ברירת מחדל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירת הסכמה של פלטפורמת התוכן בעת עליית השרת, ב-4 שלבים מושהים: <code>initKolHaamTables</code> אחרי 5 שניות (server.js:39398), <code>initKolHaamPhase2Tables</code> אחרי 7.5 שניות (server.js:40826), <code>initKolHaamPhase3Tables</code> אחרי 10 שניות (server.js:44719), <code>initKolHaamPhase4Tables</code> אחרי 20 שניות (server.js:45817). טבלאות גיבוי/whitelist לסריקת HTML נוצרות ב-IIFE מיידי (server.js:40449-40464). טבלת מכסת AI ‏<code>kh_ai_copilot_usage</code> וההגדרה <code>kh_ai_copilot_daily_limit</code>='20' נוצרות ב-IIFE של family-auth (server.js:41822-41837).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כל שלב מוגן בדגל זיכרון (<code>_khPhase1Ready</code> וכו') — רץ פעם אחת לתהליך (server.js:39244-39246).</li>
+<li>Phase 2 מריץ כל שאילתה ב-try נפרד ומתעלם משגיאות "already exists" (server.js:40814-40816).</li>
+<li>Phase 3 מוסיף עמודות ל-<code>author_profiles</code> רק אם אינן קיימות לפי <code>information_schema</code> (server.js:44613-44627).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>Phase 1 יוצר: <code>author_profiles</code> (UNIQUE family_group_id, badge_level ברירת מחדל 'DEFAULT'), <code>content_categories</code> (scope_level CHECK GLOBAL/LOCAL), <code>content_tags</code>, <code>content_series</code>, <code>content_items</code>, <code>content_items_tags</code>, <code>content_version_history</code>, <code>draft_collaborators</code> (server.js:39248-39345).</li>
+<li><code>content_items</code>: ‏content_type CHECK ('ARTICLE','QA_QUESTION','SUCCESS_STORY','WIKI_GUIDE'); scope_type CHECK ('LOCAL','GLOBAL'); status <code>VARCHAR(15)</code> DEFAULT 'DRAFT' CHECK ('DRAFT','PENDING_ZM','PENDING_SA','PUBLISHED_LOCAL','PUBLISHED_GLOBAL','REJECTED'); zm_approval_status DEFAULT 'PENDING' (PENDING/APPROVED/REJECTED); sa_approval_status DEFAULT 'NOT_APPLICABLE' (NOT_APPLICABLE/PENDING/APPROVED/REJECTED); reading_time_minutes DEFAULT 1; comments_enabled DEFAULT TRUE; deletion_requested DEFAULT FALSE; views_count DEFAULT 0 (server.js:39288-39318).</li>
+<li>זריעת 4 קטגוריות גלובליות (is_default=TRUE) אם לא קיימות: 'חינוך ומשפחה','צרכנות ויוקר המחיה','חדשות ועדכונים','פתרונות מהקהילה' (server.js:39347-39355).</li>
+<li>לכל קהילה קיימת: 3 קטגוריות LOCAL ברירת מחדל: 'ועד שכונה ופיתוח','גינות ופארקים','אירועים קהילתיים' (server.js:39357-39368).</li>
+<li>יצירת <code>content_engagement_metrics</code> (גרסת Phase 1: likes/comments/saves/shares, current_trending_score FLOAT, last_scored_at) ו-<code>editor_picks</code> (server.js:39370-39391).</li>
+<li>Phase 2: <code>content_reactions</code> (PK item+user, reaction_type LIKE/DISLIKE), <code>content_saves</code>, <code>content_views_log</code>, <code>content_shares_log</code> (share_channel ברירת מחדל 'whatsapp'), <code>content_comments</code> (עץ, depth_level), <code>comment_reactions</code>, <code>solution_votes</code>, <code>comment_mentions</code>, <code>content_reports</code> (reason CHECK SPAM/MISLEADING/OFFENSIVE/COPYRIGHT/COMMERCIAL/PERSONAL_INFO; status PENDING/REVIEWED_OK/REVIEWED_ACTIONED); ALTER ל-content_items: is_quarantined, quarantined_at, report_count, pinned_until, is_sample_data; ALTER ל-sa_audit_log: prev_status/new_status; אינדקסים (server.js:40698-40813). לבסוף INSERT שורת metrics לכל פריט קיים (server.js:40818-40822).</li>
+<li>Phase 3: עמודות author_profiles ‏local_streak_count, global_streak_count, is_revoked, revoked_until, total_earned_flow, badge_achieved_at; עמודת cem.peak_score_first_week; CHECK של badge_level מוחלף ל-('DEFAULT','LOCAL_LEADER','GLOBAL_LEADER','LEGACY'); טבלאות <code>achievement_types</code>, <code>author_achievements</code> (UNIQUE author+type+content), <code>author_followers</code> (UNIQUE follower_group_id+profile), <code>content_flow_rewards</code>; זריעת 8 סוגי הישגים (ראו "הישגים ותגמולי FLOW") (server.js:44612-44710).</li>
+<li>Phase 4: <code>user_collections</code> (share_slug UNIQUE), <code>user_collection_items</code>, <code>ai_copilot_usage_log</code>, הרחבת pg_trgm ואינדקסי GIN על title/subtitle (server.js:45777-45809).</li>
+<li>Hook: עטיפת handler של <code>POST /api/sa/communities</code> — אחרי תגובה מוצלחת לוקח את הקהילה בעלת ה-id הגבוה ביותר וזורע לה קטגוריות מקומיות (server.js:40637-40663); עטיפת <code>POST /api/community/user-create</code> — זריעה ל-<code>body.community.id</code> (server.js:40666-40687).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>לוג קונסול '[kol-haam] tables ready' וכו'.</div>
+<div>פערים</div><div><ul>
+<li><code>status VARCHAR(15)</code> קצר מדי ל-'PUBLISHED_GLOBAL' (16 תווים) — בכל DB שנוצר מהקוד הזה כל כתיבה של PUBLISHED_GLOBAL תיכשל ב-"value too long" (server.js:39295). אין ALTER שמרחיב.</li>
+<li><code>content_engagement_metrics</code> נוצרת ב-Phase 1 בלי dislikes_count/views_count/last_calculated_at; ה-CREATE IF NOT EXISTS של Phase 2 (server.js:40700) לא מוסיף אותן. ב-DB חדש: DISLIKE, ספירת צפיות ו-cron הטרנדינג (שכותב last_calculated_at) נכשלים.</li>
+<li>Hook יצירת קהילה ב-SA בוחר "הקהילה האחרונה לפי id" ולא את זו שנוצרה (race) (server.js:40652).</li>
+<li><code>_origSACommCreate</code> מחושב ואינו בשימוש (server.js:39427).</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="author profile getorcreateauthorprofile home community"><h3>יצירת/איתור פרופיל כותב (getOrCreateAuthorProfile)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל משפחה (family_group) מקבלת פרופיל כותב אחד. נקרא ביצירת תוכן (server.js:39830), ב-<code>my-profile</code> (server.js:45728), ביצירת סדרה ובסדרות שלי (server.js:46088, 46101).</div>
+<div>תנאים ואימותים</div><div><ul><li>אם קיים פרופיל ל-family_group_id → מחזיר את ה-id בלבד (server.js:39402-39403).</li><li>אחרת home_community_id = communityId שנשלח או <code>family_groups.community_id</code>; אם אין — Error 'קהילה לא נמצאה' (server.js:39404-39405).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT לפי family_group_id.</li><li>INSERT author_profiles (family_group_id, home_community_id) RETURNING id (server.js:39406-39409).</li></ol></div>
+<div>פערים</div><div>הפונקציה מחזירה מספר (id) אבל <code>my-profile</code>, <code>POST /series</code> ו-<code>GET /series/my</code> משתמשים ב-<code>ap.id</code> ו-<code>ap.is_revoked</code> כאילו הוחזר אובייקט (server.js:45736-45737, 46091, 46108): יצירת סדרה נכשלת (author_profile_id NULL מול NOT NULL), "הסדרות שלי" תמיד ריקה, ו-my-profile מחזיר פרופיל ריק.</div>
+</div></section>
+
+<h2 class="grp">כתיבה, טיוטות וגרסאות</h2>
+
+ <section class="proc" data-f="create content draft post article qa success wiki reading time tags"><h3>יצירת פריט תוכן (טיוטה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משתמש FAMILY בעורך קול העם לוחץ "שמור כטיוטה" / "שלח לאישור" או autosave ראשון — <code>POST /api/kol-haam/content</code> עם <code>verifyFamily</code> (server.js:39817). לקוח: <code>KH.saveDraft</code>, autosave (kol-haam-app.js:1243-1269, 977-1000).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>groupId נגזר מהטוקן בלבד (<code>req.familyAuth.groupId</code>) (server.js:39821).</li>
+<li>חובה: groupId, categoryId, contentType, title, ו-contentHtml !== undefined — אחרת 400 'שדות חובה חסרים' (server.js:39824-39825).</li>
+<li>קטגוריה חייבת להתקיים — אחרת 400 'קטגוריה לא קיימת' (server.js:39827-39828).</li>
+<li>קהילה: communityId מה-body, אחרת קהילה מאושרת ב-family_communities או family_groups.community_id; אם אין — 400 'לא נמצאה קהילה משויכת למשפחה זו' (server.js:39831-39841).</li>
+<li>contentType נאכף רק ע"י CHECK ב-DB.</li>
+<li>לקוח: חובה כותרת ('יש להזין כותרת') וקטגוריה ('יש לבחור קטגוריה') (kol-haam-app.js:1245-1246).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>effectiveScope: אם קטגוריה LOCAL → 'LOCAL'; אחרת scopeType מהלקוח או 'LOCAL' (server.js:39829).</li>
+<li>getOrCreateAuthorProfile (server.js:39830).</li>
+<li>סניטציה <code>sanitizeKHHtml</code> (server.js:39842).</li>
+<li>INSERT content_items (status ברירת מחדל DRAFT, zm_approval_status PENDING, sa NOT_APPLICABLE) עם series_id/series_chapter_number (server.js:39845-39849).</li>
+<li>תגיות: עד 10 ראשונות; כל תגית <code>trim().toLowerCase()</code>; UPSERT content_tags (בהתנגשות usage_count+1) ו-INSERT content_items_tags (server.js:39852-39856).</li>
+<li>אין טרנזקציה.</li>
+</ol></div>
+<div>חישובים</div><div>זמן קריאה: מילים = טקסט אחרי הסרת תגיות, פיצול ברווחים; <code>reading_time = max(1, ceil(words/200))</code> (server.js:39843-39844).</div>
+<div>תופעות לוואי</div><div>אין התראות. שורת engagement_metrics לא נוצרת כאן (נוצרת עצלה ב-<code>ensureMetricsRow</code>).</div>
+<div>ממשק</div><div>עורך <code>KH.renderEditor</code> (kol-haam-app.js:803-1004): בחירת סוג (4 כרטיסים, ברירת מחדל ARTICLE), כותרת*, תת-כותרת, תמונת שער, קטגוריה* (optgroup ארציות/קהילתיות), היקף הפצה (מוסתר כשהקטגוריה LOCAL — kol-haam-app.js:1031-1042), עורך contenteditable עם execCommand (B/I/U/H2/H3/רשימות/ניקוי), תגיות עד 10, "תקציר ב-20 שניות", שיוך לסדרה + מספר פרק. בחירת GLOBAL מציגה confirm "קביעה סופית" (kol-haam-app.js:1010-1018). <code>collectEditorPayload</code>: scopeType = LOCAL אם קטגוריה LOCAL או כפתור מקומי פעיל, אחרת GLOBAL (kol-haam-app.js:1200-1222). ניקוי תגית בלקוח: lowercase והסרת תווים שאינם עברית/\w/- (kol-haam-app.js:1073).</div>
+<div>פערים</div><div>הלקוח שולח groupId/userId ב-body — מתעלמים מהם בשרת. quickSummary נשמר כמחרוזת חופשית, בעוד שה-seed שומר JSON array — הלקוח מנסה JSON.parse ונופל לטקסט (kol-haam-app.js:507-515).</div>
+</div></section>
+
+ <section class="proc" data-f="update draft put edit version history collaborator rejected"><h3>עדכון טיוטה ושמירת גרסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירה ידנית או autosave של פריט קיים — <code>PUT /api/kol-haam/content/:id</code> + verifyFamily (server.js:39863).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>404 'לא נמצא' אם אין פריט (server.js:39873).</li>
+<li>הרשאה: בעלים (family_group_id של הכותב = groupId מהטוקן) או משתמש הרשום ב-draft_collaborators — אחרת 403 'אין הרשאה' (server.js:39876-39878).</li>
+<li>סטטוס חייב להיות DRAFT או REJECTED — אחרת 400 'לא ניתן לערוך פריט בסטטוס זה' (server.js:39879-39880).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>סניטציה של contentHtml (או של התוכן הקיים אם לא נשלח) וחישוב זמן קריאה (אותה נוסחה) (server.js:39881-39883).</li>
+<li>שמירת גרסה: version_number = MAX+1; INSERT content_version_history עם title/subtitle/content_html <b>הקודמים</b> ו-editor_user_id=userId מהטוקן (server.js:39885-39887).</li>
+<li>effectiveScope לפי הקטגוריה החדשה (LOCAL כופה LOCAL, אחרת scopeType או הקיים) (server.js:39889-39891).</li>
+<li>UPDATE content_items: title (או קיים), subtitle||null, quick_summary_20s||null, cover (או קיים), content_html, category_id, scope_type, reading_time, series (או קיים), updated_at=NOW() (server.js:39892-39896).</li>
+<li>אם נשלח מערך tags: DELETE כל הקישורים ו-UPSERT מחדש עד 10 (usage_count מוגדל שוב גם לתגיות קיימות) (server.js:39898-39904).</li>
+</ol></div>
+<div>תופעות לוואי</div><div>כל שמירה (כולל autosave כל 30 שניות כשיש שינוי) יוצרת שורת גרסה.</div>
+<div>פערים</div><div><ul>
+<li>contentType לא מתעדכן ב-PUT — שינוי סוג בעורך אחרי שמירה ראשונה לא נשמר.</li>
+<li>subtitle/quickSummary ריקים מתאפסים ל-NULL, אבל coverImageUrl ריק לא מוחק תמונה קיימת (<code>coverImageUrl||it.cover_image_url</code>) — כפתור "הסר תמונה" לא באמת מסיר.</li>
+<li>series_id לא ניתן לניקוי דרך PUT (<code>seriesId||it.series_id</code>).</li>
+<li>usage_count של תגיות מתנפח בכל שמירה.</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="autosave editor client hash beforeunload"><h3>Autosave בעורך (לקוח)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירה אוטומטית של העורך בזמן כתיבה (kol-haam-app.js:968-1003).</div>
+<div>תנאים ואימותים</div><div><ul><li>hash = title + '|' + innerHTML של rte-body (kol-haam-app.js:38-42).</li><li>אם hash לא השתנה מאז השמירה האחרונה — לא שומרים. אם אין כותרת או קטגוריה — סטטוס 'לא נשמר' ללא קריאה (kol-haam-app.js:984).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>setInterval</code> כל 30,000ms: PUT אם יש editingItemId, אחרת POST ושמירת r.id (kol-haam-app.js:977-1000).</li><li>טיימר תצוגה כל 60,000ms מעדכן "נשמר לפני X דק'" (kol-haam-app.js:1003, 44-58).</li><li><code>beforeunload</code> מזהיר כשיש שינוי לא שמור (kol-haam-app.js:68-75); <code>teardownEditor</code> מנקה טיימרים ביציאה מהעורך (kol-haam-app.js:60-66, 139).</li></ol></div>
+<div>ממשק</div><div>תווית <code>#kh-autosave-status</code>: 'שומר...' / 'נשמר זה עתה' / 'נשמר לפני N דק'' / 'לא נשמר'.</div>
+<div>פערים</div><div>autosave על פריט שכבר נשלח (PENDING_ZM) יקבל 400 ויציג 'לא נשמר' בלי הודעה.</div>
+</div></section>
+
+ <section class="proc" data-f="delete draft"><h3>מחיקת טיוטה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מחק" בטיוטות שלי — <code>DELETE /api/kol-haam/content/:id</code> + verifyFamily (server.js:39910). לקוח <code>KH.deleteDraft</code> עם confirm 'למחוק את הטיוטה לצמיתות?' (kol-haam-app.js:1325-1331).</div>
+<div>תנאים ואימותים</div><div><ul><li>404 אם לא קיים; 403 'אין הרשאה' אם לא בעלים (שותף עריכה לא יכול) (server.js:39915-39917).</li><li>רק status='DRAFT' — אחרת 400 'ניתן למחוק רק טיוטות' (server.js:39918).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE content_items (CASCADE לתגיות, גרסאות, שותפים, metrics וכו').</li></ol></div>
+<div>ממשק</div><div>כפתור מחיקה מוצג רק לטיוטה שאינה "שותף איתי" (kol-haam-app.js:1319).</div>
+<div>פערים</div><div>"הטיוטות שלי" מציגה גם REJECTED עם כפתור מחיקה — השרת יחזיר 400.</div>
+</div></section>
+
+ <section class="proc" data-f="submit approval pending_zm send"><h3>שליחת פריט לאישור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שלח לאישור" בעורך — <code>KH.submitContent</code> (kol-haam-app.js:1271-1294) → שמירה ואז <code>POST /api/kol-haam/content/:id/submit</code> (server.js:39925).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: כותרת, קטגוריה, ותוכן שאינו ריק/'&lt;br&gt;' ('יש לכתוב תוכן') (kol-haam-app.js:1273-1275).</li>
+<li>לקוח: אם scope LOCAL ופריט חדש — confirm 'כתבה זו תישאר מקומית לתמיד...' (kol-haam-app.js:1278-1281).</li>
+<li>שרת: 404; 403 אם לא בעלים; רק status DRAFT — אחרת 400 'ניתן לשלוח רק טיוטה' (server.js:39930-39932).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE status='PENDING_ZM', zm_approval_status='PENDING', updated_at (server.js:39933).</li></ol></div>
+<div>מכונת מצבים</div><div>DRAFT → PENDING_ZM (בעלים בלבד).</div>
+<div>תופעות לוואי</div><div>אין התראה ל-ZM (רק badge בפאנל ZM בעת טעינה).</div>
+<div>ממשק</div><div>אחרי הצלחה: toast 'נשלח לאישור Zone Manager' וניווט ל-my-content.</div>
+<div>פערים</div><div>פריט REJECTED ניתן לעריכה אך <b>לא ניתן לשליחה מחדש</b> (השרת מאשר רק DRAFT) — אין מסלול חזרה מ-REJECTED.</div>
+</div></section>
+
+ <section class="proc" data-f="collaborators share draft family member"><h3>שיתוף טיוטה עם בן משפחה (Collaborators)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/kol-haam/content/:id/collaborators</code> + verifyFamily (server.js:39939). אין קריאה מהלקוח (לא נמצא ב-kol-haam-app.js).</div>
+<div>תנאים ואימותים</div><div><ul><li>404; 403 אם המבקש אינו בעל הכתבה (server.js:39947-39948).</li><li>userId (מה-body) חייב להיות users.group_id = groupId של המבקש — אחרת 400 'המשתמש אינו חבר בקבוצה זו' (server.js:39950-39953).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT draft_collaborators ON CONFLICT DO NOTHING (server.js:39954).</li></ol></div>
+<div>תופעות לוואי</div><div>השותף רואה את הטיוטה ב-my-drafts עם is_shared=true ויכול לערוך (PUT) אך לא למחוק/לשלוח.</div>
+<div>פערים</div><div>אם userId לא נשלח, הבדיקה מדולגת ומתבצע INSERT עם NULL (שייכשל ב-PK). שותף חייב להיות מאותה משפחה — לכן is_shared תמיד false בפועל (אותו group).</div>
+</div></section>
+
+ <section class="proc" data-f="my drafts my content list"><h3>הטיוטות שלי / התוכן שלי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /my-drafts</code> (server.js:39960) ו-<code>GET /my-content</code> (server.js:39981), שניהם verifyFamily. לקוח <code>KH.loadDrafts</code>, <code>KH.loadMyContent</code> (kol-haam-app.js:1297-1360).</div>
+<div>שלבי עיבוד</div><div><ol><li>my-drafts: status IN (DRAFT, REJECTED) והבעלים = group או id ב-draft_collaborators של userId; is_shared כשהבעלים שונה; מיון COALESCE(updated_at,created_at) DESC.</li><li>my-content: כל הפריטים של הקבוצה, כולל zm/sa notes, ci.views_count, מיון created_at DESC.</li></ol></div>
+<div>ממשק</div><div>תוויות סטטוס <code>statusLabel</code>: DRAFT 'טיוטה', PENDING_ZM 'ממתין לאישור מקומי', PENDING_SA 'ממתין לאישור ארצי', PUBLISHED_LOCAL 'פורסם מקומית', PUBLISHED_GLOBAL 'פורסם ארצית', REJECTED 'נדחה' (kol-haam-app.js:2313-2317). ב-my-content: badge 'ממתין אישור ארצי' כש-sa_approval_status=PENDING, 'נדחה ארצית' כש-REJECTED, והערות דחייה ZM/SA. ב-my-drafts הערת דחייה מוצגת מ-<code>it.zm_rejection_note</code>.</div>
+<div>פערים</div><div>my-drafts לא מחזיר zm_rejection_note בשאילתה (server.js:39965) — הערת הדחייה לעולם לא תוצג שם. ci.views_count אינו מתעדכן ע"י endpoint הצפייה (שמגדיל את cem.views_count) — המונה ב-my-content יישאר 0.</div>
+</div></section>
+
+ <section class="proc" data-f="version history versions"><h3>היסטוריית גרסאות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "🕐 גרסאות" בדף פריט (מוצג לבעלים/ZM/SA — kol-haam-app.js:524) → <code>KH.showVersionHistory</code> (kol-haam-app.js:2146-2160) → <code>GET /api/kol-haam/content/:id/versions?groupId=</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>שני handlers רשומים לאותו נתיב. Express מפעיל את הראשון (server.js:39803): <b>ללא שום בדיקת הרשאה</b>, מחזיר <code>cvh.*</code> כולל content_html של כל גרסה + editor_name מ-users.nickname.</li><li>השני (server.js:46152) — בדיקת בעלות לפי groupId מה-query או zone_manager_sessions — לעולם לא מופעל (dead code).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מ-content_version_history JOIN users, מיון version_number DESC.</li></ol></div>
+<div>ממשק</div><div>מודל עם שורה לגרסה: vN, כותרת, תאריך, שם עורך. אין שחזור גרסה.</div>
+<div>פערים</div><div>חשיפת טיוטות/גרסאות של כל פריט לכל מבקר אנונימי דרך ה-handler הראשון.</div>
+</div></section>
+
+ <section class="proc" data-f="sanitize html sanitizekhhtml whitelist xss"><h3>סניטציה של HTML בצד שרת (sanitizeKHHtml)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ניקוי content_html בכל יצירה/עדכון (server.js:39842, 39881) ובניקוי ידני ע"י SA (server.js:40557).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ספריית <code>sanitize-html</code> עם whitelist: b, strong, i, em, u, s, mark, p, div, h2, h3, h4, br, hr, blockquote, ul, ol, li, table, thead, tbody, tr, th, td, a, img, span (server.js:9-16).</li>
+<li>מאפיינים: a[href,title], img[src,alt,width,height], *[class]; style ו-id נזרקים (server.js:17-24).</li>
+<li>סכמות: http/https/mailto; ל-img רק http/https (server.js:22-23). disallowedTagsMode 'discard'.</li>
+<li>קלט שאינו מחרוזת או ריק מוחזר כמות שהוא (server.js:27-30).</li>
+</ul></div>
+<div>פערים</div><div>תגיות figure/figcaption/blockquote cite/h1 ו-style inline שהזריעות משתמשות בהן נזרקות אם הפריט נשמר מחדש דרך העורך. זריעות כותבות ישירות ל-DB בלי סניטציה (למשל onerror ב-server.js:41257) — לכן כלי הסריקה.</div>
+</div></section>
+
+ <section class="proc" data-f="cover image upload cloudinary client error log rate limit"><h3>העלאת תמונת שער ולוג שגיאות לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על אזור התמונה בעורך → <code>KH.pickCover</code>/<code>KH.onCoverFile</code> (kol-haam-app.js:1099-1184).</div>
+<div>תנאים ואימותים</div><div><ul><li>קריאת <code>/api/public/settings/cloudinary_cloud_name</code> ו-<code>cloudinary_upload_preset</code>; אם חסר — שגיאה (kol-haam-app.js:1143-1151).</li><li>העלאה unsigned ישירות ל-<code>https://api.cloudinary.com/v1_1/{cloud}/image/upload</code>; הצלחה רק אם יש secure_url.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הצלחה: secure_url נכנס ל-<code>#ed-cover-url</code>, תצוגה מקדימה וכפתור 'הסר תמונה'.</li><li>כשל: הודעה 'העלאת התמונה נכשלה...' ו-POST ל-<code>/api/kol-haam/client-error-log</code> עם groupId, message, context (≤500).</li><li>שרת (server.js:40598-40623): groupId חובה (400 'groupId חסר'); חייב להתקיים ב-family_groups (403); rate limit בזיכרון 10 קריאות/60 שניות לכל groupId (429 'Too many requests'); חיתוך ל-500 תווים והחלפת \r\n ברווח; console.error בלבד.</li></ol></div>
+<div>פערים</div><div>הסרת תמונה בעורך לא נשמרת בשרת (ראו עדכון טיוטה).</div>
+</div></section>
+
+<h2 class="grp">מכונת מצבים, תורי אישור ומחיקה</h2>
+
+ <section class="proc" data-f="state machine status content lifecycle quarantine pending published rejected deletion"><h3>מכונת המצבים של פריט תוכן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>סיכום כל המעברים של <code>content_items.status</code> ושל הדגלים הנלווים: <code>zm_approval_status</code>, <code>sa_approval_status</code>, <code>is_quarantined</code>, <code>deletion_requested</code>.</div>
+<div>תנאים ואימותים</div><div>ערכי status בשרת: DRAFT, PENDING_ZM, PENDING_SA, PUBLISHED_LOCAL, PUBLISHED_GLOBAL, REJECTED. בלקוח SA קיימים בנוסף <code>QUARANTINED</code> (מסנן/תווית בלבד, sa-app.js:13828) ו-<code>ARCHIVED</code> (תווית בסריקה, sa-app.js:14429) — אינם קיימים בשרת. הסגר ממומש כדגל <code>is_quarantined</code> ולא כסטטוס.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table>
+<tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>DRAFT</td><td>FAMILY</td><td>POST content</td><td>zm=PENDING, sa=NOT_APPLICABLE (server.js:39845)</td></tr>
+<tr><td>DRAFT</td><td>PENDING_ZM</td><td>בעלים</td><td>status=DRAFT</td><td>zm_approval_status=PENDING (server.js:39933)</td></tr>
+<tr><td>PENDING_ZM</td><td>PUBLISHED_LOCAL</td><td>ZM של אזור הקהילה</td><td>scope_type=LOCAL</td><td>zm=APPROVED, sa=NOT_APPLICABLE, published_at אם NULL, author.last_published_at, FIRST_PUBLISH (server.js:40070-40092)</td></tr>
+<tr><td>PENDING_ZM</td><td>PENDING_SA</td><td>ZM</td><td>scope_type=GLOBAL</td><td>zm=APPROVED, sa=PENDING, published_at נקבע כבר עכשיו (server.js:40071-40083)</td></tr>
+<tr><td>כל סטטוס (בפועל PENDING_ZM)</td><td>REJECTED</td><td>ZM</td><td>note חובה; אין בדיקת סטטוס</td><td>zm=REJECTED, zm_rejection_note (server.js:40105)</td></tr>
+<tr><td>PENDING_SA</td><td>PUBLISHED_GLOBAL</td><td>SA</td><td>WHERE status='PENDING_SA'</td><td>sa=APPROVED, published_at אם NULL, last_published_at (server.js:40132-40137)</td></tr>
+<tr><td>כל סטטוס</td><td>PUBLISHED_LOCAL</td><td>SA (reject ארצי)</td><td>note חובה; אין בדיקת סטטוס</td><td>sa=REJECTED, sa_rejection_note (server.js:40147-40150)</td></tr>
+<tr><td>PUBLISHED_LOCAL</td><td>PUBLISHED_GLOBAL</td><td>SA (upgrade)</td><td>קטגוריה GLOBAL</td><td>scope_type=GLOBAL, sa=APPROVED (server.js:40162)</td></tr>
+<tr><td>PUBLISHED_GLOBAL</td><td>PUBLISHED_LOCAL</td><td>SA unpublish</td><td>—</td><td>audit 'unpublish' (server.js:40337-40345)</td></tr>
+<tr><td>PUBLISHED_LOCAL</td><td>DRAFT</td><td>SA unpublish</td><td>—</td><td>audit</td></tr>
+<tr><td>DRAFT</td><td>PUBLISHED_LOCAL</td><td>SA republish</td><td>—</td><td>published_at=COALESCE, audit 'republish' (server.js:40358-40370)</td></tr>
+<tr><td>PUBLISHED_LOCAL</td><td>PUBLISHED_GLOBAL</td><td>SA republish</td><td>—</td><td>scope_type לא משתנה; audit</td></tr>
+<tr><td>כל סטטוס</td><td>DRAFT</td><td>SA revert</td><td>—</td><td>audit 'revert_to_draft' (server.js:40382-40387)</td></tr>
+<tr><td>PUBLISHED_*</td><td>LOCAL/DRAFT</td><td>SA bulk unpublish</td><td>status IN published</td><td>GLOBAL→LOCAL, אחרת DRAFT; audit 'bulk_unpublish' (server.js:40413-40426)</td></tr>
+<tr><td>כל סטטוס</td><td>DRAFT</td><td>SA/ZM (טיפול בדיווח unpublish_content)</td><td>report עם content_item_id</td><td>report=REVIEWED_ACTIONED; ללא audit (server.js:41443)</td></tr>
+<tr><td>כל סטטוס</td><td>נמחק</td><td>SA</td><td>DELETE / אישור בקשת מחיקה / bulk delete</td><td>CASCADE</td></tr>
+<tr><td>DRAFT</td><td>נמחק</td><td>בעלים</td><td>status=DRAFT</td><td>—</td></tr>
+<tr><td>is_quarantined=false</td><td>true</td><td>אוטומטי</td><td>report_count ≥ 5</td><td>quarantined_at=NOW (server.js:41357-41359)</td></tr>
+<tr><td>is_quarantined=true</td><td>false</td><td>SA (ZM בתיאוריה)</td><td>—</td><td>quarantined_at=NULL (server.js:41463)</td></tr>
+<tr><td>deletion_requested=false</td><td>true</td><td>בעלים</td><td>—</td><td>deletion_requested_by=userId (server.js:40180)</td></tr>
+<tr><td>deletion_requested=true</td><td>false</td><td>SA דחייה</td><td>—</td><td>deletion_requested_by=NULL (server.js:40210)</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>פריט מוסגר (is_quarantined) מסונן מהפיד, טרנדינג, תגובות חמות, חיפוש, תגיות, following, editor-picks (server.js:39437, 41474, 41506, 45989, 46050, 45617, 45693) — אך נגיש ישירות ב-<code>GET /content/:id</code>.</div>
+<div>פערים</div><div><ul><li>REJECTED הוא מבוי סתום (לא ניתן להגיש מחדש).</li><li>SA reject/ZM reject ללא בדיקת סטטוס — ניתן "לפרסם מקומית" טיוטה דרך SA reject.</li><li>SA republish LOCAL→GLOBAL לא מעדכן scope_type ולא בודק קטגוריה (בניגוד ל-upgrade-to-global).</li><li>אין מעבר מ-PENDING_SA חזרה אלא דרך reject.</li></ul></div>
+</div></section>
+
+ <section class="proc" data-f="zm zone manager approval queue approve reject pending first publish"><h3>תור אישור Zone Manager (אישור/דחייה מקומית)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל אזור מאשר או דוחה פריטים בסטטוס PENDING_ZM של קהילות באזוריו. שני ממשקים: פאנל ZM (zone-manager-app.js:2246-2328, טאב 'kol-haam') ותצוגת zm-queue באפליקציית קול העם (kol-haam-app.js:1363-1508).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כל ה-endpoints עם <code>verifyZoneManager</code> (טוקן ZM_ מה-Authorization, "Bearer " מוסר) (server.js:6498).</li>
+<li><code>GET /zm/pending</code>: PENDING_ZM של קהילות שבהן <code>communities.zone_id = manager_zones.id</code> ו-manager_id = המנהל; מיון created_at ASC (server.js:40039-40057).</li>
+<li><code>GET /zm/queue</code> (alias): שולף <code>zone_id FROM manager_zones</code> (server.js:41530) — עמודה שלא קיימת (manager_zones: id, manager_id, name, status — server.js:607-613) → תמיד שגיאה ו-<code>{success:false}</code>.</li>
+<li>אישור: 404; status חייב PENDING_ZM — אחרת 400 'סטטוס שגוי'; zone של הקהילה חייב להיות של המנהל — אחרת 403 'אין הרשאה' (server.js:40064-40069).</li>
+<li>דחייה: <code>note</code> חובה (trim) — 400 'נדרשת הערת דחייה'; בדיקת zone כמו באישור; ללא בדיקת סטטוס (server.js:40099-40105).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אישור: isGlobal = scope_type==='GLOBAL'. UPDATE zm_approval_status='APPROVED', status = PENDING_SA או PUBLISHED_LOCAL, sa_approval_status = PENDING או NOT_APPLICABLE, published_at = NOW() אם NULL (server.js:40070-40083).</li>
+<li>רק ב-LOCAL: UPDATE author_profiles.last_published_at; ספירת פריטים מפורסמים של הכותב; אם ≤ 1 → <code>checkAndAwardAchievements(author,'FIRST_PUBLISH',item)</code> אסינכרוני (server.js:40085-40091).</li>
+<li>דחייה: status='REJECTED', zm_approval_status='REJECTED', zm_rejection_note=note (server.js:40105).</li>
+</ol></div>
+<div>תופעות לוואי</div><div>FIRST_PUBLISH מעניק 10 FLOW לארנק המשפחה (ראו הישגים). אין התראה לכותב.</div>
+<div>ממשק</div><div><ul><li>פאנל ZM: <code>zmLoadKolHaamQueue</code> קורא ל-<code>/kol-haam/zm/queue</code>, מעדכן badge <code>#zm-kh-badge</code>, כרטיס לכל פריט עם תג 🌍 גלובלי/🏘️ מקומי ו-summary; confirm 'לאשר פרסום?'; דחייה עם prompt 'סיבת דחייה (אופציונלי)' (zone-manager-app.js:2246-2328).</li><li>אפליקציית קול העם: <code>renderQueueTable</code> — טבלה (תצוגה/כותרת/כותב/קהילה/תאריך/פעולות), תג 'ממתין ארצי'/'ממתין מקומי', גיל בשעות/ימים, צבע אזהרה מעל 48 שעות, "⚑" מציג את <code>summary</code> (=quick_summary_20s) כדגל; טופס דחייה עם הערה חובה (kol-haam-app.js:1418-1508). הכפתור <code>#btn-zm-queue</code> מוצג רק ל-role=zm או sa ב-URL (kol-haam-app.js:2592-2596).</li><li>בתצוגה זו גם ניהול קטגוריות קהילתיות (ראו קטגוריות).</li></ul></div>
+<div>פערים</div><div><ul>
+<li>פאנל ZM תמיד מציג "אין תוכן ממתין" בגלל באג <code>manager_zones.zone_id</code> (server.js:41530).</li>
+<li>דחייה מפאנל ZM שולחת <code>{reason}</code> ולא <code>{note}</code> (zone-manager-app.js:2323) → תמיד 400.</li>
+<li>אף מקום לא פותח את kol-haam עם role=zm/sa (app.js:918 שולח 'admin'/'member') — התצוגות zm-queue/sa-queue באפליקציה אינן נגישות מה-UI.</li>
+<li>FIRST_PUBLISH לא מוענק בפרסום גלובלי.</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="sa super admin global national approval queue approve reject upgrade"><h3>תור אישור ארצי (Super Admin)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA מאשר/דוחה פריטים שאושרו מקומית וביקשו הפצה ארצית. ממשקים: טאב 'אישורים' ב-SA (sa-app.js:13754-13794, 14689-14705) ותצוגת sa-queue בקול העם (kol-haam-app.js:1511-1586).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>verifySA</code> (טוקן ב-sa_sessions, Authorization או x-sa-token) (server.js:6661).</li>
+<li><code>GET /sa/pending-global</code> ו-<code>GET /sa/queue</code>: status='PENDING_SA' AND sa_approval_status='PENDING', מיון published_at ASC (server.js:40111-40128, 41552-41565).</li>
+<li>אישור: UPDATE רק WHERE status='PENDING_SA' (אין 404/שגיאה אם 0 שורות) (server.js:40132-40136).</li>
+<li>דחייה: note חובה — 400 'נדרשת הערת דחייה' (server.js:40145).</li>
+<li>שדרוג: 404; קטגוריה חייבת GLOBAL — 400 'הקטגוריה אינה גלובלית. יש לשנות קטגוריה לגלובלית תחילה.'; status חייב PUBLISHED_LOCAL — 400 'ניתן לשדרג רק כתבות מפורסמות מקומית' (server.js:40157-40161).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אישור: status='PUBLISHED_GLOBAL', sa='APPROVED', published_at אם NULL, updated_at; ואז UPDATE author_profiles.last_published_at (גם אם לא עודכנה שורה) (server.js:40132-40137).</li>
+<li>דחייה: status='PUBLISHED_LOCAL', sa='REJECTED', sa_rejection_note (server.js:40147-40150).</li>
+<li>שדרוג: scope_type='GLOBAL', status='PUBLISHED_GLOBAL', sa='APPROVED' (server.js:40162). אין קריאה מלקוח.</li>
+</ol></div>
+<div>ממשק</div><div>SA: כרטיסים 'ממתין לאישור גלובלי' עם 'אשר גלובלי' (confirm) ו-'דחה' (prompt 'סיבת דחייה (אופציונלי)') (sa-app.js:13761-13775). קול העם sa-queue: טבלת תור + בקשות מחיקה + קטגוריות גלובליות + בחירות עורך (kol-haam-app.js:1511-1542).</div>
+<div>פערים</div><div>SA reject מ-sa-app.js שולח <code>{reason}</code> (sa-app.js:14701) → תמיד 400. גם ה-alias /sa/queue וגם /sa/pending-global זהים בתוכן.</div>
+</div></section>
+
+ <section class="proc" data-f="sa all content management unpublish republish revert delete bulk audit filters"><h3>ניהול כל התוכן ע"י SA (טאב "תוכן")</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב 'תוכן' ב-KH_SA_TABS → <code>loadKHContentTab</code> (sa-app.js:13930-14146) → <code>GET /api/kol-haam/sa/all-content</code> (server.js:40241).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>עימוד קבוע 25 לעמוד; page מינימום 1 (server.js:40249-40250).</li>
+<li>מיון מורשה: created_at, views_count (ci), comments_count, likes_count (cem); כיוון ASC/DESC בלבד (server.js:40252-40258).</li>
+<li>מסננים: status (מופרד בפסיקים → ANY), content_type, community_id, author_search (ILIKE על pen_name או family name), date_from/date_to (כולל יום שלם), search (ILIKE בכותרת או content_html), is_sample_data='true' (server.js:40263-40279).</li>
+<li>bulk: ids מערך לא ריק ('נדרש מערך ids'), עד 100 ('מקסימום 100 פריטים בבקשה אחת'), מספרים שלמים חיוביים ('מזהים לא תקינים'); action ∈ delete/unpublish/change-category; change-category דורש category_id; אחרת 'פעולה לא מוכרת: X' (server.js:40395-40441).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>COUNT + SELECT עם LIMIT/OFFSET; author_name = COALESCE(pen_name, family name).</li>
+<li>unpublish/republish/revert (server.js:40329-40390): קריאת status קודם, UPDATE, INSERT <code>sa_audit_log</code> (action_type, target_type='content_item', target_id, target_name=title, prev_status, new_status, details '{}'). תגובה: prev_status/new_status.</li>
+<li>delete בודד: <code>DELETE /sa/content/:id</code> (server.js:40215) — ללא audit.</li>
+<li>bulk: DELETE/UPDATE עם ANY, ואז audit יחיד 'bulk_delete'/'bulk_unpublish'/'bulk_change_category' עם details JSON {ids,count[,category_id]} (server.js:40401-40438).</li>
+</ol></div>
+<div>מכונת מצבים</div><div>ראו טבלת מכונת המצבים (unpublish: GLOBAL→LOCAL→DRAFT; republish: DRAFT→LOCAL→GLOBAL; אחרת 400 'לא ניתן להוריד מפרסום/לפרסם מחדש פריט בסטטוס X').</div>
+<div>ממשק</div><div>פילטרים (חיפוש, כותב, סוג, קהילה, תאריכים, צ'קבוקסים לכל KH_STATUS_META, "רק נתוני דוגמה"), סנכרון ל-URL (kh_tab, kh_status, kh_type, kh_comm, kh_author, kh_df, kh_dt, kh_q, kh_sample, kh_page, kh_sort, kh_dir) (sa-app.js:13887-13928). טבלה עם תג "🔒 בהסגר" כש-is_quarantined, שורה אדומה. פעולות: צפה (מודל iframe sandbox="" עם srcdoc — sa-app.js:14171-14208), ↓ פרסום, ↑ פרסום, טיוטה, מחק — כולן עם confirm. סרגל bulk כשנבחרו פריטים; שינוי קטגוריה ב-prompt מתוך קטגוריות GLOBAL בלבד (sa-app.js:14260-14272).</div>
+<div>פערים</div><div><ul><li>סינון QUARANTINED שולח status שאינו קיים → 0 תוצאות.</li><li>change-category לא מעדכן scope_type ולא בודק התאמה.</li><li>מחיקה בודדת לא נרשמת ב-audit.</li><li>כל שינוי צ'קבוקס שורה טוען מחדש את כל הטבלה (sa-app.js:14167-14169).</li></ul></div>
+</div></section>
+
+ <section class="proc" data-f="deletion request delete approve reject sa"><h3>בקשות מחיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בעל פריט שאינו טיוטה לוחץ "בקש מחיקה" בדף הפריט (kol-haam-app.js:461, 736-742) → <code>POST /content/:id/request-deletion</code> + verifyFamily (server.js:40168).</div>
+<div>תנאים ואימותים</div><div><ul><li>404; 403 אם groupId מהטוקן אינו הבעלים (server.js:40176-40178).</li><li>כפתור מוצג רק לבעלים, status≠DRAFT ו-!deletion_requested.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>UPDATE deletion_requested=TRUE, deletion_requested_by=userId, updated_at (server.js:40180).</li>
+<li>SA רואה: <code>GET /sa/deletion-requests</code> (עם requester_name, community) (server.js:40186) או alias <code>GET /sa/delete-requests</code> שמחזיר <code>deletion_requested_by AS reason</code> (server.js:41741-41749).</li>
+<li>אישור: <code>POST /sa/content/:id/request-deletion/approve</code> → DELETE (server.js:40201); או <code>DELETE /sa/:id/delete</code> מ-sa-app (server.js:41788).</li>
+<li>דחייה: <code>.../reject</code> → deletion_requested=FALSE, by=NULL (server.js:40208-40213).</li>
+</ol></div>
+<div>תופעות לוואי</div><div>אין audit ואין התראה לכותב.</div>
+<div>ממשק</div><div>SA טאב אישורים: רשימת בקשות עם "סיבה: {reason}" — מציג בפועל את <b>user id</b> של המבקש (sa-app.js:13789) וכפתור 'מחק'. קול העם sa-queue: 'אשר מחיקה'/'דחה' (kol-haam-app.js:1515-1531, 1588-1600).</div>
+<div>פערים</div><div>הפריט נשאר מפורסם עד החלטת SA. אין שדה סיבה. אישור מחיקה לא בודק שהבקשה קיימת.</div>
+</div></section>
+
+<h2 class="grp">קטגוריות ותגיות</h2>
+
+ <section class="proc" data-f="categories local zm create update delete"><h3>קטגוריות מקומיות (ZM)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM מוסיף/משנה/מוחק קטגוריות LOCAL לקהילה. לקוח: zm-queue בקול העם (<code>KH.showAddLocalCat</code>, <code>KH.deleteLocalCat</code> — kol-haam-app.js:1388-1416). שרת: server.js:40001-40036.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>יצירה: title ו-communityId חובה ('שדות חובה חסרים'); הקהילה חייבת להיות באזור של המנהל (communities.zone_id = manager_zones.id) — אחרת 403 'אין הרשאה לקהילה זו' (server.js:40004-40007).</li>
+<li>עדכון/מחיקה: הקטגוריה חייבת להיות LOCAL (404 'לא נמצא'), ובקהילה של המנהל (403).</li>
+<li>מחיקה: אסור אם יש פריט בקטגוריה בסטטוס שאינו DRAFT/REJECTED — 400 'יש תוכן פעיל בקטגוריה זו' (server.js:40031-40032).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT (title, 'LOCAL', communityId) RETURNING *; UPDATE title; DELETE (מחיקה קשה).</li></ol></div>
+<div>ממשק</div><div>רשימה מציגה רק LOCAL ש-<code>!is_default</code>; לאחר שינוי STATE.categories מאופס.</div>
+<div>פערים</div><div>מחיקת קטגוריה שיש בה טיוטות תיכשל ב-FK (category_id NOT NULL) — לא מטופל. אין קריאת לקוח ל-PUT.</div>
+</div></section>
+
+ <section class="proc" data-f="categories global national sa create toggle delete icon"><h3>קטגוריות ארציות (SA)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שני מסלולים: (א) קול העם sa-queue: <code>POST /sa/global-categories</code> ו-<code>PUT /sa/global-categories/:id</code> (server.js:40223-40238; kol-haam-app.js:1544-1570); (ב) sa-app טאב 'קטגוריות ותגיות': <code>POST /sa/categories</code>, <code>DELETE /sa/categories/:id</code>, <code>GET /sa/categories</code> (server.js:41567-41785; sa-app.js:13796-13811, 14716-14737).</div>
+<div>תנאים ואימותים</div><div><ul><li>global-categories POST: title חובה. PUT: <code>COALESCE</code> על title/isActive, רק WHERE scope_level='GLOBAL'.</li><li>sa/categories POST: name חובה ('שם חסר'); icon ברירת מחדל '📌'; scope_level ברירת מחדל 'GLOBAL'.</li><li>DELETE sa/categories = soft delete (<code>is_active=false</code>) לכל קטגוריה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE ב-content_categories.</li></ol></div>
+<div>ממשק</div><div>sa-app: רשימת GLOBAL עם icon+title וכפתור 'מחק' (confirm); הוספה עם 2 prompts (שם, אמוג'י). קול העם: רשימה עם תג 'פעיל'/'מושבת' וכפתור השבת/הפעל.</div>
+<div>פערים</div><div><code>POST /sa/categories</code> כותב לעמודה <code>icon</code> שלא נוצרת בשום מקום (server.js:41772) → נכשל. <code>GET /categories</code> מחזיר רק is_active=TRUE, לכן ב-loadGlobalCats קטגוריה מושבתת נעלמת מהרשימה ולא ניתן להפעילה מחדש.</div>
+</div></section>
+
+ <section class="proc" data-f="categories list public feed chips"><h3>שליפת קטגוריות לקהילה (ציבורי)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/kol-haam/categories?community_id=</code> (server.js:39513) — בטעינת האפליקציה ובעורך (kol-haam-app.js:2600, 819).</div>
+<div>שלבי עיבוד</div><div><ol><li>is_active=TRUE AND (GLOBAL או LOCAL של הקהילה אם נשלחה); מיון scope_level DESC (LOCAL לפני GLOBAL אלפביתית), title.</li></ol></div>
+<div>ממשק</div><div>צ'יפים בפס קטגוריות + קישורי ניווט עליונים → <code>KH.setCategory</code> מסנן את הפיד (kol-haam-app.js:2603-2613, 182-187).</div>
+</div></section>
+
+ <section class="proc" data-f="tags autocomplete popular tag page usage count"><h3>תגיות: autocomplete, פופולריות ודף תגית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הקלדה בשדה תגית בעורך (<code>KH.tagSuggest</code>, kol-haam-app.js:1088-1096); דף תגית (<code>KH.loadTagPage</code>/<code>KH.loadList('tag')</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>autocomplete: <code>GET /tags?q=</code> → ILIKE '%q%' מיון usage_count DESC LIMIT 10 (server.js:40626-40632).</li><li>popular: <code>GET /tags/popular?limit=30</code> — תגיות שיש להן פריט מפורסם לא-מוסגר; מיון usage_count (server.js:46026-46043). community_id מתקבל ולא בשימוש.</li><li>דף תגית: <code>GET /tags/:tag_name</code> — שם ב-lowercase; scope=global → רק PUBLISHED_GLOBAL; אחרת community_id → קהילה או GLOBAL; date_range today/week/month/year = 1/7/30/365 ימים; מיון trending DESC NULLS LAST, published_at DESC; עימוד limit ברירת מחדל 20 (server.js:46045-46079).</li></ul></div>
+<div>חישובים</div><div>usage_count מוגדל בכל UPSERT של תגית (יצירה ועדכון פריט) — לא סופר שימושים אמיתיים.</div>
+<div>ממשק</div><div>Enter או פסיק מוסיף תגית; מקסימום 10 בלקוח ובשרת.</div>
+</div></section>
+
+<h2 class="grp">פיד, צפייה וחיפוש</h2>
+
+ <section class="proc" data-f="feed home trending hot comments hero strips scope global local pinned editor pick"><h3>פיד ראשי, רצועת טרנדינג ותגובות חמות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך הבית של קול העם (<code>KH.loadFeed</code>, kol-haam-app.js:206-281) — 3 קריאות מקבילות.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>GET /feed</code> (server.js:39431): רק PUBLISHED_LOCAL/GLOBAL ולא מוסגרים. scope=global → רק GLOBAL; אחרת community_id → קהילה או GLOBAL; category → category_id. limit קבוע 20 (הפרמטר limit=30 מהלקוח מתעלם), page.</li>
+<li>מיון sort=new: is_pinned_local DESC, is_pinned_global DESC, published_at DESC; ברירת מחדל trending: pinned ואז current_trending_score DESC, published_at DESC (server.js:39450-39452).</li>
+<li>is_editor_pick = קיים editor_pick ש-pinned_until NULL או ≥ היום (server.js:39458).</li>
+<li><code>GET /feed/trending</code>: אותו פילטר, מיון לפי trending, limit ברירת מחדל 8; בנוסף hero = PUBLISHED_GLOBAL עם <code>pinned_until ≥ NOW()</code> לא מוסגר, הכי מאוחר (server.js:41471-41501).</li>
+<li><code>GET /feed/hot-comments</code>: פריטים עם תגובות ב-6 השעות האחרונות, מיון לפי מספרן, limit ברירת מחדל 5 (server.js:41503-41524).</li>
+</ul></div>
+<div>ממשק</div><div><ul><li>Hero = הפריט הראשון של /feed (לא ה-hero של /trending), עם תג '⭐ בחירת העורך' (kol-haam-app.js:242, 283-).</li><li>רצועות: '🔥 הכי חמים עכשיו' (מציג views_count או likes_count), '💬 התגובות החמות'; גריד לפי קטגוריה; מודול פתרונות (QA ראשון + SUCCESS ראשון); כפתור '✍️ כתוב כתבה חדשה' רק כשיש groupId.</li><li>בסינון קטגוריה — גריד כרטיסים פשוט.</li><li>scope 'following' עובר לפיד העוקבים.</li></ul></div>
+<div>פערים</div><div>אין ממשק לקביעת is_pinned_local/global או pinned_until — שדות שאינם נכתבים בשום endpoint. ci.views_count לא מתעדכן ע"י צפיות.</div>
+</div></section>
+
+ <section class="proc" data-f="content view single item series chapters user state engagement bar"><h3>צפייה בפריט בודד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.loadContent</code> (kol-haam-app.js:436-543): רישום צפייה, <code>GET /content/:id</code>, <code>GET /content/:id/user-state</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>GET /content/:id</code> ציבורי ו<b>ללא סינון סטטוס/הסגר</b> (server.js:39475-39510): מחזיר ci.*, קטגוריה, קהילה, שם משפחת הכותב, badge, is_revoked, author_group_id, tags (json_agg), פרק קודם/הבא לפי series_chapter_number±1, שם סדרה, total_chapters, series_chapters ממוינים. 404 'לא נמצא'.</li><li><code>user-state</code>: לפי user_id ב-query — reaction ו-saved; ללא user_id מחזיר null/false (server.js:41752-41763).</li></ul></div>
+<div>ממשק</div><div><ul><li>עריכה: רק בעלים ו-status DRAFT/REJECTED. בקשת מחיקה: בעלים, לא DRAFT, לא deletion_requested.</li><li>סרגל מעורבות: 👍/👎/💬/⭐/הדפסה/שיתוף/⚠️ דיווח.</li><li>"תקציר ב־20 שניות": JSON array → רשימה; אחרת פסקה.</li><li>content_html מוזרק כ-HTML גולמי (kol-haam-app.js:516).</li><li>SA: כפתור '⭐ בחירת עורך'; כולם: '📚 אוסף'; בעלים/ZM/SA: 'גרסאות'.</li><li>תגובות מוצגות רק אם comments_enabled !== false; אחרת 'התגובות מושבתות לפריט זה'.</li><li>ניווט סדרה וקופסת "עוד בסדרה".</li></ul></div>
+<div>פערים</div><div>הלקוח מציג it.likes_count/dislikes_count/comments_count/saves_count אבל ה-endpoint לא מצרף את engagement_metrics → המונים מתחילים ב-0 עד ריאקציה. טיוטות ופריטים מוסגרים נגישים לכל אחד לפי id.</div>
+</div></section>
+
+ <section class="proc" data-f="search global query ilike filters"><h3>חיפוש גלובלי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.doSearch</code> / <code>KH.loadList('search')</code> → <code>GET /api/kol-haam/search</code> (server.js:45981-46023).</div>
+<div>תנאים ואימותים</div><div><ul><li>q באורך &lt; 2 אחרי trim → items ריק, total 0.</li><li>ILIKE '%q%' על title, subtitle, שם המשפחה של הכותב, או שם תגית.</li><li>type → content_type; scope=global → GLOBAL; אחרת community_id → קהילה או GLOBAL; date_range כמו בדף תגית.</li><li>רק מפורסמים ולא מוסגרים; מיון trending DESC NULLS LAST, published_at DESC; limit ברירת מחדל 20.</li></ul></div>
+<div>פערים</div><div>אינדקסי trigram נוצרים אך החיפוש משתמש ב-ILIKE עם % מוביל. אין total אמיתי.</div>
+</div></section>
+
+ <section class="proc" data-f="follow author following feed"><h3>מעקב אחרי כותב ופיד עוקבים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור עקוב בפרופיל כותב (<code>KH.toggleFollow</code>, kol-haam-app.js:1827; kol-haam-author-app.js:125-137) → <code>POST /authors/:id/follow</code> (server.js:44996). פיד: <code>GET /my-following-feed?groupId</code> (server.js:45598).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות: groupId מה-body חובה — 400 'groupId נדרש'.</li><li>Toggle: קיים → DELETE (following:false), אחרת INSERT (following:true).</li><li>פיד: מפורסמים, לא מוסגרים, של פרופילים שהקבוצה עוקבת; מיון published_at DESC; limit 20.</li></ul></div>
+<div>פערים</div><div>endpoints ללא אימות — כל אחד יכול לעקוב/לבטל בשם כל groupId. kol-haam-author-app.js שולח <code>groupId:''</code> → תמיד 400.</div>
+</div></section>
+
+<h2 class="grp">מעורבות ודירוג</h2>
+
+ <section class="proc" data-f="view count dedup 30 minutes views log"><h3>רישום צפייה (dedup 30 דקות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פתיחת פריט כשיש CTX.userId → <code>POST /content/:id/view</code> עם user_id ב-body (server.js:40967-40983).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות; ללא user_id → success בלי פעולה.</li><li>אם יש רשומת content_views_log לאותו item+user ב-30 הדקות האחרונות — לא נספר.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ensureMetricsRow; INSERT content_views_log; UPDATE cem.views_count+1. כל שגיאה → success:true.</li></ol></div>
+<div>פערים</div><div>מגדיל <code>cem.views_count</code> ולא <code>content_items.views_count</code> שמוצג בפיד/my-content/SA. user_id מזויף אפשרי.</div>
+</div></section>
+
+ <section class="proc" data-f="reaction like dislike toggle switch"><h3>ריאקציות לייק/דיסלייק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.react</code> (kol-haam-app.js:545-560) → <code>POST /content/:id/react</code> + verifyFamily, body {type} (server.js:40873).</div>
+<div>תנאים ואימותים</div><div><ul><li>type ∈ LIKE/DISLIKE — אחרת {success:false,error:'invalid'} (HTTP 200).</li><li>user_id מהטוקן.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ensureMetricsRow.</li><li>אותה ריאקציה קיימת → DELETE ו-count-1 (GREATEST 0).</li><li>ריאקציה אחרת קיימת → UPDATE type, +1 לחדש, -1 לישן.</li><li>חדש → INSERT ו-+1.</li><li>החזרת likes/dislikes ו-userReaction.</li></ol></div>
+<div>מכונת מצבים</div><div>none → LIKE/DISLIKE; LIKE ↔ DISLIKE; X → none (לחיצה חוזרת).</div>
+<div>פערים</div><div>אין בדיקה שהפריט מפורסם. ב-DB שבו cem נוצרה ב-Phase 1 אין dislikes_count → DISLIKE נכשל.</div>
+</div></section>
+
+ <section class="proc" data-f="save bookmark my saved"><h3>שמירת פריט (Bookmark)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.toggleSave</code> → <code>POST /content/:id/save</code> + verifyFamily (server.js:40912); רשימה <code>GET /my-saved</code> + verifyFamily (server.js:40933).</div>
+<div>שלבי עיבוד</div><div><ol><li>Toggle: קיים → DELETE + saves_count-1; אחרת INSERT + saves_count+1. מחזיר saved.</li><li>my-saved: לפי user מהטוקן, מיון created_at של השמירה DESC, כולל פריטים בכל סטטוס.</li></ol></div>
+<div>ממשק</div><div>toast 'נשמר לקריאה מאוחר יותר ⭐' / 'הוסר מהשמורים'.</div>
+</div></section>
+
+ <section class="proc" data-f="share whatsapp shares log"><h3>שיתוף</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.share</code> (kol-haam-app.js:572-582): URL ‏<code>/kol-haam?view=content&amp;id=</code>, טקסט 'קרא/י: {title}'; navigator.share או postMessage OPEN_URL ל-wa.me.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>POST /content/:id/share</code> + verifyFamily, channel ברירת מחדל 'whatsapp' (server.js:40949): ensureMetricsRow, INSERT content_shares_log, shares_count+1, החזרת shareText = title + '\n' + quick_summary_20s.</li></ol></div>
+<div>פערים</div><div>כל לחיצה נספרת (אין dedup) — משפיע ישירות על trending (משקל 5). פרמטר URL ‏view=content אינו מטופל ב-init (רק tag/search/editDraft) — הקישור המשותף פותח את הפיד.</div>
+</div></section>
+
+ <section class="proc" data-f="trending score cron recalculatetrendingscores formula gravity"><h3>חישוב ציון טרנדינג (cron)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>recalculateTrendingScores</code> — 2 דקות אחרי עליית השרת ואז כל 15 דקות (server.js:40859-40860).</div>
+<div>תנאים ואימותים</div><div><ul><li>פריטים PUBLISHED_LOCAL/GLOBAL עם שורת metrics, ו-published_at NULL או בתוך 90 הימים האחרונים (server.js:40841-40848).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל פריט: חישוב ציון ו-UPDATE cem.current_trending_score=score.toFixed(4), last_calculated_at=NOW() (server.js:40849-40855). ללא טרנזקציה; שגיאה עוצרת את כל הלולאה (try חיצוני).</li></ol></div>
+<div>חישובים</div><div><code>computeTrendingScore</code> (server.js:40829-40837):<br><code>score = (2·likes − 1·dislikes + 3·comments + 5·shares + 4·saves) / (hoursAgo + 2)^1.3</code><br>hoursAgo = max(0, (now − published_at)/3,600,000); אם published_at NULL משתמשים ב-now (hoursAgo=0). צפיות לא משתתפות. פריטים מעל 90 יום שומרים את הציון האחרון שלהם לנצח.</div>
+<div>תופעות לוואי</div><div>הציון משמש למיון הפיד, טרנדינג, חיפוש, תגיות, ול-peak_score_first_week (cron יומי) שקובע תגים והישגים.</div>
+<div>פערים</div><div>ב-DB שבו cem נוצרה בגרסת Phase 1 אין עמודות dislikes_count/last_calculated_at → ה-SELECT/UPDATE נכשל וציונים לעולם לא מתעדכנים (השגיאה רק נרשמת בלוג).</div>
+</div></section>
+
+<h2 class="grp">תגובות ודיונים</h2>
+
+ <section class="proc" data-f="comments create list tree nested depth sort management"><h3>קריאה והוספת תגובות (עץ עד עומק 3)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.loadComments</code>/<code>KH.addComment</code> (kol-haam-app.js:585-667). שרת: <code>GET /content/:id/comments</code> (server.js:40986) ו-<code>POST</code> + verifyFamily (server.js:41034).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST: content_text חובה ('שדות חסרים'); אם parent_comment_id — ההורה חייב להתקיים ('תגובת הורה לא נמצאה'); depth = depth_parent+1, מעל 3 → 'הגעת לעומק המקסימלי של דיון' (server.js:41040-41048).</li>
+<li>is_from_zm_or_sa = users.role ∈ ('ZM','SA','ZONE_MANAGER','SUPERADMIN') (server.js:41050-41051).</li>
+<li>GET: רק is_hidden=false; sort: top (ברירת מחדל: likes DESC, created DESC), new, author (pinned DESC, created ASC), management (is_from_zm_or_sa DESC, created DESC); תמיד קודם is_solution_marked DESC, is_pinned_by_author DESC (server.js:40990-41009).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT content_comments; ensureMetricsRow; cem.comments_count+1 (server.js:41053-41059).</li><li>GET בונה עץ: replies לפי parent; userLiked לפי comment_reactions של user_id מה-query (server.js:41013-41028).</li></ol></div>
+<div>ממשק</div><div>טופס 'התגובה תפורסם בשם הקהילה שלך...'; כפתור "↩ תגובה" רק כש-depth &lt; 3; תגים '✓ פתרון נבחר', '👤 הנהלה', '[נערכה]', 📌; כפתור 'הסתר' ל-ZM/SA; אחרי שליחה טעינה מחדש במיון 'new'.</div>
+<div>פערים</div><div><ul><li>comments_enabled לא נאכף בשרת (רק הסתרה בלקוח).</li><li>role של משתמשי FAMILY הוא ADMIN/MEMBER/CHILD → is_from_zm_or_sa תמיד false בפועל.</li><li>comments_count לא יורד בהסתרה; שם מוצג = nickname/email.</li><li>comment_mentions לא בשימוש.</li></ul></div>
+</div></section>
+
+ <section class="proc" data-f="edit comment 15 minutes"><h3>עריכת תגובה (חלון 15 דקות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PUT /api/kol-haam/comments/:id</code> + verifyFamily (server.js:41066). אין קריאה מהלקוח.</div>
+<div>תנאים ואימותים</div><div><ul><li>content_text חובה; 'לא נמצא'; רק כותב התגובה ('אין הרשאה'); גיל ≤ 15 דקות — אחרת 'לא ניתן לערוך תגובה לאחר 15 דקות' (server.js:41071-41077).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE content_text, is_edited=true, updated_at.</li></ol></div>
+</div></section>
+
+ <section class="proc" data-f="comment like pin author"><h3>לייק לתגובה והצמדה ע"י כותב הכתבה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /comments/:id/like</code> (server.js:41109) — toggle; <code>POST /comments/:id/pin</code> (server.js:41129). שניהם verifyFamily.</div>
+<div>תנאים ואימותים</div><div><ul><li>like: toggle ב-comment_reactions ו-likes_count ±1 (GREATEST 0); מחזיר liked.</li><li>pin: רק משפחת כותב הכתבה — 'רק כותב הכתבה יכול לסמן תגובה'; היפוך is_pinned_by_author.</li></ul></div>
+<div>ממשק</div><div>like מעדכן מונה מקומית (kol-haam-app.js:674-682). אין כפתור pin בלקוח.</div>
+</div></section>
+
+ <section class="proc" data-f="mark solution qa question upvote solution votes"><h3>סימון פתרון לשאלה והצבעה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בשאלה (QA_QUESTION) כותב השאלה מסמן תגובה כפתרון: <code>POST /content/:id/mark-solution/:comment_id</code> (server.js:41153); הצבעה: <code>POST /comments/:id/upvote-solution</code> (server.js:41174). verifyFamily.</div>
+<div>תנאים ואימותים</div><div><ul><li>'לא נמצא'; רק content_type=QA_QUESTION — 'רק שאלות תומכות בסימון פתרון'; רק משפחת הכותב — 'רק כותב השאלה יכול לסמן פתרון' (server.js:41159-41164).</li><li>הצבעה: פעם אחת למשתמש — 'כבר הצבעת' (server.js:41181).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>איפוס is_solution_marked לכל תגובות הפריט ואז סימון התגובה (ללא בדיקה שהתגובה שייכת לפריט) (server.js:41166-41168).</li><li>הצבעה: INSERT solution_votes, solution_upvotes+1, החזרת הערך.</li></ol></div>
+<div>ממשק</div><div>'✓ סמן כפתרון' מוצג לכל צופה בשאלה בתגובה שאינה מסומנת (השרת חוסם לא-בעלים); '🔼 הצבע כפתרון' רק על תגובה מסומנת (kol-haam-app.js:613, 628-629).</div>
+<div>פערים</div><div>הצבעה מותרת על כל תגובה גם אם אינה פתרון. סימון יכול להצביע על comment_id מפריט אחר.</div>
+</div></section>
+
+ <section class="proc" data-f="hide comment delete zm sa toggle comments enabled"><h3>הסתרת תגובה והשבתת תגובות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM/SA: <code>KH.hideComment</code> (kol-haam-app.js:696-704) → <code>DELETE /comments/:id</code> (server.js:41084). SA: <code>POST /content/:id/toggle-comments</code> (server.js:41190).</div>
+<div>תנאים ואימותים</div><div><ul><li>DELETE: header Authorization גולמי מושווה ל-sa_sessions.token; אחרת ל-<code>zone_manager_sessions</code>; אחרת 'אין הרשאה' (server.js:41087-41101).</li><li>toggle: verifySA; היפוך comments_enabled.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE is_hidden=true (soft).</li></ol></div>
+<div>פערים</div><div>טבלת <code>zone_manager_sessions</code> לא נוצרת בקוד (סשני ZM הם Map בזיכרון) והלקוח שולח 'Bearer …' ל-ZM — לכן ZM לעולם לא יכול להסתיר. אין UI ל-toggle-comments.</div>
+</div></section>
+
+<h2 class="grp">דיווחים, מודרציה ובטיחות</h2>
+
+ <section class="proc" data-f="report content comment quarantine auto hide threshold 5"><h3>דיווח על תוכן/תגובה והסגר אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>⚠️ בפריט או בתגובה → מודל דיווח (kol-haam.html:1002-1007; kol-haam-app.js:707-734) → <code>POST /api/kol-haam/report</code> + verifyFamily (server.js:41344).</div>
+<div>תנאים ואימותים</div><div><ul><li>reason חובה ('שדות חסרים'); content_item_id או comment_id ('נדרש content_item_id או comment_id').</li><li>reason ∈ SPAM, MISLEADING, OFFENSIVE, COPYRIGHT, COMMERCIAL, PERSONAL_INFO (CHECK; תוויות: ספאם, מידע מטעה, תוכן פוגעני, זכויות יוצרים, פרסום מסחרי אסור, חשיפת מידע אישי).</li><li>לקוח: חובה לבחור סיבה ('יש לבחור סיבה').</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT content_reports (status PENDING).</li><li>פריט: report_count+1; אם ≥ 5 → is_quarantined=true, quarantined_at=NOW (רק אם עדיין false) (server.js:41355-41359).</li><li>תגובה: report_count+1; אם ≥ 5 → is_hidden=true (server.js:41361-41365).</li></ol></div>
+<div>חישובים</div><div>סף הסגר/הסתרה: 5 דיווחים (כולל כפולים).</div>
+<div>פערים</div><div>אין dedup למשתמש — משתמש אחד יכול להסגיר פריט ב-5 לחיצות.</div>
+</div></section>
+
+ <section class="proc" data-f="reports queue resolve dismiss hide unpublish un-quarantine zm sa"><h3>תורי דיווחים, טיפול ושחרור מהסגר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM: <code>GET /zm/reports</code> (server.js:41372) בתצוגת zm-reports (kol-haam-app.js:767-794). SA: <code>GET /sa/reports</code> (server.js:41398). טיפול: <code>POST /reports/:id/resolve</code> (server.js:41420). שחרור: <code>POST /content/:id/un-quarantine</code> (server.js:41451).</div>
+<div>תנאים ואימותים</div><div><ul><li>zm/reports: PENDING בקהילות האזור — אבל שולף <code>manager_zones.zone_id</code> שאינו קיים → תמיד {success:false}.</li><li>sa/reports: 200 אחרונים בכל סטטוס + רשימת כל הפריטים המוסגרים.</li><li>resolve/un-quarantine: אימות ידני מול sa_sessions או zone_manager_sessions (ראו פער ZM); אין הגבלת אזור.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>action='dismiss' → REVIEWED_OK.</li><li>'hide_comment' (אם יש comment_id) → comment.is_hidden=true + REVIEWED_ACTIONED.</li><li>'unpublish_content' (אם יש content_item_id) → item.status='DRAFT' + REVIEWED_ACTIONED.</li><li>פעולה אחרת → success:true בלי שינוי.</li><li>un-quarantine: is_quarantined=false, quarantined_at=NULL (report_count לא מתאפס — הדיווח הבא יסגיר שוב).</li></ol></div>
+<div>ממשק</div><div>כרטיסי דיווח: סיבה, תאריך, כותרת/טקסט תגובה, מדווח (users.name); 'התעלם', 'הסתר תגובה', 'בטל פרסום'. טאבים 'דיווחים'/'תגובות' ב-SA הם placeholder 'בפיתוח' (sa-app.js:14316). <code>KH.unQuarantine</code> קיים בלי כפתור.</div>
+<div>פערים</div><div>ZM לא יכול בפועל לטפל בדיווחים. unpublish_content לא רושם audit ולא מוריד מ-GLOBAL ל-LOCAL כמו ה-unpublish הרגיל.</div>
+</div></section>
+
+ <section class="proc" data-f="scan unsafe html threat patterns clean backup whitelist mark safe"><h3>סריקת HTML מסוכן, ניקוי וסימון כבטוח (SA)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור '🔍 סרוק תוכן מסוכן' בבאנר SA → <code>saKHScanUnsafe</code> (sa-app.js:14405-14489) → <code>GET /sa/scan-unsafe-html</code> (server.js:40512).</div>
+<div>תנאים ואימותים</div><div><ul><li>סורק את כל הפריטים שאינם ב-<code>kh_scan_whitelist</code>, מיון created_at DESC.</li><li>דפוסי איום <code>KH_THREAT_PATTERNS</code> (server.js:40466-40497): script <code>/&lt;script[\s&gt;/]/i</code> (🔴), handler <code>/\bon[a-z]{2,}\s*=/i</code> (🔴), javascript_uri <code>/javascript\s*:/i</code> (🔴), iframe (🟠), other <code>/&lt;(object|embed|form|input|link|meta|base)[\s&gt;/]/i</code> (🟡).</li><li>ממצא לכל פריט×דפוס, עם הקשר 40 תווים לפני/אחרי המופע הראשון (<code>extractContext</code>, server.js:40499-40510).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ניקוי: <code>POST /sa/content/:id/clean-html?preview=1</code> → מחזיר original/cleaned בלי לשמור; בלי preview: INSERT kh_html_backup (original_html, cleaned_by 'super-admin'), UPDATE content_html=sanitizeKHHtml, audit 'clean_html' (server.js:40551-40574).</li><li>סימון בטוח: UPSERT kh_scan_whitelist (marked_at=NOW בהתנגשות), audit 'mark_safe' (server.js:40576-40593).</li></ol></div>
+<div>ממשק</div><div>מודל טבלה (כותרת, מחבר/קהילה, סטטוס, איום+הסבר, הקשר מודגש, פעולות 👁️ צפה/🧹 נקה/✅ תקין); ניקוי מציג confirm עם 300 תווים לפני/אחרי; "אין כפתור נקה הכל" (sa-app.js:14481).</div>
+<div>פערים</div><div>דפוס handler תופס גם טקסט רגיל כמו "onion=". פריט ברשימה הלבנה לא ייסרק שוב גם אם ייערך.</div>
+</div></section>
+
+<h2 class="grp">מוניטין, הישגים ובחירות עורך</h2>
+
+ <section class="proc" data-f="achievements flow rewards wallet award checkandawardachievements"><h3>הישגים ותגמולי FLOW</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>checkAndAwardAchievements(authorProfileId, triggerKey, contentItemId)</code> (server.js:44753-44774) נקרא מאישור ZM (FIRST_PUBLISH), בחירת עורך (FIRST_LOCAL_PICK/FIRST_GLOBAL_PICK), cron יומי (LOCAL_LEADER/GLOBAL_LEADER), cron שבועי/חודשי.</div>
+<div>תנאים ואימותים</div><div><ul><li>סוג ההישג חייב להתקיים ב-achievement_types.</li><li>אם ההישג כבר קיים לכותב — יוצאים, למעט ARTICLE_OF_WEEK, ARTICLE_OF_MONTH, MOST_SHARED_WEEK שניתנים שוב (server.js:44763).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT author_achievements ON CONFLICT DO NOTHING.</li><li>אם flow_reward &gt; 0 → <code>awardKolHaamFlow</code> (server.js:44722-44750): UPSERT flow_wallets ('family', group_id) balance+amount; INSERT flow_transactions (action_key=triggerKey, description 'תגמול קול העם: X', reference_id=item); INSERT content_flow_rewards; author_profiles.total_earned_flow+amount. ללא טרנזקציה.</li></ol></div>
+<div>חישובים</div><div>טבלת סוגים (server.js:44694-44703): FIRST_PUBLISH 10 FLOW; FIRST_LOCAL_PICK 25; FIRST_GLOBAL_PICK 50; LOCAL_LEADER 30; GLOBAL_LEADER 100; ARTICLE_OF_WEEK 40; ARTICLE_OF_MONTH 100; MOST_SHARED_WEEK 30.</div>
+<div>פערים</div><div>בהישגים חוזרים ה-FLOW מוענק גם אם ה-INSERT לא בוצע בגלל התנגשות (אותו פריט זוכה שוב) — כפל תגמול. seed-author-sample מוסיף סוגי הישג נוספים ללא flow_reward.</div>
+</div></section>
+
+ <section class="proc" data-f="daily cron peak score streak badge local leader global leader legacy revocation expiry"><h3>Cron יומי: ציון שיא, רצפים, תגים, LEGACY ופקיעת הרחקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>runPhase3DailyCron</code> — 60 שניות אחרי עלייה ואז כל 24 שעות (server.js:44849-44851).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>peak_score_first_week = GREATEST(peak, current_trending_score) לפריטים מפורסמים מ-7 הימים האחרונים (server.js:44780-44787).</li>
+<li>פריטים שפורסמו לפני 7–8 ימים (server.js:44790-44799): אם PUBLISHED_GLOBAL ו-peak ≥ 250 → global_streak+1; אם הרצף ≥ 3 והתג אינו GLOBAL_LEADER → badge GLOBAL_LEADER, badge_achieved_at, הישג GLOBAL_LEADER. אחרת אם peak ≥ 50 → local_streak+1; אם ≥ 3 והתג DEFAULT → LOCAL_LEADER + הישג (server.js:44801-44824).</li>
+<li>LEGACY: LOCAL_LEADER/GLOBAL_LEADER בלי פריט מפורסם ב-60 הימים האחרונים → 'LEGACY' (server.js:44827-44837).</li>
+<li>פקיעת הרחקה: is_revoked=TRUE ו-revoked_until ≤ NOW → ביטול (server.js:44840-44843).</li>
+</ol></div>
+<div>חישובים</div><div>ספי peak: 250 (ארצי), 50 (מקומי); 3 פריטים לרצף; חלון 60 יום ל-LEGACY.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>DEFAULT</td><td>LOCAL_LEADER</td><td>cron</td><td>local_streak ≥ 3</td><td>+30 FLOW</td></tr>
+<tr><td>כל תג ≠ GLOBAL_LEADER</td><td>GLOBAL_LEADER</td><td>cron</td><td>global_streak ≥ 3</td><td>+100 FLOW</td></tr>
+<tr><td>LOCAL/GLOBAL_LEADER</td><td>LEGACY</td><td>cron</td><td>60 יום ללא פרסום</td><td>—</td></tr>
+<tr><td>כל תג</td><td>תצוגת DEFAULT</td><td>SA revoke</td><td>is_revoked</td><td>effective_badge_level='DEFAULT'</td></tr>
+</table></div></div>
+<div>פערים</div><div>רצפים לעולם לא מתאפסים (רק ב-revoke). חלון 7–8 ימים תלוי בזמן ריצה יחסי לעלייה — אתחול שרת יכול לדלג/לספור פעמיים. LEGACY לא חוזר ל-LOCAL_LEADER (דורש DEFAULT).</div>
+</div></section>
+
+ <section class="proc" data-f="weekly monthly cron article of week month most shared"><h3>Cron שבועי וחודשי: כתבת השבוע/החודש והכי משותפת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>runPhase3WeeklyCron</code> כל 7 ימים (server.js:44885); <code>runPhase3MonthlyCron</code> כל 20 ימים (server.js:44905). אין ריצה בעלייה.</div>
+<div>שלבי עיבוד</div><div><ol><li>כתבת השבוע: הפריט המפורסם מ-7 הימים האחרונים עם peak_score_first_week הגבוה → ARTICLE_OF_WEEK (+40).</li><li>הכי משותפת: הפריט עם הכי הרבה שיתופים ב-7 ימים (אם &gt; 0) → MOST_SHARED_WEEK (+30).</li><li>כתבת החודש: הגבוה ב-30 יום → ARTICLE_OF_MONTH (+100).</li></ol></div>
+<div>פערים</div><div>השאילתה של MOST_SHARED_WEEK משתמשת ב-<code>csl.shared_at</code> שאינה קיימת (העמודה היא created_at) — כל ה-cron השבועי נכשל (server.js:44873). "חודשי" רץ כל 20 יום. setInterval מתאפס בכל אתחול — ייתכן שלא ירוץ לעולם.</div>
+</div></section>
+
+ <section class="proc" data-f="editor picks sa add remove current"><h3>בחירות עורך</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA בדף פריט '⭐ בחירת עורך' (prompt 'הערת עורך (אופציונלי)') → <code>POST /sa/editor-picks</code> (server.js:45629). רשימה <code>GET /sa/editor-picks</code>, הסרה <code>DELETE /sa/editor-picks/:id</code>, ציבורי <code>GET /editor-picks/current</code> (server.js:45652-45700).</div>
+<div>תנאים ואימותים</div><div><ul><li>content_item_id חובה ('content_item_id נדרש'); הפריט חייב להתקיים (404 'תוכן לא נמצא'). אין בדיקה שהוא מפורסם למרות ההערה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT editor_picks (note, pinned_until, created_by_sa='SA').</li><li>הישג: status PUBLISHED_GLOBAL → FIRST_GLOBAL_PICK (+50), אחרת FIRST_LOCAL_PICK (+25).</li><li>current: פריטים מפורסמים לא מוסגרים עם pinned_until NULL או ≥ היום, 5 אחרונים.</li></ol></div>
+<div>פערים</div><div>אין UNIQUE ב-editor_picks — ON CONFLICT DO NOTHING חסר משמעות, אפשר כפילויות. GET sa/editor-picks מחזיר ap.display_name (קיים רק אם רץ seed-author-sample).</div>
+</div></section>
+
+ <section class="proc" data-f="revoke author ban un-revoke badge"><h3>הרחקת כותב (Revoke)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>KH.revokeAuthor</code> (prompt ימים, ברירת מחדל 30) (kol-haam-app.js:1912-1919) → <code>POST /sa/authors/:id/revoke</code> (server.js:45703); ביטול <code>POST /sa/authors/:id/un-revoke</code> (server.js:45716).</div>
+<div>שלבי עיבוד</div><div><ol><li>is_revoked=TRUE, revoked_until=NOW()+days, local/global streak=0. reason מתקבל ולא נשמר.</li><li>un-revoke: is_revoked=FALSE, revoked_until=NULL. פקיעה אוטומטית ב-cron היומי.</li></ol></div>
+<div>תופעות לוואי</div><div>effective_badge_level='DEFAULT' בכל התצוגות; <b>אינו</b> חוסם פרסום, תגובות או עריכה.</div>
+<div>פערים</div><div>הפונקציה בלקוח מוגדרת אך לא נמצא כפתור שמפעיל אותה.</div>
+</div></section>
+
+ <section class="proc" data-f="author profile public my profile leaderboard metrics"><h3>פרופיל כותב ציבורי, הפרופיל שלי ולוח מובילים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>דף כותב בקול העם (<code>KH.loadAuthor</code>, kol-haam-app.js:1629-) ודף נפרד kol-haam-author.html (kol-haam-author-app.js:46-70) → <code>GET /authors/:id</code> ו-<code>/authors/:id/content</code>.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /authors/:id</code> (server.js:44924-44971): ap.*, family/community name, effective_badge_level, followers_count, published_count, total_views (SUM cem.views_count), total_comments, national_count (scope GLOBAL ומפורסם), isFollowing לפי groupId ב-query, כל סוגי ההישגים עם earned/earned_at.</li>
+<li><code>/authors/:id/content</code>: מפורסמים בלבד, published_at DESC, limit ברירת מחדל 10 (הלקוח מבקש 100).</li>
+<li><code>GET /my-profile?groupId</code> (server.js:45724) — ללא אימות; ראו פער getOrCreateAuthorProfile.</li>
+<li><code>GET /leaderboard</code> (server.js:45747): מיון total_earned_flow DESC, limit 10; scope לא בשימוש.</li>
+</ol></div>
+<div>ממשק</div><div>Hero, מטריקות, הישגים (נעולים עם רמזי התקדמות קבועים מקומית <code>LOCKED_PROGRESS</code> — kol-haam-author-app.js:29-34), רשימת כתבות עם צ'יפים לפי סוג, עימוד 8 (PAGE).</div>
+<div>פערים</div><div>leaderboard עם communityId משתמש ב-<code>ap.community_id</code> שאינה קיימת → 500. "התקדמות" ההישגים הנעולים היא טקסט קבוע.</div>
+</div></section>
+
+<h2 class="grp">סדרות ואוספים</h2>
+
+ <section class="proc" data-f="series chapters create assign"><h3>סדרות ופרקים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בעורך: '+ סדרה חדשה' (<code>KH.createSeriesFromEditor</code>) ובחירת סדרה+מספר פרק. שרת: <code>POST /series</code> + verifyFamily (server.js:46082), <code>GET /series/my</code>, <code>GET /series/:id</code>, <code>PUT /content/:id/series</code> + verifyFamily (server.js:46136).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST: title חובה ('שדות חובה חסרים').</li><li>PUT series: רק בעלים (403 'אין הרשאה'); אפשר לנקות (null).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT content_series (title.trim(), author_profile_id).</li><li>series/:id: פרטי הסדרה + פרקים (מכל סטטוס!) מסודרים לפי מספר פרק NULLS LAST.</li><li>ניווט פרקים בדף פריט לפי series_chapter_number ±1 (ללא סינון סטטוס).</li></ol></div>
+<div>פערים</div><div>יצירת סדרה ו"הסדרות שלי" שבורות (ap.id על מספר). מספרי פרק לא מאומתים לייחודיות. פרקים שאינם מפורסמים מופיעים בניווט ובספירה.</div>
+</div></section>
+
+ <section class="proc" data-f="collections user collections public slug share items"><h3>אוספים אישיים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>'📚 אוסף' בדף פריט ותצוגת collections (kol-haam-app.js:1993-2145). שרת: server.js:46176-46310. נתיב ציבורי <code>/kol-haam/collection/:slug</code> (server.js:39233).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה (verifyFamily): title חובה; is_public ברירת מחדל false.</li><li>עדכון/מחיקה/הוספה/הסרת פריט (verifyFamily): בעלים בלבד — 403 'אין הרשאה'.</li><li><code>GET /collections/:id?groupId</code>: פרטי מותר רק לבעלים לפי groupId ב-query (ניתן לזיוף).</li><li><code>GET /my-collections?groupId</code> ללא אימות.</li><li>ציבורי: share_slug + is_public=TRUE, אחרת 404 'אוסף לא נמצא'.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הפיכה לציבורי בפעם הראשונה: slug = 8 תווים base36 אקראיים + 4 אחרונים של Date.now base36 (server.js:46266-46268).</li><li>UPDATE title=COALESCE, description, is_public, share_slug.</li><li>הוספת פריט ON CONFLICT DO NOTHING; מחיקה קשה.</li></ol></div>
+<div>פערים</div><div>PUT שולף רק owner_group_id, לכן <code>share_slug</code> הקיים תמיד undefined: כל הפיכה לציבורי מייצרת slug חדש (שובר קישורים קודמים), שליחה בלי is_public מאפסת slug ומאפסת is_public ל-NULL, ו-description מתאפס אם לא נשלח (server.js:46261-46273).</div>
+</div></section>
+
+<h2 class="grp">AI Copilot</h2>
+
+ <section class="proc" data-f="ai copilot claude sonnet prompt quota usage log grammar title summary tags safety duplicate cover"><h3>עוזר כתיבה AI (Claude)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פאנל '🤖 עוזר הכתיבה AI' בעורך — רק לפריט שכבר נשמר (kol-haam-app.js:947, 2170-2186) → <code>KH.runAICopilot</code> → <code>POST /content/:id/ai-copilot</code> + verifyFamily (server.js:45836).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>מכסה יומית פר-משפחה: <code>checkAICopilotQuota</code> קורא <code>system_settings.kh_ai_copilot_daily_limit</code> (ברירת מחדל 20), UPSERT שורת היום ב-kh_ai_copilot_usage; allowed = used &lt; limit (server.js:43153-43171). חריגה → 429 'הגעת למכסת השימוש היומית בעוזר הכתיבה (N קריאות ביום)'.</li>
+<li>פריט חייב להתקיים (404). אין בדיקה שהמבקש הוא הכותב.</li>
+<li><code>ANTHROPIC_API_KEY</code> חובה — אחרת שגיאה 'ANTHROPIC_API_KEY חסר' (server.js:45821).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>plainText = HTML בלי תגיות, רווחים מכווצים.</li>
+<li>אם actions כולל grammar/title/subtitle/summary/tags — קריאה אחת: "אתה עורך תוכן ישראלי מנוסה..." עם כותרת, תת-כותרת ו-3,000 תווים ראשונים, דרישת JSON (grammar.corrections + corrected_full_text, 3 title_suggestions, 2 subtitle_suggestions, summary 3-5 שורות, 4 tag_suggestions), max_tokens 1500 (server.js:45863-45883). כשל JSON → ai_parse_error 'לא ניתן לעבד את תשובת ה-AI'.</li>
+<li>duplicate_check: pg_trgm <code>similarity(title)</code> &gt; 0.35 מול מפורסמים, 5 מובילים; fallback ILIKE על 3 מילים ראשונות עם sim 0.5 (server.js:45897-45919).</li>
+<li>safety_scan: prompt "בדוק את הטקסט הבא לאיתור בעיות" על 2,000 תווים, JSON של offensive_language/defamation_risk/personal_info_exposed/copied_content_suspected/flags, max_tokens 400. flagged אם אחד true → ניסיון INSERT content_reports עם reason 'SAFETY_AI_FLAG' (server.js:45923-45955).</li>
+<li>cover_suggestion: 3 ביטויי חיפוש, max_tokens 200 (server.js:45958-45965).</li>
+<li><code>incrementAICopilotUsage</code> (+1 לקריאה, לא לפעולה) ו-INSERT ai_copilot_usage_log (actions מופרדים בפסיק, 500 תווי תוצאה, flagged) (server.js:45968-45974).</li>
+<li>תגובה: result, flagged, quotaUsed, quotaLimit.</li>
+</ol></div>
+<div>חישובים</div><div>מודל <code>claude-sonnet-4-6</code>, anthropic-version 2023-06-01, endpoint ‏https://api.anthropic.com/v1/messages (server.js:45822-45829). עד 3 קריאות AI לבקשה אחת, נספרות כ-1 במכסה.</div>
+<div>תופעות לוואי</div><div>flagged → דיווח (נכשל, ראו פערים); לוג audit.</div>
+<div>ממשק</div><div>8 כפתורי פעולה, ברירת מחדל נבחרים grammar,title,summary,safety_scan; תווית 'עד 10 קריאות ביום'; תוצאות עם 'החל' לכל תיקון/כותרת/תקציר/תגית (kol-haam-app.js:2193-2305).</div>
+<div>פערים</div><div><ul>
+<li>השאילתה בוחרת <code>ap.community_id</code> שאינה קיימת ב-author_profiles (server.js:45851) → כל קריאה נכשלת ב-500 לפני ה-AI.</li>
+<li>הדיווח האוטומטי כותב לעמודה reporter_group_id שאינה קיימת וסיבה מחוץ ל-CHECK — נכשל בשקט.</li>
+<li>כפתורי 'החל' מחפשים ids ‏kh-title/kh-subtitle/kh-summary/kh-content-editor/kh-tags-display בעוד העורך משתמש ב-ed-title/ed-subtitle/ed-summary/rte-body/tags-chips — לא עושים כלום.</li>
+<li>הלקוח מציג 10 ביום, השרת 20.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">זריעות נתוני דוגמה</h2>
+
+ <section class="proc" data-f="seed demo sample secret seed_demo_2026 full demo author list editor draft approval queue version history fix covers"><h3>Endpoints של זריעה ותיקון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתורי הבאנר בטאב קול העם ב-SA (sa-app.js:14353-14388, 14537-14687). כולם שולחים <code>{secret:'SEED_DEMO_2026'}</code> בגלוי מהלקוח.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>POST /seed-demo</code> ו-<code>/seed-version-history</code>: secret = <code>process.env.SEED_SECRET || 'SEED_DEMO_2026'</code> (server.js:39530, 41577). שאר ה-seeds: קבוע 'SEED_DEMO_2026'. שגיאה 403 'אסור'. ללא verifySA.</li>
+<li><code>POST /api/sa/kol-haam/seed-sample</code>: verifySA, טרנזקציה, נכשל אם קיים '[דוגמה]%' עם is_sample_data (server.js:41202-41341).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>seed-demo (server.js:39529-39800): משפחה group_code NWP701, משתמשיה, קהילה מאושרת; author_profile; סדרה 'לוח הקיץ המשותף' עם 3 פרקים, 2 כתבות, שאלה, סיפור הצלחה — כולם PUBLISHED_LOCAL, תגיות, תגובות, metrics עם לייקים אקראיים 20–219.</li>
+<li>seed-sample: כתבה '[דוגמה]...' PUBLISHED_LOCAL, is_sample_data, published_at 2026-08-15, 4 תגובות ראשיות + 7 תשובות.</li>
+<li>seed-author-sample (server.js:45123-45280): מוסיף עמודות display_name, bio, cover_image_url, avatar_url, reputation_score, sections, badge_label, front_page_count ל-author_profiles; פרופיל 'מיכל אשד', 8 כתבות והישגים.</li>
+<li>seed-list-sample (server.js:45283-45411): 10 כתבות PUBLISHED_LOCAL עם תגית 'חינוך-ומשפחה'.</li>
+<li>seed-full-demo (server.js:45415-45595): טרנזקציה — שמירות, עוקבים, אוספים, טיוטות, פריט PENDING_ZM, פריט PENDING_SA, דיווח OFFENSIVE.</li>
+<li>seed-approval-queue (server.js:41623-41738): 3 PENDING_ZM + 2 PENDING_SA, הדגל נשמר ב-quick_summary_20s.</li>
+<li>seed-version-history (server.js:41576-41620): 3 גרסאות לפריט דוגמה הראשון.</li>
+<li>seed-editor-draft (server.js:45017-45075): טיוטת ARTICLE ו-editorUrl ‏<code>/kol-haam.html?editDraft=ID</code>.</li>
+<li>fix-covers (server.js:45078-45120): כל פריט בלי URL של images.unsplash.com מקבל אחת מ-20 תמונות בסבב — <b>כולל תוכן אמיתי של משתמשים</b>.</li>
+</ol></div>
+<div>פערים</div><div><ul><li>ה-secret חשוף בקוד הלקוח — כל אחד יכול להריץ fix-covers ולדרוס תמונות שער.</li><li>seed-editor-draft כותב ל-<code>content_item_tags</code> ול-<code>content_tags.slug</code> שאינם קיימים.</li><li>seed-list-sample/seed-full-demo כותבים ל-<code>author_profiles.status</code> שאינה קיימת (כשנוצר פרופיל).</li><li>seed-demo יוצר items עם JSON summary — מתאים לתצוגת TL;DR.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ממשקי ניהול</h2>
+
+ <section class="proc" data-f="sa kh tabs kh_sa_tabs interface super admin panel"><h3>פאנל קול העם ב-Super Admin (KH_SA_TABS)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב 'kol-haam' ב-SA (בקבוצת contentmkt — sa-app.js:539) → <code>loadSAKolHaamQueue</code> (sa-app.js:14322-14402).</div>
+<div>שלבי עיבוד</div><div><ol><li>טעינה מקבילה: <code>/sa/queue</code>, <code>/sa/categories</code>, <code>/sa/delete-requests</code>; שמירה ב-<code>_khData</code> וניקוי cache.</li><li>טאב פעיל מ-<code>?kh_tab=</code> (ברירת מחדל approvals); <code>switchKHTab</code> מעדכן URL ו-cache HTML לכל טאב (sa-app.js:14282-14320).</li></ol></div>
+<div>ממשק</div><div>KH_SA_TABS (sa-app.js:13726-13736): approvals 'אישורים' (תור גלובלי + בקשות מחיקה), content 'תוכן' (טבלה מלאה), reports 'דיווחים', comments 'תגובות', authors 'כותבים', categories 'קטגוריות ותגיות', economy 'כלכלת FLOW', settings 'הגדרות', analytics 'אנליטיקס'. רק approvals/content/categories ממומשים; השאר placeholder '🚧 בפיתוח' (sa-app.js:14274-14280). באנר: 9 כפתורי seed/תיקון/סריקה.</div>
+<div>פערים</div><div>אין UI לשינוי kh_ai_copilot_daily_limit, לבחירות עורך, לדיווחים או להרחקת כותבים בפאנל SA (קיימים רק באפליקציית קול העם עם role=sa שלא נפתחת מה-UI).</div>
+</div></section>
+
+ <section class="proc" data-f="kol haam app entry iframe overlay context roles family"><h3>כניסה לאפליקציית קול העם (FAMILY) והקשר משתמש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב 'kol-haam' באפליקציית המשפחה → <code>openKolHaamOverlay</code> פותח iframe מסך מלא ‏<code>/kol-haam?userId&amp;groupId&amp;communityId&amp;role&amp;communityName</code> (app.js:906-925).</div>
+<div>תנאים ואימותים</div><div><ul><li>role = 'admin' אם ADMIN אחרת 'member' (app.js:915); CTX.isZM/isSA רק עבור 'zm'/'sa' (kol-haam-app.js:5-14).</li><li><code>khFetch</code>: ZM → 'Bearer zmToken'; SA → ofl_sa_token גולמי; אחרת 'Bearer ' + localStorage.ofl_family_token (kol-haam-app.js:77-86).</li></ul></div>
+<div>ממשק</div><div>Views: feed, content, editor, my-drafts, my-content, zm-queue, sa-queue, saved, zm-reports, following, author, search, tag, list, collections, collection (kol-haam-app.js:153-169). deep-link: editDraft, view=tag&amp;tag, view=search&amp;q, נתיב collection/:slug; postMessage KH_NAV מההורה (kol-haam-app.js:2615-2653).</div>
+<div>פערים</div><div>userId/groupId ב-URL משמשים ל-endpoints ללא אימות (follow, my-following-feed, my-collections, user-state, view) — ניתנים לזיוף.</div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

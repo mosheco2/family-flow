@@ -1,0 +1,984 @@
+[
+{
+"id": "BIZ-01",
+"domain": "ליבה עסקית (BIZ)",
+"area": "אימות",
+"category": "security",
+"severity": "critical",
+"title": "ביטול מסלול legacy ב-verifyBizOrLegacy (groupId מה-body ועקיפת requireModule)",
+"as_is": "כשאין header Authorization, verifyBizOrLegacy לוקח groupId מ-req.body/req.query, מציב fromToken:false וממשיך (server.js:43082-43085); requireModule מדלג כש-fromToken אינו true (43128), כך שכל ~100 נתיבי sales/logistics/menu_templates נגישים לכל groupId ללא טוקן וללא שער מודול.",
+"proposal": "כל נתיב BIZ דורש טוקן biz תקף; ללא טוקן → 401. groupId נגזר תמיד מ-req.bizAuth.groupId ולעולם לא מה-body/query/params; ערך groupId בבקשה שאינו תואם לסשן → 403. requireModule נאכף לכל טוקן biz (גם דרך verifyBiz), ו-fail-closed בשגיאת DB.",
+"alternatives": [
+"תקופת מעבר: להשאיר fallback רק לנתיבי קריאה ציבוריים מוגדרים במפורש (whitelist) ולתעד כל שימוש ב-console.warn עם תאריך הסרה."
+],
+"refs": [
+"server.js:43056-43086",
+"server.js:43126-43150",
+"rules-biz.html#שכבת אימות עסקית",
+"rules-biz.html#שערי מודולים",
+"s1-rbac.html#BIZ — חנות/לוגיסטיקה"
+],
+"dup_of": "ARC-03"
+},
+{
+"id": "BIZ-02",
+"domain": "ליבה עסקית (BIZ)",
+"area": "אימות",
+"category": "security",
+"severity": "critical",
+"title": "אימות ובעלות לכל נתיבי BIZ שאין להם middleware כלל",
+"as_is": "עשרות נתיבי BIZ פועלים ללא אימות ומקבלים groupId/userId/id מהבקשה: timeclock status/report, biz/staff-status, biz/employee-stats, shift-templates, alerts/*, sla, team-posts, chat, inbox, surveys, timelog, reports, biz/audit-log, members/:groupId, activity (server.js:10935-11045, 12860-12903, 13005-13086, 23185-23343, 24532, 24758-24898, 25443, 28619-28654, 33754). PUT/DELETE לפי id בלבד ללא בדיקת group (shift-templates 13030, alerts/rules 10953-10964, team-posts 13081, inbox 23193-23202, timelog 28642-28649, surveys activate 24821).",
+"proposal": "כל הנתיבים האלה עוברים verifyBiz (או verifyFamilyOrBiz כשמשותפים למשפחה); groupId מהסשן; כל פעולה לפי :id מאמתת WHERE id=$1 AND group_id=<session> ומחזירה 404 אם לא נמצא. GET /api/activity גוזר את המשתמש מהסשן ולא מ-userId ב-query. נתיבים ציבוריים במכוון (מילוי סקר לפי קוד, פנייה ללקוח מחנות) מוגדרים ברשימה סגורה ומאומתים בטוקן הייעודי שלהם.",
+"alternatives": [],
+"refs": [
+"server.js:10935-11045",
+"server.js:12860-12903",
+"server.js:13005-13086",
+"server.js:23185-23343",
+"server.js:24532",
+"server.js:24758-24898",
+"server.js:28619-28654",
+"server.js:33754",
+"s1-rbac.html#BIZ — תפעול (81 נתיבים ללא אימות)",
+"rules-biz.html#שכבת אימות עסקית"
+]
+},
+{
+"id": "BIZ-03",
+"domain": "ליבה עסקית (BIZ)",
+"area": "נוכחות ושכר",
+"category": "money",
+"severity": "critical",
+"title": "הרצת שכר ותשלום חד-פעמי ללא אימות וללא בדיקת ADMIN",
+"as_is": "GET /api/timeclock/payroll-preview/:groupId, POST /api/timeclock/payroll-run ו-POST /api/timeclock/adhoc-payment פועלים ללא middleware וללא בדיקת תפקיד (server.js:11829, 11853, 11874). כל אחד יכול לזכות יתרה לכל משתמש ולסמן שעות כמשולמות.",
+"proposal": "שלושת הנתיבים דורשים verifyBiz + verifyBizAdminOnly; groupId מהסשן; כל userId ב-items חייב להיות משתמש פעיל באותה קבוצה (אחרת 400 והרצה כולה נדחית); amount>0 ו-≤ 1,000,000 לפריט. כל הרצה נרשמת ב-biz_audit_log עם המבצע.",
+"alternatives": [],
+"refs": [
+"server.js:11829",
+"server.js:11853",
+"server.js:11874",
+"rules-biz.html#תשלום שכר לפי נוכחות",
+"s1-rbac.html#BIZ — נוכחות ושכר"
+]
+},
+{
+"id": "BIZ-04",
+"domain": "ליבה עסקית (BIZ)",
+"area": "נוכחות ושכר",
+"category": "security",
+"severity": "high",
+"title": "החתמת נוכחות בשם כל משתמש (userId מה-body)",
+"as_is": "POST /api/timeclock/punch ללא אימות; userId ו-groupId מה-body ואין בדיקה שהמשתמש שייך לקבוצה (server.js:12919-12968). אפשר להחתים כניסה/יציאה בשם כל עובד כל עוד שולחים קואורדינטות בתוך הרדיוס. גם set-location מסתמך על adminId מה-body (12848).",
+"proposal": "punch דורש verifyBiz; userId ו-groupId נגזרים מהסשן בלבד. set-location דורש verifyBiz + verifyBizAdminOnly. רדיוס ובדיקת GPS נשארים כפי שהם (ברירת מחדל 150 מ', טווח 20–2000).",
+"alternatives": [],
+"refs": [
+"server.js:12919-12968",
+"server.js:12848",
+"rules-biz.html#החתמת כניסה/יציאה (Punch)",
+"s1-docsvscode.html#22 שעון נוכחות ללא אימות"
+]
+},
+{
+"id": "BIZ-05",
+"domain": "ליבה עסקית (BIZ)",
+"area": "רישוי וסוג עסק",
+"category": "security",
+"severity": "critical",
+"title": "שינוי business_type ורישיונות ללא אימות (סותר כלל 5 ב-CLAUDE.md)",
+"as_is": "PATCH /api/groups/:id/business-settings מעדכן business_type, licensed_features, table_count ו-send_order_email ללא אימות (server.js:26373-26382); GET/POST /api/groups/:id/licenses ללא אימות (26465-26488). כל אחד יכול לשנות סוג עסק ולהעניק לעצמו רישיונות בתשלום.",
+"proposal": "business_type ו-licensed_features ניתנים לשינוי רק ע\"י SA (verifySA) או פעם אחת דרך PATCH /api/biz/wizard/complete כש-is_onboarded=false. ADMIN של העסק (verifyBiz+verifyBizAdminOnly) רשאי לעדכן רק table_count ו-send_order_email בנתיב נפרד. licenses POST — verifySA בלבד; GET — verifyBiz של אותה קבוצה או SA.",
+"alternatives": [],
+"refs": [
+"server.js:26373-26382",
+"server.js:26465-26488",
+"CLAUDE.md כלל 5",
+"rules-biz.html#רישוי פיצ'רים",
+"s1-docsvscode.html#8 שינוי סוג עסק"
+],
+"dup_of": "SA-10"
+},
+{
+"id": "BIZ-06",
+"domain": "ליבה עסקית (BIZ)",
+"area": "AI",
+"category": "security",
+"severity": "critical",
+"title": "FamliAI: שליפת נתונים לפי groupId מה-body — דליפה בין עסקים",
+"as_is": "ב-POST /api/biz/chat-assistant, fetchBizAdditionalData וגם handleAITokens משתמשים ב-groupId מה-body ולא ב-req.bizAuth.groupId (server.js:15941, 16038). משתמש עסקי יכול לשלוף הזמנות, תנועות, היסטוריית עובדים ויומן ביקורת של כל עסק אחר ולנכות סוללה מעסק אחר.",
+"proposal": "כל שליפה וניכוי סוללה בנתיבי AI עסקיים משתמשים אך ורק ב-req.bizAuth.groupId; groupId בגוף מתעלמים ממנו (או 403 אם שונה). בדיקת רגרסיה: בקשה עם groupId של עסק אחר מחזירה רק נתוני עסק הסשן.",
+"alternatives": [],
+"refs": [
+"server.js:15941-16029",
+"server.js:16038",
+"rules-biz.html#FamliAI — עוזרת עסקית"
+]
+},
+{
+"id": "BIZ-07",
+"domain": "ליבה עסקית (BIZ)",
+"area": "AI",
+"category": "security",
+"severity": "high",
+"title": "נתיבי AI פתוחים: /api/ai/actions, /api/ai/generate, /api/ai/generate-image",
+"as_is": "POST /api/ai/actions משנה מחיר/זמינות פריטי קטלוג לכל groupId שנשלח ללא אימות (server.js:15920); POST /api/ai/generate ללא אימות וללא ניכוי סוללה — proxy פתוח ל-Gemini (13907); POST /api/ai/generate-image ללא אימות (12346).",
+"proposal": "שלושתם דורשים verifyBiz (ai/generate גם verifyFamily למשפחה דרך verifyFamilyOrBiz); groupId מהסשן; כל קריאה מנכה טוקן סוללה אחד דרך handleAITokens לפני הקריאה לספק. ai/actions מוגבל ל-ADMIN או לתפקיד עם הרשאת טאב sales.",
+"alternatives": [],
+"refs": [
+"server.js:15920",
+"server.js:13907",
+"server.js:12346",
+"rules-biz.html#ביצוע פעולות AI על קטלוג",
+"s1-rbac.html#AI"
+],
+"dup_of": "SA-13"
+},
+{
+"id": "BIZ-08",
+"domain": "ליבה עסקית (BIZ)",
+"area": "AI",
+"category": "security",
+"severity": "high",
+"title": "XSS בתשובת FamliAI המוזרקת כ-HTML",
+"as_is": "תשובת המודל (שעשויה לשקף תוכן מקונטקסט — שמות לקוחות, הודעות צ'אט, ביקורות) מוזרקת ל-DOM כ-HTML ללא escaping (business-app.js:16453-16454).",
+"proposal": "התשובה עוברת escape מלא ל-HTML; עיצוב מותר רק דרך המרת markdown מוגבלת (bold, רשימות, שורות חדשות) על הטקסט המנוקה; תגיות [ACTION:…] מפוענחות לכפתורים שנבנים ב-DOM API ולא ב-innerHTML.",
+"alternatives": [],
+"refs": [
+"business-app.js:16453-16454",
+"rules-biz.html#FamliAI — עוזרת עסקית"
+]
+},
+{
+"id": "BIZ-09",
+"domain": "ליבה עסקית (BIZ)",
+"area": "AI",
+"category": "money",
+"severity": "medium",
+"title": "סוללת AI: איפוס ל-10 ב-/api/data, תצוגה קבועה '/10' ו-race בהפחתה",
+"as_is": "GET /api/data מאפס ai_tokens=10 בכל יום חדש ללא תלות בתוכנית (server.js:10766), כך שעסק premium (מכסה 50, 4182) מקבל 10 אם נכנס לפני קריאת AI. updateBatteryUI מציג תמיד '/10' (business-app.js:3033). בדיקה-ואז-הפחתה אינה אטומית (4170-4199).",
+"proposal": "האיפוס היומי מתבצע רק ב-handleAITokens לפי dailyLimit של התוכנית (standard 10, premium 50, enterprise ללא הגבלה); /api/data לא נוגע ב-ai_tokens. ההפחתה היא UPDATE … SET ai_tokens=ai_tokens-1 WHERE id=$1 AND ai_tokens>0 RETURNING (אטומי). /api/biz/me מחזיר daily_limit והממשק מציג N/daily_limit.",
+"alternatives": [],
+"refs": [
+"server.js:10766",
+"server.js:4170-4199",
+"business-app.js:3033",
+"rules-biz.html#סוללת AI"
+]
+},
+{
+"id": "BIZ-10",
+"domain": "ליבה עסקית (BIZ)",
+"area": "AI",
+"category": "security",
+"severity": "medium",
+"title": "פעולת CREATE_COUPON נשלחת בלי Authorization",
+"as_is": "פעולת FamliAI CREATE_COUPON שולחת POST /api/store/coupons בלי header Authorization ונשענת על fallback legacy (business-app.js:57339-57680; server.js:43082). CREATE_TASK נשלח בלי status (57571).",
+"proposal": "כל קריאות פעולות ה-AI בלקוח עוברות דרך עטיפת fetch אחת שמוסיפה Authorization; CREATE_TASK שולח status='pending' במפורש. לאחר הסרת ה-legacy (BIZ-01) קריאה בלי טוקן נכשלת ב-401 ומוצגת כשגיאה.",
+"alternatives": [],
+"refs": [
+"business-app.js:57571",
+"business-app.js:57339-57680",
+"rules-biz.html#FamliAI — עוזרת עסקית"
+]
+},
+{
+"id": "BIZ-11",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תפקידים והרשאות",
+"category": "security",
+"severity": "high",
+"title": "מודל תפקידים BIZ אחיד בשרת (ADMIN/MANAGER/SENIOR/MEMBER)",
+"as_is": "הלקוח משתמש ב-ADMIN/MANAGER/SENIOR/MEMBER (business-app.js:3893-3898, 4283-4286), אך /api/admin/change-role מכיר רק ADMIN|CHILD|MEMBER ודורס permissions במערכי טאבים משפחתיים (goals, loans שאינם ב-ALL_TABS) (server.js:11609-11625); PUT /api/users/:id/permissions שומר role ללא whitelist (11555-11582); /api/admin/user-details מתיר רק ADMIN/CHILD/MEMBER (11668).",
+"proposal": "בקבוצה type='BUSINESS' הערכים המותרים ל-users.role הם ADMIN, MANAGER, SENIOR, MEMBER (CHILD אסור); כל נתיבי שינוי תפקיד מאמתים מול הרשימה (400 אחרת). change-role בעסק אינו דורס permissions.tabs, או דורס לפי ROLE_DEFAULTS של BIZ בלבד. ADMIN אחרון בקבוצה אינו יכול להוריד את עצמו.",
+"alternatives": [],
+"refs": [
+"server.js:11555-11582",
+"server.js:11609-11625",
+"server.js:11668",
+"business-app.js:3893-3898",
+"rules-biz.html#תפקידים והרשאות טאבים",
+"rules-biz.html#עדכון הרשאות ותפקיד מקצועי לעובד"
+]
+},
+{
+"id": "BIZ-12",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תפקידים והרשאות",
+"category": "security",
+"severity": "high",
+"title": "אכיפת הרשאות טאבים בשרת (כיום לקוח בלבד)",
+"as_is": "enforcePermissions נועל טאבים רק בדפדפן (business-app.js:3903-4030); בשרת רק 3 נתיבים עם verifyBizAdminOnly (server.js:41959-41963) וכל השאר בודקים ADMIN או כלום. הרשאות פרסום בפיד צוות (ADMIN או branch_manager) גם הן בלקוח בלבד (7529).",
+"proposal": "השרת מחשב effectiveTabs = permissions.tabs ?? ROLE_DEFAULTS[role] ∪ ROLE_TYPE_TABS[employee_role_type] ∪ ALWAYS_OPEN, ומיפוי route-prefix→tab (למשל /api/transactions→cashflow, /api/budget→budget, /api/reports→reports, /api/team-posts POST→ADMIN|branch_manager). בקשה לנתיב שהטאב שלו אינו ב-effectiveTabs → 403. ROLE_DEFAULTS ו-ROLE_TYPE_TABS מוגדרים פעם אחת בשרת ונשלחים ללקוח.",
+"alternatives": [
+"אכיפה מינימלית: רק נתיבי כספים (cashflow/budget/bank/reports/payroll) ו-members מוגבלים לפי טאב; שאר הנתיבים פתוחים לכל עובד בקבוצה."
+],
+"refs": [
+"business-app.js:3903-4030",
+"business-app.js:37506-37524",
+"server.js:41959-41963",
+"rules-biz.html#תפקידים והרשאות טאבים",
+"s1-rbac.html#מטריצה B"
+]
+},
+{
+"id": "BIZ-13",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תפקידים והרשאות",
+"category": "security",
+"severity": "medium",
+"title": "verifyFamily מקבל טוקן עסקי — להפריד במפורש",
+"as_is": "verifyFamily אינו בודק session_type (server.js:41876-41910) ולכן טוקן biz עובר בו; BIZ נשען על זה ב-PUT/DELETE משתמשים ותנועות (11409, 11432, 11555, 11627) — התנהגות לא מתועדת.",
+"proposal": "verifyFamily מקבל רק session_type='family'; נתיבים המשותפים לשתי הסביבות עוברים ל-verifyFamilyOrBiz במפורש. רשימת הנתיבים המשותפים מתועדת במפרט.",
+"alternatives": [],
+"refs": [
+"server.js:41876-41910",
+"server.js:11409",
+"server.js:11432",
+"server.js:11555",
+"server.js:11627",
+"rules-biz.html#שכבת אימות עסקית"
+]
+},
+{
+"id": "BIZ-14",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תפקידים והרשאות",
+"category": "functional",
+"severity": "medium",
+"title": "שיוך ממשק תפקיד (role-type): כשל שקט, קריסה ורישוי בצד לקוח",
+"as_is": "assignRoleType שולח PATCH /api/users/:id/role-type ללא Authorization, השרת מחזיר 401 והלקוח מציג 'ממשק שובץ בהצלחה' ומעדכן cache (business-app.js:42295-42306). PUT permissions קורס ב-500 כש-tabs חסר (server.js:11569). employee_role_type נשמר ללא רשימה מותרת וללא בדיקת רישוי (26446-26463); isFeatureLicensed נבדק רק בלקוח (37592).",
+"proposal": "כל הקריאות שולחות Authorization ומציגות הצלחה רק כש-res.ok. השרת מאמת: tabs מערך מחרוזות מתוך ALL_TABS (חסר → [] + feed), employee_role_type ∈ מפתחות EMPLOYEE_ROLE_TYPES או NULL, ושהרישיון role_<type> פעיל ב-group_licenses (אחרת 403 'ממשק לא מורשה לעסק זה').",
+"alternatives": [],
+"refs": [
+"business-app.js:42295-42306",
+"business-app.js:37592",
+"server.js:11555-11582",
+"server.js:26446-26463",
+"rules-biz.html#עדכון הרשאות ותפקיד מקצועי לעובד"
+]
+},
+{
+"id": "BIZ-15",
+"domain": "ליבה עסקית (BIZ)",
+"area": "הגדרות עסק",
+"category": "security",
+"severity": "medium",
+"title": "פעולות הגדרה עסקיות פתוחות לכל עובד (שם עסק, בקשת מודול)",
+"as_is": "PATCH /api/biz/settings/name ו-POST /api/biz/module-request מוגנים ב-verifyBiz בלבד — כל עובד יכול לשנות את שם העסק או לשלוח בקשת פתיחה/ביטול מודול בתשלום (server.js:5918-5938).",
+"proposal": "שני הנתיבים דורשים verifyBizAdminOnly; groupId מהסשן (לא מה-body). עובד שאינו ADMIN שלוחץ על מודול נעול שולח 'בקשה למנהל' (התראה פנימית לאדמין) ולא בקשה ל-SA.",
+"alternatives": [],
+"refs": [
+"server.js:5918-5935",
+"server.js:5938",
+"rules-biz.html#פרטי עסק נוכחי ושינוי שם עסק",
+"rules-biz.html#בקשת פתיחת/ביטול מודול"
+]
+},
+{
+"id": "BIZ-16",
+"domain": "ליבה עסקית (BIZ)",
+"area": "שערי מודולים",
+"category": "architecture",
+"severity": "high",
+"title": "מקור אמת אחד להרשאות מודולים במקום 3–7 שדות לא מסונכרנים",
+"as_is": "המודולים נקבעים במקביל ב-features (לקוח), billing_config (שער ניווט בלקוח), managed_modules (requireModule בשרת), licensed_features/group_licenses ו-module_requests (s1-erd: 7 מקורות). switchTab מחשיב מודול פתוח אם open!==false (business-app.js:2879) ו-applyBusinessTypeFilter דורש open===true (37936). BUSINESS_TYPES[].modules לא משמש (getEnabledModules לא נקרא, 37599) ומכיל 'kds' שאינו ב-ALL_TABS.",
+"proposal": "מודל אחד: טבלת group_modules(group_id, module_id, status ∈ {active, trial, cancelled}, price_override, source ∈ {bundle, addon, sa_grant}). השרת מחשב entitlements ומחזיר אותם ב-/api/biz/me; הלקוח (ניווט) והשרת (requireModule לכל נתיבי המודול) משתמשים באותה רשימה ובאותו כלל: מודול פתוח ⇔ status ∈ {active, trial}. features/managed_modules/billing_config.modules נגזרים או מוסרים. BUSINESS_TYPES[].modules משמש רק כברירת מחדל להצעת חבילה ב-SA.",
+"alternatives": [
+"מינימלי: להשאיר managed_modules כמקור אמת בשרת, לגזור ממנו את billing_config בכל שמירה, ולאחד את כלל ה-open ל-open===true בשני המקומות בלקוח."
+],
+"refs": [
+"business-app.js:2867-2886",
+"business-app.js:37909-37976",
+"business-app.js:37526-37542",
+"business-app.js:37599",
+"server.js:5732-5746",
+"server.js:8770-8790",
+"rules-biz.html#שערי מודולים",
+"s1-erd.html#מושגים מפוצלים — הרשאות מודולים",
+"s1-bizmatrix.html"
+],
+"dup_of": "ARC-17"
+},
+{
+"id": "BIZ-17",
+"domain": "ליבה עסקית (BIZ)",
+"area": "שערי מודולים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "רשימת מודולי חבילה מפוענחת מטקסט חופשי ב-desc",
+"as_is": "המודולים הכלולים ב-bundle נגזרים מ-desc של המודול הראשון בקטלוג (עד '(' ומפוצל בפסיקים) (business-app.js:2875, 37924-37926); patchPricingCatalogForRoutines אף משנה את ה-desc ב-regex (server.js:3816).",
+"proposal": "לכל bundle בקטלוג שדה מובנה included_modules: string[]; desc הוא טקסט תצוגה בלבד. גזירת מודולי חבילה בלקוח ובשרת קוראת רק את included_modules; מיגרציה חד-פעמית ממירה את ה-desc הקיים.",
+"alternatives": [],
+"refs": [
+"business-app.js:2875",
+"business-app.js:37924-37926",
+"server.js:3816",
+"rules-biz.html#קטלוג מחירים ו\"החבילה שלי\""
+]
+},
+{
+"id": "BIZ-18",
+"domain": "ליבה עסקית (BIZ)",
+"area": "בקשות מודול",
+"category": "money",
+"severity": "high",
+"title": "בקשת ביטול מודול (CANCEL_x) שמאושרת פותחת מודול במקום לבטל",
+"as_is": "ביטול נשלח כ-moduleId='CANCEL_'+id (business-app.js:37889); ב-approve השרת מוסיף את 'CANCEL_x' ל-billing_config.modules ול-managed_modules ומדליק feature לפי המפתח (server.js:5971-6012) — המודול אינו מבוטל והחיוב ממשיך.",
+"proposal": "לבקשה שדה type ∈ {unlock, cancel}. approve של cancel: מסמן את המודול status='cancelled' (או open:false) עם תאריך סיום בסוף מחזור החיוב, מסיר מ-managed_modules ומנקה cache; approve של unlock פותח. אסור שמזהה מודול יכיל קידומת CANCEL_.",
+"alternatives": [],
+"refs": [
+"business-app.js:37884-37889",
+"server.js:5971-6012",
+"rules-biz.html#בקשת פתיחת/ביטול מודול ואישורה ע\"י SA"
+]
+},
+{
+"id": "BIZ-19",
+"domain": "ליבה עסקית (BIZ)",
+"area": "בקשות מודול",
+"category": "data-integrity",
+"severity": "medium",
+"title": "זרימת בקשת מודול: cache, כפילויות, מבנים שונים וחיווי שגוי",
+"as_is": "approve לא מנקה _modCache ולכן requireModule חוסם עד 60 שניות (server.js:43124, 5992-5999); includes(moduleId) לא מזהה אובייקט קיים ב-billing_config.modules → כפילות; /api/member/request-module כותב {key,name} ללא auth לאותו שדה module_requests (31042-31060) בעוד biz כותב {moduleId,...}; הלקוח מציג 'נשלח' גם בשגיאה (business-app.js:37708-37714).",
+"proposal": "מבנה בקשה אחיד {id, type, moduleId, moduleName, note, requestedBy, requestedAt, status} בטבלה module_requests נפרדת (לא jsonb); approve מעדכן את מקור האמת ומבצע _modCache.delete(groupId); הוספת מודול היא idempotent לפי id; /api/member/request-module דורש verifyFamily; הלקוח מציג הצלחה רק אם res.ok.",
+"alternatives": [],
+"refs": [
+"server.js:5918-6012",
+"server.js:31042-31060",
+"server.js:43124",
+"business-app.js:37701-37714",
+"rules-biz.html#בקשת פתיחת/ביטול מודול ואישורה ע\"י SA"
+]
+},
+{
+"id": "BIZ-20",
+"domain": "ליבה עסקית (BIZ)",
+"area": "צוות",
+"category": "ux",
+"severity": "medium",
+"title": "הזמנת עובד מבטיחה תפקיד (מנהל/בכיר) שהשרת מתעלם ממנו",
+"as_is": "קישור ההזמנה והודעת הווצאפ כוללים role (ADMIN/MANAGER/SENIOR) ומציינים 'הוגדרת תחת תפקיד: מנהל' (business-app.js:4266-4332), אך /api/join קובע תמיד MEMBER (או CHILD) (server.js:10368-10370).",
+"proposal": "השרת לעולם לא מקבל role מ-join. מסך אישור הממתינים (approve-user) מציג את התפקיד וה-role_type שהוזמנו (נשמרים כ-requested_role ב-pending) והמנהל מאשר או משנה לפני הפעלה; approve-user מקבל role ∈ {ADMIN,MANAGER,SENIOR,MEMBER} ו-employee_role_type. טקסט ההזמנה: 'התפקיד ייקבע סופית באישור המנהל'.",
+"alternatives": [
+"להסיר את בחירת התפקיד מההזמנה כליל ולקבוע תפקיד רק אחרי האישור."
+],
+"refs": [
+"business-app.js:4257-4332",
+"server.js:10359-10427",
+"server.js:11597",
+"rules-biz.html#הזמנת עובד, הצטרפות בקוד ואישור"
+]
+},
+{
+"id": "BIZ-21",
+"domain": "ליבה עסקית (BIZ)",
+"area": "צוות",
+"category": "ux",
+"severity": "low",
+"title": "אזהרת 'ללא התחברות' מוצגת לכל העובדים במודל משימה",
+"as_is": "מודל המשימה מציג '⚠️ ללא התחברות' כשאין m.phone (business-app.js:4685), אך /api/group/members לא מחזיר phone (server.js:11541-11549) — האזהרה מופיעה לכולם.",
+"proposal": "/api/group/members מחזיר has_login (boolean: קיים password_hash או סשן פעיל) והאזהרה מבוססת עליו; phone לא נחשף לעובדים שאינם ADMIN.",
+"alternatives": [],
+"refs": [
+"business-app.js:4685",
+"server.js:11541-11549",
+"rules-biz.html#רשימת צוות, עריכת פרטים ומחיקת עובד"
+]
+},
+{
+"id": "BIZ-22",
+"domain": "ליבה עסקית (BIZ)",
+"area": "צוות",
+"category": "ux",
+"severity": "low",
+"title": "טקסטים משפחתיים ('דמי כיס', 'ילד') בפעולות כספיות בעסק",
+"as_is": "adjust-balance מחזיר 'ילד לא נמצא בקבוצה' ורושם activity 'הפרשת דמי כיס' גם בעסק (server.js:11729-11769); payday רושם 'דמי כיס ל…' (11801-11810).",
+"proposal": "כל טקסט שמוצג למשתמש או נרשם ביומן נבחר לפי family_groups.type: BUSINESS → 'עובד/ת לא נמצא/ה בעסק', 'תיקון יתרה/בונוס לעובד: ₪X — סיבה'. מילון טקסטים לפי סביבה במקום מחרוזות קשיחות.",
+"alternatives": [],
+"refs": [
+"server.js:11729-11769",
+"server.js:11801-11810",
+"rules-biz.html#הגדרות שכר לעובד ותיקון יתרה"
+]
+},
+{
+"id": "BIZ-23",
+"domain": "ליבה עסקית (BIZ)",
+"area": "נוכחות ושכר",
+"category": "functional",
+"severity": "medium",
+"title": "החתמה כשאין מיקום עסק: הממשק מתיר, השרת חוסם",
+"as_is": "כשאין מיקום מוצג 'לא הוגדר — עובדים יוכלו להחתים מכל מקום' (business-app.js:3315), אך השרת מחזיר 400 'המנהל טרם הגדיר את מיקום העסק' (server.js:12933-12935).",
+"proposal": "כשאין location_lat/lng לעסק — ההחתמה מותרת ללא בדיקת מרחק, והקואורדינטות נשמרות אם נשלחו (תואם לטקסט הממשק). הגדרת מיקום מפעילה גידור.",
+"alternatives": [
+"להשאיר חסימה בשרת ולשנות את טקסט הממשק ל'יש להגדיר מיקום כדי לאפשר החתמה'."
+],
+"refs": [
+"business-app.js:3315",
+"server.js:12933-12935",
+"rules-biz.html#הגדרת מיקום העסק לשעון נוכחות"
+]
+},
+{
+"id": "BIZ-24",
+"domain": "ליבה עסקית (BIZ)",
+"area": "נוכחות ושכר",
+"category": "money",
+"severity": "medium",
+"title": "חישוב עלות נוכחות משייך תעריף לפי nickname",
+"as_is": "בדוח הנוכחות העלות מחושבת לפי allowance_amount של העובד שה-nickname שלו תואם (business-app.js:3623-3644) — שני עובדים באותו כינוי יקבלו תעריף שגוי; סינון חודש בלקוח בלבד.",
+"proposal": "/api/timeclock/report מחזיר user_id לכל רשומה, והשרת מחשב actual_minutes ו-cost = minutes/60 × allowance_amount לפי user_id; סינון from/to בשרת.",
+"alternatives": [],
+"refs": [
+"business-app.js:3623-3644",
+"server.js:12970",
+"rules-biz.html#דוח נוכחות, סטטוס החתמה ונתוני עובדים"
+]
+},
+{
+"id": "BIZ-25",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "data-integrity",
+"severity": "high",
+"title": "טרנזקציות מדומות על pool בתהליכי כסף",
+"as_is": "payroll-run, payday, tasks/update, academy/submit, goals/deposit ו-task-set-templates מריצים BEGIN/COMMIT דרך pool.query — כל שאילתה יכולה לרוץ על חיבור אחר, ואין אטומיות (server.js:11858-11868, 11801, 12048-12060, 12126, 11520, 13048).",
+"proposal": "כל תהליך שמשנה יותר מטבלה אחת משתמש ב-client ייעודי (pool.connect → BEGIN → … → COMMIT/ROLLBACK → release) דרך helper אחד withTransaction(fn). בדיקה: כשל מלאכותי באמצע הרצת שכר משאיר יתרות ו-paid_at ללא שינוי.",
+"alternatives": [],
+"refs": [
+"server.js:11858-11868",
+"server.js:11801-11815",
+"server.js:12048-12060",
+"server.js:12126",
+"server.js:11520",
+"server.js:13048",
+"rules-biz.html#תשלום שכר לפי נוכחות (Payroll) ותשלום חד-פעמי"
+],
+"dup_of": "ARC-11"
+},
+{
+"id": "BIZ-26",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "money",
+"severity": "medium",
+"title": "מודל ספר חשבונות עסקי: הוצאת שכר/תגמול לא עקבית",
+"as_is": "payroll-run ו-adhoc רושמים רק income לעובד ללא הוצאה לעסק (server.js:11853-11880); tasks/update ו-vision-verify רושמים expense על 'אדמין כלשהו' (LIMIT 1 ללא ORDER BY, 12055-12059); payroll מסמן paid_at לכל הרשומות הסגורות גם אם הסכום תוקן ידנית (11866).",
+"proposal": "כל תשלום לעובד (שכר, חד-פעמי, תגמול משימה) יוצר שתי רשומות: income לעובד ו-expense ברמת העסק (user_id NULL, category='payroll'|'tasks'), עם payroll_run_id משותף. הרצת שכר נשמרת כישות payroll_runs (תאריך, מבצע, סכומים מחושבים ומאושרים) ו-paid_at מסומן רק לרשומות עד cutoff של ההרצה.",
+"alternatives": [],
+"refs": [
+"server.js:11853-11880",
+"server.js:12055-12059",
+"server.js:12588-12593",
+"rules-biz.html#תשלום שכר לפי נוכחות",
+"rules-biz.html#מחזור חיי משימה ואישור תגמול"
+]
+},
+{
+"id": "BIZ-27",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "scope",
+"severity": "medium",
+"title": "מנגנון Payday המשפחתי זמין בעסק ומחשב ערכים חסרי משמעות",
+"as_is": "כפתור 'איפוס חודשי ותשלום בונוסים' (business-app.js:7646) קורא ל-/api/admin/payday שמפרש allowance_amount כקצבה ו-interest_rate כריבית %, בעוד בעסק אלה תעריף שעתי ויעד שעות (server.js:11801-11815; 7592-7601).",
+"proposal": "בעסק (type='BUSINESS') הכפתור מוסר ו-/api/admin/payday מחזיר 400 'לא זמין בעסק'. תשלום שכר בעסק רק דרך payroll-run. בעסק עוברים לשדות ייעודיים hourly_rate, monthly_hours_target, base_salary במקום שימוש חוזר בשדות משפחתיים.",
+"alternatives": [],
+"refs": [
+"business-app.js:7646",
+"business-app.js:7592-7601",
+"server.js:11801-11815",
+"rules-biz.html#חלוקה חודשית (Payday)"
+]
+},
+{
+"id": "BIZ-28",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "security",
+"severity": "high",
+"title": "status ב-POST /api/tasks ללא whitelist — עובד מאשר משמרת לעצמו",
+"as_is": "POST /api/tasks שומר status מה-body כפי שהוא (server.js:11890-11929): עובד יכול ליצור משמרת עצמית ב-'approved' ולעקוף אישור; _aiCreateTask שולח בלי status → NULL (business-app.js:57571).",
+"proposal": "השרת קובע status: ADMIN → 'approved' למשמרת / 'pending' למשימה; לא-ADMIN → 'pending' (משמרת/משימה) או 'done' רק לדיווח עצמי (assignedTo=self). כל ערך אחר → 400. ברירת מחדל כשחסר: 'pending'.",
+"alternatives": [],
+"refs": [
+"server.js:11890-11929",
+"business-app.js:5364",
+"business-app.js:57571",
+"rules-biz.html#שיבוץ משמרות",
+"rules-biz.html#יצירה ועריכה של משימות/פרויקטים"
+]
+},
+{
+"id": "BIZ-29",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "money",
+"severity": "critical",
+"title": "אישור חוזר של משימה מאושרת משלם שוב",
+"as_is": "POST /api/tasks/update עם status='approved' אינו בודק את הסטטוס הקודם; כל קריאה חוזרת מזכה את העובד שוב ורושמת שתי תנועות (server.js:12023-12078).",
+"proposal": "מעבר ל-approved מותר רק מ-done (או pending כשה-ADMIN מאשר ישירות); מבוצע כ-UPDATE tasks SET status='approved' WHERE id=$1 AND status IN ('pending','done') RETURNING — ורק אם שורה עודכנה מתבצע התשלום, באותה טרנזקציה. אישור משימה approved → 409 'המשימה כבר אושרה'.",
+"alternatives": [],
+"refs": [
+"server.js:12023-12078",
+"rules-biz.html#מחזור חיי משימה ואישור תגמול"
+]
+},
+{
+"id": "BIZ-30",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "money",
+"severity": "high",
+"title": "אימות AI לתמונה מאשר ומשלם (כולל בונוס 10%) ללא מנהל",
+"as_is": "POST /api/tasks/vision-verify: אם Gemini מחזיר verified — balance+=reward+max(1,round(reward×0.1)), status='approved' (server.js:12549-12593), עוקף את זרימת done→approved של המנהל.",
+"proposal": "בדיקת AI רק מסמנת status='done' עם ai_verified=true והודעת ה-AI; התשלום מתבצע רק באישור ADMIN (שרואה תג 'אומת ע\"י AI'). הבונוס של 10% מוסר או מוצע כברירת מחדל ב-finalReward שהמנהל מאשר.",
+"alternatives": [
+"הגדרה פר-עסק auto_approve_ai (ברירת מחדל כבוי) עם תקרת סכום לאישור אוטומטי, למשל ≤ 100 ₪."
+],
+"refs": [
+"server.js:12549-12593",
+"rules-biz.html#הגשת הוכחת ביצוע — תמונה ו-QA ע\"י AI",
+"s1-docsvscode.html#12 אישור משימה ע\"י AI"
+]
+},
+{
+"id": "BIZ-31",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "money",
+"severity": "medium",
+"title": "עובד יוצר לעצמו משימה עם תגמול עד 100,000",
+"as_is": "דיווח ביצוע עצמי נשלח עם reward מהטופס (מוגבל רק ל-0..100000) ו-status='done' (server.js:11921; business-app.js:4816).",
+"proposal": "במשימה שעובד שאינו ADMIN יוצר לעצמו reward נשמר 0 והסכום המבוקש נשמר ב-requested_reward; המנהל קובע finalReward בעת האישור.",
+"alternatives": [],
+"refs": [
+"server.js:11916-11921",
+"business-app.js:4807-4816",
+"rules-biz.html#יצירה ועריכה של משימות/פרויקטים"
+]
+},
+{
+"id": "BIZ-32",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "functional",
+"severity": "medium",
+"title": "משימות ומשמרות שנמחקו מוצגות כפעילות",
+"as_is": "/api/data מחזיר גם tasks עם status='deleted'; renderTasks מציג אותן ללא באדג', ותצוגת המשמרות מסמנת כל מה שאינו pending כ'משובץ ✓' — כולל deleted (business-app.js:5202-5205, 4988).",
+"proposal": "/api/data מסנן status IN ('deleted','rejected','cancelled') ממשימות ומשמרות (או מחזיר אותן רק בפרמטר includeArchived); בתצוגה 'משובץ' רק ל-approved.",
+"alternatives": [],
+"refs": [
+"business-app.js:5202-5205",
+"business-app.js:4988",
+"rules-biz.html#שיבוץ משמרות",
+"rules-biz.html#מחזור חיי משימה ואישור תגמול"
+]
+},
+{
+"id": "BIZ-33",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "architecture",
+"severity": "medium",
+"title": "משמרות נשמרות כמשימות עם כותרת מקודדת SHIFT|…",
+"as_is": "אין טבלת משמרות: משמרת = tasks.title='SHIFT|YYYY-MM-DD|HH:MM|HH:MM[|template]' (business-app.js:72, 5363); עריכה = מחיקה ואז יצירה ללא טרנזקציה (5369-5373); בדיקת חפיפה בהשוואת מחרוזות (server.js:11898-11914); cron הווצאפ מחפש משמרות לפי t.assignee_id/u.full_name/status='active' שאינם קיימים (server.js:4560).",
+"proposal": "טבלת shifts(id, group_id, user_id, date, start_time TIME, end_time TIME, template_id, status ∈ {pending, approved, cancelled}, created_by). עריכה ב-PATCH אחד בטרנזקציה; חפיפה נבדקת ב-SQL על TIME (ומשמרת חוצת חצות נתמכת ב-end<start = יום הבא). מיגרציה ממירה משימות SHIFT| קיימות; cron הסיכום קורא מ-shifts.",
+"alternatives": [
+"להשאיר משמרות ב-tasks אך להוסיף עמודות shift_date/start_time/end_time במקום קידוד בכותרת."
+],
+"refs": [
+"business-app.js:72",
+"business-app.js:5332-5373",
+"server.js:11898-11914",
+"server.js:4555-4565",
+"rules-biz.html#שיבוץ משמרות",
+"s1-docsvscode.html#20 משמרות"
+]
+},
+{
+"id": "BIZ-34",
+"domain": "ליבה עסקית (BIZ)",
+"area": "משימות ומשמרות",
+"category": "functional",
+"severity": "low",
+"title": "פרסום משימות חוזרות תלוי בשעון ובאזור הזמן של השרת",
+"as_is": "dispatchRecurringTasks רץ רק כש-getHours()≥8 בשעון השרת ומשווה שם יום מ-JS getDay מול CURRENT_DATE ב-SQL (server.js:6790-6817) — בשרת UTC המשימות מתפרסמות ב-10:00/11:00 שעון ישראל והיום עלול להתבלבל סביב חצות.",
+"proposal": "כל חישובי 'היום' ו'השעה' בתהליכי cron עסקיים נעשים ב-Asia/Jerusalem (TZ מוגדר בתהליך + AT TIME ZONE ב-SQL). שעת פרסום ברירת מחדל 08:00 מקומי, ניתנת להגדרה פר-עסק.",
+"alternatives": [],
+"refs": [
+"server.js:6790-6817",
+"rules-biz.html#Cron פרסום משימות חוזרות"
+]
+},
+{
+"id": "BIZ-35",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "security",
+"severity": "high",
+"title": "עובד רואה את כל תנועות העסק (userId='all')",
+"as_is": "GET /api/transactions בודק רק שה-groupId תואם לטוקן; אין בדיקת תפקיד, ועובד יכול לבקש userId='all' (server.js:11371-11386). הסינון לעובד קיים רק בלקוח.",
+"proposal": "לא-ADMIN (וללא טאב cashflow ב-effectiveTabs) — userId נכפה לעצמו; userId='all' או של אחר → 403. אותו כלל ב-/api/forecast/familai-insight (כבר קיים) וב-budget/filter (כבר קיים).",
+"alternatives": [],
+"refs": [
+"server.js:11371-11386",
+"rules-biz.html#תזרים מזומנים"
+]
+},
+{
+"id": "BIZ-36",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "functional",
+"severity": "low",
+"title": "תשקיף מבוסס על 200 התנועות האחרונות בלבד",
+"as_is": "renderForecast מחשב תנועות חוזרות מתוך allTransactions שנטען עם LIMIT 200 (business-app.js:7771-7830; server.js:11371) — תנועות חוזרות ותיקות לא נכללות.",
+"proposal": "נתיב שרת GET /api/forecast מחשב את התשקיף מכל התנועות החוזרות הפעילות (end_month ≥ החודש הנוכחי) ומתנועות עתידיות, ללא תקרת 200; הלקוח רק מציג.",
+"alternatives": [],
+"refs": [
+"business-app.js:7771-7830",
+"server.js:11371",
+"rules-biz.html#תשקיף (Forecast)"
+]
+},
+{
+"id": "BIZ-37",
+"domain": "ליבה עסקית (BIZ)",
+"area": "כספים",
+"category": "money",
+"severity": "medium",
+"title": "מקדמות/הלוואות: סכום לא מוצג, יתרה לא מתעדכנת, דחייה אחרי אישור",
+"as_is": "הלקוח מציג l.amount שאינו קיים ('₪undefined') (business-app.js:7730, 7737); remaining_amount לא מתעדכן בשום מקום; reject אינו בודק status ולכן אפשר לדחות הלוואה שכבר אושרה ושולמה (server.js:11489-11503).",
+"proposal": "הלקוח מציג original_amount ו-remaining_amount. reject מותר רק מ-pending (אחרת 400 'הלוואה זו כבר טופלה'). ניכוי החזר: payroll-run מאפשר שדה loan_deduction לכל עובד שמקטין remaining_amount ומסמן status='repaid' כשמגיע ל-0.",
+"alternatives": [
+"אם מעקב החזר אינו בתכולה — להסיר את remaining_amount ולקרוא לישות 'מקדמה' בלבד."
+],
+"refs": [
+"business-app.js:7707-7748",
+"server.js:11463-11503",
+"rules-biz.html#בקשות מקדמה/החזר (Loans)"
+]
+},
+{
+"id": "BIZ-38",
+"domain": "ליבה עסקית (BIZ)",
+"area": "דוחות",
+"category": "functional",
+"severity": "medium",
+"title": "דוחות מאוחדים: סוג עסק מהלקוח ו-store_only ללא ענף",
+"as_is": "GET /api/reports/:groupId מקבל btype מהלקוח ולא מה-DB, וללא אימות (server.js:33754-33871); store_only לא נכלל באף ענף ומקבל רק common.",
+"proposal": "השרת קורא business_type מ-family_groups של קבוצת הסשן ומתעלם מ-btype; store_only משתמש בענף retail (הזמנות, top 10, לפי סטטוס).",
+"alternatives": [],
+"refs": [
+"server.js:33754-33871",
+"rules-biz.html#דוחות מאוחדים לפי סוג עסק"
+]
+},
+{
+"id": "BIZ-39",
+"domain": "ליבה עסקית (BIZ)",
+"area": "דוחות",
+"category": "functional",
+"severity": "high",
+"title": "ייצוא דוח CSV לא עובד (חסר Authorization) ודוח צוות שבור",
+"as_is": "downloadBizReport שולח fetch בלי header Authorization ו-verifyBiz מחזיר 401 — המשתמש מקבל תמיד 'שגיאה בהפקת דוח' (business-app.js:16463-16468). בנוסף דוח staff שואל users.name ו-users.created_at שאינם קיימים (server.js:16402) ונכשל.",
+"proposal": "downloadBizReport שולח Authorization ומוריד את הקובץ כ-blob; דוח staff משתמש ב-nickname, first_name, last_name ו-COALESCE(created_at) (או מוסיף users.created_at DEFAULT NOW()). בדיקת קבלה: כל type ברשימה מחזיר 200 ו-CSV עם BOM.",
+"alternatives": [],
+"refs": [
+"business-app.js:16463-16468",
+"server.js:16373-16460",
+"server.js:16402",
+"rules-biz.html#ייצוא דוחות CSV",
+"s1-erd.html#עמודות חסרות — users.name, users.created_at"
+]
+},
+{
+"id": "BIZ-40",
+"domain": "ליבה עסקית (BIZ)",
+"area": "קופה",
+"category": "data-integrity",
+"severity": "medium",
+"title": "סגירת קופה: אפשר לסגור שוב ולדרוס, ו-expectedCash מחושב בלקוח",
+"as_is": "POST /api/biz/register/close אינו דורש closed_at IS NULL — אפשר לסגור שוב ולדרוס; אחרי סגירה ניתן לפתוח session נוסף באותו יום; expected_cash נשלח מהלקוח ומחושב מ-200 תנועות אחרונות (server.js:42024-42055; business-app.js:39588-39597).",
+"proposal": "close מותר רק כש-closed_at IS NULL (אחרת 409). השרת מחשב expected_cash = open_float + Σ income במזומן של המשתמש מאז opened_at, ומתעלם מערך הלקוח. פתיחה נוספת באותו יום מותרת רק ל-ADMIN או כ-session חדש עם מספר משמרת עולה.",
+"alternatives": [],
+"refs": [
+"server.js:42012-42055",
+"business-app.js:39571-39597",
+"rules-biz.html#פתיחת/סגירת קופה (קופאי)"
+]
+},
+{
+"id": "BIZ-41",
+"domain": "ליבה עסקית (BIZ)",
+"area": "התראות",
+"category": "functional",
+"severity": "medium",
+"title": "מנוע התראות: new_order מפספס הזמנות, ערוצים וטריגרים חסרים",
+"as_is": "new_order מחפש 10 דקות אחורה אבל עם cooldown 60 (ברירת המחדל בטופס) נבדק פעם בשעה ומפספס הזמנות (server.js:25003-25048); WhatsApp/push אינם ערוץ; getTriggerIcon כולל equipment_maintenance ללא מימוש.",
+"proposal": "טריגרים מבוססי-אירוע (new_order) אינם כפופים ל-cooldown: חלון החיפוש = מאז ריצת המנוע הקודמת לאותו חוק (שמורה ב-alert_rules.last_run_at), ו-dedup לפי reference_key. ערוצים: in_app, email, whatsapp (דרך sendWhatsApp לטלפון המנהל). טריגרים שאינם ממומשים מוסרים מהממשק.",
+"alternatives": [],
+"refs": [
+"server.js:25003-25104",
+"business-app.js:34926-35053",
+"business.html:6489-6498",
+"rules-biz.html#מנוע ההתראות (runAlertEngine)"
+]
+},
+{
+"id": "BIZ-42",
+"domain": "ליבה עסקית (BIZ)",
+"area": "SLA",
+"category": "functional",
+"severity": "medium",
+"title": "אי אפשר לכבות שלב SLA מהממשק",
+"as_is": "saveSLAConfigs שולח תמיד isActive:true (business-app.js:34810), כך שגם frozen (ברירת מחדל is_active:false, 34705-34718) נשמר כפעיל; הסרת שורה ב-DOM לא מוחקת מה-DB.",
+"proposal": "כל שורה בממשק כוללת מתג 'פעיל' שנשלח כ-isActive; הסרת שורה קוראת DELETE /api/sla/:id. ברירת המחדל frozen נשמרת כלא-פעילה.",
+"alternatives": [],
+"refs": [
+"business-app.js:34705-34810",
+"server.js:11019-11045",
+"rules-biz.html#הגדרות SLA ובדיקת חריגות"
+]
+},
+{
+"id": "BIZ-43",
+"domain": "ליבה עסקית (BIZ)",
+"area": "יומן ביקורת",
+"category": "data-integrity",
+"severity": "medium",
+"title": "יומן ביקורת גלובלי ללא שם מבצע",
+"as_is": "ב-middleware הגלובלי action_type='HTTP_*' נרשם עם actor_name=NULL (server.js:104-144), כך שחיפוש FamliAI לפי שם עובד (ILIKE, 16021-16029) לא מוצא אותן.",
+"proposal": "logBizAction והמידלוור הגלובלי גוזרים actor_name מ-users (nickname) לפי req.bizAuth.userId (cache בזיכרון), ושומרים גם user_id. אין רשומת ביקורת ללא user_id אלא אם actor='system'.",
+"alternatives": [],
+"refs": [
+"server.js:104-144",
+"server.js:4160",
+"server.js:16021-16029",
+"rules-biz.html#יומן ביקורת עסקי"
+]
+},
+{
+"id": "BIZ-44",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תקשורת",
+"category": "security",
+"severity": "medium",
+"title": "הודעה ישירה (DM) לעובד שאינו בקבוצה",
+"as_is": "בנתיבי ה-DM (verifyBiz, server.js:44048-44127) toUserId לא נבדק שהוא שייך לקבוצה — אפשר לשלוח הודעה לכל user id במערכת.",
+"proposal": "שליחת DM מאמתת ש-toUserId הוא משתמש פעיל באותה group_id (אחרת 404 'משתמש לא נמצא').",
+"alternatives": [],
+"refs": [
+"server.js:44048-44127",
+"rules-biz.html#הודעות ישירות בין עובדים (DM)"
+]
+},
+{
+"id": "BIZ-45",
+"domain": "ליבה עסקית (BIZ)",
+"area": "תמיכה",
+"category": "security",
+"severity": "medium",
+"title": "קריאת תמיכה ללא אימות וכתובת SA קשיחה בקוד",
+"as_is": "POST /api/support/ticket ותגובה (server.js:4349, 4381) ללא אימות — groupId/שם השולח מהגוף; GET /api/support/tickets/my/:groupId ללא אימות (5155). כתובת ברירת מחדל קשיחה mcgames1978@gmail.com (4287).",
+"proposal": "פתיחה, תגובה וצפייה דורשות verifyFamilyOrBiz; groupId ושם השולח מהסשן; צפייה מוגבלת לקריאות של קבוצת הסשן. כתובת ההתראה רק מ-system_settings.admin_notification_email או env; אם חסרה — לא נשלח מייל ונרשמת אזהרה.",
+"alternatives": [],
+"refs": [
+"server.js:4287",
+"server.js:4349-4400",
+"server.js:5155",
+"rules-biz.html#קריאות תמיכה מהעסק ל-SA"
+]
+},
+{
+"id": "BIZ-46",
+"domain": "ליבה עסקית (BIZ)",
+"area": "סקרים",
+"category": "scope",
+"severity": "medium",
+"title": "מודול סקרים לא מחווט בממשק BIZ",
+"as_is": "כל נתיבי /api/surveys קיימים (server.js:24758-24898) ו-survey.html למילוי ציבורי, אך אין ב-business-app.js שום קריאה אליהם; טאב surveys מציג מחולל ניוזלטרים. activate לא בודק שייכות לקבוצה.",
+"proposal": "להחליט: מחווטים מסך ניהול סקרים בטאב surveys (יצירה, הפעלה ≤3 פעילים, סגירה, תוצאות) עם verifyBiz ובעלות, או מוחקים את הנתיבים והטאב.",
+"alternatives": [
+"הסרה מלאה של מודול הסקרים מהגרסה הבאה."
+],
+"refs": [
+"server.js:24758-24898",
+"public/survey-app.js",
+"rules-biz.html#סקרים (Surveys)"
+]
+},
+{
+"id": "BIZ-47",
+"domain": "ליבה עסקית (BIZ)",
+"area": "אקדמיה",
+"category": "money",
+"severity": "medium",
+"title": "תגמול הכשרה בעסק נזקף לארנק ילדים (FLW)",
+"as_is": "בהגשת בוחן שעבר, התגמול נזקף ל-flw_kid_wallets גם בעסק, בעוד הממשק מציג 'תגמול: ₪' (server.js:12126-12160).",
+"proposal": "בעסק תגמול הכשרה מזוכה ל-users.balance ונרשם ב-transactions (income לעובד + expense לעסק, category='academy'), בטרנזקציה אמיתית. בעסק עם reward=0 אין זיכוי.",
+"alternatives": [],
+"refs": [
+"server.js:12126-12160",
+"rules-biz.html#הקצאת הכשרה, אתגר עצמי והגשת בוחן"
+]
+},
+{
+"id": "BIZ-48",
+"domain": "ליבה עסקית (BIZ)",
+"area": "קמעונאות — מלאי",
+"category": "data-integrity",
+"severity": "high",
+"title": "תנועות מלאי: מכירות וקבלת רכש לא עוברות דרך יומן התנועות",
+"as_is": "recordInventoryMovement נקרא רק לתיקון ידני, החזרה וספירה (server.js:7378-7391); מכירות לא מורידות מלאי דרכו וקבלת הזמנת רכש מעדכנת stock_quantity ישירות ללא רשומה (28394). הפונקציה בולעת שגיאות ואינה טרנזקציונית.",
+"proposal": "כל שינוי stock_quantity (sale, cancelled_order, purchase_receipt, manual_adjustment, return, stock_count) מתבצע רק דרך recordInventoryMovement, באותה טרנזקציה של הפעולה העסקית; כשל → rollback של כל הפעולה. בדיקה: Σ change_qty לכל מוצר = stock_quantity.",
+"alternatives": [],
+"refs": [
+"server.js:7378-7391",
+"server.js:28394",
+"rules-biz.html#רישום תנועת מלאי מרכזי"
+]
+},
+{
+"id": "BIZ-49",
+"domain": "ליבה עסקית (BIZ)",
+"area": "קמעונאות — מלאי",
+"category": "data-integrity",
+"severity": "low",
+"title": "וריאציות: has_variants לא מתאפס ומלאי התחלתי לא מתועד",
+"as_is": "מחיקת הוריאציה האחרונה לא מחזירה has_variants=FALSE (server.js:13482); stock התחלתי של וריאציה חדשה לא נרשם כתנועה (13443); מוצרים עם וריאציות לא מוצגים בטפסי החזרה וספירה.",
+"proposal": "אחרי DELETE וריאציה: has_variants = EXISTS(וריאציות פעילות). stock התחלתי נרשם כתנועה reason='initial_stock'. טפסי החזרה וספירה מציגים וריאציות כשורות נפרדות.",
+"alternatives": [],
+"refs": [
+"server.js:13443-13500",
+"business-app.js:62340-62389",
+"rules-biz.html#וריאציות מוצר"
+]
+},
+{
+"id": "BIZ-50",
+"domain": "ליבה עסקית (BIZ)",
+"area": "קמעונאות — החזרות",
+"category": "money",
+"severity": "medium",
+"title": "החזר כספי לא נרשם בתזרים וזיכוי ללקוח לא קיים נבלע",
+"as_is": "POST /api/biz/retail/returns: החזר cash/original_payment אינו נרשם ב-transactions; store_credit ללקוח שאינו קיים בטלפון נבלע בשקט; ללא טרנזקציה (server.js:13523-13555).",
+"proposal": "החזר cash/original_payment יוצר transactions expense (category='refund') עם reference לרשומת ההחזרה. store_credit ללקוח שאינו קיים → יצירת store_customers חדש לפי הטלפון, או 400 אם אין טלפון. כל ההחזרה (רשומה, פריטים, מלאי, זיכוי, תזרים) בטרנזקציה אחת.",
+"alternatives": [],
+"refs": [
+"server.js:13523-13555",
+"rules-biz.html#החזרות וזיכויים"
+]
+},
+{
+"id": "BIZ-51",
+"domain": "ליבה עסקית (BIZ)",
+"area": "Cron",
+"category": "functional",
+"severity": "medium",
+"title": "Cron שימור לקוחות יופי כותב לטבלה שאינה קיימת וללא dedup",
+"as_is": "runRetentionCron מכניס ל-group_notifications שאינה נוצרת בשום מקום (server.js:32655; s1-erd טבלאות-רפאים); השגיאה נבלעת — אין התראות בפועל, וגם אילו היו, אין dedup והתראה הייתה נוצרת כל יום.",
+"proposal": "ההתראה נכתבת ל-alert_notifications (trigger_type='beauty_retention') עם reference_key='retention_{clientRecordId}_{YYYY-MM}' ו-dedup לפי המפתח — לכל היותר התראה אחת ללקוח בחודש.",
+"alternatives": [],
+"refs": [
+"server.js:32631-32675",
+"s1-erd.html#טבלאות-רפאים — group_notifications",
+"rules-biz.html#Cron שימור לקוחות (Retention)"
+],
+"dup_of": "BTY-14"
+},
+{
+"id": "BIZ-52",
+"domain": "ליבה עסקית (BIZ)",
+"area": "Cron",
+"category": "data-integrity",
+"severity": "low",
+"title": "איפוס עסקי דמו לא מאפס את כל הטבלאות",
+"as_is": "restoreDemoSnapshot מאפס רק store_order_items, store_orders, store_customers, transactions, tasks, pantry (server.js:17890-17960); time_clock, alert_notifications, צ'אטים ועוד מצטברים.",
+"proposal": "DEMO_RESET_TABLES כולל כל טבלה עם group_id שמשתמש דמו יכול לכתוב אליה (לפחות time_clock, alert_notifications, team_chat, team_posts, inbox_messages, biz_audit_log, activity_log, routine_*), או שעסקי דמו מאופסים בשכפול מלא מתבנית.",
+"alternatives": [],
+"refs": [
+"server.js:17890-17960",
+"server.js:44909-44919",
+"rules-biz.html#Cron איפוס עסקי דמו"
+]
+},
+{
+"id": "BIZ-53",
+"domain": "ליבה עסקית (BIZ)",
+"area": "Cron",
+"category": "money",
+"severity": "medium",
+"title": "פרסי קול העם: מחזור 20 יום מול חלון 30 ושעונים שמתאפסים ב-restart",
+"as_is": "ה-cron החודשי רץ כל 20 יום על חלון 30 יום — אותו מאמר עשוי לקבל ARTICLE_OF_MONTH ו-FLW פעמיים; השבועי/חודשי מבוססי setInterval ולא ירוצו בשרת שמופעל מחדש לעתים קרובות (server.js:44777-44905).",
+"proposal": "כל cron תקופתי שומר last_run ב-system_settings ורץ לפי לוח שנה (שבועי: ראשון 03:00, חודשי: 1 לחודש 03:00, Asia/Jerusalem); פרס תקופתי ייחודי לפי (award_type, period_key כמו 2026-10) — אין פרס כפול לאותה תקופה.",
+"alternatives": [],
+"refs": [
+"server.js:44722-44905",
+"rules-biz.html#Cron שלב 3 (קול העם)"
+]
+},
+{
+"id": "BIZ-54",
+"domain": "ליבה עסקית (BIZ)",
+"area": "מסמכים",
+"category": "docs",
+"severity": "medium",
+"title": "מפרטי BIZ מתארים API ומנגנונים שאינם קיימים",
+"as_is": "BIZ_ENV_SPEC/SYSTEM_SPEC מתארים JWT, /api/auth/login, /api/shifts, /api/transactions/add, 5 נתיבי דוחות, סטטוס משימה verified, שעות נוספות 125% ושינוי סוג עסק בהגדרות — שאינם קיימים (s1-docsvscode: 140 מתוך 258 שמות פונקציות ב-BIZ_ENV_SPEC לא קיימים).",
+"proposal": "המפרט החדש נגזר מה-decision log הזה ומהקוד: טוקן אופאק ב-family_sessions, מחזור משימה pending→done→approved|rejected|deleted, נתיב דוחות יחיד, תנועות ב-/api/transaction. מסמכים ישנים (docs/spec-*.md, BIZ_ENV_SPEC) מסומנים כהיסטוריים.",
+"alternatives": [],
+"refs": [
+"s1-docsvscode.html#docs/BIZ_ENV_SPEC.md",
+"s1-docsvscode.html#SYSTEM_SPEC.md"
+]
+},
+{
+"id": "BIZ-55",
+"domain": "ליבה עסקית (BIZ)",
+"area": "נוכחות ושכר",
+"category": "scope",
+"severity": "low",
+"title": "שעות נוספות (125%) מתועדות ואינן ממומשות",
+"as_is": "BIZ_ENV_SPEC §6 מבטיח חישוב שעות נוספות 125%; payroll-preview מחשב base_salary + שעות × תעריף בלבד (server.js:11836-11845).",
+"proposal": "להחליט אם בתכולה. אם כן: שעות מעבר ל-8.6 ביום (או 186 בחודש, ניתן להגדרה פר-עסק) מחושבות ב-125% לשעתיים הראשונות ו-150% מעבר, ומוצגות בנפרד ב-preview.",
+"alternatives": [
+"להסיר את ההבטחה מהמסמכים ולהשאיר חישוב ליניארי."
+],
+"refs": [
+"server.js:11829-11850",
+"s1-docsvscode.html#שעות נוספות 125%"
+]
+},
+{
+"id": "BIZ-56",
+"domain": "ליבה עסקית (BIZ)",
+"area": "מסמכים",
+"category": "docs",
+"severity": "low",
+"title": "כלל 6 ב-CLAUDE.md מכיר רק במדריך יופי",
+"as_is": "קיימים 15 מדריכים ב-public (restaurant, maintenance, retail, sport ועוד), אך כלל 6 מחייב עדכון רק ל-beauty-guide.html; לסוגים construction/healthcare/education/events/food_production/store_only/other אין מדריך.",
+"proposal": "כלל 6 מעודכן לטבלת מיפוי business_type→קובץ מדריך לכל 15 המדריכים הקיימים; לסוגים ללא מדריך — biz-guide.html כברירת מחדל.",
+"alternatives": [],
+"refs": [
+"CLAUDE.md כלל 6",
+"s1-docsvscode.html#CLAUDE.md כלל 6"
+]
+},
+{
+"id": "BIZ-57",
+"domain": "ליבה עסקית (BIZ)",
+"area": "רישוי וסוג עסק",
+"category": "scope",
+"severity": "low",
+"title": "בחירת 'סוג עסק' במודאל ייבוא Excel",
+"as_is": "מודאל ייבוא Excel מציג בחירת סוג עסק (EXCEL_BIZ_TYPES, business-app.js:20101) — משמש לתבנית קטגוריות בלבד, אך נראה כבחירת סוג עסק מחוץ לויזארד/SA (כלל 5).",
+"proposal": "המודאל משתמש ב-business_type הנוכחי של העסק אוטומטית; הבורר מוחלף ב'תבנית קטגוריות' (שם שונה, לא 'סוג עסק') ואינו משנה את business_type.",
+"alternatives": [],
+"refs": [
+"business-app.js:20101",
+"CLAUDE.md כלל 5",
+"s1-docsvscode.html#בחירת סוג עסק רק באשף ההקמה או ב-SA"
+]
+}
+]

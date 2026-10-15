@@ -1,0 +1,985 @@
+[
+ {
+  "id": "BTY-01",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "high",
+  "title": "IDOR בין עסקים: approve-cancel, reject-cancel ו-by-customer לא משווים bizId לסשן",
+  "as_is": "שלושת הנתיבים עוברים verifyBiz אך אינם בודקים parseInt(bizId) === req.bizAuth.groupId (server.js:43572–43633), כך שכל משתמש עסקי יכול לקרוא היסטוריית תורים או לבטל/לשחזר תור של עסק אחר.",
+  "proposal": "כל נתיב /api/beauty/:bizId/* מאמת bizId מול req.bizAuth.groupId (middleware אחד ולא בדיקה ידנית בכל handler) ובנוסף שהרשומה שייכת לעסק. בדיקה: טוקן של עסק A על תור של עסק B ⇒ 403.",
+  "refs": [
+   "server.js:43572",
+   "server.js:43613",
+   "server.js:43624",
+   "rules-beauty.html#בקשת ביטול ע\"י לקוח חנות"
+  ]
+ },
+ {
+  "id": "BTY-02",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "critical",
+  "title": "נתיבי יומן/דוחות משותפים ללא אימות משנים ומדליפים נתוני יופי",
+  "as_is": "PUT /api/calendar/events/:id/status (אישור בקשה ⇒ יצירת תור יופי ושליחת SMS, server.js:22977–23081), POST /api/calendar/services (כותב ל-beauty_service_catalog, server.js:22869) ו-GET /api/reports/:groupId?btype=beauty (server.js:33754) פועלים ללא אימות.",
+  "proposal": "אישור/דחיית בקשת תור ויצירת שירות דורשים verifyBiz עם התאמת עסק; דוחות דורשים verifyBiz (ADMIN או תפקיד עם הרשאת reports). בדיקה: קריאה ללא טוקן ⇒ 401.",
+  "refs": [
+   "server.js:22977",
+   "server.js:22869",
+   "server.js:33754",
+   "rules-beauty.html#בקשת תור מהחנות הציבורית ואישורה"
+  ]
+ },
+ {
+  "id": "BTY-03",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "high",
+  "title": "נתיבים ציבוריים: לחשוף רק מידע הכרחי (יומן, משבצות, זמינות)",
+  "as_is": "ללא אימות: GET /slots, /availability, /practitioners/public, /services/public, /api/beauty/businesses, ו-GET /api/calendar/:groupId שמחזיר את כל תורי העסק כאירועים סינתטיים עם שם שירות/לקוח ושם מטפלת, כולל עבר (server.js:22800–22852, 31212, 31705).",
+  "proposal": "רשימה סגורה של נתיבים ציבוריים: services/public, practitioners/public (שם, צבע, התמחויות), slots (רק זמנים פנויים). GET /api/calendar/:groupId לציבור מחזיר רק תפוסה (start/end) לעתיד ללא שמות; הגרסה המלאה דורשת verifyBiz. /availability מוסר או מאוחד ב-slots.",
+  "refs": [
+   "server.js:22800",
+   "server.js:22839",
+   "server.js:31212",
+   "server.js:31705",
+   "server.js:32462"
+  ]
+ },
+ {
+  "id": "BTY-04",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות לפי תפקיד",
+  "category": "security",
+  "severity": "high",
+  "title": "בדיקות תפקיד חסרות ברוב נתיבי היופי",
+  "as_is": "רק לקוחות (verifyBeautyClientAccess), ניהול מטפלות ותשלום עמלות (verifyBeautyPractitionerAccess) מוגבלים (server.js:41950–41971). inventory, GET commissions, services, subscriptions, rfq, appointments ו-dashboard פתוחים לכל עובד עם סשן biz (כולל קופאי/מנקה); therapist קורא עמלות של כל הצוות.",
+  "proposal": "מטריצה בשרת: ADMIN — הכל; senior_therapist — + מטפלות ועמלות כולן; therapist/nail_tech/makeup_artist — יומן (כולם קריאה, עריכה של תורים שלהן), לקוחות, עמלות שלהן בלבד; reception — יומן מלא, לקוחות, קופה, מכירת מנוי; שירותים/מנויים (כתיבה), מלאי (כתיבה), דשבורד מנהל, RFQ — ADMIN/senior. תפקיד אחר ⇒ 403.",
+  "refs": [
+   "server.js:41950",
+   "server.js:41965",
+   "server.js:32310",
+   "s1-rbac.html#BIZ — יופי"
+  ]
+ },
+ {
+  "id": "BTY-05",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות וניווט",
+  "category": "ux",
+  "severity": "medium",
+  "title": "תפקידי יופי: senior_therapist לא לבחירה, branch_manager חסום, עובדים בלי תפריט",
+  "as_is": "רשימות התפקידים לעסק יופי לא כוללות senior_therapist (business-app.js:4259, 21234–21240); branch_manager מוצע ליופי אך אינו ב-BEAUTY_CLIENT_DATA_ROLES ⇒ 403 על לקוחות; כפתורי data-beauty-only נחשפים רק ב-renderBeautyAdminDashboard (ADMIN), כך שעובד ניגש רק דרך הפעולות המהירות.",
+  "proposal": "רשימת התפקידים ליופי: reception, therapist, senior_therapist, nail_tech, makeup_artist, branch_manager (branch_manager = הרשאות senior_therapist + קופה ודוחות). חשיפת טאבי היופי בתפריט נקבעת לפי business_type + הרשאות הטאב של המשתמש, לא לפי ריצת דשבורד המנהל.",
+  "refs": [
+   "business-app.js:4259",
+   "business-app.js:21234",
+   "business-app.js:45809",
+   "business-app.js:37519",
+   "s1-rbac.html#תצפיות"
+  ]
+ },
+ {
+  "id": "BTY-06",
+  "domain": "יופי / קוסמטיקה",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "medium",
+  "title": "verifyFamilyOrBiz מגדיר bizAuth לסשן משפחה ומזהם את יומן הביקורת",
+  "as_is": "verifyFamilyOrBiz מציב req.bizAuth גם לפגישה משפחתית (server.js:43089–43114), ולכן POST תור/RFQ ממשפחה נרשמים ב-biz_audit_log עם group_id של המשפחה.",
+  "proposal": "req.bizAuth מוגדר רק לסשן biz; לסשן משפחה req.familyAuth. יומן הביקורת העסקי רושם פעולת משפחה תחת group_id של העסק עם actor_type='family' ומזהה המשפחה.",
+  "refs": [
+   "server.js:43089",
+   "server.js:107",
+   "rules-beauty.html#הרשאות גישה ל-API של היופי"
+  ]
+ },
+ {
+  "id": "BTY-07",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ייעוץ (RFQ)",
+  "category": "security",
+  "severity": "medium",
+  "title": "הודעות RFQ: השולח נלקח מהקלט ואין נעילה (התחזות ודריסה)",
+  "as_is": "POST /rfq/:id/message לוקח from (biz/client) מה-body ומבצע read-modify-write על מערך ה-messages ללא נעילה (server.js:32445–32459); אין ולידציה ל-text.",
+  "proposal": "from נגזר מסוג הסשן; text חובה, 1–2000 תווים; ההוספה אטומית (UPDATE … SET messages = messages || $1::jsonb) או טבלת beauty_rfq_messages.",
+  "refs": [
+   "server.js:32445",
+   "rules-beauty.html#הודעות בתוך בקשת ייעוץ"
+  ]
+ },
+ {
+  "id": "BTY-08",
+  "domain": "יופי / קוסמטיקה",
+  "area": "לקוחות",
+  "category": "security",
+  "severity": "low",
+  "title": "סיסמת חשבון WEFLOWZ חדש מוצגת בגלוי לעסק",
+  "as_is": "יצירת חשבון חבר מכרטיס לקוח (POST /api/member/create-for-business) מציגה קוד, שם וסיסמה בטקסט גלוי ובהודעת wa.me (business-app.js:51272–51357).",
+  "proposal": "החשבון נוצר ללא סיסמה; הלקוחה מקבלת קישור הפעלה חד-פעמי (תוקף 72 שעות) ב-SMS/WhatsApp ומגדירה סיסמה בעצמה. העסק לעולם לא רואה סיסמה.",
+  "refs": [
+   "business-app.js:51272",
+   "s1-messages.html#WM"
+  ]
+ },
+ {
+  "id": "BTY-09",
+  "domain": "יופי / קוסמטיקה",
+  "area": "לקוחות",
+  "category": "security",
+  "severity": "medium",
+  "title": "מידע רפואי של לקוחות אינו מוצפן (המסמך טוען שכן)",
+  "as_is": "BIZ_ENV_SPEC מתאר מידע רפואי \"מוצפן בשרת\"; בפועל medical_notes/פורמולות/תמונות נשמרים בגלוי והגנתם רק verifyBeautyClientAccess (server.js:41952).",
+  "proposal": "medical_notes והערות בריאות מוצפנים ברמת עמודה (AES-GCM, מפתח ב-env); גישה רק לתפקידי BEAUTY_CLIENT_DATA_ROLES ונרשמת ב-audit (קריאת תיק).",
+  "alternatives": [
+   "ללא הצפנה — הרשאת תפקיד בלבד, ולתקן את המסמך"
+  ],
+  "refs": [
+   "server.js:41952",
+   "s1-docsvscode.html#יופי — מידע רפואי"
+  ]
+ },
+ {
+  "id": "BTY-10",
+  "domain": "יופי / קוסמטיקה",
+  "area": "סכמה",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "התקנה חדשה: עמודות work_days/slot_minutes חסרות עד אתחול שני",
+  "as_is": "ALTER TABLE beauty_practitioners ADD work_days/slot_minutes רץ ב-server.js:1866–1867, לפני CREATE ב-2022, ונכשל בשקט; ה-CREATE אינו כולל את העמודות.",
+  "proposal": "סכמה במיגרציות מגורסות; work_days JSONB ו-slot_minutes INT DEFAULT 60 חלק מהגדרת הטבלה; כשל מיגרציה עוצר את העלייה.",
+  "refs": [
+   "server.js:1866",
+   "server.js:2022",
+   "rules-beauty.html#מודל הנתונים של מודול היופי"
+  ]
+ },
+ {
+  "id": "BTY-11",
+  "domain": "יופי / קוסמטיקה",
+  "area": "תיקי לקוחות",
+  "category": "data-integrity",
+  "severity": "critical",
+  "title": "שמירת פרטי לקוח נכשלת תמיד; אימייל והערות/אלרגיות לא נשמרים ביצירה",
+  "as_is": "PATCH /clients/:id כולל general_notes ב-whitelist והלקוח שולח אותו תמיד, אך העמודה לא קיימת ⇒ 500 ושום שדה לא מתעדכן (server.js:32063, 2088–2110). ביצירה הלקוח שולח email/general_notes והשרת קורא client_email/medical_notes ⇒ לא נשמרים, ואימייל חובה תמיד נכשל (business-app.js:51399, server.js:32036).",
+  "proposal": "חוזה שדות אחיד: client_email, medical_notes (אלרגיות/רפואי), general_notes (עמודה חדשה); POST ו-PATCH מקבלים אותם שמות; בדיקה: יצירה ועדכון של אימייל והערות נשמרים ומוצגים.",
+  "refs": [
+   "server.js:32036",
+   "server.js:32063",
+   "business-app.js:51399",
+   "business-app.js:51838",
+   "rules-beauty.html#עדכון פרטי לקוח"
+  ]
+ },
+ {
+  "id": "BTY-12",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ייעוץ (RFQ)",
+  "category": "functional",
+  "severity": "medium",
+  "title": "רשימת הייעוץ בכרטיס העסק באפליקציה המשפחתית תמיד ריקה",
+  "as_is": "business-activity שואל beauty_rfq.client_phone שאינה קיימת (server.js:31880); השגיאה נבלעת.",
+  "proposal": "השאילתה מסננת לפי client_family_id = המשפחה (העמודה הקיימת).",
+  "refs": [
+   "server.js:31880",
+   "rules-beauty.html#שליפת היסטוריית תורים לפי לקוח"
+  ]
+ },
+ {
+  "id": "BTY-13",
+  "domain": "יופי / קוסמטיקה",
+  "area": "גיבוי ושחזור",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "גיבוי/שחזור יופי שבור וחלקי",
+  "as_is": "גיבוי עמלות שואל עמודה status שאינה קיימת (server.js:6710) ⇒ ריק; שחזור לקוחות כותב ל-full_name/phone/email/notes שאינן קיימות (server.js:7205) ⇒ נכשל; segments, catalog, subscriptions לא מגובים; תורים ו-RFQ רק 30 יום.",
+  "proposal": "גיבוי עסק כולל את כל טבלאות beauty_* בשלמותן (כולל segments, service_catalog, subscription_types, client_subscriptions) לפי שמות העמודות האמיתיים; שחזור הפיך ונבדק בבדיקת round-trip.",
+  "refs": [
+   "server.js:6705",
+   "server.js:6710",
+   "server.js:7192",
+   "server.js:7205"
+  ]
+ },
+ {
+  "id": "BTY-14",
+  "domain": "יופי / קוסמטיקה",
+  "area": "שימור לקוחות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "Cron שימור לקוחות לא מייצר דבר (טבלה לא קיימת)",
+  "as_is": "runRetentionCron כותב ל-group_notifications שאינה נוצרת בשום מקום (server.js:32655) ⇒ נכשל בשקט; אין מניעת כפילויות בין ימים; לקוח לא מקושר לא נכלל (visit_count רק עם client_family_id); ההערה \"after 1 min\" מול 8 דקות בפועל.",
+  "proposal": "התראת שימור נכתבת ל-alert_notifications של העסק (trigger_type='beauty_retention') עם reference_key = client_id + תאריך הביקור האחרון (פעם אחת לכל מחזור). כולל לקוחות לא מקושרים (התאמה לפי client_record_id). ריצה יומית 09:00 Asia/Jerusalem.",
+  "refs": [
+   "server.js:32631",
+   "server.js:32655",
+   "s1-erd.html#טבלאות-רפאים",
+   "rules-beauty.html#Cron שימור לקוחות"
+  ]
+ },
+ {
+  "id": "BTY-15",
+  "domain": "יופי / קוסמטיקה",
+  "area": "סכמה",
+  "category": "architecture",
+  "severity": "low",
+  "title": "עמודות ללא שימוש בסכמת היופי",
+  "as_is": "deposit_wallet_txn, reminder_sent_at, followup_sent_at (server.js:2059–2066), loyalty_points (2102), resulting_appointment_ids (2186), period_start/period_end בעמלות, beauty_inventory.image_url — לא בשימוש; אין CHECK על סטטוסים.",
+  "proposal": "לכל עמודה: לממש (reminder_sent_at — תזכורות BTY-38; resulting_appointment_ids — המרת RFQ BTY-55) או להסיר בבנייה מחדש. סטטוסים מוגדרים כ-enum/CHECK.",
+  "refs": [
+   "server.js:2059",
+   "server.js:2102",
+   "server.js:2186",
+   "rules-beauty.html#מודל הנתונים של מודול היופי"
+  ]
+ },
+ {
+  "id": "BTY-16",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מחזור חיי תור",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "מכונת המצבים של תור: PATCH מקבל כל סטטוס, ו-completed דרך PATCH ללא השפעות",
+  "as_is": "PATCH /appointments/:id ללא whitelist ובלי בדיקת קיום (server.js:31552–31609); complete ו-no-show מכל מצב; approve-cancel מכל מצב; מעבר ל-completed דרך PATCH (עריכה/AI) לא יוצר עמלות, מלאי או הכנסה; in_progress מוגדר רק בתגים.",
+  "proposal": "מצבים: pending_client, confirmed, pending_cancel, completed, cancelled, no_show. מעברים: pending_client→confirmed|cancelled; confirmed→completed|no_show|cancelled|pending_cancel; pending_cancel→cancelled|<מצב קודם>. completed ו-no_show רק דרך הנתיבים הייעודיים; PATCH לא משנה ל-completed. מעבר לא חוקי ⇒ 409.",
+  "refs": [
+   "server.js:31552",
+   "server.js:31612",
+   "server.js:31693",
+   "business-app.js:50163",
+   "rules-beauty.html#מכונת המצבים של תור יופי"
+  ]
+ },
+ {
+  "id": "BTY-17",
+  "domain": "יופי / קוסמטיקה",
+  "area": "השלמת טיפול",
+  "category": "money",
+  "severity": "critical",
+  "title": "השלמה כפולה של תור מכפילה עמלות, הכנסה וסטטיסטיקה",
+  "as_is": "POST /complete לא בודק סטטוס קודם (server.js:31612–31691); כל השלמה נוספת מוסיפה beauty_commissions, logBizIncome ו-visit_count. במסלול 403 יש client.release() כפול ו-BEGIN פתוח (31616, 31690).",
+  "proposal": "complete מותר רק מ-confirmed (UPDATE … WHERE status='confirmed' RETURNING; 0 שורות ⇒ 409 \"התור כבר הושלם או אינו ניתן להשלמה\"); הכנסה ועמלות בתוך אותה טרנזקציה; בדיקת הרשאה לפני BEGIN.",
+  "refs": [
+   "server.js:31612",
+   "server.js:31616",
+   "server.js:31683",
+   "rules-beauty.html#השלמת טיפול"
+  ]
+ },
+ {
+  "id": "BTY-18",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מחזור חיי תור",
+  "category": "functional",
+  "severity": "medium",
+  "title": "הסטטוס scheduled כמעט לא נוצר: KPI \"תורים עתידיים\" ותוויות שגויים",
+  "as_is": "אף מסלול לא יוצר scheduled (רק עריכה ידנית); appt_pending סופר רק scheduled ולכן ≈0 (server.js:32220–32224); תנאי ה-retention cron מושפע; scheduled מתורגם \"ממתין לאישור\" בכרטיס הלקוח (business-app.js:51494) ו\"מתוכנן\" ביומן (50170).",
+  "proposal": "לבטל את scheduled (מיגרציה ל-confirmed); \"תורים עתידיים\" = start_time > NOW() ו-status IN (pending_client, confirmed); מילון תוויות יחיד לכל המסכים: pending_client \"ממתין לאישור הלקוחה\", confirmed \"מאושר\", pending_cancel \"בקשת ביטול\", completed \"הושלם\", cancelled \"בוטל\", no_show \"לא הגיעה\".",
+  "refs": [
+   "server.js:32220",
+   "business-app.js:51494",
+   "business-app.js:50170",
+   "business-app.js:50748"
+  ]
+ },
+ {
+  "id": "BTY-19",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מטפלות",
+  "category": "money",
+  "severity": "medium",
+  "title": "עמלה 0% למטפלת הופכת ל-30%/10%",
+  "as_is": "הלקוח שולח 0 כשהשדה ריק (business-app.js:55172) והשרת משתמש ב-commission_rate_svc||30 / retail||10 (server.js:31310–31313); ב-PATCH 0 נשמר כ-0.",
+  "proposal": "שדה ריק לא נשלח ⇒ ברירת מחדל 30/10; 0 מפורש נשמר כ-0 (שימוש ב-?? ). טווח 0–100 נבדק בשרת.",
+  "refs": [
+   "business-app.js:55172",
+   "server.js:31310"
+  ]
+ },
+ {
+  "id": "BTY-20",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ויזארד הקמה",
+  "category": "functional",
+  "severity": "high",
+  "title": "ויזארד יופי: מטפלות ושירותים (כולל תוצרי ה-AI) לא נשמרים",
+  "as_is": "הויזארד שולח ל-POST /api/beauty/practitioners ו-/api/beauty/services שאינם קיימים (business-app.js:22885–22921) והשגיאה נבלעת; ה-AI מתבקש ל-6 שירותים בדיוק בעוד המדריך מבטיח 5–10.",
+  "proposal": "הויזארד קורא ל-/api/beauty/:bizId/practitioners ו-/services הקיימים, מציג שגיאה אם שמירה נכשלה ולא ממשיך בשקט; ה-AI מייצר 5–10 שירותים לפי הקטגוריות שנבחרו.",
+  "refs": [
+   "business-app.js:22885",
+   "business-app.js:22916",
+   "business-app.js:22414",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-21",
+  "domain": "יופי / קוסמטיקה",
+  "area": "קוד לקוח",
+  "category": "architecture",
+  "severity": "low",
+  "title": "קוד מת ותשובות שרת שלא נבדקות במסכי היופי",
+  "as_is": "מודאל ישן _beautyManagePractitioners/_beautyAddPractitioner ללא קורא (business-app.js:51037–51099); _beautySubmitService, _beautySubmitSubType, שליחת שאלון ושליחת תוכנית לא בודקים את תגובת השרת ומציגים הצלחה גם ב-400/500 (54562, 54893, 54910).",
+  "proposal": "כל קריאת כתיבה בודקת res.ok ומציגה את הודעת השגיאה מהשרת; קוד מת מוסר.",
+  "refs": [
+   "business-app.js:51037",
+   "business-app.js:54562",
+   "business-app.js:54893",
+   "business-app.js:54910"
+  ]
+ },
+ {
+  "id": "BTY-22",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מטפלות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "השבתת מטפלת לא מטפלת בתורים עתידיים ובמשתמש המקושר; אין מחיקה",
+  "as_is": "PATCH is_active=false לא בודק תורים עתידיים ואינו משפיע על המשתמש ב-users (server.js:31321); המדריך מתאר \"מחיקת מטפלת\" שאינה קיימת.",
+  "proposal": "השבתה עם תורים עתידיים מציגה את רשימתם ודורשת שיבוץ מחדש או אישור מפורש; המשתמש המקושר מסומן inactive. אין מחיקה פיזית (רק השבתה) והמדריך מתוקן.",
+  "refs": [
+   "server.js:31321",
+   "business-app.js:55200",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-23",
+  "domain": "יופי / קוסמטיקה",
+  "area": "קביעת תור",
+  "category": "ux",
+  "severity": "medium",
+  "title": "לחיצה על משבצת פנויה לא ממלאת את השעה",
+  "as_is": "_freeSlotCards קורא ל-_beautyNewApModal('HH:MM') אך הפונקציה לא מקבלת פרמטר והטופס נפתח עם 10:00 (business-app.js:50302, 50865, 50905).",
+  "proposal": "_beautyNewApModal(time, practitionerId, date) ממלא שעה, מטפלת (עמודת המשבצת) ותאריך מהמשבצת.",
+  "refs": [
+   "business-app.js:50302",
+   "business-app.js:50865"
+  ]
+ },
+ {
+  "id": "BTY-24",
+  "domain": "יופי / קוסמטיקה",
+  "area": "זמינות",
+  "category": "functional",
+  "severity": "high",
+  "title": "חישוב זמינות אחיד: משך שירות, מטפלות מורשות, ימים זמינים וסינון ביטולים",
+  "as_is": "/slots משתמש ב-slot_minutes של המטפלת ולא במשך השירות ולא בודק available_days/allowed_practitioner_ids (server.js:31212–31267); _freeSlotCards לא מסנן cancelled/no_show; /availability ללא סינון סטטוס ובלי צרכן (31705); available_days/allowed_practitioner_ids לא נאכפים גם ביצירת תור.",
+  "proposal": "פונקציה אחת בשרת לזמינות: משבצת = משך השירות (צעד = slot_minutes), בתוך שעות המטפלת ו-available_days של השירות, רק מטפלות ב-allowed_practitioner_ids (ריק = כולן), מתעלמת מתורים cancelled/no_show. יצירת תור (BIZ/חנות/משפחה) מאמתת את אותם כללים (ADMIN רשאי לעקוף עם force).",
+  "refs": [
+   "server.js:31212",
+   "server.js:31705",
+   "business-app.js:50275",
+   "rules-beauty.html#חישוב משבצות פנויות"
+  ]
+ },
+ {
+  "id": "BTY-25",
+  "domain": "יופי / קוסמטיקה",
+  "area": "משאבים",
+  "category": "scope",
+  "severity": "low",
+  "title": "משאבים (חדרים/ציוד) ללא ממשק אך נבדקים בהתנגשות",
+  "as_is": "נתיבי resources קיימים ויצירת תור בודקת RESOURCE_CONFLICT (server.js:31335–31365, 31426), אך אין UI; המדריך מתאר \"בחר… מטפלת וחדר\".",
+  "proposal": "טאב משנה \"חדרים וציוד\" בהגדרות היופי ושדה חדר אופציונלי בטופס התור; בחירת חדר כפופה להתנגשות.",
+  "alternatives": [
+   "להסיר משאבים מהספק ומהמדריך"
+  ],
+  "refs": [
+   "server.js:31335",
+   "server.js:31426",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-26",
+  "domain": "יופי / קוסמטיקה",
+  "area": "קביעת תור",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "בדיקת התנגשות סופרת תורים מבוטלים ואינה מוגבלת לעסק",
+  "as_is": "בדיקות RESOURCE_CONFLICT ו-PRACTITIONER_CONFLICT לא מסננות cancelled/no_show ולא business_group_id (server.js:31426–31441) ⇒ תור מבוטל חוסם את המשבצת; בעריכת תור אין בדיקת התנגשות כלל.",
+  "proposal": "התנגשות נבדקת רק מול סגמנטים של אותו עסק שתורם אינו cancelled/no_show (ואינו התור הנערך), ביצירה ובעריכה; תשובה 409 עם פרטי התור המתנגש.",
+  "refs": [
+   "server.js:31426",
+   "server.js:31434",
+   "server.js:31552"
+  ]
+ },
+ {
+  "id": "BTY-27",
+  "domain": "יופי / קוסמטיקה",
+  "area": "תאריכים ואזור זמן",
+  "category": "architecture",
+  "severity": "high",
+  "title": "start_time נשמר כזמן מקומי ו-end_time כ-UTC; \"היום\" לפי TZ השרת",
+  "as_is": "הלקוח שולח start כ-'YYYY-MM-DDTHH:MM:00' נאיבי ו-end כ-toISOString (UTC) (business-app.js:51007–51009) ⇒ בישראל end מוקדם מ-start ב-2–3 שעות; אותו דפוס ב-PATCH (server.js:31583–31587) ובאישור חנות (23041); הדשבורד מגדיר \"היום\" לפי שעון השרת ו-PATCH מערב toISOString עם getHours (31581).",
+  "proposal": "עמודות זמן כ-TIMESTAMPTZ; הלקוח שולח ISO עם offset; השרת מחשב end = start + duration בלבד; \"היום\"/\"החודש\" בכל KPI ודוח לפי Asia/Jerusalem. בדיקה: תור 10:00 ל-60 דק' נשמר 10:00–11:00 שעון ישראל בכל TZ שרת.",
+  "refs": [
+   "business-app.js:51007",
+   "server.js:31581",
+   "server.js:23041",
+   "server.js:32205"
+  ]
+ },
+ {
+  "id": "BTY-28",
+  "domain": "יופי / קוסמטיקה",
+  "area": "בדיקת רגישות",
+  "category": "functional",
+  "severity": "high",
+  "title": "Patch Test: אין דרך לעדכן סטטוס ולכן השירות חסום לצמיתות; לא נבדק בחנות",
+  "as_is": "יצירת תור דורשת patch_test_status='passed' בתוקף (server.js:31471–31495), אך אין ממשק לעדכון וה-PATCH של כרטיס הלקוח נכשל ממילא; בחנות ובאישור בקשה אין בדיקה; expired לא מחושב; המדריך מתאר זאת כתזכורת בלבד.",
+  "proposal": "בכרטיס הלקוח: \"רשום בדיקת רגישות\" (תאריך, תוצאה passed/failed, תוקף ברירת מחדל 6 חודשים). קביעה לשירות שדורש בדיקה ללא passed בתוקף: ב-BIZ אזהרה + אפשרות לקבוע את הבדיקה עצמה או אישור עקיפה מתועד; בחנות הבקשה מסומנת \"נדרשת בדיקת רגישות\". expired = expires_at < היום (מחושב).",
+  "alternatives": [
+   "חסימה קשיחה בכל הערוצים (כולל חנות) ללא עקיפה"
+  ],
+  "refs": [
+   "server.js:31471",
+   "business-app.js:51522",
+   "public/beauty-guide.html",
+   "rules-beauty.html#בדיקת רגישות (Patch Test)"
+  ]
+ },
+ {
+  "id": "BTY-29",
+  "domain": "יופי / קוסמטיקה",
+  "area": "קביעת תור",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "זיהוי לקוח לפי טלפון עלול לקשר תור למשפחה אחרת, וללא הודעה ללקוח",
+  "as_is": "כשאין client_family_id, השרת מחפש users של קבוצת FAMILY לפי ספרות טלפון ומעביר ל-pending_client (server.js:31446–31469, 31498); אין התראה ללקוח בכלל.",
+  "proposal": "קישור אוטומטי רק לכרטיס לקוח קיים בעסק שכבר מקושר (client_family_id) — לא חיפוש חופשי ב-users; קישור חדש רק דרך \"קשר WEFLOWZ\" עם אישור הלקוחה. תור pending_client שולח הודעת inbox ללקוחה עם אשר/דחה.",
+  "refs": [
+   "server.js:31446",
+   "server.js:31498",
+   "rules-beauty.html#יצירת תור (פנימי או ממשפחה)"
+  ]
+ },
+ {
+  "id": "BTY-30",
+  "domain": "יופי / קוסמטיקה",
+  "area": "סוג עסק",
+  "category": "security",
+  "severity": "low",
+  "title": "אין בדיקה בשרת שהעסק מסוג beauty (תורים, RFQ)",
+  "as_is": "יצירת תור ו-RFQ לא בודקות business_type (server.js:31409, 32366).",
+  "proposal": "כל נתיבי /api/beauty/* (כולל RFQ ממשפחה) מחזירים 403/404 אם העסק אינו business_type='beauty' או שמודול היופי לא פעיל.",
+  "refs": [
+   "server.js:31409",
+   "server.js:32366"
+  ]
+ },
+ {
+  "id": "BTY-31",
+  "domain": "יופי / קוסמטיקה",
+  "area": "יומן",
+  "category": "ux",
+  "severity": "medium",
+  "title": "יומן: סינון מטפלת חותך סגמנטים, באנרים חסרים בשבוע/חודש, ביטולים בלי הבחנה",
+  "as_is": "סינון practitioner_id/resource_id ב-GET מסנן גם את segments שב-json_agg (server.js:31386–31407); באנרי בקשות ממתינות רק ביום/רשימה; cancelled/no_show מוצגים בצבע המטפלת; אין סינון לפי מטפלת בממשק (המדריך טוען שיש).",
+  "proposal": "הסינון בוחר תורים (EXISTS) ומחזיר את כל הסגמנטים; באנרים בכל התצוגות; cancelled/no_show מוצגים מעומעמים עם קו חוצה או מוסתרים במתג; בורר \"מטפלת\" ביומן.",
+  "refs": [
+   "server.js:31386",
+   "business-app.js:50228",
+   "business-app.js:50339",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-32",
+  "domain": "יופי / קוסמטיקה",
+  "area": "עריכת תור",
+  "category": "functional",
+  "severity": "high",
+  "title": "עריכת תור: רק סגמנט ראשון, מחיר ושירות קטלוגי לא מתעדכנים, שדות שהשרת מתעלם מהם",
+  "as_is": "PATCH מעדכן רק segment_order=1 (server.js:31575–31600); שינוי שירות לא מעדכן total_price ו-service_catalog_id; הלקוח שולח practitioner_id, start_time, end_time, total_price ברמת התור שמתעלמים מהם (business-app.js:51011).",
+  "proposal": "עריכה מזיזה את כל הסגמנטים באותו היסט; שינוי שירות מעדכן service_catalog_id, משך ומחיר (total_price = Σ סגמנטים) אלא אם המחיר נערך ידנית; ה-API מתעד חוזה אחד (segments בלבד) ודוחה שדות לא מוכרים.",
+  "refs": [
+   "server.js:31575",
+   "business-app.js:50703",
+   "business-app.js:51011"
+  ]
+ },
+ {
+  "id": "BTY-33",
+  "domain": "יופי / קוסמטיקה",
+  "area": "בינה מלאכותית",
+  "category": "functional",
+  "severity": "medium",
+  "title": "פעולות AI ביופי נכשלות (ללא Authorization ושדות שגויים) וההקשר חלקי",
+  "as_is": "_aiUpdateApptStatus/_aiCompleteAppt/_aiNoShowAppt שולחים fetch ללא Authorization ⇒ 401 (business-app.js:57456, 57474, 57489); _aiAddBeautyClient שולח {name, phone, notes} ⇒ 400 (57505); ההקשר נבנה רק מתורים שנטענו ביומן ו-practitioner תמיד undefined (16269–16271).",
+  "proposal": "כל פעולות ה-AI עוברות דרך פונקציית fetch מאומתת משותפת ושמות שדות של ה-API; את הקשר התורים של היום בונה השרת מה-DB (כולל שם מטפלת).",
+  "refs": [
+   "business-app.js:57456",
+   "business-app.js:57505",
+   "business-app.js:16269",
+   "server.js:16142"
+  ]
+ },
+ {
+  "id": "BTY-34",
+  "domain": "יופי / קוסמטיקה",
+  "area": "עמלות",
+  "category": "money",
+  "severity": "high",
+  "title": "מקור שיעור העמלה: commission_pct של שירות ועמלת קמעונאות לא בשימוש",
+  "as_is": "בהשלמה העמלה = price × commission_rate_svc של המטפלת בלבד (server.js:31639–31651); commission_pct של השירות (\"ריק = ברירת מחדל מטפלת\") ו-commission_rate_retail לא משמשים; המדריך מבטיח עמלה לפי שירות.",
+  "proposal": "שיעור עמלת שירות = commission_pct של השירות אם מוגדר, אחרת commission_rate_svc של המטפלת; מכירת מוצר קמעונאי עם מטפלת משויכת יוצרת עמלה commission_type='retail' לפי commission_rate_retail. השיעור נשמר בשורת העמלה.",
+  "refs": [
+   "server.js:31639",
+   "server.js:31648",
+   "server.js:32182",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-35",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מלאי בטיפול",
+  "category": "scope",
+  "severity": "medium",
+  "title": "ניכוי back-bar בהשלמה לא קורה בפועל (אין ממשק לפריטים)",
+  "as_is": "complete מנכה backbar_items מהסגמנט ומדלג בשקט כשאין מלאי (server.js:31633–31638), אך אף ממשק לא מאכלס backbar_items; המדריך מתאר \"שימוש בטיפול… מנוהל ביומן\".",
+  "proposal": "לכל שירות בקטלוג רשימת חומרים ברירת מחדל (inventory_id, כמות); בהשלמה המטפלת מאשרת/עורכת כמויות; חוסר מלאי לא חוסם אך נרשם ומתריע; כל ניכוי נרשם ביומן תנועות.",
+  "alternatives": [
+   "להסיר את ניכוי ה-back-bar מהספק ומהמדריך"
+  ],
+  "refs": [
+   "server.js:31633",
+   "public/beauty-guide.html",
+   "rules-beauty.html#השלמת טיפול"
+  ]
+ },
+ {
+  "id": "BTY-36",
+  "domain": "יופי / קוסמטיקה",
+  "area": "סטטיסטיקת ביקורים",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "סטטיסטיקות ביקור: רק ללקוח מקושר, ממוצע לפי מועד יצירה וכל הזוגות",
+  "as_is": "visit_count/last_visit_at/total_spent מתעדכנים רק כשיש client_family_id (server.js:31655–31662); avg_visit_interval_days מחושב מ-created_at ומכל הזוגות (31666–31676); \"ביקור צפוי\" בכרטיס מחושב מהיום ולא מהביקור האחרון (business-app.js:51527).",
+  "proposal": "לכל תור client_record_id; הסטטיסטיקה מתעדכנת לפי כרטיס הלקוח; avg = ממוצע הפרשי ימים בין מועדי טיפול completed עוקבים (עד 10 אחרונים); ביקור צפוי = last_visit_at + avg.",
+  "refs": [
+   "server.js:31655",
+   "server.js:31666",
+   "business-app.js:51527"
+  ]
+ },
+ {
+  "id": "BTY-37",
+  "domain": "יופי / קוסמטיקה",
+  "area": "לא הגיעה",
+  "category": "money",
+  "severity": "low",
+  "title": "no-show ללא מדיניות פיקדון/התראה",
+  "as_is": "POST /no-show רק משנה סטטוס (server.js:31693); deposit_amount קיים ולא משמש.",
+  "proposal": "להגדיר בהגדרות העסק no_show_policy: none (ברירת מחדל) או חילוט פיקדון — כשמוגדר, no-show עם deposit_paid רושם הכנסה בגובה הפיקדון; אחרי 2 no-show ב-90 יום מוצג תג אזהרה בכרטיס הלקוח.",
+  "alternatives": [
+   "ללא מדיניות — רק סטטוס ומונה"
+  ],
+  "refs": [
+   "server.js:31693",
+   "server.js:2059"
+  ]
+ },
+ {
+  "id": "BTY-38",
+  "domain": "יופי / קוסמטיקה",
+  "area": "התראות",
+  "category": "functional",
+  "severity": "high",
+  "title": "אין התראות לאורך מחזור חיי התור (והמדריך מבטיח תזכורות 24/2 שעות)",
+  "as_is": "pending_client ללקוח, אישור לקוח לעסק, אישור/דחיית ביטול ללקוח, ושינויים בעריכה — לא נשלחת אף הודעה (server.js:32018, 43613); reminder_sent_at לא בשימוש ואין קוד תזכורות; רק אישור בקשת חנות שולח SMS.",
+  "proposal": "התראות: לקוחה — תור חדש/pending_client, שינוי מועד, ביטול, אישור/דחיית בקשת ביטול; עסק — אישור/דחייה ע\"י לקוחה, בקשת ביטול. תזכורת 24 שעות לפני (inbox ללקוחה מקושרת, SMS לפי הגדרה) עם reminder_sent_at למניעת כפילות.",
+  "alternatives": [
+   "תזכורת אחת בלבד (24 שעות) וללא SMS"
+  ],
+  "refs": [
+   "server.js:32018",
+   "server.js:43613",
+   "server.js:2059",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-39",
+  "domain": "יופי / קוסמטיקה",
+  "area": "בקשת ביטול",
+  "category": "functional",
+  "severity": "medium",
+  "title": "בקשת ביטול: אין בדיקת מצב/מועד בשרת, טלפון לא מנורמל, דחייה תמיד ל-confirmed",
+  "as_is": "cancel-by-customer לא בודק סטטוס או תאריך (בדיקה רק בלקוח sc-auth.js:507) ומשווה טלפון כמחרוזת מדויקת (server.js:43549–43569); reject-cancel מחזיר תמיד ל-confirmed.",
+  "proposal": "השרת מאפשר בקשת ביטול רק לתור עתידי במצב pending_client/confirmed; השוואת טלפון מנורמלת (0XXXXXXXXX); המצב הקודם נשמר (status_before_cancel) והדחייה מחזירה אליו. אופציה: ביטול ישיר ללא אישור אם נותרו מעל N שעות (הגדרת עסק).",
+  "refs": [
+   "server.js:43549",
+   "server.js:43624",
+   "sc-auth.js:507"
+  ]
+ },
+ {
+  "id": "BTY-40",
+  "domain": "יופי / קוסמטיקה",
+  "area": "בקשת תור מהחנות",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "אישור בקשת חנות: מטפלת מועדפת אובדת, מחיר 0, שם הלקוח = כותרת האירוע",
+  "as_is": "verify-booking-sms לא מעתיק preferred_practitioner_id ל-calendar_events (server.js:33735–33741); באישור נוצר תור עם total_price=0 ו-client_name=title (\"שם — שירות\") (server.js:23028–23075) ⇒ אין הכנסה ועמלה בהשלמה.",
+  "proposal": "הבקשה שומרת service_id, preferred_practitioner_id, client_name ו-client_phone נפרדים; באישור נוצר תור עם מחיר ומשך מהקטלוג, המטפלת המועדפת (או בחירת העסק בעת האישור) וכרטיס לקוח מקושר.",
+  "refs": [
+   "server.js:33735",
+   "server.js:23028",
+   "rules-beauty.html#בקשת תור מהחנות הציבורית ואישורה"
+  ]
+ },
+ {
+  "id": "BTY-41",
+  "domain": "יופי / קוסמטיקה",
+  "area": "בקשת תור מהחנות",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "אישור בקשה אינו אידמפוטנטי ויוצר כפילויות",
+  "as_is": "אישור כפול יוצר שני תורי יופי; אחרי אישור האירוע נשאר approved ב-calendar_events וגם תור נוצר, ושניהם מוצגים באפליקציה המשפחתית (app.js:14978, 15023–15031); אין בדיקת התנגשות באישור.",
+  "proposal": "אישור מעביר את הבקשה ל-converted עם appointment_id (UPDATE … WHERE status='pending'; אחרת 409) ומאמת התנגשות; האפליקציה המשפחתית מציגה רק את תור היופי.",
+  "refs": [
+   "server.js:22977",
+   "server.js:23028",
+   "app.js:15023"
+  ]
+ },
+ {
+  "id": "BTY-42",
+  "domain": "יופי / קוסמטיקה",
+  "area": "זמינות בחנות",
+  "category": "functional",
+  "severity": "high",
+  "title": "החנות חוסמת רק שעת התחלה זהה ברמת העסק",
+  "as_is": "החנות מחשבת תפוסה לפי start_time זהה של אירועים (storefront.html:3799–3860) — לא לפי מטפלת, משך, work_days או available_days; האירוע הסינתטי מכיל שם מטפלת בשדה customer_phone (server.js:22839) וכולל עבר ו-completed.",
+  "proposal": "בקשת תור בחנות משתמשת ב-/slots (BTY-24) לפי שירות ומטפלת (\"ללא העדפה\" = איחוד המטפלות המורשות); אירועים סינתטיים מוסרים.",
+  "refs": [
+   "storefront.html:3799",
+   "server.js:22839",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-43",
+  "domain": "יופי / קוסמטיקה",
+  "area": "כרטיס לקוח",
+  "category": "functional",
+  "severity": "low",
+  "title": "היסטוריית תורים בכרטיס לפי טלפון/שם ולא לפי מזהה; GET /clients/:id לא בשימוש",
+  "as_is": "הכרטיס קורא by-customer לפי phone או name (business-app.js:51451–51458) ולא client_id; GET /clients/:id (server.js:31742) לא בשימוש.",
+  "proposal": "כרטיס הלקוח נטען מנתיב אחד GET /clients/:id שמחזיר פרטים, תורים (לפי client_record_id), פורמולות, תמונות ומנויים.",
+  "refs": [
+   "business-app.js:51451",
+   "server.js:31742",
+   "server.js:43572"
+  ]
+ },
+ {
+  "id": "BTY-44",
+  "domain": "יופי / קוסמטיקה",
+  "area": "גבייה",
+  "category": "money",
+  "severity": "high",
+  "title": "מתי נרשמת הכנסה: בהשלמה או באישור גבייה",
+  "as_is": "ההכנסה נרשמת ב-transactions בהשלמת טיפול (server.js:31683), ואישור גבייה רק מסמן payment_confirmed בלי תנועה (server.js:31552); אין ביטול אישור גבייה; \"פרטים ומאזן\" מבוסס על /api/clients/financial-summary שאינו מתואם (business-app.js:51534).",
+  "proposal": "השלמה יוצרת חוב לקוח (receivable); אישור גבייה (עם אמצעי תשלום) רושם את ההכנסה ב-transactions; ביטול אישור גבייה רושם תנועה הפוכה; מאזן הלקוח מחושב מאותו מקור.",
+  "alternatives": [
+   "להשאיר הכנסה בהשלמה, ואישור גבייה כסימון בלבד — אך לאחד את מקור המאזן"
+  ],
+  "refs": [
+   "server.js:31683",
+   "server.js:31369",
+   "business-app.js:51534",
+   "rules-beauty.html#גבייה: מרכז גבייה"
+  ]
+ },
+ {
+  "id": "BTY-45",
+  "domain": "יופי / קוסמטיקה",
+  "area": "תיקי לקוחות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "רשימת לקוחות מוגבלת ל-100 וחיפוש מקומי; שדות תצוגה שגויים",
+  "as_is": "GET /clients מחזיר LIMIT 100 והחיפוש בלקוח רק על הנטענים (server.js:31729–31740, business-app.js:51120); התצוגה משתמשת ב-c.email במקום client_email (51147, 51422, 51516); _ofwSearch ממפה c.phone (48886).",
+  "proposal": "חיפוש בשרת (debounce 300ms) עם עימוד 50; שמות שדות לפי הסכמה (client_email, client_phone).",
+  "refs": [
+   "server.js:31729",
+   "business-app.js:51120",
+   "business-app.js:51147",
+   "business-app.js:48886"
+  ]
+ },
+ {
+  "id": "BTY-46",
+  "domain": "יופי / קוסמטיקה",
+  "area": "תיקי לקוחות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "אין מניעת כפילות לקוחות",
+  "as_is": "POST /clients מוסיף רשומה ללא בדיקת טלפון/ת\"ז (server.js:32034–32057); יצירת תור יוצרת כרטיס נוסף לפי טלפון (31524–31546).",
+  "proposal": "טלפון מנורמל ות\"ז ייחודיים לכרטיס בעסק: יצירה עם ערך קיים ⇒ 409 עם קישור לכרטיס הקיים.",
+  "refs": [
+   "server.js:32034",
+   "server.js:31524"
+  ]
+ },
+ {
+  "id": "BTY-47",
+  "domain": "יופי / קוסמטיקה",
+  "area": "פורמולות ותמונות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "תמונות לקוח: URL בלבד, consultation נכשל, הסכמה לא חובה",
+  "as_is": "photo_type VARCHAR(10) ⇒ consultation (12 תווים) מחזיר 500 (server.js:2129, 32103); אין העלאת קובץ; is_consent_given אינו חובה.",
+  "proposal": "העלאת קובץ (תמונה עד 10MB לאחסון העסק, thumbnail אוטומטי); photo_type כ-enum (before, after, consultation, reference); שמירת תמונה דורשת is_consent_given=true.",
+  "refs": [
+   "server.js:2129",
+   "server.js:32103",
+   "business-app.js:52259"
+  ]
+ },
+ {
+  "id": "BTY-48",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מנויים וחבילות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "עריכת סוג חבילה מוחקת את התיאור",
+  "as_is": "כפתור העריכה מעביר רק id, שם, כניסות, מחיר ותוקף, והשמירה דורסת description ב-null (business-app.js:54589–54748).",
+  "proposal": "טופס העריכה טוען את כל השדות מהשרת; PATCH מעדכן רק שדות שנשלחו.",
+  "refs": [
+   "business-app.js:54650",
+   "server.js:32540"
+  ]
+ },
+ {
+  "id": "BTY-49",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מנויים וחבילות",
+  "category": "money",
+  "severity": "high",
+  "title": "מימוש חבילות: לא מקושר לתורים, פג תוקף ניתן למימוש, מכירה ללא תנועה כספית",
+  "as_is": "use לא בודק expires_at (server.js:32612–32626); אין ניכוי אוטומטי בהשלמת תור למרות טקסט ההדרכה (business-app.js:54650); service_ids לא בשימוש; client_record_id לא נבדק כשייך לעסק; מכירה לא רושמת הכנסה (\"יש לגבות בנפרד\").",
+  "proposal": "מימוש רק לחבילה פעילה, לא פגה ושייכת ללקוח ולעסק; בהשלמת תור לשירות שנכלל ב-service_ids של חבילה פעילה מוצע \"מימוש מהחבילה\" (התור לא נכנס לגבייה); מכירת חבילה רושמת הכנסה/חוב כמו תור.",
+  "refs": [
+   "server.js:32595",
+   "server.js:32612",
+   "business-app.js:54650",
+   "business-app.js:51730"
+  ]
+ },
+ {
+  "id": "BTY-50",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מלאי",
+  "category": "functional",
+  "severity": "medium",
+  "title": "התראת מלאי נמוך שגויה בלקוח (השוואת מחרוזות) וסף 0 לא נשמר",
+  "as_is": "item.stock_qty <= item.reorder_threshold משווה מחרוזות DECIMAL (\"10.000\" <= \"5.000\" ⇒ true) (business-app.js:51943); סף 0 הופך ל-2 בלקוח ול-5 בשרת (||).",
+  "proposal": "השוואה מספרית (או isLow מחושב בשרת); סף 0 נשמר כ-0 (= ללא התראה).",
+  "refs": [
+   "business-app.js:51943",
+   "server.js:32141"
+  ]
+ },
+ {
+  "id": "BTY-51",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מלאי",
+  "category": "functional",
+  "severity": "medium",
+  "title": "מלאי: אין עריכה/מחיקה ואין יומן תנועות",
+  "as_is": "PATCH /inventory/:id קיים ללא שימוש בממשק ואין מחיקה (server.js:32155); adjust מתעלם מ-reason ואין יומן תנועות או רישום הוצאה בקנייה (32168–32179); שדה \"כמות בארגז\" נשלח כ-stock_qty.",
+  "proposal": "עריכה והשבתה של פריט מהממשק; כל שינוי כמות נרשם ב-beauty_inventory_movements (delta, reason, user, appointment_id); reason=purchase עם עלות יוצר הוצאה ב-cashflow (אופציונלי); תווית השדה \"כמות במלאי\".",
+  "refs": [
+   "server.js:32155",
+   "server.js:32168",
+   "business-app.js:52082"
+  ]
+ },
+ {
+  "id": "BTY-52",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מלאי",
+  "category": "money",
+  "severity": "medium",
+  "title": "מכירת מוצר: לא טרנזקציה, פריט לא פעיל נמכר, ללא לקוח",
+  "as_is": "POST /inventory/:id/sell מעדכן מלאי ואז רושם הכנסה בנפרד (server.js:32182–32203), מאפשר פריט is_active=false, ואינו מקשר ללקוח/מטפלת.",
+  "proposal": "המכירה בטרנזקציה; פריט לא פעיל או inventory_type≠retail ⇒ 400; שדות אופציונליים client_record_id ו-practitioner_id (לעמלת קמעונאות BTY-34).",
+  "refs": [
+   "server.js:32182",
+   "rules-beauty.html#מכירת מוצר קמעונאי"
+  ]
+ },
+ {
+  "id": "BTY-53",
+  "domain": "יופי / קוסמטיקה",
+  "area": "עמלות",
+  "category": "money",
+  "severity": "high",
+  "title": "תשלום עמלות: ללא אישור וללא רישום הוצאה",
+  "as_is": "\"שלם ₪X\" מבוצע מיד ללא confirm (business-app.js:52241) ו-POST /commissions/pay רק מסמן is_paid (server.js:32330–32350), ללא הוצאה בתזרים.",
+  "proposal": "חלון אישור עם הסכום והתקופה; התשלום מסמן את העמלות עד תאריך נבחר ורושם logBizExpense (קטגוריית שכר) בסכום הזהה; התשובה מחזירה את הסכום ששולם.",
+  "refs": [
+   "business-app.js:52241",
+   "server.js:32330"
+  ]
+ },
+ {
+  "id": "BTY-54",
+  "domain": "יופי / קוסמטיקה",
+  "area": "עמלות",
+  "category": "ux",
+  "severity": "low",
+  "title": "מסך עמלות: \"3 אחרונים\" הם הישנים, צבע חסר, אין פילטר תקופה",
+  "as_is": "slice(-3) על רשימה ממוינת יורדת מציג את 3 הישנים (business-app.js:52153–52239); color_hex לא מוחזר מהשרת; אין פילטר תקופה בממשק (המדריך טוען שיש) ואין פירוט לפי תור/לקוחה.",
+  "proposal": "3 העמלות האחרונות לפי created_at; השרת מחזיר color_hex; פילטר חודש (ברירת מחדל החודש הנוכחי) ופירוט עמלה לפי תור עם שם לקוחה ושירות.",
+  "refs": [
+   "business-app.js:52153",
+   "server.js:32310",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-55",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ייעוץ (RFQ)",
+  "category": "functional",
+  "severity": "high",
+  "title": "תהליך RFQ נתקע אחרי תשובת לקוחה ואין בדיקות מצב בשרת",
+  "as_is": "כפתור \"שלח תוכנית\" מוצג רק ב-questionnaire_sent/photos_requested (business-app.js:54821), ולכן אחרי client_responded אי אפשר לשלוח תוכנית; השרת לא בודק מעברים (אפשר accept בלי תוכנית); photos_requested/booked לא נכתבים; client_responded חסר במפת הסטטוסים; אין המרה לתור ואין התראות.",
+  "proposal": "מצבים ומעברים: new→questionnaire_sent|plan_sent|rejected; questionnaire_sent→client_responded; client_responded→plan_sent|questionnaire_sent; plan_sent→accepted|rejected; accepted→booked (בקביעת תור מה-RFQ, rfq_id נשמר וה-id נוסף ל-resulting_appointment_ids). השרת דוחה מעבר לא חוקי (409). כל מעבר שולח התראה לצד השני.",
+  "refs": [
+   "business-app.js:54821",
+   "server.js:32378",
+   "server.js:32420",
+   "rules-beauty.html#מכונת המצבים של בקשת ייעוץ"
+  ]
+ },
+ {
+  "id": "BTY-56",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ייעוץ (RFQ)",
+  "category": "functional",
+  "severity": "high",
+  "title": "שאלון שנשלח מכרטיס RFQ לא מוצג ללקוחה (object במקום מערך)",
+  "as_is": "שליחה מכרטיס ה-RFQ שולחת questions כ-object (business-app.js:54893–54908) והאפליקציה המשפחתית מצפה למערך (app.js:15661) ⇒ הלקוחה לא יכולה לענות; בעסק השאלון מוצג \"questions: [object Object]\" (54845).",
+  "proposal": "פורמט אחיד: questions = מערך מחרוזות, answers = מערך באותו אורך; השרת מאמת את הפורמט; הכרטיס בעסק מציג זוגות שאלה–תשובה.",
+  "refs": [
+   "business-app.js:54893",
+   "app.js:15661",
+   "business-app.js:54845"
+  ]
+ },
+ {
+  "id": "BTY-57",
+  "domain": "יופי / קוסמטיקה",
+  "area": "ייעוץ (RFQ)",
+  "category": "functional",
+  "severity": "medium",
+  "title": "תוכנית טיפולים ורשימת RFQ: מקדמה וקישור תשלום לא נשלחים, שם לקוחה חסר",
+  "as_is": "\"מקדמה נדרשת\" ו-payment_link לא נשלחים מהטופס (business-app.js:54936–54938); הכרטיס מציג rfq.client_name בעוד השרת מחזיר client_name_family (server.js:32357); \"הפכו לתורים\" תמיד 0.",
+  "proposal": "התוכנית כוללת deposit_amount ו-payment_link אופציונליים שמוצגים ללקוחה; השרת מחזיר client_name; המונה \"הפכו לתורים\" = status='booked'.",
+  "refs": [
+   "business-app.js:54936",
+   "server.js:32357",
+   "business-app.js:54777"
+  ]
+ },
+ {
+  "id": "BTY-58",
+  "domain": "יופי / קוסמטיקה",
+  "area": "דשבורד",
+  "category": "functional",
+  "severity": "medium",
+  "title": "הגדרות KPI בדשבורד המנהל",
+  "as_is": "\"הכנסה היום/החודש\" לפי start_time של completed (ללא גבול עליון לחודש) ומנווט ל-sales (המדריך: לעמלות); total_clients = DISTINCT client_family_id (מקושרים בלבד); appt_pending תלוי scheduled; \"היום\" לפי TZ השרת (server.js:32205–32296).",
+  "proposal": "revenue_today/month = הכנסות יופי שנרשמו בתקופה לפי Asia/Jerusalem (בהתאם להחלטת BTY-44); total_clients = כרטיסי לקוח פעילים בעסק (עם תת-מדד מקושרים); תורים עתידיים לפי BTY-18; KPI הכנסה מנווט לדוח הכנסות.",
+  "refs": [
+   "server.js:32205",
+   "server.js:32220",
+   "business-app.js:45808",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-59",
+  "domain": "יופי / קוסמטיקה",
+  "area": "דשבורד צוות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "דשבורד מטפלת ללא התורים והעמלות שלה (המדריך מבטיח)",
+  "as_is": "renderBeautyStaffDashboard מציג רק פעולות מהירות ועד 6 משימות (business-app.js:39505–39529); אין סינון לפי מטפלת בשום מסך; למטפלת אין קישור users↔practitioner בסשן.",
+  "proposal": "משתמש עובד מקושר ל-beauty_practitioners.user_id; דשבורד המטפלת מציג את תורי היום שלה, ביקורים הבאים ועמלות לא משולמות שלה; היומן נפתח מסונן למטפלת.",
+  "refs": [
+   "business-app.js:39505",
+   "business-app.js:38080",
+   "public/beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-60",
+  "domain": "יופי / קוסמטיקה",
+  "area": "דוחות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "דוח יופי: סינון לפי מועד יצירה והכנסה כוללת ביטולים",
+  "as_is": "apptByStatus/revByPractitioner/topServices מסוננים לפי created_at ולא מועד הטיפול; הכנסה לפי מטפלת כוללת cancelled/no_show (server.js:33810–33817).",
+  "proposal": "הדוח מסנן לפי start_time של הטיפול (Asia/Jerusalem); הכנסה רק מ-completed; ספירות לפי סטטוס מוצגות בנפרד.",
+  "refs": [
+   "server.js:33810"
+  ]
+ },
+ {
+  "id": "BTY-61",
+  "domain": "יופי / קוסמטיקה",
+  "area": "קופה",
+  "category": "scope",
+  "severity": "medium",
+  "title": "אין חיבור בין הקופה (POS) לתורי יופי, עמלות ומלאי",
+  "as_is": "המדריך מתאר \"בחר תור שהושלם… עמלה מחושבת אוטומטית\" ומוצרים שיורדים מהמלאי; בקוד ה-POS אינו מכיר beauty_appointments, beauty_commissions או beauty_inventory.",
+  "proposal": "בקופה: \"גבה תור\" מציג תורים completed שלא נגבו ללקוחה; הגבייה מסמנת payment_confirmed ורושמת הכנסה (BTY-44); מוצרי מלאי יופי retail ניתנים למכירה בקופה ומנכים מ-beauty_inventory.",
+  "alternatives": [
+   "להשאיר את הקופה נפרדת ולהסיר את התיאור מהמדריך"
+  ],
+  "refs": [
+   "public/beauty-guide.html",
+   "rules-beauty.html#אי-התאמות מול beauty-guide.html"
+  ]
+ },
+ {
+  "id": "BTY-62",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מדריך",
+  "category": "docs",
+  "severity": "medium",
+  "title": "beauty-guide: נתיבי ניווט, טפסים ומספרים שאינם תואמים לקוד",
+  "as_is": "המדריך: הוספת מטפלת דרך \"צוות → ניהול צוות\" עם טלפון (בפועל טאב \"💆 מטפלות\" ללא טלפון); כפתור \"הוסף לקוחה חדשה\" בטופס התור (אין); כרטיס לקוח 4 טאבים (5); 6 KPIs (7, כולל \"ממתין לגביה\"); \"+ מנוי חדש\" ותוקף בחודשים (\"+ חבילה חדשה\", ימים); סטטוסים \"הגיע/בטיפול\" (לא קיימים); \"מחיקת מטפלת\" (רק השבתה); מטפלת עם גישה למלאי (אין ב-ROLE_TYPE_TABS); AI \"5–10 שירותים\" (6).",
+  "proposal": "לעדכן את beauty-guide.html לפי ההחלטות שאושרו בספק זה (ניווט, שדות, KPIs, סטטוסים, תפקידים) באותו קומיט של כל שינוי, לפי כלל 6.",
+  "refs": [
+   "public/beauty-guide.html",
+   "s1-docsvscode.html#Beauty guide KPI",
+   "rules-beauty.html#פערים בין המדריך לקוד"
+  ]
+ },
+ {
+  "id": "BTY-63",
+  "domain": "יופי / קוסמטיקה",
+  "area": "מדריך",
+  "category": "docs",
+  "severity": "medium",
+  "title": "beauty-guide מבטיח תכונות שאינן קיימות — להחליט לממש או להסיר",
+  "as_is": "לא ממומשים: תזכורות 24/2 שעות ותזכורת Inbox; אלרגיות באדום בכל תור; סינון לפי מטפלת; התראות מלאי ביומן; מוצרי קמעונאות בחנות; עמלה לפי שירות ופילטר תקופה; RFQ — הצעה עם שירות/מחיר/משך, \"מבקשת שינוי\", קביעת תור מהבקשה, סינון; חסימת משבצות לפי משך ומטפלת; Patch Test כתזכורת. גם תיאורי מודולי הרישוי מבטיחים \"תזכורות ללקוחות\" ו\"חידוש אוטומטי\".",
+  "proposal": "כל הבטחה שמכוסה בהחלטה מאושרת (BTY-24, 28, 31, 34, 35, 38, 54, 55, 59, 61) נשארת במדריך; היתר מוסרות מהמדריך ומתיאורי המודולים בקטלוג הרישוי. בנוסף: אלרגיות (medical_notes) מוצגות כתג אדום בחלון התור.",
+  "refs": [
+   "public/beauty-guide.html",
+   "s1-bizmatrix.html#beauty_modules",
+   "rules-beauty.html#פערים בין המדריך לקוד"
+  ]
+ }
+]

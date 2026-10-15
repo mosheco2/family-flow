@@ -1,0 +1,823 @@
+[
+{
+"id": "SRV-01",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה",
+"category": "functional",
+"severity": "high",
+"title": "שני מסלולי המרת הצעה לפקודה; מסלול 'יעד אספקה' נכשל תמיד",
+"as_is": "קיימים convert (server.js:26503, verifyBiz) ו-to-work-order (server.js:15085, verifyBizOrLegacy). הלקוח שולח ל-to-work-order ללא Authorization וללא groupId (business-app.js:9666-9669) → 400 'groupId נדרש'; בנוסף ה-INSERT ל-timeline משתמש בעמודה actor שאינה קיימת (15113) וה-alert בעמודות לא קיימות (15120). יצירת אירוע יומן ו-target-date נעשות בקריאות נפרדות ללא טרנזקציה (business-app.js:9680-9702).",
+"proposal": "נתיב המרה יחיד POST /api/work-orders/convert/:quoteId עם verifyBiz ו-group מהסשן, המקבל אופציונלית target_datetime. בטרנזקציה אחת: call_type='work_order', status='scheduled' אם יש תאריך אחרת 'open', quote_status='approved', quote_title, אירוע quote_history, timeline 'created', אירוע יומן (work_order_id) והתראה למשפחה. הצעה שכבר הומרה → 409.",
+"alternatives": [],
+"refs": [
+"server.js:26503-26529",
+"server.js:15085-15120",
+"business-app.js:9649-9702",
+"business-app.js:42690",
+"rules-services.html#המרת הצעת מחיר לפקודת עבודה / תיק"
+]
+},
+{
+"id": "SRV-02",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "התראות",
+"category": "data-integrity",
+"severity": "high",
+"title": "INSERT ל-alert_notifications עם עמודות לא קיימות — התראות לא נשמרות לעולם",
+"as_is": "מספר נתיבים כותבים type/title/reference_id שאינם בסכמה (קיימות trigger_type, message, reference_key; server.js:760, 771): to-work-order (15120), שיוך עובד לפקודה (26704-26717), הודעת עסק על הצעה (15130), link-oneflow (25703). השגיאה נבלעת ב-try/catch.",
+"proposal": "פונקציית createAlert(groupId, triggerType, message, referenceKey) אחת שכותבת לסכמה בפועל (עם dedup לפי reference_key), וכל הנתיבים משתמשים בה. שגיאה נרשמת ללוג (לא נבלעת בשקט). בדיקה: כל אחד מ-4 האירועים יוצר שורה ב-alert_notifications.",
+"alternatives": [],
+"refs": [
+"server.js:760",
+"server.js:15120",
+"server.js:25703",
+"server.js:26704-26717",
+"s1-erd.html#עמודות שהקוד משתמש בהן ואינן קיימות בסכמה",
+"s1-messages.html#IN-07 · קריאת שירות נפתחה עבור הלקוח",
+"rules-services.html#שיוך צוות / משתתפים ועלות עבודה"
+],
+"dup_of": "SA-52"
+},
+{
+"id": "SRV-03",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה",
+"category": "data-integrity",
+"severity": "high",
+"title": "סטטוסי פקודת עבודה / תיק לא אחידים בין שרת, טאב תיקים ודשבורד",
+"as_is": "PUT /work-orders/:id/status מקבל כל ערך ללא כללי מעבר (server.js:26631-26636). תיק חדש נוצר ב-open (26580) אך טאב תיקים סופר רק new/processing/completed ומציג c.title שאינו קיים (business-app.js:55341); דשבורד מקצועי סופר open/in_progress/pending ו-done (server.js:28972-28996); פילטר הרשימה כולל quote/processing/scheduled/completed/cancelled.",
+"proposal": "סטטוסים קנוניים: open → scheduled → processing → pending_payment → completed; cancelled מכל סטטוס שאינו completed. completed→processing (פתיחה מחדש) — ADMIN בלבד. מעבר לא חוקי → 400. כל המסכים (טאב תיקים, רשימה, דשבורד מקצועי, AI) משתמשים באותה רשימה; 'פעיל' = open|scheduled|processing|pending_payment. הכותרת תמיד quote_title.",
+"alternatives": [],
+"refs": [
+"server.js:26631-26663",
+"server.js:26574-26583",
+"business-app.js:55341",
+"business-app.js:42388-42394",
+"server.js:28972-28996",
+"rules-services.html#שינוי סטטוס פקודת עבודה",
+"rules-services.html#טאב תיקים (Cases)"
+]
+},
+{
+"id": "SRV-04",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "תשתית לקוח",
+"category": "functional",
+"severity": "high",
+"title": "קריאות BIZ נשלחות ללא Authorization ונכשלות ב-401",
+"as_is": "_aiUpdateCaseStatus (business-app.js:57541-57543), _aiUpdateLeadStatus (57520) ו-editDocModal (56762) שולחים fetch ללא Bearer לנתיבי verifyBiz → 401 תמיד (עריכת מסמך מציגה 'מסמך לא נמצא').",
+"proposal": "כל קריאה מ-business-app.js לשרת עוברת ב-wrapper יחיד (bizFetch) שמוסיף Authorization: Bearer ו-Content-Type; 401 מטופל במרוכז (התחברות מחדש). בדיקה: פעולות AI ועריכת מסמך מצליחות עם טוקן תקף.",
+"alternatives": [],
+"refs": [
+"business-app.js:57534-57545",
+"business-app.js:57520",
+"business-app.js:56762",
+"rules-services.html#שינוי סטטוס פקודת עבודה",
+"rules-services.html#מסמכים מקצועיים (תבניות, גרסאות, חתימה, מייל, PDF)"
+]
+},
+{
+"id": "SRV-05",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה — מלאי",
+"category": "data-integrity",
+"severity": "high",
+"title": "שריוני מלאי: ביטול/מחיקה לא משחררים pantry, 'שימוש' כפול מוריד מלאי פעמיים",
+"as_is": "ביטול פקודה משחרר רק store_catalog לפי catalog_id (server.js:26658-26663) בעוד ברירת המחדל בממשק היא pantry (business-app.js:43863-43866); DELETE פקודה לא משחרר reserved_qty לפני CASCADE (26590); /inventory/:resId/use לא בודק status — אפשר להשתמש שוב בשורה used/released (26841-26855); auto-from-menu רץ בלולאה ללא טרנזקציה (26946-26995); הממשק שולח data-price=0 (43824).",
+"proposal": "פונקציה אחת releaseReservation(row) שמשחררת לפי המקור (pantry או store_catalog) ומשמשת בשחרור ידני, בביטול ובמחיקת פקודה (המחיקה משחררת לפני DELETE). use מותר רק משורה בסטטוס reserved (UPDATE ... WHERE status='reserved'; אחרת 409). שריון אוטומטי מבוצע בטרנזקציה אחת. unit_price נלקח מהמחסן/הקטלוג (cost) כשלא נשלח.",
+"alternatives": [],
+"refs": [
+"server.js:26658-26663",
+"server.js:26590",
+"server.js:26841-26861",
+"server.js:26934-26995",
+"business-app.js:43824",
+"business-app.js:43863-43866",
+"rules-services.html#שריון מלאי לפקודה (ידני, שימוש, שחרור, אוטומטי מתפריט)",
+"rules-services.html#מחיקת פקודת עבודה"
+]
+},
+{
+"id": "SRV-06",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה — רכש",
+"category": "data-integrity",
+"severity": "medium",
+"title": "הזמנת רכש: סימון delivered פעמיים מכפיל מלאי ושריון",
+"as_is": "PATCH /purchase-orders/:poId/status מקבל כל מעבר; delivered מוסיף stock_quantity ו-reserved_qty ויוצר שורת work_order_inventory בכל קריאה (server.js:28368-28416).",
+"proposal": "מעברים: pending → approved → delivered; pending|approved → cancelled. delivered ו-cancelled סופיים; מעבר מ-delivered → 409. עדכון המלאי בטרנזקציה עם UPDATE ... WHERE status<>'delivered' כדי שקליטה תתבצע פעם אחת.",
+"alternatives": [],
+"refs": [
+"server.js:28368-28416",
+"rules-services.html#הזמנות רכש לפקודת עבודה"
+]
+},
+{
+"id": "SRV-07",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה — רווחיות",
+"category": "money",
+"severity": "medium",
+"title": "רווחיות שונה ברשימה ובמודל לאותה פקודה",
+"as_is": "/work-orders/profitability מחשב revenue=total_amount בלבד (server.js:26556-26569), בעוד מסך העלויות במודל מוסיף Σ הצעות משויכות (business-app.js:43457-43458) וגם הסקירה (43146-43147).",
+"proposal": "הכנסה של פקודה = total_amount + Σ total_amount של הצעות משויכות (work_order_quote_links), מחושבת בשרת בפונקציה אחת ומוחזרת גם ב-list/profitability וגם ב-detail; הלקוח לא מחשב בעצמו.",
+"alternatives": [],
+"refs": [
+"server.js:26553-26569",
+"business-app.js:43146-43147",
+"business-app.js:43457-43458",
+"rules-services.html#רשימת פקודות עבודה ורווחיות"
+]
+},
+{
+"id": "SRV-08",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "גביה ותחנות תשלום",
+"category": "money",
+"severity": "critical",
+"title": "קבלת תשלום כפולה רושמת הכנסה כפולה; מחיקת תחנה שהתקבלה משאירה הכנסה",
+"as_is": "PATCH /payments/:id/receive לא בודק שהתחנה pending — כל לחיצה מוסיפה תנועת income ב-transactions (server.js:28520-28575); DELETE תחנה שהתקבלה לא מוחק/מקזז את התנועה (28581); אחרי מחיקה payment_status מחושב 'pending_payment' במקום 'partial', בשונה מ-receive.",
+"proposal": "receive אטומי: UPDATE ... SET status='received' WHERE id=$1 AND status='pending' RETURNING; 0 שורות → 409 'התחנה כבר נגבתה'. מחיקת תחנה received אסורה (409) — במקום זה 'ביטול גביה' (ADMIN) שמחזיר ל-pending ורושם תנועה הפוכה. payment_status מחושב בפונקציה אחת: אין תחנות→NULL; כולן received→paid; חלק received→partial; אף אחת→pending_payment.",
+"alternatives": [],
+"refs": [
+"server.js:28520-28581",
+"business-app.js:44299",
+"business-app.js:6789",
+"rules-services.html#קבלת תשלום ומחיקת תחנה (פקודה + קריאת שירות)"
+]
+},
+{
+"id": "SRV-09",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "גביה ותחנות תשלום",
+"category": "money",
+"severity": "medium",
+"title": "סכום העסקה בתחנות תשלום: fallbacks שונים ו-original_amount שאינו קיים",
+"as_is": "POST payments קובע total_amount מה-body, אחרת total_amount+הצעות משויכות, אחרת amount (server.js:28468-28476); לקריאת שירות — מהתחנה האחרונה (29023-29033); הלקוח קורא original_amount שאינו קיים (business-app.js:44198, 44263, 44351) ולכן תמיד נופל ל-fallback.",
+"proposal": "סכום העסקה נגזר בשרת ואינו נשמר בכל תחנה: פקודה = הכנסת הפקודה לפי SRV-07; קריאת שירות = price_quote×(1−discount_pct/100). 'נותר לגביה' = סכום העסקה − Σ received_amount. הלקוח מציג את הערכים שהשרת מחזיר (deal_total, received_total, remaining).",
+"alternatives": [],
+"refs": [
+"server.js:28459-28479",
+"server.js:29014-29033",
+"business-app.js:44198-44263",
+"rules-services.html#תחנות תשלום לפקודה / הזמנה (יצירה, תבנית מקדמה, תשלום מלא)",
+"rules-services.html#תחנות תשלום לקריאת שירות"
+]
+},
+{
+"id": "SRV-10",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה — יומן",
+"category": "functional",
+"severity": "low",
+"title": "זימון מפקודה שומר את שם הלקוח בשדה הטלפון",
+"as_is": "POST /work-orders/:id/calendar מעביר customerName כפרמטר $5 לעמודת customer_phone (server.js:27201).",
+"proposal": "customer_phone נשמר מטלפון הלקוח של הפקודה (store_orders.customer_phone) ו-customer_name מהשם. בדיקה: אירוע שנוצר מפקודה מציג טלפון תקין.",
+"alternatives": [],
+"refs": [
+"server.js:27192-27201",
+"rules-services.html#זימון ביומן מתוך פקודה"
+]
+},
+{
+"id": "SRV-11",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה — יומן",
+"category": "functional",
+"severity": "medium",
+"title": "saveWorkOrderSchedule שולח PATCH ל-/service-calls עם מזהה פקודת עבודה",
+"as_is": "business-app.js:9568 שולח PATCH /api/service-calls/<id של store_orders> — טבלה שגויה; עלול לעדכן קריאת שירות אחרת עם אותו id.",
+"proposal": "תזמון פקודה מתבצע בנתיב ייעודי PATCH /api/work-orders/:id/schedule (verifyBiz) שמעדכן target_datetime ויוצר/מעדכן את אירוע היומן המקושר (work_order_id). קריאות שירות מתוזמנות רק דרך PATCH /service-calls/:id.",
+"alternatives": [],
+"refs": [
+"business-app.js:9568",
+"server.js:25821",
+"rules-services.html#עדכון קריאת שירות ומכונת המצבים"
+]
+},
+{
+"id": "SRV-12",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פקודות עבודה",
+"category": "security",
+"severity": "low",
+"title": "בדיקות בעלות על נתיבי פקודה ללא call_type",
+"as_is": "עדכון עלות עובד (server.js:17249), שיוך ציוד (26892) ותחנות תשלום (28463-28465) בודקים בעלות על store_orders בלי call_type='work_order', כך שניתן לצרף עובדים/ציוד להזמנת חנות רגילה.",
+"proposal": "נתיבי /work-orders/:id/* (assignees, cost, equipment, inventory, calendar) דורשים call_type='work_order' (או is_event בסטטוס quote לציוד) → אחרת 404. נתיב תחנות התשלום מתועד במפורש כמשותף להזמנות חנות.",
+"alternatives": [],
+"refs": [
+"server.js:17246-17249",
+"server.js:26889-26892",
+"server.js:28459-28465",
+"rules-services.html#שיוך צוות / משתתפים ועלות עבודה",
+"rules-services.html#שיוך ציוד לפקודה/אירוע (Events Hub)"
+]
+},
+{
+"id": "SRV-13",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות",
+"category": "security",
+"severity": "critical",
+"title": "נתיבי קריאות שירות פתוחים ללא אימות (יצירה, עדכון, ביטול, קישור, הערות, שליפות)",
+"as_is": "ללא middleware: POST /service-calls (25570), PATCH /:id (25821 — בדיקת groupId רק אם נשלח), DELETE /:id (25874), PATCH /:id/link-oneflow (25678), GET/POST /:id/notes (25932/25939), GET /family/:groupId (25714), /customer/:biz/:family (25807), /by-customer/:biz (25951), POST /check-schedule-notifications/:groupId (25747), ונתיבי דיבאג /api/debug/sc-columns ו-/api/debug/sc-business-test/:gid (25782-25804). app.js קורא ל-PATCH/DELETE ללא Authorization (13151, 13162).",
+"proposal": "כל נתיב דורש סשן: יצירה ע\"י משפחה (family_group_id מהסשן) או עסק (business_group_id מהסשן); מחנות — רק /api/store/service-request עם sc-auth. PATCH/DELETE/notes/link עוברים _assertServiceCallAccess (משפחה = family_group_id, עסק = business_group_id); notes — עסק בלבד. שליפות לפי groupId מהסשן בלבד. נתיבי הדיבאג נמחקים. הלקוחות שולחים Bearer.",
+"alternatives": [],
+"refs": [
+"server.js:25570",
+"server.js:25678",
+"server.js:25714",
+"server.js:25747",
+"server.js:25782-25807",
+"server.js:25821-25834",
+"server.js:25874",
+"server.js:25932-25951",
+"app.js:13151",
+"app.js:13162",
+"s1-rbac.html#BIZ/FAMILY — קריאות שירות",
+"rules-services.html#פתיחת קריאת שירות"
+]
+},
+{
+"id": "SRV-14",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות",
+"category": "security",
+"severity": "high",
+"title": "הרשאות שדה בעדכון קריאה נאכפות רק בממשק",
+"as_is": "בממשק: סטטוס ושיוך רק ל-ADMIN/branch_manager, field_tech רק סטטוס ו'החזר למנהל' (business-app.js:38695-38698); בשרת PATCH מעדכן כל שדה (status, assigned_member_id, price_quote, discount_pct, rating...) לכל מבקש (server.js:25846-25847).",
+"proposal": "מטריצת שדות בשרת: משפחה — rating (רק כש-status=done) ובקשת ביטול; field_tech — status (מעברי טכנאי בלבד, ב-SRV-15) והחזרה למנהל, רק לקריאות המשויכות אליו; ADMIN/branch_manager — כל השדות. שדה לא מורשה → 403.",
+"alternatives": [],
+"refs": [
+"server.js:25821-25869",
+"business-app.js:38695-38698",
+"app.js:13160",
+"rules-services.html#עדכון קריאת שירות ומכונת המצבים"
+]
+},
+{
+"id": "SRV-15",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות",
+"category": "functional",
+"severity": "high",
+"title": "מכונת מצבים לקריאת שירות לא נאכפת; AI שולח סטטוסים זרים",
+"as_is": "השרת מקבל כל status; ה-AI שולח scheduled/processing/waiting_parts (business-app.js:57562) שאינם במכונה; 'סמן כהושלם' מכל סטטוס; אין completed_at. בתיעוד: open→assigned→in_progress→resolved→closed ונתיב /assign שלא קיים.",
+"proposal": "סטטוסים: new, seen, in_progress, pending_parts, pending_payment, done, pending_cancel, cancelled. מעברים: new→seen|in_progress; seen→in_progress; in_progress↔pending_parts; in_progress→pending_payment|done; pending_payment→done; new|seen→pending_cancel (לקוח); pending_cancel→cancelled|seen (מנהל); done→in_progress (מנהל בלבד, פתיחה מחדש). מעבר לא חוקי → 400. מעבר ל-done שומר completed_at. תגי AI מוגבלים לרשימה.",
+"alternatives": [],
+"refs": [
+"server.js:25821-25869",
+"server.js:25865",
+"business-app.js:57552-57562",
+"s1-docsvscode.html#קריאות שירות: open→assigned→in_progress→resolved→closed, /assign",
+"rules-services.html#עדכון קריאת שירות ומכונת המצבים"
+]
+},
+{
+"id": "SRV-16",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות — דוחות",
+"category": "functional",
+"severity": "medium",
+"title": "זמן השלמה מחושב לפי updated_at; סינון טכנאי לא חל על byTech",
+"as_is": "avg_completion_hours = AVG(updated_at − created_at) על done (server.js:25992-26037) — כל עדכון אחרי done (למשל דירוג) משנה אותו; byTech מתעלם מ-memberId.",
+"proposal": "זמן השלמה = completed_at − created_at (SRV-15). memberId מסנן את כל המדדים כולל byTech. completed_today/week/month לפי completed_at באזור Asia/Jerusalem.",
+"alternatives": [],
+"refs": [
+"server.js:25985-26037",
+"business-app.js:38540",
+"rules-services.html#אנליטיקת קריאות ודוחות"
+]
+},
+{
+"id": "SRV-17",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות",
+"category": "functional",
+"severity": "medium",
+"title": "קריאות יתומות: אשף ההקמה שולח groupId ו-groupים לא קיימים מאופסים בשקט",
+"as_is": "אשף ההקמה שולח groupId במקום businessGroupId (business-app.js:22860) → business_group_id NULL; businessGroupId/familyGroupId שאינם קיימים מאופסים ל-NULL בלי שגיאה (server.js:25576-25587).",
+"proposal": "business_group_id חובה (מהסשן העסקי, או מה-groupId בנתיב החנות) — חסר/לא קיים → 400. familyGroupId שנשלח ואינו קיים → 400. אשף ההקמה משתמש באותו נתיב עם הסשן.",
+"alternatives": [],
+"refs": [
+"business-app.js:22858-22860",
+"server.js:25570-25592",
+"rules-services.html#פתיחת קריאת שירות"
+]
+},
+{
+"id": "SRV-18",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות",
+"category": "functional",
+"severity": "medium",
+"title": "קישור קריאה ללקוח WEFLOWZ: חיפוש תמיד 'לא נמצא'",
+"as_is": "_scOflSearch קורא d.results (business-app.js:39132) בעוד /api/groups/search-all מחזיר groups (server.js:25564) — תמיד 'לא נמצא ב-WEFLOWZ'; ה-alert ללקוח נכתב לעמודות לא קיימות (SRV-02).",
+"proposal": "חוזה תגובה אחד לחיפוש ({groups:[...]}) והלקוח קורא אותו. קישור יוצר member_business_links בסטטוס pending והתראה למשפחה; המשפחה רואה את הקריאה רק לאחר אישור הקישור (status active).",
+"alternatives": [
+"המשפחה רואה את הקריאה מיד, והאישור נדרש רק לקבלת עדכונים."
+],
+"refs": [
+"business-app.js:39102-39167",
+"server.js:25564",
+"server.js:25678-25710",
+"rules-services.html#קישור קריאה קיימת ללקוח WEFLOWZ"
+]
+},
+{
+"id": "SRV-19",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "קריאות שירות — התראות",
+"category": "security",
+"severity": "medium",
+"title": "שני מנגנוני התראות תזמון כפולים, מופעלים מהלקוח, וזולגים לקבוצות אחרות",
+"as_is": "check-schedule-notifications (server.js:25747-25776, sc_due_tomorrow/sc_overdue) ו-equipment/notifications/check (26264-26302, sc_scheduled) מייצרים התראות 'מחר' כפולות; שניהם רצים רק בטעינת מסך (אין cron), לפי שעון השרת; בדיקת הציוד בוחרת קריאות גם לפי family_group_id של כל משפחות הקהילה (26302) — קבוצה מקבלת התראות על קריאות של משפחות אחרות.",
+"proposal": "מנגנון אחד בשרת (cron שעתי) באזור Asia/Jerusalem: לכל קריאה פתוחה עם scheduled_at מחר → התראה אחת לעסק ואחת למשפחה (refKey sc_due_tomorrow_<id>_<date>); באיחור → לעסק בלבד. שיוך קפדני: business_group_id לעסק, family_group_id למשפחה — ללא הרחבה לקהילה. הנתיבים המופעלים מהלקוח נמחקים.",
+"alternatives": [],
+"refs": [
+"server.js:25747-25776",
+"server.js:26264-26302",
+"business-app.js:38389",
+"s1-messages.html#IN-13 · קריאת שירות מחר",
+"s1-messages.html#IN-16 · קריאת שירות מתוזמנת מחר (ציוד)",
+"rules-services.html#התראות תזמון קריאות (מחר / באיחור)",
+"rules-services.html#בדיקת התראות ציוד ותחזוקה"
+]
+},
+{
+"id": "SRV-20",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "חלונות ראווה",
+"category": "functional",
+"severity": "high",
+"title": "storefront-repairs.html תמיד במצב דמו, עם ביקורות מפוברקות, ופניות אובדות",
+"as_is": "העמוד קורא /api/store/public/* ו-/api/store/products/:id שאינם קיימים בשרת → populateDemo (שם 'שירותי תיקון פלוס', טלפון 050-1234567, 6 ביקורות קבועות) (storefront-repairs.html:496); הפנייה נשלחת ל-/api/store/leads/general שמחזיר success בלי לשמור (server.js:28762), ואינה יוצרת service_call.",
+"proposal": "העמוד טוען נתונים מ-GET /api/storefront/:code (כמו שאר החנויות); כשל → הודעת שגיאה, ללא תוכן דמו וללא ביקורות מפוברקות. 'שלחו פנייה' שולח ל-POST /api/store/service-request/:groupId (sc-auth) ויוצר service_call עם needs_triage=true. groupId לא תקין → 400 (לא success).",
+"alternatives": [],
+"refs": [
+"storefront-repairs.html:496",
+"storefront-repairs.html:674-691",
+"server.js:28759-28764",
+"server.js:25632",
+"server.js:23384-23385",
+"rules-services.html#storefront-repairs.html",
+"rules-services.html#בקשת שירות מחנות ציבורית (תחזוקה ותיקונים)"
+]
+},
+{
+"id": "SRV-21",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות",
+"category": "functional",
+"severity": "low",
+"title": "פאנל 'הפעילות שלי' לא מציג קריאות שירות",
+"as_is": "/api/sc-auth/activity/:bizGroupId מחזיר הזמנות, תורים, מנויים וכו' אך לא service_calls (server.js:43636) — לקוח של עסק תיקונים לא רואה את בקשותיו.",
+"proposal": "הפאנל מחזיר גם service_calls של הלקוח מול העסק (לפי family_group_id של הלקוח או טלפון), עד 20 אחרונות: כותרת, סטטוס (תווית קנונית), scheduled_at, ואפשרות 'בקש ביטול' כשהסטטוס new/seen.",
+"alternatives": [],
+"refs": [
+"server.js:43636",
+"sc-auth.js:370",
+"rules-services.html#פאנל \"הפעילות שלי\" מול עסק"
+]
+},
+{
+"id": "SRV-22",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "ציוד ותחזוקה",
+"category": "data-integrity",
+"severity": "medium",
+"title": "עדכוני ציוד מאפסים שדות שלא נשלחו; השלמת תחזוקה כפולה",
+"as_is": "עריכת תקלה מ-BIZ לא שולחת technicianId/scheduledDate וה-UPDATE מאפס אותם (server.js:26193); עריכת טכנאי מ-BIZ לא שולחת businessGroupId ומאפסת business_group_id ו-oneflow_verified (business-app.js:37454-37459); PUT /maintenance/:id/complete לא בודק סטטוס — השלמה כפולה יוצרת רשומת המשך כפולה (26118-26133).",
+"proposal": "עדכונים בסמנטיקת PATCH: שדה שלא נשלח (undefined) לא משתנה; null מפורש מנקה. complete מותר רק מ-pending (UPDATE ... WHERE status='pending'; אחרת 409) ורשומת ההמשך נוצרת באותה טרנזקציה.",
+"alternatives": [],
+"refs": [
+"server.js:26185-26193",
+"server.js:25465",
+"business-app.js:37454-37459",
+"server.js:26118-26133",
+"rules-services.html#תקלות ציוד: פתיחה, סטטוס והערות",
+"rules-services.html#טכנאים / אנשי קשר וקישור לעסק WEFLOWZ",
+"rules-services.html#תחזוקה מתוזמנת והשלמה מחזורית"
+]
+},
+{
+"id": "SRV-23",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "ציוד ותחזוקה",
+"category": "security",
+"severity": "low",
+"title": "השאלת ציוד: בדיקת השאלה פעילה ובעלות פריט ללא group",
+"as_is": "POST /equipment/loans בודק השאלה פעילה לפריט בלי סינון group_id ולא מאמת שהפריט שייך לעסק (server.js:26331-26345).",
+"proposal": "equipmentId חייב להיות של העסק (group מהסשן) → אחרת 404; בדיקת השאלה פעילה ו-return מסוננות לפי group_id.",
+"alternatives": [],
+"refs": [
+"server.js:26320-26345",
+"rules-services.html#השאלת ציוד"
+]
+},
+{
+"id": "SRV-24",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "ציוד ותחזוקה",
+"category": "architecture",
+"severity": "low",
+"title": "תמונת תקלה נשמרת כ-data URL בתוך ה-DB",
+"as_is": "הלקוח שולח window._eqFaultImageData כ-data URL שנשמר ישירות בשורת equipment_faults.",
+"proposal": "התמונה מועלית לאחסון קבצים (מגבלה 5MB, סוגי image/*) והשורה שומרת URL בלבד. תמונות קיימות מועברות במיגרציה.",
+"alternatives": [],
+"refs": [
+"business-app.js:37256",
+"server.js:26185",
+"rules-services.html#תקלות ציוד: פתיחה, סטטוס והערות"
+]
+},
+{
+"id": "SRV-25",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "ציוד ותחזוקה",
+"category": "data-integrity",
+"severity": "low",
+"title": "מחיקת פריט ציוד מוחקת את כל היסטוריית התחזוקה והתקלות",
+"as_is": "DELETE /equipment/items/:id מוחק את הפריט, והממשק מזהיר ש'כל נתוני התחזוקה והתקלות שלו יימחקו' (server.js:26081); קיים status disposed שאינו משמש לכך.",
+"proposal": "'הסר' מעביר את הפריט ל-status=disposed ושומר היסטוריה (כולל עלויות לסיכום 12 חודשים); מחיקה קשה מותרת רק לפריט ללא תחזוקות/תקלות/השאלות.",
+"alternatives": [],
+"refs": [
+"server.js:26081",
+"business-app.js:36524",
+"rules-services.html#פריטי ציוד והיסטוריית פריט"
+]
+},
+{
+"id": "SRV-26",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "security",
+"severity": "critical",
+"title": "כל נתיבי /api/calendar ללא אימות; status נלקח מהבקשה",
+"as_is": "11 נתיבים ללא middleware: GET /calendar/:groupId (22800, חושף טלפוני לקוחות), settings (22855), services (22869/22885), events POST (22891, finalStatus = status||'pending'), PUT status (22977), suggest-alts/reject-with-alts (23084/23112), DELETE event (23175). groupId מה-body; עדכון לפי id בלבד.",
+"proposal": "נתיבי ניהול (GET יומן, settings, services, PUT status, reject, DELETE, עריכה) דורשים verifyBiz עם group מהסשן ו-AND group_id בכל שאילתה לפי id. יצירה ציבורית רק דרך זרימות הזמנה (SMS / sc-auth) והסטטוס נקבע בשרת: pending, או approved רק לפי כלל אישור אוטומטי. משפחה יוצרת דרך verifyFamily עם customer_group_id מהסשן.",
+"alternatives": [],
+"refs": [
+"server.js:22800-23175",
+"app.js:14759",
+"s1-rbac.html#BIZ — הזמנות עבודה / שגרות / ציוד",
+"s1-docsvscode.html#POST /api/calendar/events ללא אימות; status נלקח מהבקשה",
+"rules-services.html#יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)",
+"rules-services.html#שליפת יומן (כולל מיזוג יופי וקריאות שירות)"
+]
+},
+{
+"id": "SRV-27",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "functional",
+"severity": "medium",
+"title": "אישור אירוע חוזר יוצר תור יופי כפול ו-SMS כפול",
+"as_is": "PUT /calendar/events/:id/status מקבל כל ערך; כל אישור יוצר beauty_appointment חדש ושולח SMS (server.js:23028-23075), ושוב מקצה שולחן.",
+"proposal": "מעברים: pending → approved|rejected; approved → cancelled. אישור אטומי (UPDATE ... WHERE status='pending'); אירוע שכבר approved → 409 בלי יצירת תור/SMS נוספים. beauty_appointments מקושר ל-calendar_event_id עם UNIQUE.",
+"alternatives": [],
+"refs": [
+"server.js:22977-23075",
+"business-app.js:26809",
+"rules-services.html#אישור / שינוי סטטוס אירוע"
+]
+},
+{
+"id": "SRV-28",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "עריכת אירוע = מחיקה ויצירה מחדש; המזהה והקשרים אובדים",
+"as_is": "בממשק עריכה מבצעת DELETE ואז POST (business-app.js:26619-26621) — id חדש, ו-work_order_id/ORDER_REF/קישורי תור אובדים.",
+"proposal": "נתיב PUT /api/calendar/events/:id (verifyBiz) לעדכון שדות (title, date, time, duration, notes, attendees) עם שמירת id וקשרים; שינוי מועד של אירוע approved שולח הודעה ללקוח.",
+"alternatives": [],
+"refs": [
+"business-app.js:26595-26627",
+"rules-services.html#יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)"
+]
+},
+{
+"id": "SRV-29",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "data-integrity",
+"severity": "low",
+"title": "שירותי יומן מפוצלים בין calendar_services ל-beauty_service_catalog",
+"as_is": "יצירת שירות בעסק beauty נכתבת ל-beauty_service_catalog ואחרת ל-calendar_services (server.js:22869-22883), אך DELETE מוחק רק מ-calendar_services (22885).",
+"proposal": "כל פעולות השירות (יצירה/עריכה/מחיקה) מנותבות לפי business_type לאותה טבלה; בבנייה מחדש — קטלוג שירותים אחד עם שדה סוג (ראו המלצת האיחוד ב-ERD).",
+"alternatives": [],
+"refs": [
+"server.js:22869-22885",
+"s1-erd.html#מושגים מפוצלים / כפולים — המלצת איחוד לבנייה מחדש",
+"rules-services.html#הגדרות יומן ושירותי יומן"
+]
+},
+{
+"id": "SRV-30",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "security",
+"severity": "high",
+"title": "בקשת תור ב-SMS: ללא rate limit, ללא מגבלת ניסיונות וקוד דיבאג גלובלי",
+"as_is": "request-booking-sms שולח SMS לכל מספר ללא הגבלה (server.js:33685-33706); verify ללא מונה ניסיונות על קוד 4 ספרות (33713); system_settings.sms_debug_code עוקף SMS גם בייצור (33690-33693); preferred_practitioner_id לא מועבר ל-calendar_events (33736).",
+"proposal": "עד 3 SMS לטלפון ב-10 דקות ו-10 ל-IP בשעה (429 אחרת); עד 5 ניסיונות לקוד ואז הבקשה נפסלת; קוד 6 ספרות (כמו sc-auth). sms_debug_code פעיל רק כש-NODE_ENV≠production. preferred_practitioner_id נשמר על האירוע ומשמש ביצירת תור היופי.",
+"alternatives": [
+"לבטל את אימות ה-SMS ולדרוש התחברות sc-auth (שכבר כוללת OTP עם rate limit)."
+],
+"refs": [
+"server.js:33685-33736",
+"s1-messages.html#SMS-09 · בקשת תור כללית: קוד אישור",
+"rules-services.html#בקשת תור ציבורית עם אימות SMS (יופי/תיקונים/שירותים)"
+]
+},
+{
+"id": "SRV-31",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "יומן ותורים",
+"category": "docs",
+"severity": "low",
+"title": "תיעוד יומן: נתיבי /calendar/requests ותזכורת SMS שלא קיימים",
+"as_is": "המסמכים מתארים /api/calendar/requests/* ותזכורת SMS שעתיים לפני תור — לא קיימים; בקשות ממתינות מנוהלות כ-calendar_events בסטטוס pending.",
+"proposal": "התיעוד מתאר את המודל בפועל (אירוע pending → אישור/דחייה). תזכורת: cron שולח SMS 2 שעות לפני אירוע approved עם customer_phone, פעם אחת (refKey), אם העסק הפעיל זאת.",
+"alternatives": [
+"לא לממש תזכורת — להסיר אותה מהתיעוד."
+],
+"refs": [
+"s1-docsvscode.html#יומן: בקשות תורים /api/calendar/requests/*; תזכורת SMS שעתיים לפני",
+"rules-services.html#אישור / שינוי סטטוס אירוע"
+]
+},
+{
+"id": "SRV-32",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות (sc-auth)",
+"category": "security",
+"severity": "critical",
+"title": "הרשמה ללא אימות OTP — השתלטות על לקוח ושרשרת SSO לסשן משפחתי",
+"as_is": "POST /api/sc-auth/register (server.js:43297-43336) לא מוודא ש-verify-otp בוצע לטלפון: ניתן לרשום כל מספר ללא PIN, להשתלט על חשבון 'שקט', להיקשר למשפחה קיימת לפי טלפון, ומשם דרך /sso-token ו-/api/family/sso-login לקבל סשן משפחתי (43791-43827).",
+"proposal": "verify-otp ללקוח חדש מחזיר registration_token חד-פעמי (תוקף 10 דקות, קשור לטלפון, נשמר hashed). register דורש אותו ומשתמש בטלפון שבטוקן בלבד (מתעלם מ-phone בגוף); בלי טוקן תקף → 401.",
+"alternatives": [],
+"refs": [
+"server.js:43255-43297",
+"server.js:43297-43336",
+"server.js:43519",
+"server.js:43791-43827",
+"s1-rbac.html#STOREFRONT — לקוח קצה",
+"rules-services.html#הרשמת לקוח חנות"
+],
+"dup_of": "AUTH-04"
+},
+{
+"id": "SRV-33",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות (sc-auth)",
+"category": "security",
+"severity": "high",
+"title": "איפוס PIN פגיע ל-brute force; נעילת PIN בזיכרון",
+"as_is": "forgot-pin ללא rate limit (server.js:43442-43456); reset-pin ללא מונה ניסיונות על קוד 6 ספרות בחלון 10 דקות (43462); נעילת verify-pin ב-_scPinLockout בזיכרון — מתאפסת בריסטארט/מופעים מרובים (43411).",
+"proposal": "forgot-pin: עד 3 קודים ל-10 דקות לטלפון. reset-pin: עד 5 ניסיונות לקוד (attempts ב-storefront_otp, כמו verify-otp) ואז הקוד נפסל. נעילת PIN נשמרת ב-DB (failed_pin_attempts, locked_until) — 5 כשלונות → 15 דקות.",
+"alternatives": [],
+"refs": [
+"server.js:43411",
+"server.js:43442-43462",
+"s1-messages.html#SMS-06 · איפוס PIN לקוח חנות",
+"rules-services.html#PIN: אימות לפעולה, שינוי, שכחתי ואיפוס"
+]
+},
+{
+"id": "SRV-34",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות (sc-auth)",
+"category": "security",
+"severity": "medium",
+"title": "SSO מהחנות פותח סשן כ-ADMIN הראשון ובחירת משפחה רק לטלפון בדיקות קבוע",
+"as_is": "sso-login יוצר סשן למשתמש הראשון בסדר ADMIN-first בקבוצה ולא למשתמש שהטלפון שלו תואם (server.js:43818-43827); בחירת משפחה מרובה זמינה רק ל-SC_MULTI_FAMILY_TEST_PHONE='0526626619' הקבוע בקוד (43492-43528).",
+"proposal": "הסשן נוצר למשתמש שה-phone שלו תואם לטלפון של לקוח החנות; אין משתמש תואם → אין SSO (הודעה). לכל לקוח עם יותר ממשפחה פעילה אחת מוצגת בחירה. הקבוע של טלפון הבדיקות מוסר.",
+"alternatives": [],
+"refs": [
+"server.js:43492-43528",
+"server.js:43791-43827",
+"rules-services.html#SSO מחנות לאפליקציית המשפחה"
+]
+},
+{
+"id": "SRV-35",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות (sc-auth)",
+"category": "functional",
+"severity": "low",
+"title": "send-otp ללא טיפול בשגיאות",
+"as_is": "POST /api/sc-auth/send-otp אינו עטוף ב-try/catch — כשל DB/SMS גורם ל-unhandled rejection והבקשה נתקעת (server.js:43210-43250).",
+"proposal": "כל נתיבי sc-auth עטופים בטיפול שגיאות שמחזיר 500 JSON {success:false, error:'שגיאת שרת'}; כשל שליחת SMS מחזיר הודעה ומציע ערוץ מייל.",
+"alternatives": [],
+"refs": [
+"server.js:43210-43250",
+"rules-services.html#שליחת ואימות OTP ללקוח חנות"
+]
+},
+{
+"id": "SRV-36",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "פורטל לקוח חנות (sc-auth)",
+"category": "security",
+"severity": "medium",
+"title": "שער התחברות בחנות נאכף רק בצד הלקוח",
+"as_is": "scAuth.requireLogin (sc-auth.js:83) נבדק בדפדפן בלבד; /api/store/leads (28759), /api/professional-leads (28803) ו-/api/calendar/request-booking-sms (33685) מקבלים בקשות ללא טוקן.",
+"proposal": "נתיבים שהממשק מחייב בהם התחברות דורשים Bearer של sc-auth בשרת (401 אחרת), וזהות הלקוח (שם/טלפון) נלקחת מהטוקן ולא מהגוף.",
+"alternatives": [
+"להשאיר את הטפסים ציבוריים ולהוסיף rate limit (5 לשעה ל-IP) ו-captcha, ולהסיר את requireLogin מהממשק."
+],
+"refs": [
+"sc-auth.js:83",
+"server.js:28759",
+"server.js:28803",
+"server.js:33685",
+"rules-services.html#שער התחברות לפעולות בחנות (requireLogin)"
+]
+},
+{
+"id": "SRV-37",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — דשבורד",
+"category": "functional",
+"severity": "high",
+"title": "דשבורד מקצועי: KPIs שבורים (סטטוסים, cashflow_entries, פגישות היום)",
+"as_is": "active_cases סופר open/in_progress/pending ו-completed_cases סופר done — בעוד הפקודות ב-processing/scheduled/completed (server.js:28972-28996); month_revenue מטבלה cashflow_entries שאינה קיימת → 0; today_appointments משתמש ב-DATE(start_time) על עמודת TIME ובעמודה end_time שאינה קיימת → []. השגיאות נבלעות ב-safe().",
+"proposal": "active_cases/completed_cases לפי הסטטוסים הקנוניים (SRV-03); month_revenue = Σ transactions type='income' של העסק בחודש הנוכחי (Asia/Jerusalem); today_appointments = calendar_events WHERE event_date=היום AND status='approved'. שגיאת שאילתה נרשמת בלוג ומוחזרת כשגיאה ולא כאפס.",
+"alternatives": [],
+"refs": [
+"server.js:28967-28996",
+"business-app.js:45639",
+"s1-erd.html#טבלאות שהקוד שואל ואינן נוצרות בשום מקום",
+"rules-services.html#דשבורד מקצועי"
+]
+},
+{
+"id": "SRV-38",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — שעות עבודה",
+"category": "security",
+"severity": "high",
+"title": "נתיבי timelog פתוחים לחלוטין",
+"as_is": "GET/POST /api/timelog/:groupId (server.js:28619/28629), PATCH /timelog/entry/:id/bill (28642) ו-DELETE /timelog/entry/:id (28649) ללא אימות — קריאה ומחיקה של רשומות כל עסק.",
+"proposal": "כל נתיבי timelog דורשים verifyBiz; group מהסשן; פעולות לפי id כוללות AND group_id. user_id של הרשומה נקבע מהסשן; עובד רואה ומוחק רק רשומות שלו, מנהל — הכל.",
+"alternatives": [],
+"refs": [
+"server.js:28619-28649",
+"s1-rbac.html#BIZ — הזמנות עבודה / שגרות / ציוד",
+"rules-services.html#שעות עבודה (Timelog)"
+]
+},
+{
+"id": "SRV-39",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — שעות עבודה",
+"category": "money",
+"severity": "medium",
+"title": "'צור חשבונית מהשעות' לא יוצר חשבונית ולא מסמן חיוב",
+"as_is": "הכפתור רק מנווט לתזרים ומציג סכום (business-app.js:55656-55670); הרשומות לא מסומנות is_billed ואין מסמך חיוב.",
+"proposal": "פעולה בשרת: בחירת רשומות לא-מחויבות (לפי תיק/לקוח/טווח) → יצירת תחנת תשלום (work_order_payments) או מסמך מסוג quote/invoice בסכום Σ minutes/60×rate, וסימון הרשומות is_billed=TRUE עם billed_ref באותה טרנזקציה.",
+"alternatives": [
+"להסיר את הכפתור ולהשאיר סימון ידני 'סמן כחויב'."
+],
+"refs": [
+"business-app.js:55656-55670",
+"server.js:28642",
+"rules-services.html#שעות עבודה (Timelog)"
+]
+},
+{
+"id": "SRV-40",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — מסמכים",
+"category": "security",
+"severity": "medium",
+"title": "מייל מסמך ללקוח כולל הערות פנימיות וכותרת לא מקודדת",
+"as_is": "send-email מוסיף doc.notes ('הערות פנימיות') למייל לנמען החיצוני ו-doc.title מוזרק ל-HTML ללא escape (server.js:28910-28918).",
+"proposal": "המייל ללקוח לעולם לא כולל notes. כל שדה (title, content, שם סוג) עובר escape. בדיקה: מסמך עם הערה פנימית — ההערה לא מופיעה במייל.",
+"alternatives": [],
+"refs": [
+"server.js:28903-28921",
+"s1-messages.html#EM-21 · מסמך מקצועי (תוכן מלא)",
+"rules-services.html#מסמכים מקצועיים (תבניות, גרסאות, חתימה, מייל, PDF)"
+]
+},
+{
+"id": "SRV-41",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי",
+"category": "data-integrity",
+"severity": "low",
+"title": "COALESCE בעדכונים מונע ניקוי שדות וניתוק קשרים",
+"as_is": "UPSERT professional_content ו-PATCH של מסמכים/תחומי עיסוק משתמשים ב-COALESCE(new, old) (server.js:28668-28674, 28862-28874) — לא ניתן לנתק work_order_id או לנקות שדה ל-NULL.",
+"proposal": "סמנטיקת PATCH אחידה: שדה שלא נשלח — ללא שינוי; null מפורש — ניקוי (NULL); '' לשדות טקסט — נשמר ריק. חל על כל נתיבי professional_* ועל המסמכים.",
+"alternatives": [],
+"refs": [
+"server.js:28665-28674",
+"server.js:28855-28874",
+"rules-services.html#ניהול תוכן אתר תדמית (Hero / אודות) + AI",
+"rules-services.html#מסמכים מקצועיים (תבניות, גרסאות, חתימה, מייל, PDF)"
+]
+},
+{
+"id": "SRV-42",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — לידים",
+"category": "functional",
+"severity": "medium",
+"title": "פניות מטופס 'צור קשר' לא מגיעות לטאב פניות",
+"as_is": "storefront-professional.html 'צור קשר' שולח ל-/api/store/leads (שורה 717) שיוצר רק store_customers, בעוד 'קביעת פגישה' שולח ל-/api/professional-leads (680); לכן חלק מהפניות לא מופיעות בטאב הפניות (business-app.js:56277).",
+"proposal": "כל טופס פנייה בחנות של עסק professional (צור קשר, קביעת פגישה, טופס האתר ב-storefront.html) יוצר professional_leads (status new, source=form) ומעדכן לקוח. /api/store/leads לעסק professional מנתב לאותה פונקציה.",
+"alternatives": [],
+"refs": [
+"storefront-professional.html:680",
+"storefront-professional.html:717",
+"server.js:28759",
+"server.js:28803",
+"rules-services.html#פניות נכנסות (לידים) והמרה ללקוח"
+]
+},
+{
+"id": "SRV-43",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "חלונות ראווה",
+"category": "functional",
+"severity": "medium",
+"title": "storefront-professional: שירותים תמיד ריקים ותוכן מנוהל לא מוצג",
+"as_is": "loadServices קורא /api/store/products/:gid שאינו קיים → תמיד 'אין שירותים'; העמוד אינו קורא professional_content/expertise/articles (רק storefront.html במצב תדמית קורא, 1175-1196).",
+"proposal": "העמוד טוען שירותים מ-GET /api/storefront/:code ואת התוכן מ-/api/professional-content, /api/professional-expertise ו-/api/professional-articles?published=1 — אותו מקור כמו renderProfessionalSite.",
+"alternatives": [
+"לאחד: לבטל את storefront-professional.html ולהגיש תמיד את storefront.html במצב תדמית."
+],
+"refs": [
+"storefront-professional.html:449",
+"storefront.html:1175-1196",
+"server.js:28659",
+"rules-services.html#storefront-professional.html"
+]
+},
+{
+"id": "SRV-44",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "חלונות ראווה",
+"category": "security",
+"severity": "medium",
+"title": "XSS בתחומי עיסוק באתר התדמית הציבורי",
+"as_is": "כותרות ותיאורי תחומי עיסוק מוזרקים ל-HTML ללא escape באתר הציבורי (storefront.html:1218-1222).",
+"proposal": "כל טקסט מנוהל (תחומי עיסוק, מאמרים, Hero, אודות) מוצג דרך escapeHtml/textContent באתר הציבורי ובממשק הניהול.",
+"alternatives": [],
+"refs": [
+"storefront.html:1218-1222",
+"rules-services.html#אתר תדמית מקצועי בתוך storefront.html"
+]
+},
+{
+"id": "SRV-45",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מקצועי — מסמכים",
+"category": "data-integrity",
+"severity": "low",
+"title": "מחיקת סוג מסמך מותאם משאירה מסמכים עם custom_<id> יתום",
+"as_is": "_deleteDocType מוחק את הסוג (server.js:28939-28965) והמסמכים עם doc_type=custom_<id> נשארים בלי תווית.",
+"proposal": "מחיקת סוג שמשמש מסמכים → 409 עם מספר המסמכים; או soft delete (is_active=false) שמסתיר אותו מבחירה חדשה אך שומר תווית למסמכים קיימים.",
+"alternatives": [],
+"refs": [
+"server.js:28939-28965",
+"business-app.js:57035-57063",
+"rules-services.html#סוגי מסמכים מותאמים"
+]
+},
+{
+"id": "SRV-46",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "תיעוד",
+"category": "docs",
+"severity": "medium",
+"title": "מסמכי המערכת לא תואמים את נתיבי המקצועי וקריאות השירות",
+"as_is": "התיעוד מתאר /api/professional/cases|leads|timelog|documents|content, בעוד בפועל /api/professional-documents, -leads, -articles, -expertise, -content, -doc-types ואין /api/professional/cases; /api/work-orders (42 נתיבים) ו-/api/sc-auth (13) לא מתועדים; professional-guide מכסה 37%.",
+"proposal": "התיעוד מתעדכן לנתיבים בפועל ולמכונות המצבים שיאושרו (SRV-03, SRV-15), כולל פקודות עבודה ו-sc-auth. מדריך professional-guide.html מתעדכן באותו קומיט עם כל שינוי UI/ניווט.",
+"alternatives": [],
+"refs": [
+"s1-docsvscode.html#מומחים: /api/professional/cases|leads|timelog|documents|content",
+"s1-docsvscode.html#פקודות עבודה",
+"rules-services.html#פניות נכנסות (לידים) והמרה ללקוח"
+]
+},
+{
+"id": "SRV-47",
+"domain": "תחזוקה, שירות ומקצועי",
+"area": "מודולים ותפקידים",
+"category": "scope",
+"severity": "medium",
+"title": "מקורות מודולים ותפקידים לא תואמים לתחזוקה ולמקצועי",
+"as_is": "ל-maintenance_repair, sales ו-timelog קיימים רק ב-BUSINESS_TYPES ולא ב-BIZ_TYPE_MODULES של SA; תפקידי consultant/associate/partner מוצעים לעסק professional אך אין להם רשומה ב-ROLE_TYPE_TABS; field_tech ו-branch_manager ללא השפעה בשרת (רק סינון בממשק).",
+"proposal": "קטלוג מודולים ותפקידים יחיד בשרת שממנו נגזרים התפריט, ה-SA והרשאות השרת. לכל תפקיד מוצע — רשימת טאבים מוגדרת; consultant/associate/partner מקבלים cases, leads, timelog, documents, calendar, tasks. הרשאות תפקיד נאכפות גם בשרת (למשל field_tech — קריאות המשויכות אליו בלבד, SRV-14).",
+"alternatives": [],
+"refs": [
+"s1-bizmatrix.html#BUSINESS_TYPES (לקוח עסקי) מול BIZ_TYPE_MODULES (SA)",
+"s1-rbac.html#field_tech",
+"business-app.js:37539"
+]
+}
+]

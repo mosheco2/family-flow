@@ -1,0 +1,598 @@
+<h2 class="grp">מוסכמות רוחביות לתחום החנות</h2>
+
+<section class="proc" data-f="auth verifybizorlegacy requiremodule sales legacy token store"><h3>אימות והרשאות בנתיבי <code>/api/store/*</code> (verifyBizOrLegacy + requireModule)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל נתיב חנות שמוגן ב-<code>verifyBizOrLegacy</code> (server.js:43056) ו-<code>requireModule('sales')</code> (server.js:43126). חלק גדול מנתיבי החנות אינם מוגנים בכלל (ראו "פערים").</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>אם יש כותרת <code>Authorization</code> (Bearer או גולמי): מחשבים hash, מחפשים ב-<code>family_sessions</code>; אם לא פג תוקף ו-<code>session_type!=='biz'</code> → 403 "נדרש token מסוג עסקי"; תקין → <code>req.bizAuth={groupId,userId,fromToken:true}</code> ועדכון <code>last_seen</code> אסינכרוני (server.js:43060-43075).</li>
+<li>טוקן קיים אך לא נמצא/פג → 401 "token לא תקף" (server.js:43079).</li>
+<li>ללא כותרת: fallback legacy — <code>groupId</code> נלקח מ-<code>req.body.groupId</code> או <code>req.query.groupId</code>, <code>fromToken:false</code>, נרשם warning (server.js:43082-43086).</li>
+<li><code>requireModule</code>: רק כש-<code>fromToken=true</code>; קורא <code>family_groups.managed_modules</code> עם cache של 60 שניות (<code>_MOD_CACHE_TTL=60000</code>, server.js:43124); מערך ריק/null → מעבר חופשי; מודול חסר → 403 "גישה למודול זה אינה כלולה בחבילה שלך"; שגיאה → fail-open (server.js:43126-43150).</li>
+</ul></div>
+<div>ממשק</div><div>ממשק העסק (<code>business-app.js</code>) כמעט אף פעם לא שולח <code>Authorization</code> לנתיבי החנות — אין fetch-interceptor גלובלי (נבדק: אין <code>window.fetch=</code> ב-business-app.js/business.html). לכן כל הקריאות רצות ב-legacy ותלויות ב-<code>groupId</code> שבגוף/בשאילתה.</div>
+<div>פערים</div><div>נתיבים שקוראים רק <code>req.bizAuth.groupId</code> ללא fallback לגוף, ושהלקוח קורא להם בלי <code>groupId</code> בגוף, נכשלים ב-400 "groupId נדרש": <code>to-work-order</code> (גוף <code>{}</code>, business-app.js:9666), <code>prepare-send</code> (ללא גוף, business-app.js:9600), <code>PATCH /quotes/:id/status</code> (גוף <code>{quoteStatus}</code> בלבד, business-app.js:9425), <code>send-to-oneflow</code>/<code>link-only</code> (גוף <code>{familyGroupId}</code>, business-app.js:9470, 12863, 12910). ראו תהליך הצעות המחיר.</div>
+</div></section>
+
+<h2 class="grp">קטלוג מוצרים</h2>
+
+<section class="proc" data-f="catalog create product store_catalog plan limit 50 100 500"><h3>יצירת מוצר בקטלוג (<code>POST /api/store/catalog</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עסק (BIZ) מוסיף מוצר/שירות/מארז מתוך: טופס מוצר קלאסי <code>submitStoreProduct</code> (business-app.js:15467), ויזארד מוצר <code>_wizSubmit</code> (business-app.js:28614), ייבוא Excel פריט-פריט <code>_excelConfirmImport</code> (business-app.js:20825), ויזארד ההקמה (business-app.js:20970, 22719…), בונה מתכונים (24445).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>verifyBizOrLegacy</code> + <code>requireModule('sales')</code> (server.js:13310). groupId = טוקן גובר על body (server.js:13313); חסר → 400 "groupId נדרש".</li>
+<li>ללא טוקן: רישום <code>[CATALOG_LEGACY]</code> עם IP (server.js:13315-13318).</li>
+<li>מגבלת מסלול: <code>plan = family_groups.plan || (is_premium ? 'enterprise' : 'standard')</code>; מגבלה enterprise=500, premium=100, אחר=50; אם <code>COUNT(*) &gt;= limit</code> → 400 "הגעת למגבלת {limit} המוצרים במסלול {plan}. שדרג לתוכנית גבוהה יותר." (server.js:13322-13328).</li>
+<li>צד לקוח: שם ומחיר חובה "שם ומחיר הם שדות חובה" (business-app.js:15470, 28406); מארז ללא שלב → "מארז (Bundle) חייב להכיל לפחות שלב בחירה אחד עבור הלקוח." (15476).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ספירת מוצרים + קריאת מסלול.</li><li>INSERT יחיד ל-<code>store_catalog</code> (server.js:13330-13339) עם ברירות מחדל: <code>price=parseFloat||0</code>, <code>badge_color='red'</code>, <code>product_type='retail'</code>, <code>kitchen_station='other'</code>, <code>is_complimentary=false</code>, <code>unit_type='piece'</code>, <code>track_inventory=true</code> (אם לא בוליאני), <code>cost_price/low_stock_threshold/stock_quantity=null</code> אם ריקים. ללא טרנזקציה.</li><li>החזרת <code>{success,item}</code>.</li></ol></div>
+<div>חישובים</div><div>מבנה <code>options_text</code> (JSON כמחרוזת) לפי <code>product_type</code> (business-app.js:15474-15489, 28643-28652): <code>bundle</code> → <code>{isBundle:true,steps:[{name,qty,selectionType:'category'|'items',category,items[]}]}</code>; <code>pizza_builder</code> → <code>{isPizza:true,toppings:[{name,price}]}</code>; אחרת מערך קבוצות <code>[{name,type:'single'|'multiple',options:[{name,price}]}]</code>; <code>complex_builder</code> → <code>{isComplex:true,steps:[{stepPrice,options:[{price}]}]}</code>. בויזארד, שירות עם תוספות הופך ל-<code>product_type='food'</code> ומשך שירות נשמר כקידומת "[משך: X דק׳]" בתיאור (business-app.js:28651-28655).</div>
+<div>ממשק</div><div>ויזארד 4 שלבים (בחירת סוג / פרטים / אפשרויות / סיכום) — סוגי פריטים לפי <code>_WIZ_ITEM_TYPES[business_type]</code> (business-app.js:27934): restaurant/beauty/sport/retail/services/professional (ברירת מחדל retail) + אריח "תבנית". ייבוא Excel מסמן <code>productType</code> = 'retail' לשורת "פריט" אחרת 'addon' (business-app.js:20841).</div>
+<div>פערים</div><div>שדה <code>isAvailable</code> שנשלח מייבוא Excel מתעלם בשרת. ייבוא Excel פריט-פריט עוקף את מגבלת ה-bulk אך כל קריאה נבדקת מול המגבלה בנפרד.</div>
+</div></section>
+
+<section class="proc" data-f="catalog update put toggle availability 86 delete reorder"><h3>עדכון / זמינות / מחיקה / סידור מוצר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עסק עורך מוצר (<code>PUT /api/store/catalog/:id</code>), מפעיל/מכבה זמינות (<code>POST /catalog/toggle</code> — כולל "86" מהקופה <code>pos86Item</code> business-app.js:33654), מוחק (<code>DELETE /catalog/:id</code>), גורר לסידור (<code>PATCH /catalog/:groupId/reorder</code>, <code>saveCatalogOrder</code> business-app.js:13966).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>PUT: verifyBizOrLegacy+sales; <code>WHERE id=$17 AND group_id=$18</code>; 0 שורות → 404 "פריט לא נמצא או אין הרשאה" (server.js:13344-13366).</li>
+<li>toggle: אותו דבר, מעדכן <code>is_available</code> (server.js:13368-13377).</li>
+<li>DELETE: <b>ללא middleware</b>; דורש <code>groupId</code> בגוף; 404 אם לא נמצא (server.js:13605-13614).</li>
+<li>reorder: verifyBizOrLegacy+sales; <code>order</code> חייב להיות מערך ("order array required"); בודק שהקבוצה קיימת → 404 "קבוצה לא נמצאה" (server.js:13293-13308).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>PUT: עדכון כל השדות הטקסטואליים ישירות; <code>image_url</code>, <code>barcode</code>, <code>unit_type</code>, <code>cost_price</code>, <code>low_stock_threshold</code>, <code>supplier_id</code>, <code>supplier_sku</code>, <code>has_variants</code>, <code>track_inventory</code>, <code>variant_attributes_schema</code> עם <code>COALESCE</code> (לא נדרסים כשחסרים) (server.js:13352-13355).</li><li>reorder: לולאה <code>UPDATE store_catalog SET sort_order=i WHERE id=order[i] AND group_id</code> (server.js:13303-13305), ללא טרנזקציה.</li></ol></div>
+<div>פערים</div><div>PUT דורס <code>badge_text</code>, <code>sku</code>, <code>name_en</code> וכו' לריק אם לא נשלחו (אין COALESCE). DELETE ללא אימות — כל מי שיודע id+groupId מוחק.</div>
+</div></section>
+
+<section class="proc" data-f="bulk import excel pdf catalog"><h3>ייבוא קטלוג בכמות (<code>POST /api/store/catalog/bulk-import</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ייבוא מוצרים נבחרים מקובץ Excel/PDF סרוק — <code>_excelCatDoImport</code> (business-app.js:20409).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBizOrLegacy+sales; groupId רק מ-<code>req.bizAuth</code> (ב-legacy = body.groupId); חסר groupId או <code>products</code> ריק/לא מערך → 400 "נתונים חסרים" (server.js:13620-13623).</li><li>אם אין מקום כלל → 400 "הגעת למגבלת {limit} המוצרים. שדרג לתוכנית גבוהה יותר." (server.js:13631-13632).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>חישוב <code>canAdd=max(0,limit-current)</code> (אותן מגבלות 50/100/500) וחיתוך <code>products.slice(0,canAdd)</code>.</li><li>INSERT לכל מוצר: <code>name.trim()</code>, <code>description||''</code>, <code>price||0</code>, <code>category||'כללי'</code>, <code>sku||''</code>, <code>product_type='retail'</code> (server.js:13634-13641).</li><li>החזרה <code>{imported, skipped=products.length-inserted}</code>.</li></ol></div>
+</div></section>
+
+<section class="proc" data-f="modifier presets templates add-ons wizard store_settings"><h3>תבניות תוספות (Modifier Presets) וויזארד תבניות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירת קבוצות תוספות כתבניות לשימוש חוזר: "שמור כתבנית" בויזארד (<code>_wizSavePreset</code> 28560, <code>_wizSaveShortcutAsPreset</code> 28544), מצב תבנית בויזארד (<code>_wizSubmit</code> ptype='template', 28618), עריכה/מחיקה (<code>_deleteTmplPreset</code> 27339, <code>_saveTmplPresetName</code> 27350), <code>saveModifierAsPreset</code> (15053).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: ללא אימות, ללא ולידציה (server.js:13276-13283).</li><li>לקוח: קבוצה חייבת שם ולפחות אפשרות אחת "מלא שם וגם לפחות אפשרות אחת לפני השמירה" (28563); בתבנית "יש להוסיף לפחות קבוצת תוספות אחת עם שם ואפשרות" (28622); כפילות שם → "התבנית ... כבר קיימת" (28546).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח מחזיק את כל הרשימה <code>storeModifierPresets</code> ושולח אותה כולה כמחרוזת JSON.</li><li>שרת: <code>UPDATE store_settings SET modifier_presets=$1 WHERE group_id=$2</code> (server.js:13280).</li></ol></div>
+<div>פערים</div><div>UPDATE בלבד — אם אין שורת <code>store_settings</code> לעסק, לא נשמר דבר אך מוחזר <code>success:true</code>.</div>
+</div></section>
+
+<section class="proc" data-f="ai description gemini long desc battery tokens"><h3>תיאור מוצר ב-AI (קצר / מורחב)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור AI בטופס המוצר (<code>generateStoreProductAI</code> 15976, <code>generateStoreProductLongAI</code> 15988) ובויזארד (<code>_wizGenDesc</code> 28460, <code>_wizGenLongDesc</code> 28477).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם מוצר חובה "נא להזין קודם את שם המוצר בשדה למעלה" (15962).</li><li>שרת: <code>handleAITokens(groupId)</code> (server.js:4170) — אם false → <code>{success:false,error:'BATTERY_EMPTY'}</code>; אין מפתח Gemini → שגיאה "מפתח AI חסר בשרת".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>מכסת AI: enterprise ללא הגבלה (רישום <code>ai_usage_log</code>); premium=50/יום, אחר=10/יום; איפוס יומי ל-<code>ai_tokens</code> כש-<code>last_token_reset &lt; CURRENT_DATE</code>; הפחתת 1 (server.js:4170-4198).</li><li>קריאה ל-Gemini <code>gemini-2.5-flash</code>: קצר — "פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים)... עם אימוג'ים" (server.js:15892); מורחב — 3-5 משפטים, מרכיבים/יתרונות/טיפ, לא לחזור על התיאור הקצר (server.js:15907-15913).</li></ol></div>
+<div>תופעות לוואי</div><div>הפחתת <code>family_groups.ai_tokens</code>, רישום <code>ai_usage_log</code>. 429 → "מערכת ה-AI עמוסה כרגע..." (server.js:4224).</div>
+</div></section>
+
+<section class="proc" data-f="ai image generate pixabay pexels pollinations cloudinary upload product image"><h3>תמונת מוצר אוטומטית (<code>POST /api/store/catalog/generate-image</code>) והעלאת תמונה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"צור תמונה" בטופס מוצר (<code>generateProductImage</code> 16114), בויזארד (<code>_wizGenImage</code> 28436), ומ-SA (sa-app.js:15893). העלאת קובץ: <code>POST /api/upload/product-image</code> (multer <code>_uploadImg.single('image')</code>, server.js:13648) → <code>/uploads/{filename}</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. <code>groupId</code> null/undefined או אין <code>productName</code> → 400 "שם מוצר נדרש" (server.js:13661). אינו צורך טוקני AI.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שאילתת חיפוש: <code>nameEn</code> מנוקה לאותיות/ספרות + הסרת סיומות כמות (g/kg/ml/…) (server.js:13666-13668).</li>
+<li>אם קצרה מ-3 תווים ויש Gemini: תרגום עם <code>gemini-2.0-flash-lite</code> למונח אנגלי 2-4 מילים (server.js:13670-13682); fallback לקטגוריה או 'product'.</li>
+<li>שירותים (<code>productType='service'</code>): מיפוי מקצוע לפי regex (אינסטלציה→"plumber repairing pipe", חשמל, מיזוג, מנעול, מחשב/סלולר) ברירת מחדל "handyman repairing home appliance" (server.js:13691-13701).</li>
+<li>Pixabay (<code>PIXABAY_API_KEY</code>): page = min(attempt,3), per_page=15, min_width=400; ניסיון חוזר עם המילה הראשונה; בחירה אקראית מ-top3 (או מכל התוצאות בניסיון &gt;1) (server.js:13727-13751).</li>
+<li>Pexels (<code>PEXELS_API_KEY</code>): per_page=10 square, בחירה אקראית (server.js:13754-13770).</li>
+<li>Pollinations (מוצא אחרון): עד 2 ניסיונות, timeout 20 שניות, מאמת content-type image/* (server.js:13775-13796).</li>
+<li>כל תמונה נמצאת מועלית ל-Cloudinary (<code>system_settings.cloudinary_cloud_name/upload_preset</code>) ל-URL קבוע; אם נכשל — URL חיצוני.</li>
+</ol></div>
+<div>פערים</div><div>כישלון מוחזר כ-HTTP 200 עם <code>success:false</code> "לא נמצאה תמונה מתאימה (Pixabay, Pexels ו-AI נכשלו)" (server.js:13797).</div>
+</div></section>
+
+<section class="proc" data-f="retail inventory variants movements adjust stock count returns store credit credit_balance"><h3>מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב מלאי לעסקי retail — <code>fetchInventoryItems</code> (business-app.js:62090), <code>addVariant</code> 62266, <code>invSubmitAdjust</code> 62182, <code>submitStockCount</code> 62340, <code>submitReturn</code> 62406.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כולם verifyBizOrLegacy+sales (server.js:13384-13603).</li>
+<li>תיקון ידני: <code>changeQty</code> שלם ≠0 אחרת "יש להזין כמות שינוי שונה מאפס"; בעלות מוצר → 404 "מוצר לא נמצא" (server.js:13424-13426).</li>
+<li>החזרה: לפחות פריט אחד "יש לבחור לפחות פריט אחד להחזרה" (server.js:13528). ספירה: "אין פריטים לספירה" (13562).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>recordInventoryMovement</code> (server.js:7378): אם variantId → <code>store_product_variants.stock_quantity += delta</code>, אחרת <code>store_catalog.stock_quantity = COALESCE(...,0)+delta</code>; INSERT ל-<code>store_inventory_movements</code>. reasons: sale/return/purchase_receipt/manual_adjustment/stock_count/cancelled_order.</li>
+<li>יצירת וריאציה מסמנת <code>store_catalog.has_variants=TRUE</code> (server.js:13457).</li>
+<li>החזרה: INSERT <code>store_returns</code> (status='completed', <code>refund_method</code> ברירת מחדל 'store_credit', <code>restock</code> ברירת מחדל true) → פריטים ל-<code>store_return_items</code> → אם restock: תנועת 'return' (+qty) → אם store_credit וטלפון: <code>store_customers.credit_balance += totalRefund</code> לפי טלפון מנוקה ממקפים/רווחים (server.js:13531-13550).</li>
+<li>ספירת מלאי: INSERT <code>store_stock_counts</code> (completed) → לכל שורה expected מהמלאי הנוכחי, INSERT <code>store_stock_count_items</code>, ואם <code>diff=counted-expected≠0</code> → תנועת 'stock_count' (server.js:13564-13589).</li>
+<li>ספירה ישנה (<code>POST /api/store/inventory-count</code>, ללא אימות): דריסה ישירה של <code>stock_quantity</code> ואופציונלית מייל ל-<code>admin_email</code> עם טבלת מלאי (server.js:13806-13847).</li>
+</ol></div>
+<div>חישובים</div><div><code>totalRefund = Σ unitPrice × qty</code> (server.js:13529). רשימת מלאי מציגה רק <code>track_inventory=TRUE</code> + ספירת וריאציות פעילות וסכום מלאי וריאציות (server.js:13388-13394). יומן תנועות LIMIT 200.</div>
+<div>פערים</div><div>אין בשום מקום רישום תנועת 'sale' או 'cancelled_order' — מכירה בחנות/קופה לא מורידה <code>stock_quantity</code>. <code>credit_balance</code> נצבר אך לא נקרא/נצרך בשום מקום בקוד (grep: רק server.js:13548). עדכון וריאציה מאפס <code>price_override</code> ל-null אם לא נשלח (server.js:13471).</div>
+</div></section>
+
+<h2 class="grp">הגדרות חנות, מיתוג וכתובת</h2>
+
+<section class="proc" data-f="store settings save alias template vat delivery fee site mode store_settings"><h3>שמירת הגדרות חנות (<code>POST /api/store/settings</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עסק לוחץ "שמור הגדרות חנות" (business-app.js:13455-13553); גם ויזארד ההקמה (business-app.js:20938, 23007) ו-app.js:9357.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ללא אימות שרת.</li>
+<li>alias: trim+lowercase; אם תפוס ע"י קבוצה פעילה אחרת (<code>is_deleted=false/NULL</code>) → 400 "הכינוי הזה כבר תפוס ע"י חנות אחרת, אנא בחרו כינוי אחר." (server.js:13147-13155). לפני השמירה מנקה alias זהה מקבוצות מחוקות/יתומות (server.js:13157-13166).</li>
+<li>לקוח: alias מסונן ל-<code>[a-zA-Z0-9-]</code>, lowercase, מקפים מאוחדים, עד 50 תווים (business-app.js:13493).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>~25 פקודות <code>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</code> בכל שמירה (server.js:13120-13141, 13191-13194).</li>
+<li>נרמול: <code>include_vat</code> בוליאני; <code>vat_rate=parseFloat||18</code>; <code>template_id</code> — עסק <code>business_type='sport'</code> תמיד 'sport', אחרת ערך או 'classic' (server.js:13178-13180); <code>accent_color</code> ברירת מחדל '#e63946'; <code>delivery_eta_min</code> ברירת מחדל 35, <code>pickup_eta_min</code> 15; <code>free_delivery_above=parseInt||0</code>; <code>booking_mode</code> ברירת מחדל 'appointments'; <code>site_mode</code> רק 'shop'|'branding' (אחרת 'shop').</li>
+<li>UPSERT על <code>store_settings(group_id)</code> (server.js:13197-13251). logo/banner: הערך 'DELETE' מאפס ל-NULL, ריק משאיר קיים, אחרת דורס.</li>
+</ol></div>
+<div>ממשק</div><div>טאבי הגדרות: info/content/design/delivery/branding (<code>_switchStoreTab</code>, business-app.js:25392). מצב אתר נשמר מיידית בבחירה דרך <code>POST /api/store/site-mode</code> (server.js:13101; business-app.js:25380). שדות חובה ללקוח נשמרים גם ב-<code>PATCH /api/store/settings/customer-fields</code> (verifyBiz, server.js:13259).</div>
+<div>פערים</div><div>הלקוח לא שולח <code>deliveryFee</code> ו-<code>bookingMode</code> (business-app.js:13497-13527) → כל שמירה מאפסת <code>delivery_fee=0</code> ו-<code>booking_mode='appointments'</code> (server.js:13224, 13229). כל אחד יכול לשנות הגדרות/alias של כל עסק.</div>
+</div></section>
+
+<section class="proc" data-f="branding content sections reorder site mode branding"><h3>תוכן תדמית (Branding Sections)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "תוכן תדמית" בהגדרות החנות — <code>_renderBrandingContentTab</code> (25437), <code>_saveBrandingSection</code> (25519), <code>_deleteBrandingSection</code> (25543).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. <code>section_type</code> ו-<code>data</code> חובה → 400 "חסרים שדות חובה" (server.js:15638). reorder: <code>order</code> מערך → אחרת "נדרש מערך order".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>CREATE TABLE IF NOT EXISTS <code>branding_content</code> בכל קריאה.</li><li>id קיים → UPDATE (עם group_id) אחרת INSERT; <code>sort_order ?? 0</code> (server.js:15640-15650).</li><li>reorder: UPDATE לכל <code>{id,sort_order}</code>.</li></ol></div>
+<div>ממשק</div><div>בחזית: <code>site_mode='branding'</code> (או ברירת מחדל ל-<code>business_type='professional'</code> כשלא נקבע) מסתיר עגלה/קטלוג ומציג בלוקים לפי סוג: service, testimonial, about, team_member, gallery, faq (storefront.html:1042-1049, 1482-1575; storefront-market.html:882).</div>
+</div></section>
+
+<section class="proc" data-f="alias route template storefront html og injection preview whatsapp"><h3>הגשת חזית לפי כתובת קצרה (<code>GET /:alias</code>) והזרקת og</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>גולש פותח <code>/{alias|group_code|id}</code> או <code>/storefront*.html?store=…|g=…</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>מדלג (next) אם מתחיל ב-'api', מכיל נקודה, או ב-RESERVED: setup-db, kol-haam, game, sa-bigscreen, menus, menu, marketplace (server.js:23350-23353).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>כותרות no-cache.</li>
+<li>חיפוש <code>store_settings JOIN family_groups</code> לפי id מספרי / group_code (upper) / store_alias (lower) (server.js:23362-23367).</li>
+<li>בחירת תבנית: sport תמיד 'sport'; retail/store_only → template מפורש (≠classic) או 'market'; אחרת <code>template_id||'classic'</code> (server.js:23373-23377).</li>
+<li>מיפוי: classic→storefront.html, restaurant, sport, market, professional, repairs, maintenance_repair→repairs, logistics (server.js:23378-23387); קובץ חסר → storefront.html; לא נמצא עסק → קובץ ללא הזרקה.</li>
+<li><code>injectStorefrontOg</code> (server.js:171-190): מסיר og קיימים, מחליף &lt;title&gt; בשם העסק, מוסיף og:title=שם העסק, og:description קבוע "WEFLOWZ עושה לכם סדר", og:image = לוגו (data: → <code>/api/public/store-logo/:groupId</code>, אחרת URL; ללא לוגו → <code>/api/public/logo</code>), og:url.</li>
+<li>אותה הזרקה גם לנתיבי <code>/storefront*.html</code> כשיש <code>?store</code>/<code>?g</code> (server.js:192-209).</li>
+</ol></div>
+<div>פערים</div><div>שגיאה כללית → storefront.html סטטי. עסק ללא שורת store_settings לא יימצא ב-alias route (JOIN פנימי) אך יימצא ב-<code>/api/storefront/:code</code> (LEFT JOIN).</div>
+</div></section>
+
+<section class="proc" data-f="gallery images tag reorder toggle public gallery 12"><h3>גלריית עסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עסק מעלה/מתייג/מסדר/מוחק תמונות (business-app.js:13613-13665, 25687-25797); הצגה בחזיתות דרך <code>/api/public/gallery/:groupId</code> רק כש-<code>gallery_enabled</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. מקסימום 12 תמונות → 400 "מקסימום 12 תמונות בגלריה" (server.js:15739). tag: trim, עד 60 תווים, ריק→NULL (15740, 15758).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>business_gallery</code>; reorder → <code>sort_order=i</code>; toggle → UPSERT <code>store_settings.gallery_enabled</code> (server.js:15784-15790).</li></ol></div>
+<div>ממשק</div><div>חזית market: כפתור "גלריה · N תמונות" עם סינון לפי תגיות (storefront-market.html:1073-1125).</div>
+</div></section>
+
+<h2 class="grp">חזית ציבורית (Storefront)</h2>
+
+<section class="proc" data-f="storefront load public api storefront code community discount radius zones frozen"><h3>טעינת חנות ציבורית (<code>GET /api/storefront/:code</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>initStore</code> בכל תבנית חזית (storefront.html:881, storefront-market.html:229, restaurant:292, sport:159, professional:18).</div>
+<div>תנאים ואימותים</div><div><ul><li>לא נמצא → 404 "חנות לא נמצאה"; <code>account_status='frozen'</code> → 403 "חנות זו אינה זמינה כרגע." (server.js:15303-15304).</li><li>לקוח: <code>is_active</code> null נחשב פתוח; false → "החנות סגורה כרגע" (storefront.html:907-913).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ALTER/CREATE מוקדמים (site_mode, gallery_enabled, business_gallery, branding_content).</li>
+<li>שליפה מקבילה: settings, קטלוג (<code>is_available=TRUE</code>, מיון sort_order→category→name, ללא image_url אלא <code>has_image</code>, כולל וריאציות פעילות כ-JSON), נתוני קהילה (רק עם <code>?communityId</code>, <code>cb.status='approved'</code>), <code>biz_radius_delivery_zones</code>, <code>branding_content</code> (server.js:15311-15330).</li>
+<li>ברירת מחדל ל-settings חסרות (server.js:15331).</li>
+</ol></div>
+<div>חישובים</div><div><code>communityData.discount_active = family_count &gt;= min_families</code> (server.js:15337). בלקוח (storefront.html): לכל פריט שאינו complex_builder <code>price = original × (1 − discount_pct/100)</code> מעוגל ל-2 ספרות (storefront.html:973-981); ברירת מחדל min_families=30 בלקוח.</div>
+<div>ממשק</div><div>מסעדה/קפה: כפתור "הזמן שולחן" לפי <code>enable_table_booking</code>, "הזמנת אירוע / קייטרינג" לפי <code>enable_event_booking</code>; עסקים אחרים: "קביעת תור" אם יומן פעיל ו-<code>show_in_storefront!==false</code>; <code>?action=book</code> פותח מודאל אוטומטית (storefront.html:928-969). תמונות דרך <code>/api/store/item-image/:id</code> (data: מפוענח עם cache 86400 שניות, אחרת redirect; server.js:15601-15616).</div>
+</div></section>
+
+<section class="proc" data-f="storefront btype config modules business type"><h3>תצורת מודולים לפי סוג עסק בחזית (<code>storefront-btype.js</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נטען בכל תבנית; <code>btypeInit(data)</code> (storefront-btype.js:576) נקרא מ-initStore.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>BTYPE_CONFIG</code> (storefront-btype.js:11-51): beauty, restaurant, cafe, sport, retail, maintenance_repair, logistics, professional — לכל אחד <code>modules[]</code>, <code>bookingType</code>, <code>labels</code>.</li><li>Aliases: other/food_production/store_only→retail, gym→sport, services/healthcare/education→beauty, repairs/construction→maintenance_repair, events→restaurant (53-62).</li><li>btypeInit: מפעיל ווידג'ט מימוש FLW, טוען פופאפים, מזריק מודאלים לספורט; מחזיר קונפיג (ברירת מחדל retail).</li></ol></div>
+<div>ממשק</div><div><code>btypeHasModule(mod)</code> לשליטה בהצגה (599).</div>
+</div></section>
+
+<section class="proc" data-f="cart checkout storefront html promotions coupon delivery fee min order flow redeem"><h3>עגלה וקופה בחזית הקלאסית (storefront.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>גולש מוסיף לעגלה (<code>updateCart</code> 2730), פותח קופה (<code>openCheckoutModal</code> 2871) ושולח (<code>submitOrder</code> 3383).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חובת התחברות sc-auth (<code>window.scAuth._customer</code>) — אחרת נפתח מודאל הרשמה עם הודעה "כדי להשלים את ההזמנה יש להתחבר או להירשם" (3386-3402).</li>
+<li>משלוח: עיר/רחוב/מספר בית חובה "חובה למלא עיר, רחוב ומספר בית למשלוח" (3415-3420).</li>
+<li>פריטי complex_builder מחייבים תאריך עתידי "חובה לבחור תאריך משוער לפרויקט / אירוע" (3426-3431).</li>
+<li>עסק עם מיקום (<code>bizLat</code>) ללא מעגלי משלוח → "העסק אינו מציע משלוח כרגע"; מחוץ לכל המעגלים → "הכתובת שהזנת מחוץ לאזור המשלוח של העסק" (3436-3447).</li>
+<li>מינימום הזמנה: <code>finalTotal &lt; min_order</code> (ולא complex) → כפתור מושבת (3009-3024).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>חישוב סל (<code>calculateCartDetails</code> 2751).</li>
+<li>דמי משלוח: מעגלים + מיקום → עמלת המעגל שנמצא (geocode ב-Nominatim, debounce 800ms, 804-854); עסק עם מיקום אך ללא מעגל תואם → 0; עסק ללא מיקום → <code>settings.delivery_fee || 30</code> (3448-3449).</li>
+<li>POST <code>/api/store/orders</code> עם items, totalAmount, deliveryFee, communityPromoCode/storeCouponCode/flowRedeemCode, familyGroupId מ-<code>ofl_session</code> (3473-3495).</li>
+<li>הצלחה: אם זמן עתידי → <code>PATCH /orders/:id/target-date</code>; אם מימוש FLW → <code>POST /api/flow/deduct</code> (3507-3536).</li>
+</ol></div>
+<div>חישובים</div><div>מבצעים (2771-2800): לכל מבצע (מצטבר!) על פריטים רלוונטיים (קטגוריה): <code>discount_pct</code> → Σ×pct; <code>fixed_price</code> → (price−fixed)×qty לפריטים יקרים יותר; <code>bogo</code> → הזולים מתוך floor(qty/2). קופון/קוד קהילה: <code>baseTotal × discount/100</code>; קוד FL* → סכום קבוע <code>flowDiscountIls</code>; מימוש FLW: <code>ils = round(v/rate×10, 2)</code> עם rate ברירת מחדל 100 (100 Flw = ₪10), מינימום 100 (3164-3181). תקרה: הנחה ≤ baseTotal. מע"מ מוצג (מגולם) כש-<code>include_vat</code>: <code>total×rate/(100+rate)</code> (2958-2966). פריטים מורכבים מסומנים בהערה "[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט." (3462-3467).</div>
+<div>פערים</div><div><code>free_delivery_above</code> לא מיושם בחזית הקלאסית. שדה <code>orderType:'quote'</code> נשלח אך השרת מתעלם — בקשת הצעת מחיר נשמרת כהזמנה <code>pending_approval</code> ומזוהה כהצעה בממשק העסק רק לפי טקסט ההערה (business-app.js:15620). הנחת קהילה מוחלת על המחיר בלקוח ונשלחת כמחיר פריט מוזל — מנוגד לאימות המחיר בשרת (אם היה פעיל, ראו "יצירת הזמנה").</div>
+</div></section>
+
+<section class="proc" data-f="storefront market retail checkout coupon bogo weighted variant radius"><h3>עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חנויות retail/store_only (ברירת מחדל market) — <code>submitOrder</code> (storefront-market.html:1793); מסעדה — <code>submitOrder</code> (storefront-restaurant.html:2160).</div>
+<div>תנאים ואימותים</div><div><ul><li>Market: שם+טלפון חובה "יש למלא איש קשר וטלפון"; <code>scAuth.requireLogin</code>; משלוח דורש עיר+רחוב.</li><li>מסעדה: שם; טלפון ≥9 תווים; עיר ורחוב במשלוח; requireLogin (2169-2174).</li></ul></div>
+<div>חישובים</div><div>Market (1653-1690): <code>total = max(0, sub − bogoDisc − couponDisc + delivery)</code>; קופון % מעוגל <code>Math.round(sub×pct)</code>; BOGO/buy_x_get_y — המבצע הראשון בלבד, ומושבת כשיש קופון: לכל מוצר <code>floor(qty/(buy+get))×get×price</code> (bogo: buy=get=1). משלוח: עמלת מעגל רדיוס (geocode, storefront-market.html:2265-2284) אחרת <code>settings.delivery_fee</code>. הנחת קהילה מוצגת אך <b>לא מופחתת</b> מהסכום. מוצרים במשקל: צעד 0.1 ק"ג / 50 גרם / 0.1 ליטר / 0.5 מטר. מסעדה: משלוח 0 אם <code>sub ≥ free_delivery_above</code>, אחרת עמלת מעגל או <code>delivery_fee</code> (storefront-restaurant.html:2011-2020).</div>
+<div>שלבי עיבוד</div><div>Market שולח <code>items[{catalogId,variantId,name,quantity,price}]</code>, <code>promoCode</code> (רק לקופון חנות), <code>communityPromoCode</code>, <code>orderSource:'website'</code> (1820-1837). מסעדה שולחת <code>orderSource:'restaurant-v3'</code> ו-<code>deliveryDetails:{address}</code>.</div>
+<div>פערים</div><div>מסעדה שולחת כתובת כשדה יחיד <code>address</code>, אך המייל לעסק ומסך השליח קוראים street/house/city (server.js:14634; business-app.js:23277) — הכתובת לא תוצג. Market בודק קוד מבצע מקומית מול <code>promo_code</code> שאינו קיים ב-<code>store_promotions</code>.</div>
+</div></section>
+
+<section class="proc" data-f="coupons store_coupons validate create delete"><h3>קופוני חנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירה/מחיקה בטאב שיווק (<code>createStoreCoupon</code> business-app.js:29081, <code>deleteCoupon</code> 29111); אימות בחזית (<code>applyPromoCode</code>/<code>applyCoupon</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>יצירה: verifyBizOrLegacy+sales; code ו-discountPct חובה "חסרים נתונים חובה" (server.js:17012); לקוח: 1-100% "יש להזין קוד קופון ואחוז הנחה תקין (1-100)" (business-app.js:29076).</li>
+<li>אימות: <code>code</code> ו-<code>storeCode</code> חובה → 400; storeCode = group_code או alias; לא נמצא עסק → 404; קופון לא קיים או <code>valid_until &lt; CURRENT_DATE</code> → 404 "קוד קופון לא תקין או פג תוקף" (server.js:16980-16999).</li>
+<li>מחיקה: בעלות group_id → 404 "קופון לא נמצא או אין הרשאה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>INSERT <code>store_coupons(code=UPPER(trim), discount_pct, valid_until)</code> + <code>logBizAction('CREATE_COUPON')</code> ל-<code>biz_audit_log</code> (server.js:17016-17017).</div>
+<div>פערים</div><div>אין מגבלת שימוש/מונה מימושים. השרת לא מאמת שהקופון הוחל בהזמנה — <code>promoCode</code> רק נשמר ב-<code>store_orders.promo_code</code>.</div>
+</div></section>
+
+<section class="proc" data-f="promotions store_promotions bogo buy_x_get_y discount_pct discount_fixed banner tab toggle"><h3>מבצעי חנות (Promotions)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל מבצע בטאב שיווק; ההגדרה הפעילה של <code>window.submitPromotion</code> היא האחרונה (business-app.js:34360; הגדרות קודמות ב-28814, 34307 נדרסות). מוצג בקופה, בחזיתות (באנר/טאב "מבצעים חמים").</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>שרת: verifyBizOrLegacy+sales לכל פעולות הכתיבה; PUT/DELETE/toggle בודקים בעלות → 404 "מבצע לא נמצא או אין הרשאה" (server.js:17080-17114). אין ולידציה לשדות.</li>
+<li>לקוח: שם חובה "חובה להזין שם מבצע"; buy_x_get_y דורש buyQty ו-getQty "יש להזין כמות "קנה" וכמות "קבל" עבור מבצע קנה X קבל Y" (34372).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>INSERT/UPDATE <code>store_promotions(title,promo_type,promo_value||0,target_type,target_ids=JSON,start_date,end_date,show_in_banner,show_in_tab,bg_color,buy_qty,get_qty)</code>. targetIds נשלח מהלקוח כמחרוזת JSON ‏(<code>'["קטגוריה"]'</code> או <code>'all'</code>) ומקודד שוב בשרת.</div>
+<div>חישובים</div><div>סוגים בטופס הנוכחי: discount_pct, discount_fixed ("מחיר פיקס" — בפועל הנחה בסכום קבוע), bogo, buy_x_get_y (business-app.js:28715). פעיל = <code>is_active!==false</code>, <code>start_date ≤ now</code>, <code>end_date</code> עד 23:59:59.999 (server.js:14350-14360; business-app.js:31455). חישוב קופה/שרת: לכל פריט ההנחה הטובה ביותר מבין pct/fixed (בתנאי ≤ מחיר יחידה) × כמות; BOGO — מיון מחירים עולה, floor(n/2) הזולים חינם עד תקרה <code>promo_value</code> (ברירת מחדל 999999), מחליף את סך ההנחה אם גדול יותר; buy_x_get_y — תקף רק אם <code>0&lt;get&lt;buy</code>, groups=floor(n/buy), חינם getQty הזולים בכל קבוצה, מחליף אם גדול יותר (server.js:14371-14444; business-app.js:31483-31560).</div>
+<div>פערים</div><div><code>GET /api/init-promotions</code> (server.js:17035) ללא אימות מבצע <code>DROP TABLE store_promotions</code> ויוצר מחדש ללא <code>buy_qty/get_qty</code>. ב-business.html נשאר טופס ישן עם <code>fixed_price</code> (business.html:3685, 3764) שמחושב רק בחזית הקלאסית.</div>
+</div></section>
+
+<section class="proc" data-f="delivery zones named delivery_zones radius zones biz_radius_delivery_zones"><h3>אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אזורים בשמות — <code>loadDeliveryZones</code>/<code>saveDeliveryZone</code> (business-app.js:45447-45519), מוצג רק לעסקי restaurant/cafe/logistics/retail/services. מעגלים — <code>/api/biz/radius-zones/:groupId</code> (verifyBiz, server.js:7891-7919).</div>
+<div>תנאים ואימותים</div><div><ul><li>אזור בשם: groupId ו-name חובה "חסרים שדות חובה" (server.js:14049); ללא אימות; מחיקה לפי id בלבד.</li><li>מעגל: groupId בכתובת חייב להיות זהה לטוקן → 403; <code>radius_km</code> חובה "חסר רדיוס"; UPSERT לפי <code>(group_id,radius_km)</code>.</li></ul></div>
+<div>חישובים</div><div>בחזית: מרחק haversine (R=6371) ממיקום העסק (<code>store_settings.biz_lat/biz_lng</code>) לכתובת שגואוקדה; המעגל הקטן ביותר שמכיל → עמלתו; אחרת מחוץ לאזור.</div>
+<div>פערים</div><div>טבלת <code>delivery_zones</code> (אזורים בשמות, כולל <code>min_order</code>) אינה נקראת בשום חזית או אימות הזמנה — תצורה מתה.</div>
+</div></section>
+
+<section class="proc" data-f="reviews public reviews rating store_orders"><h3>ביקורות ציבוריות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חזיתות מציגות ביקורות: <code>/api/public/reviews/:groupId</code>, <code>/api/store/reviews/:groupId</code> (alias), <code>/api/store/public-reviews/:groupId</code>.</div>
+<div>שלבי עיבוד</div><div>שליפה מ-<code>store_orders</code> עם <code>customer_rating&gt;0</code> ו-<code>customer_rated_at</code> לא null; שם תצוגה <code>LEFT(customer_name,10)</code>; limit = min(query.limit||20, 50) (server.js:15682-15726).</div>
+<div>חישובים</div><div><code>avg_rating</code> = ממוצע על השורות שהוחזרו בלבד (עד 50), מעוגל לספרה אחת; <code>total</code> = מספר השורות המוחזרות.</div>
+<div>פערים</div><div>חזית market קוראת שדות <code>rating/review_text/reviewer_name</code> שאינם מוחזרים (מחזיר <code>customer_rating/customer_rating_notes/display_name</code>) → כל ביקורת תוצג כ-5 כוכבים "לקוח" ללא טקסט (storefront-market.html:1875-1890).</div>
+</div></section>
+
+<section class="proc" data-f="popups store popups employee popups trigger shift task schedule expire"><h3>פופאפים לחנות ולעובדים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל יוצר פופאפ ללקוחות (<code>popup_type='store'</code>, <code>saveStorePopup</code> business-app.js:14685) או לעובדים (<code>'employee'</code>, <code>saveEmployeePopup</code> 14905) עם טריגר none/shift/task.</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. יצירה: groupId, title, content חובה "נתונים חסרים" (server.js:13998). עדכון דינמי רק לשדות שנשלחו (14008-14028).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ציבורי (<code>/api/public/store-popups/:groupId</code>): ראשית מאפס <code>image_base64</code> לפופאפים שפגו; מחזיר עד 5 פעילים, store, בטווח scheduled/expires (server.js:14063-14078); החזית מציגה רק את הראשון אחרי 1200ms (storefront-btype.js:216; storefront.html:4335).</li>
+<li>עובדים (<code>/api/store/employee-popups</code>): עד 3, <code>trigger_type='none'</code>; נבדק 2 שניות אחרי טעינת BIZ (business-app.js:3209).</li>
+<li>טריגר 'shift': מוחזר ב-<code>POST /api/timeclock/punch</code> בכניסה למשמרת (server.js:12954-12966); טריגר 'task' עם <code>trigger_ref=taskId</code>: מוחזר כשהמשימה עוברת ל-done (server.js:12063-12074).</li>
+</ol></div>
+<div>פערים</div><div>פופאפ 'shift' ו-'task' לא בודקים <code>scheduled_at</code>. מחיקה/עדכון לפי id ללא בדיקת בעלות.</div>
+</div></section>
+
+<section class="proc" data-f="storefront chat customer chat polling sc-auth"><h3>צ'אט לקוח-עסק מהחזית (<code>storefront-chat.js</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר (טוקן <code>sc_auth_token</code>) פותח צ'אט עם העסק.</div>
+<div>תנאים ואימותים</div><div><ul><li>כל הנתיבים דורשים טוקן storefront תקף (<code>_scGetCustomerByToken</code>, עם הארכה גולשת <code>SC_SESSION_DAYS</code>, server.js:43192) → 401 "נדרשת התחברות". groupId מספרי וקיים. שיחה שאינה של הלקוח → 403 "אין גישה". הודעה ריקה → 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>open: INSERT <code>customer_chats(group_id,customer_id)</code> ON CONFLICT DO NOTHING ושליפה (server.js:43852-43877).</li><li>שליפה: הכל (LIMIT 200) או <code>created_at &gt; since</code>; מסמן הודעות העסק כנקראו (43880-43898).</li><li>שליחה: INSERT <code>sender_type='customer'</code>; <code>last_message_at=NOW(), status='open'</code> (43901-43919).</li></ol></div>
+<div>ממשק</div><div>Polling כל 3000ms כשהחלון פתוח (storefront-chat.js:14, 90-107); dedup לפי id; המתנה עד 3 שניות ל-groupId.</div>
+</div></section>
+
+<h2 class="grp">הזמנות (store_orders)</h2>
+
+<section class="proc" data-f="create order post store orders price validation promotions delivery fee email transaction"><h3>יצירת הזמנה (<code>POST /api/store/orders</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מקורות: חזיתות ציבוריות (website / restaurant-v3), קופה POS (<code>finalizePOSOrder</code> business-app.js:33440, orderSource 'internal'/'table'), מלצר (<code>waiterSubmitOrder</code> 32299, 'table').</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ללא אימות.</li>
+<li>אימות מחיר (server.js:14483-14506): לכל פריט עם catalogId תקף (לא 0/999999/metadata): complex_builder — סומכים על מחיר הלקוח; אחרת מחיר וריאציה (<code>price_override</code>) או מחיר קטלוג; אם <code>|client − catalog| &gt; catalog×0.01 + 1</code> → 400 "מחיר פריט אינו תקין — אנא טען מחדש את הדף ונסה שנית".</li>
+<li>אכיפת מבצעים רק ל-<code>business_type</code> retail/store_only, ורק כש-orderSource אינו internal/table: אם <code>clientTotal &lt; max(0, serverSubtotal − promoDiscount) + deliveryFee − 1</code> → 400 "סכום ההזמנה אינו תואם למחירים ולמבצעים הפעילים..." (server.js:14527-14537).</li>
+<li>קוד מבצע קהילתי (<code>communityPromoCode</code>) נבדק רק אם יש familyGroupId: promo approved, בתוקף, והמשפחה חברה מאושרת בקהילת המבצע; אחרת מתאפס ל-null (server.js:14543-14565).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ALTERים לעמודות (מחוץ לטרנזקציה).</li>
+<li>שליפת קטלוג/הגדרות/סוג עסק/וריאציות במקביל (server.js:14471-14476) — כישלון נבלע.</li>
+<li>חישוב <code>serverSubtotal</code>, דמי משלוח, אכיפת מבצעים.</li>
+<li>טרנזקציה על חיבור ייעודי: INSERT <code>store_orders</code> (status = <code>req.body.status || 'pending_approval'</code>, <code>quote_status=NULL</code>, <code>order_source = orderSource||'website'</code>, <code>total_amount = parseFloat(totalAmount)</code> של הלקוח, <code>delivery_fee=actualDeliveryFee</code>) → UPDATE <code>items</code> (JSONB מלא) → INSERT <code>store_order_items</code> לכל פריט אמיתי → UPDATE <code>promo_code=UPPER(promoCode)</code> → COMMIT (server.js:14567-14598).</li>
+<li>אחרי COMMIT: אם <code>promoCode</code> + familyGroupId ומבצע קהילתי תואם → <code>awardFlow</code>: family 'promo_redemption', business 'biz_promo_redeemed', community 'promo_community' (server.js:14601-14615).</li>
+<li>אחרי 100ms: <code>upsertStoreCustomer</code> (דילוג על "לקוח קופה"/"לקוח מזדמן") — יוצר/מעדכן <code>store_customers</code>, <code>storefront_customers</code>, חשבון FAMILY "shopper" חדש לפי טלפון במידת הצורך ו-<code>member_business_links</code> status 'active' (server.js:14617-14625, 7392-7445, 7304-7370).</li>
+<li>מייל לעסק ל-<code>order_notification_email || admin_email</code> אם <code>send_order_email !== false</code> (server.js:14627-14647).</li>
+</ol></div>
+<div>חישובים</div><div>דמי משלוח (server.js:14512-14522): אם <code>free_delivery_above&gt;0</code> ו-subtotal ≥ סף → 0; אחרת דמי הלקוח אם <code>0 ≤ fee ≤ base×2+50</code>, אחרת base (<code>store_settings.delivery_fee</code>). כמות: <code>parseInt(qty||quantity)||1</code>.</div>
+<div>תופעות לוואי</div><div>מייל (sendSystemEmail); FLOW coins (awardFlow); כרטיס לקוח + קישור "הפעילות שלי"; אפשרות יצירת family_group חדש מסוג shopper עם <code>group_code='SC'+6 ספרות אחרונות</code> (server.js:7347-7354).</div>
+<div>פערים</div><div><b>שאילתת הקטלוג מסננת <code>is_active=true</code>, עמודה שאינה קיימת ב-<code>store_catalog</code></b> (server.js:14472; מילון DB) → <code>Promise.all</code> נכשל, הכישלון נבלע ו-<code>catalogMap</code> ריק → אימות המחיר ואכיפת המבצעים לא רצים בפועל, ו-<code>serverSubtotal</code> = סכום מחירי הלקוח. <code>items</code> חסר → קריסה בתוך הטרנזקציה (14579). השרת מתעלם מ-<code>storeCouponCode</code>, <code>flowRedeemCode</code>, <code>appliedDiscountPct</code>, <code>orderType</code>. <code>parseInt</code> על כמות קוטם משקלים (0.5 ק"ג → 1).</div>
+</div></section>
+
+<section class="proc" data-f="order status lifecycle pending_approval new processing ready shipped delivering delivered completed cancelled cashback income pantry"><h3>מחזור חיי הזמנה ועדכון סטטוס (<code>POST /api/store/orders/status</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עובדי העסק: מודאל הזמנה (<code>updateStoreOrderStatus</code> business-app.js:15961; כפתורים business.html:3940-3947), שליח (<code>updateStoreOrderStatusCourier</code> 23316), אישור/דחייה למסעדה (<code>approveDeliveryToKitchen</code> 23333, <code>rejectStoreOrder</code> 23358), KDS (<code>kdsItemCheck</code> 40982, <code>cookDoneOrder</code> 41110), מלצר (<code>markReadyDelivered</code> 31840), קופה (completed מיידי).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות, ללא בדיקת בעלות, ללא רשימת ערכים מותרים — כל ערך <code>status</code> נשמר (server.js:14666-14674).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>UPDATE <code>status</code>, <code>status_changed_at=NOW()</code>; עם <code>setDelivery</code> גם <code>is_delivery=true</code>.</li>
+<li>מחזיר תשובה, ואז ברקע: אם status ∈ {delivered, completed}: <code>triggerCashbackForOrder</code>; <code>logBizIncome</code> (INSERT <code>transactions</code> type income, category 'sales', למשתמש ADMIN הראשון); <code>deductPantryForOrder</code>; אם יש <code>community_promo_id</code>+משפחה → <code>awardFlow('family','promo_used')</code> (server.js:14679-14700).</li>
+<li><code>logBizAction('UPDATE_ORDER_STATUS')</code> לכל שינוי.</li>
+<li>אם להזמנה <code>family_group_id</code> וקישור <code>member_business_links</code> פעיל: התראה <code>_sendMemberBizNotif</code> ל-<code>alert_notifications</code> (trigger_type 'business_update', dedup לפי <code>reference_key=mbiz_order_{id}_{status}</code>) עם תוויות: new=חדשה, processing=בטיפול, ready=מוכנה לאיסוף, delivering=בדרך, delivered=נמסרה, completed=הושלמה, cancelled=בוטלה (server.js:14701-14718, 30937).</li>
+</ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>חזית / קופה / מלצר</td><td>ברירת מחדל בלי status</td><td>מייל לעסק, upsert לקוח</td></tr>
+<tr><td>(INSERT)</td><td>new</td><td>קיוסק</td><td>תמיד (server.js:24631)</td><td>logActivity 'kiosk_order'</td></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>הזמנת קמפיין קהילתי</td><td>order_source='community_campaign'</td><td>upsert לקוח בכל עסקי הקמפיין</td></tr>
+<tr><td>pending_approval</td><td>processing</td><td>עובד ("אשר ושלח למטבח" — מוצג רק למסעדה)</td><td>—</td><td>התראה למשפחה</td></tr>
+<tr><td>pending_approval</td><td>cancelled</td><td>עובד (דחייה, אישור UI)</td><td>—</td><td>התראה</td></tr>
+<tr><td>כל</td><td>new / processing / ready / shipped</td><td>מודאל ניהול</td><td>—</td><td>התראה; shipped מסיט לטאב "ממתין" של השליח</td></tr>
+<tr><td>new/pending</td><td>processing → ready</td><td>KDS</td><td>סימון פריט ראשון / סיום הכנה</td><td>—</td></tr>
+<tr><td>shipped</td><td>delivering</td><td>שליח "נאסף — יצאתי לדרך"</td><td>—</td><td>—</td></tr>
+<tr><td>delivering</td><td>completed</td><td>שליח "אישור מסירה"</td><td>—</td><td>קאשבק, הכנסה, ניכוי מחסן, FLOW</td></tr>
+<tr><td>כל</td><td>completed</td><td>מודאל / קופה (מיד אחרי יצירה) / מלצר</td><td>—</td><td>קאשבק, הכנסה, ניכוי מחסן, FLOW</td></tr>
+<tr><td>shipped</td><td>completed</td><td>לקוח (customer-feedback)</td><td>אישור קבלה + דירוג</td><td>ללא קאשבק/הכנסה (עקיפה)</td></tr>
+<tr><td>quote</td><td>new</td><td>עסק (<code>/approve</code>)</td><td>status='quote'</td><td>ראו הצעות מחיר</td></tr>
+<tr><td>כל</td><td>processing</td><td>עסק (<code>to-work-order</code>)</td><td>—</td><td>call_type='work_order'</td></tr>
+</table></div></div>
+<div>חישובים</div><div>קאשבק (server.js:18548-18616): רק אם המשפחה והעסק באותה קהילה מאושרת ו-status ∈ {delivered,completed}; פעם אחת להזמנה (בדיקת <code>business_platform_dues.order_id</code>). <code>commission = round2(amount × platform_commission_pct/100)</code> (ברירת מחדל 3%); <code>cashback = round2(commission × community_cashback_pct/100)</code> (ברירת מחדל 30%); INSERT <code>business_platform_dues</code> status 'pending'; <code>community_wallets.balance += cashback</code> + <code>community_wallet_transactions</code> type 'cashback'; מנהל אזור: <code>round2(commission × zm.commission_pct/100)</code> (ברירת מחדל <code>zone_manager_commission_pct</code> או 5%) ל-<code>zone_manager_commissions</code>. ניכוי מחסן: תפיסה אטומית <code>pantry_deducted_at</code>, מתכונים <code>product_ingredients</code>, <code>effective = base/(1−waste%/100)</code> (waste עד 95%), המרת יחידות, <code>pantry.quantity = GREATEST(q − d, 0)</code> (server.js:22269-22322).</div>
+<div>ממשק</div><div>רשימת הזמנות (<code>renderStoreOrders</code> 15651): מיון — completed/cancelled בסוף; סינון לפי סטטוס/מקור (from_store / from_quote)/דירוג; סימון דחיפות לפי <code>target_datetime</code>: איחור (אדום), ≤15 דק' (כתום מהבהב), &lt;60 דק' (כתום). תוויות: pending_approval, new, processing, ready, shipped, completed, cancelled (ערך לא מוכר מוצג כ"חדשה"). הזמנה נחשבת הצעה בממשק אם status='quote' או quote_status ∈ {draft,sent,waiting_customer,customer_approved} או ההערה מכילה "[הצעת מחיר]" (15619-15625). שליחויות: polling כל 8 שניות (23155), רק למי שיש טאב 'deliveries' או ADMIN.</div>
+<div>פערים</div><div>אין אימות/בעלות — כל אחד יכול לשנות סטטוס של כל הזמנה ולהפעיל קאשבק/הכנסה. <code>logBizIncome</code> אינו אידמפוטנטי: כל מעבר חוזר ל-completed/delivered רושם הכנסה נוספת. ערך 'delivered' מטופל בשרת אך אין כפתור ששולח אותו; 'delivering' לא מופיע ב-statusMap של רשימת ההזמנות.</div>
+</div></section>
+
+<section class="proc" data-f="order schedule target date item ready kds"><h3>תזמון הזמנה ומוכנות פריטים (KDS)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תזמון — <code>_liveQueueScheduleSave/Clear</code> (business-app.js:26038, 26057) → <code>POST /api/store/orders/schedule</code>; יעד אספקה — <code>PATCH /orders/:id/target-date</code> (חזית אחרי הזמנה עתידית, מודאל יעד business-app.js:9700). מוכנות — <code>PATCH /orders/:id/item-ready</code> (markItemServed 31818, kdsItemCheck 40982, cookDoneOrder 41119).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. schedule: חסר orderId → 400 "חסר orderId" (server.js:14660). item-ready: הזמנה לא קיימת → 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>target_datetime = value || NULL</code>.</li><li>item-ready: <code>clearAll</code> → <code>items_ready='[]'</code>; <code>ready=true</code> → הוספת <code>{idx,name,tableNum,time}</code> אם idx לא קיים; <code>ready=false</code> → הסרה לפי idx (server.js:26384-26403).</li></ol></div>
+<div>ממשק</div><div>KDS מציג הזמנות של היום בסטטוסים pending_approval/new/processing/ready שלא סומנו מקומית כ"גמורות" (<code>localStorage kds_done_{groupId}</code>, business-app.js:41636-41650).</div>
+</div></section>
+
+<section class="proc" data-f="customer feedback rating received delivery issue my orders family"><h3>אישור קבלה ודירוג ע"י הלקוח, ורשימת "ההזמנות שלי"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משתמש FAMILY: <code>confirmOrderReceipt</code> (app.js:1311), <code>_submitOrderRating</code> (app.js:14605); רשימה <code>fetchMyOrders</code> / polling <code>startMyOrdersAutoRefresh</code> (app.js:949).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>verifyFamily. feedback: ההזמנה של המשפחה (<code>family_group_id</code>) או (ללא family) טלפון הלקוח = טלפון <u>הראשון</u> של משתמש במשפחה → אחרת 403 "הזמנה לא נמצאה" (server.js:14729-14733).</li>
+<li>rating 1-5 שלם, אחרת null; הערות עד 1000 תווים.</li>
+<li>my orders: <code>userId</code> בכתובת = המשתמש המחובר → אחרת 403 (server.js:14777).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>received===false</code> → <code>customer_received_at=NULL</code>, <code>delivery_issue_reported_at=NOW()</code>.</li>
+<li>אחרת → שמירת דירוג, <code>customer_rated_at</code>, <code>customer_received_at=COALESCE(...,NOW())</code>, ו-status: shipped→completed, אחרת ללא שינוי (server.js:14735-14750).</li>
+<li>my orders: status ≠ 'quote' ו-(quote_status NULL או 'approved'), לפי family_group_id או טלפון המשתמש (server.js:14783-14792).</li>
+</ol></div>
+<div>ממשק</div><div>Polling כל 3000ms בזמן שהלשונית פתוחה (app.js:1042; ההערה בקוד אומרת "20 שניות"); כולל רענון הצעות מחיר כשהמקטע פתוח.</div>
+<div>פערים</div><div>מעבר shipped→completed כאן לא מפעיל קאשבק/הכנסה/ניכוי מחסן.</div>
+</div></section>
+
+<section class="proc" data-f="whatsapp order notify order_received order_ready"><h3>התראת וואטסאפ ללקוח על הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/biz/whatsapp/order-notify</code> (verifyBiz, server.js:44277).</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId, customerPhone, messageType חובה. <code>whatsapp_settings.enabled</code> כבוי → <code>reason:'disabled'</code>; סוג כבוי (<code>customer_order</code> / <code>notify_customer_ready</code>) → 'type_disabled'; נשלח כבר (<code>checkAlreadySent</code> חלון 2) → 'already_sent'.</li></ul></div>
+<div>שלבי עיבוד</div><div>תבניות: order_received — "שלום {שם}, קיבלנו את ההזמנה שלך (#{id})! נעדכן אותך כשתהיה מוכנה. תודה 🙏"; order_ready — "...מוכנה לאיסוף / למשלוח! 🎉". שליחה ב-<code>sendWhatsApp</code> לנמען 'customer'.</div>
+</div></section>
+
+<h2 class="grp">קופה (POS) ושליחויות</h2>
+
+<section class="proc" data-f="pos cart tender payment split vat tip discount on_account debt gift receipt finalize"><h3>מכירה בקופה (טאב POS ב-business-app.js)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עובד/מנהל בטאב מכירות → POS: הוספת פריטים (32420), מודאלי תוספות/פיצה/מארז, זיהוי לקוח בטלפון (<code>checkPOSCustomer</code> 32535), סליקה (<code>handlePosTenderClick</code> 32593 → <code>openPOSTender</code> 32707 → <code>finalizePOSOrder</code> 33409).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>עגלה ריקה → "העגלה ריקה!".</li>
+<li>לקוח מזוהה עם חוב פתוח → מודאל "חוב פתוח ללקוח!" עם המשך/ביטול (32597-32618).</li>
+<li>אמצעי 'on_account' (הקפה) דורש לקוח מזוהה "חובה להזין טלפון ולזהות לקוח כדי לרשום הקפה!" (32772-32777).</li>
+<li>כפתור סיום מופעל רק כש-<code>balance = grandTotal − paid ≤ 0.01</code> (updateTenderDisplay).</li>
+<li>מארז: חובה לבחור בכל שלב "חובה לבחור פריטים בשלב: X"; מגבלת מקסימום בחירות לשלב.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>חישוב: <code>net = Σ price×qty</code>; הנחת מבצעים (<code>calcPOSPromotions</code>, לא בתשלום חוב); הנחה ידנית; טיפ.</li>
+<li>תשלומים מפוצלים: cash, credit, bit, paybox, on_account, gift ("שי / חינם" — <code>applyFullDiscount</code> מגדיר תשלום יחיד בסכום המלא); פיצול לפי מנות (posItemSplitAssignments).</li>
+<li>הוספת פריט metadata: <code>{catalogId:null,is_quote_metadata:true,data:JSON({payments,vat,is_debt_recovery,promoDiscount,manualDiscount,tip,tableNumber})}</code>; אותו JSON נשמר גם ב-<code>notes</code> (33463-33465).</li>
+<li>POST <code>/api/store/orders</code> עם <code>customerName</code> = שם הלקוח המזוהה או "לקוח קופה", <code>orderSource</code> 'table' אם נבחר שולחן אחרת 'internal', <code>isDelivery:false</code>.</li>
+<li>מיד POST <code>/orders/status</code> status 'completed' (fire-and-forget) → מפעיל הכנסה/קאשבק/ניכוי מחסן.</li>
+<li>הדפסת קבלה <code>printPOSReceipt</code>, קונפטי, איפוס עגלה והנחות; שולחן → "ממתין לתשלום" (<code>setTableAwaitingPayment</code>).</li>
+</ol></div>
+<div>חישובים</div><div>מע"מ מ-<code>localStorage ofl_vat_{groupId}</code> (ברירת מחדל enabled, 18%; מיגרציה 17→18) כמגולם: <code>beforeVat = total/(1+rate/100)</code>, <code>vat = total − beforeVat</code> (31400-31412, 33456-33462). <code>grandTotal = max(0, net − promo − manual) + tip</code>. הנחה ידנית: % → <code>min(base, base×v/100)</code>; ₪ → <code>min(base, v)</code> כש-<code>base = net − promo</code> (32657-32671). טיפ (רק restaurant/cafe ולא בתשלום חוב): <code>round(base×pct/100, 2)</code>. פיצה: תוספת <code>price/4 × מספר רבעים</code> (רבע כפול נספר 2) (33197-33215). חוב לקוח (<code>getCustomerDebt</code> 11592): על כל הזמנות הלקוח במטמון (לא cancelled) — <code>+on_account</code>, <code>−debt_payment</code>, הזמנת is_debt_recovery מפחיתה את כל תשלומיה. פירעון חוב: פריט יחיד <code>real_id=null</code> "תשלום על חשבון חוב פתוח", סכום ≤ החוב (11655-11683).</div>
+<div>תופעות לוואי</div><div>כמו השלמת הזמנה: <code>transactions</code> הכנסה, קאשבק קהילה, ניכוי מחסן; upsert לקוח רק אם השם אינו "לקוח קופה".</div>
+<div>ממשק</div><div>מסך מלא (fullscreen) נשמר אחרי תשלום (wrapper ב-business-app.js:1901-1913). שורת טיפ מוסתרת לעסק שאינו מסעדה/קפה.</div>
+<div>פערים</div><div>חוב הלקוח מחושב רק בצד לקוח ממטמון ההזמנות (אין טבלת יתרות). הכנסה נרשמת גם לתשלום "שי" ולהקפה (על total_amount המלא). שתי קריאות נפרדות (יצירה + completed) — כישלון השנייה משאיר הזמנה ב-pending_approval.</div>
+</div></section>
+
+<section class="proc" data-f="deliveries courier tab shipped delivering completed polling waze whatsapp"><h3>טאב שליחויות (Deliveries)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שליח/מנהל בטאב 'deliveries' — <code>switchDeliveryTab</code> (business-app.js:23161), <code>loadCourierData</code> (23176).</div>
+<div>תנאים ואימותים</div><div><ul><li>גישה: <code>permissions.tabs</code> כולל 'deliveries' או role ADMIN (23177).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שליפת כל ההזמנות, סינון משלוחים (<code>is_delivery</code> / DELIVERY_META / פריטי משלוח).</li><li>3 טאבים: "ממתין" = shipped, "במשלוח" = delivering, "היסטוריה" = completed+cancelled.</li><li>פעולות: shipped→delivering, delivering→completed (עם קונפטי).</li></ol></div>
+<div>ממשק</div><div>Polling כל 8000ms (23155). קישורי Waze, חיוג, וואטסאפ עם "היי {שם}, השליח בדרך אליך! 🛵" (קידומת 0→972).</div>
+</div></section>
+
+<section class="proc" data-f="kiosk mode self order password lookup customer"><h3>מצב קיוסק (הזמנה עצמית)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל פותח קיוסק (<code>openKioskMode</code> business-app.js:35209) על מכשיר; לקוח עובר 4 שלבים: זיהוי, בחירת מוצרים, סיכום, בוצע.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>שם חובה בשלב 1 (35298). kiosk-lookup: groupId ו-phone חובה "חסר groupId או phone" (server.js:24594).</li>
+<li>kiosk-order: groupId ו-items לא ריק → אחרת "נתונים חסרים" (server.js:24623). ללא אימות מחיר.</li>
+<li>יציאה: לחיצה ארוכה 3000ms על הלוגו (<code>KIOSK_HOLD_MS</code>, 35538) + סיסמה; ברירת מחדל '1234'.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טעינה: <code>/api/store/kiosk-settings/:groupId</code> — קטלוג <code>is_available</code> ולא <code>is_complimentary</code>, settings מלאים (כולל <code>kiosk_password</code>), שם עסק (server.js:24571-24588).</li>
+<li>lookup: נרמול טלפון לספרות ± 0 מוביל; לקוח קיים → מחזיר מספר הזמנות קודמות; חדש → נוצר רק אם יש שם ≠ 'לקוח' (server.js:24596-24616). אוטומטית בהקלדה ≥9 ספרות: "שלום X! טוב שחזרת".</li>
+<li>order: INSERT <code>store_orders</code> status 'new', <code>customer_name||'לקוח קיוסק'</code>, notes עם קידומת "[קיוסק]", items JSONB בלבד → <code>upsertStoreCustomer</code> (אם טלפון+שם) → <code>logActivity('sale','kiosk_order')</code> (server.js:24620-24644).</li>
+<li>מסך "בוצע!" עם ספירה לאחור 10 שניות ואיפוס.</li>
+</ol></div>
+<div>חישובים</div><div><code>total = Σ price×qty</code> בצד לקוח בלבד.</div>
+<div>פערים</div><div>סיסמת הקיוסק חשופה ציבורית ב-<code>GET /api/store/kiosk-password/:groupId</code> וב-<code>kiosk-settings</code> (SELECT *). אין שורות <code>store_order_items</code> להזמנות קיוסק (ולכן לא ניכוי מחסן).</div>
+</div></section>
+
+<h2 class="grp">הצעות מחיר (Quotes)</h2>
+
+<section class="proc" data-f="quote create edit quote number qt store_orders status quote"><h3>יצירה ועריכה של הצעת מחיר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: <code>submitNewQuote</code> (business-app.js:10602), הצעה מהירה <code>saveQuickQuote</code> (12518), ויזארד (22862), מתבנית תפריט <code>submitNewEventFromMenu</code> (42842). חזית: <code>submitEventQuote</code> (storefront.html:3616), <code>sendQuote</code> (market:1936, sport:1434). ספורט RFQ: <code>/api/sport/oneflow-rfq</code> (server.js:30383).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/store/quotes</code>: verifyBizOrLegacy+sales; groupId מטוקן או body; לוג <code>[QUOTES_LEGACY]</code> (server.js:14099-14107). ללא ולידציה לשדות.</li>
+<li>PUT: בעלות group_id → 404 "הצעה לא נמצאה או אין הרשאה" (server.js:14183-14184).</li>
+<li>from-template: verifyBiz; templateId ו-customerName חובה "חסרים נתוני תבנית/לקוח"; תבנית של העסק → אחרת 404 "תבנית לא נמצאה" (server.js:27001-27006).</li>
+<li>חזית: שם+טלפון+תאריך חובה; requireLogin.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>INSERT <code>store_orders</code> status 'quote', items JSON, family_group_id → UPDATE <code>quote_number = 'QT-' + id מרופד ל-6</code> (server.js:14109-14116). RFQ ספורט: quote_status 'waiting_business', מספר <code>RFQ-000123</code>.</li>
+<li>PUT: חילוץ <code>quote_title</code> מפריט metadata (<code>data.title</code>); UPDATE שדות; מחיקת <code>store_order_items</code> והכנסה מחדש (רק catalogId אמיתי) (server.js:14186-14206).</li>
+<li>from-template: פריטי <code>menu_items</code> זמינים לפי סדר סקציות; <code>guests = max(1, guestCount || min_guests || 1)</code>; per_person → כמות = guests לכל פריט + שורת "מחיר בסיס לסועד" (<code>base_price_per_person × guests</code>); <code>is_event=TRUE</code>, <code>event_guest_count</code>, <code>target_datetime=eventDate</code> (server.js:27008-27040).</li>
+</ol></div>
+<div>חישובים</div><div>from-template: <code>total = Σ custom_price × quantity</code>. פריט metadata של ההצעה (<code>is_quote_metadata</code>) מחזיק title, validity (ברירת מחדל 30), myCompanyId, introText, notes, internalNote, discount, vatRate, noVat (business-app.js:9387-9399).</div>
+<div>ממשק</div><div>שכפול הצעה (<code>duplicateQuote</code> 9365) — מעתיק שורות ו-metadata, כותרת + " (עותק)", ללא פרטי לקוח.</div>
+<div>פערים</div><div><code>title</code> ו-<code>source</code> שנשלחים מהחזית ב-POST מתעלמים בשרת (submitEventQuote, storefront.html:3628-3634). הצעה מהחזית נשמרת עם <code>totalAmount</code> undefined (NULL) בטופס האירוע.</div>
+</div></section>
+
+<section class="proc" data-f="quote status lifecycle quote_status draft sent waiting_customer customer_approved approved cancelled frozen rejected history"><h3>מחזור חיי הצעת מחיר ושליחה ללקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק מנהל הצעות בטאב הצעות (<code>renderStoreQuotes</code>, <code>updateQuoteStatus</code> 9412, <code>sendQuoteToOneflow</code> 9470, <code>assignAndSendQuote</code> 9518, <code>sendQuoteToCustomer</code> WA 9578, <code>sendBizReply</code> 9437, <code>approveQuoteToOrder</code>+<code>submitTargetDatetime</code> 9622-9748). לקוח FAMILY מגיב באפליקציה (<code>_fqvRespond</code> app.js:1657, <code>submitQuoteResponse</code> 1689).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>PATCH /quotes/:id/status</code>: verifyBizOrLegacy+sales; רק כש-<code>status='quote'</code> ו-group_id תואם → אחרת 404; ערך <code>quoteStatus</code> חופשי (server.js:14763-14773).</li>
+<li><code>send-to-oneflow</code>: בעלות → 404 (server.js:14963-14964). <code>link-only</code>: familyGroupId חובה "familyGroupId נדרש" (15006).</li>
+<li><code>customer-response</code>: verifyFamily; ההצעה של המשפחה או טלפון הלקוח שייך למשתמש במשפחה → אחרת 403; <code>responseType</code> ∈ approved/rejected/discount_request/items_request/message → אחרת 400 "סוג תגובה לא תקין"; טקסט עד 1000 תווים (server.js:15057-15063). לקוח: בקשות הנחה/שינויים/הודעה מחייבות טקסט.</li>
+<li><code>business-message</code>: טקסט לא ריק "הודעה ריקה"; בעלות (server.js:15134-15142).</li>
+<li><code>to-work-order</code> / <code>approve</code>: groupId רק מ-<code>req.bizAuth</code>; approve דורש <code>status='quote'</code> → אחרת 404 "ההצעה לא נמצאה או שכבר אושרה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>send-to-oneflow: <code>family_group_id</code>, <code>quote_status='waiting_customer'</code>, איפוס תגובת לקוח, הוספת אירוע <code>sent_to_customer</code> או <code>resent_updated</code> (אם כבר הייתה תגובה) ל-<code>quote_history</code> → התראה → UPSERT <code>member_business_links</code> pending (לא מוריד active) (server.js:14966-14994).</li>
+<li>link-only: מעדכן family_group_id רק אם ריק/זהה; אם קישור פעיל — linkStatus 'active'; אחרת UPSERT pending + התראת "בקשת שיוך חדשה" (server.js:15011-15043).</li>
+<li>customer-response: <code>quote_status</code> = approved→'customer_approved', rejected→'cancelled', אחרת 'waiting_customer'; אירוע <code>customer_response</code>; התראה לעסק (server.js:15065-15079).</li>
+<li>business-message: אירוע <code>business_message</code> ל-history + התראה ללקוח (טקסט עד 80 תווים) (server.js:15136-15152).</li>
+<li>to-work-order: <code>quote_status='approved'</code>, <code>status='processing'</code>, <code>call_type='work_order'</code>, <code>quote_title</code> (מ-metadata או "פקודת עבודה — {לקוח/מספר}"), אירוע <code>converted_to_work_order</code>, INSERT <code>work_order_timeline</code> 'created' (server.js:15094-15115); הלקוח בנוסף יוצר אירוע ביומן (<code>POST /api/calendar/events</code>, notes <code>ORDER_REF:{id}</code>) ומעדכן target-date (business-app.js:9672-9695).</li>
+<li>approve (לא נקרא מהממשק): <code>status='new'</code>, <code>quote_status='approved'</code>, target_datetime, <b><code>created_at=NOW()</code></b>; upsert לקוח + <code>business_id</code> מ-metadata.companyId (server.js:14821-14845).</li>
+<li>WA: <code>prepare-send</code> יוצר <code>confirm_token</code> (24 בתים hex) ומחזיר <code>{APP_URL}/c/q/{id}/{token}</code>; הלקוח פותח wa.me עם טקסט ההצעה ומסמן סטטוס 'sent' (business-app.js:9578-9618).</li>
+</ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל (quote_status)</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>NULL (status='quote')</td><td>עסק/חזית</td><td>—</td><td>QT-מספר</td></tr>
+<tr><td>(INSERT)</td><td>waiting_business</td><td>RFQ ספורט</td><td>—</td><td>RFQ-מספר</td></tr>
+<tr><td>כל</td><td>draft / sent / frozen / cancelled (בחירה ידנית)</td><td>עסק</td><td>status='quote'</td><td>—</td></tr>
+<tr><td>כל</td><td>waiting_customer</td><td>עסק (שליחה ב-WEFLOWZ)</td><td>בעלות</td><td>התראה, קישור pending, history</td></tr>
+<tr><td>waiting_customer</td><td>customer_approved</td><td>לקוח</td><td>responseType=approved</td><td>התראה לעסק</td></tr>
+<tr><td>waiting_customer</td><td>cancelled</td><td>לקוח</td><td>rejected</td><td>התראה לעסק</td></tr>
+<tr><td>waiting_customer</td><td>waiting_customer</td><td>לקוח</td><td>discount/items/message</td><td>UI משפחה מציג "ממתין לתגובת העסק" עד הודעת עסק</td></tr>
+<tr><td>כל</td><td>approved (+status processing)</td><td>עסק (אישור/המרה לפקודת עבודה)</td><td>—</td><td>timeline, יומן, התראה</td></tr>
+<tr><td>quote</td><td>approved (+status new)</td><td>עסק (<code>/approve</code>)</td><td>status='quote'</td><td>upsert לקוח, התראה</td></tr>
+</table></div>בחירת approved/customer_approved בתפריט הסטטוס לא שולחת PATCH אלא פותחת מודאל המרה (business-app.js:9413-9421). תצוגה: new/quote→draft, waiting_customer→sent, customer_approved→approved בסינון (9166-9169).</div>
+<div>תופעות לוואי</div><div>התראות ל-<code>alert_notifications</code> מסוגים quote_received, link_request, quote_response, quote_business_message, quote_approved, work_order_created; <code>member_business_links</code>.</div>
+<div>פערים</div><div><b>כל ה-INSERTים להתראות בתהליך זה משתמשים בעמודות <code>type, title, reference_id</code> שאינן קיימות ב-<code>alert_notifications</code></b> (עמודות: group_id, rule_id, trigger_type, message, is_read, created_at, reference_key; server.js:760, 771) → נכשלים בשקט (server.js:14851, 14980, 15038, 15076, 15120, 15148). הלקוח (business-app.js) לא שולח טוקן ולא groupId ל-<code>to-work-order</code>, <code>prepare-send</code>, <code>PATCH status</code>, <code>send-to-oneflow</code>, <code>link-only</code> → 400 בשרת; ב-PATCH status הלקוח מציג "עודכן" למרות הכישלון, וב-WA הקישור לאישור פשוט לא נוסף.</div>
+</div></section>
+
+<section class="proc" data-f="quote confirm link c q token whatsapp customer_confirmed_at"><h3>קישור אישור קבלת הצעה (<code>GET /c/q/:id/:token</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח לוחץ על הקישור שבהודעת WA.</div>
+<div>תנאים ואימותים</div><div><ul><li>id+confirm_token חייבים להתאים → אחרת 404 "קישור לא תקף או פג תוקפו" (server.js:25118-25121). אין תפוגה בפועל.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם <code>customer_confirmed_at</code> ריק → עדכון ל-NOW() + INSERT התראה לעסק (trigger_type 'quote_response', reference_key 'quote', "{שם} אישר את הצעת המחיר {מספר}") (server.js:25125-25140).</li><li>עמוד אישור HTML עם סכום ב-2 ספרות ("כבר אושר בעבר" בפעם השנייה).</li></ol></div>
+<div>ממשק</div><div>בכרטיס ההצעה בעסק: תג "התקבל אצל הלקוח • תאריך" (business-app.js:9346).</div>
+<div>פערים</div><div>האישור מתבצע ב-GET — תצוגה מקדימה של וואטסאפ מאשרת אוטומטית (בניגוד ל-<code>/c/po</code> שעבר ל-POST בדיוק מסיבה זו, server.js:25159-25160). האישור אינו משנה <code>quote_status</code>.</div>
+</div></section>
+
+<section class="proc" data-f="family quotes list my quotes"><h3>רשימת הצעות בצד המשפחה (<code>GET /api/store/quotes/family/:familyGroupId</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadFamilyQuotes</code> (app.js:1360), feed חברים (13690, 14214), פתיחה מפעילות (15796).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamily; familyGroupId = משפחת המשתמש → אחרת 403.</li></ul></div>
+<div>שלבי עיבוד</div><div>מחזיר הצעות: status='quote', או (status לא אחד מ-new/processing/ready/shipped/completed/cancelled ו-quote_status ∈ waiting_customer/customer_approved ו-family_group_id קיים), או quote_status='approved' ב-90 הימים האחרונים; משויכות לפי family_group_id או טלפון (של המשתמש או של כל משתמש במשפחה) (server.js:14136-14151). כולל פרטי תבנית תפריט.</div>
+<div>ממשק</div><div>תוויות: draft, waiting_customer, waiting_business, customer_approved, approved, cancelled; תגובה אפשרית רק ב-waiting_customer כשלא ממתינים לעסק (app.js:1415-1432).</div>
+</div></section>
+
+<h2 class="grp">לקוחות חנות</h2>
+
+<section class="proc" data-f="store customers crud member_business_links oneflow link upsert"><h3>ניהול לקוחות חנות (<code>store_customers</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב לקוחות: <code>fetchStoreCustomers</code> (11062), <code>submitNewCustomer</code> (11491), <code>_custAutoSave</code> (12223), <code>deleteStoreCustomer</code> (11142); גם מהזמנה (<code>createCustomerFromOrder</code> 15933), מקריאה, מליד.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET/POST ללא אימות; PUT/DELETE verifyBizOrLegacy+sales עם בעלות → 404 "לקוח לא נמצא או אין הרשאה" (server.js:15205-15252).</li>
+<li>מהזמנה: אם כבר קיים לקוח עם אותו טלפון/שם במטמון → "לקוח עם פרטים אלו כבר קיים במאגר" (business-app.js:15943).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: <code>type=order</code> — לקוחות עם הזמנה status 'new' שלא מהצעה; <code>type=quote</code> — עם הצעה או approved; ברירת מחדל — כולם + <code>account_status</code> + <code>is_ofl_customer</code> (קיים ב-<code>storefront_customers</code>) (server.js:15158-15181).</li>
+<li>POST: INSERT; אם familyGroupId → UPSERT <code>member_business_links</code> 'pending' (לא מוריד active) (server.js:15183-15203).</li>
+<li>PUT: אם לא נשלח familyGroupId אך יש טלפון → <code>getOrCreateStorefrontCustomer</code> מזהה/יוצר חשבון; UPDATE (family_group_id עם COALESCE); UPSERT קישור — 'pending' אם familyGroupId מפורש, 'active' אם זוהה אוטומטית (server.js:15218-15239).</li>
+</ol></div>
+<div>פערים</div><div>POST ללא אימות מאפשר ליצור לקוחות וקישורים לכל עסק.</div>
+</div></section>
+
+<section class="proc" data-f="search customers lookup oneflow check oneflow phone normalization"><h3>חיפוש וזיהוי לקוחות WEFLOWZ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>cqSearchCustomer</code> (12414), <code>_ofwSearch</code> (48924), <code>_docSearchCustomer</code> (57002), <code>cqLookupOneflow</code> (12810), <code>_custCheckOneflow</code> (11524).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>search-customers: q+groupId חובה (אחרת רשימה ריקה); ILIKE על שם/חברה/מייל או ספרות טלפון; בנוסף משתמשי FAMILY/BUSINESS אחרים (כינוי/שם/טלפון), DISTINCT לפי קבוצה; מיזוג וכפילויות לפי <code>fg:</code>/<code>ph:</code>/<code>id:</code>, עד 50 מכל מקור (server.js:14861-14908).</li>
+<li>lookup-oneflow: טלפון בשלוש צורות (ספרות, 972↔0, מקורי) ואז מייל (lower) של admin_email; מחריג את העסק עצמו (server.js:14911-14953).</li>
+<li>check-oneflow: רק FAMILY, טלפון לפי <code>REGEXP_REPLACE</code> או שם ILIKE (אם אין טלפון), LIMIT 5 (server.js:31781-31796).</li>
+</ol></div>
+<div>פערים</div><div>שלושתם ללא אימות — חושפים שמות, טלפונים, ת"ז (<code>id_number</code>) ושנת לידה (check-oneflow) לכל גולש.</div>
+</div></section>
+
+<section class="proc" data-f="service request lead storefront repairs logistics upsert"><h3>בקשת שירות וליד מהחזית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בקשת שירות — <code>submitServiceRequest</code> (storefront.html:4208) → <code>POST /api/store/service-request/:groupId</code>; ליד — <code>submitLead</code> (storefront-repairs.html:229) → <code>POST /api/store/leads/:groupId</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>service-request: טוקן sc-auth חובה → 401 "יש להתחבר לפני שליחת בקשת שירות"; חשבון בלי family_group_id → 400; עסק לא קיים → 404; serviceName חובה "חסר שם שירות"; preferredDate חובה "יש לבחור תאריך מועדף" (server.js:25634-25646).</li>
+<li>leads: groupId 'general' או לא מספרי → הצלחה ללא פעולה; חסר שם וגם טלפון → 400 "חסרים פרטים" (server.js:28762-28764).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>service-request: חלונות morning 08:00-12:00 / afternoon 12:00-16:00 / evening 16:00-20:00 מתווספים לתיאור; INSERT <code>service_calls</code> (priority normal, <code>needs_triage=true</code>, requested_date) → UPSERT <code>member_business_links</code> pending (server.js:25648-25670).</li>
+<li>leads: הרכבת הערות (מקור/תיאור/כתובות/דחיפות/זמן) מופרדות " | " → <code>upsertStoreCustomer</code> → לעסק logistics גם INSERT ל-<code>logistics_customers</code> אם הטלפון לא קיים (server.js:28765-28790).</li>
+</ol></div>
+</div></section>
+
+<section class="proc" data-f="newsletter broadcast inbox oneflow message communities audience"><h3>ניוזלטר והודעות WEFLOWZ ללקוחות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>broadcastNewsletter</code> (business-app.js:14445), <code>sendOneFlowMessage</code> (14524), היסטוריה <code>_loadNewslettersInline</code> (14242).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות. groupId, subject, content חובה "נתונים חסרים". אין נמענים → success:false "לא נמצאו נמענים WEFLOWZ. ודא שלקוחות הזמינו מהחנות דרך WEFLOWZ." או "לא נמצאו נמענים" (server.js:13945-13950).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קהלים: community (משפחות FAMILY בקהילה, דורש communityId), oneflow_customers, employees (קבוצת העסק עצמו), both = oneflow_customers + employees (server.js:13930-13943).</li>
+<li><code>resolveOneFlowGroupIds</code> (server.js:4235): family_group_id מהזמנות העסק; אחר כך לכל לקוח — users.phone בשלוש צורות, טלפון בהזמנות, admin_email של FAMILY.</li>
+<li>BEGIN → INSERT <code>inbox_messages</code> (sender_type 'business') לכל קבוצה → INSERT <code>sent_newsletters</code> (audience, recipient_count) → COMMIT.</li>
+<li>היסטוריה: 30 אחרונות; מחיקה לפי id.</li>
+</ol></div>
+<div>פערים</div><div>BEGIN/COMMIT מבוצעים על <code>pool.query</code> ולא על חיבור ייעודי — אין טרנזקציה אמיתית (server.js:13891, 13952). <code>oneflow-customers</code> מחזיר את כל הלקוחות כ-"matched" (הסינון תמיד true, server.js:13856-13860). ללא אימות — ניתן לשלוח הודעות לכל קהילה בשם כל עסק.</div>
+</div></section>
+
+<section class="proc" data-f="commission summary platform dues collections"><h3>סיכום עמלות פלטפורמה לעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>fetchCommissionSummary</code> (business-app.js:6682) → <code>GET /api/store/commission-summary/:groupId</code>.</div>
+<div>חישובים</div><div>מ-<code>business_platform_dues</code>: סך עמלה, סך מכירות, ועמלה/מכירות בחודש הנוכחי (<code>DATE_TRUNC('month')</code>); מ-<code>business_platform_collections</code>: סך גבייה וגבייה בחודש (server.js:14213-14230).</div>
+<div>פערים</div><div>ללא אימות.</div>
+</div></section>
+
+<h2 class="grp">קמפיינים ומרקטפלייס</h2>
+
+<section class="proc" data-f="community campaign public page order shuka market hours single business price override"><h3>עמוד קמפיין קהילתי ציבורי והזמנה (community-store.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>גולש פותח <code>/campaign/:code</code> (og מוזרק) → <code>init</code> (community-store-app.js:72) → <code>GET /api/campaign/:code</code>; הזמנה <code>csSubmitOrder</code> (675) → <code>POST /api/campaign/:code/order</code>; היסטוריה → <code>/my-orders</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET: לא נמצא → 404 "קמפיין לא נמצא"; לא active → 403 "הקמפיין אינו פעיל כרגע" (server.js:15391-15393).</li>
+<li>order: טוקן sc-auth → אחרת 401 "יש להתחבר לפני ביצוע הזמנה"; עגלה ריקה → "העגלה ריקה"; <code>ordering_enabled=false</code> → 403 marketClosed reason 'disabled'; מחוץ לימים/שעות → 403 reason 'schedule' עם "השוק סגור כרגע. הפתיחה הקרובה: ..." (server.js:15452-15505).</li>
+<li>כל הפריטים מעסק אחד בדיוק → אחרת "ניתן להזמין מוצרים מעסק אחד בלבד בכל הזמנה"; העסק חלק מהקמפיין → אחרת "העסק אינו חלק מקמפיין זה"; כל פריט מאושר בקמפיין → אחרת "פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף" (15508-15530).</li>
+<li>לקוח: מניעת עגלה מעסקים שונים "אפשר להזמין רק מעסק אחד — רוקנו את העגלה..." (community-store-app.js:404-406).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: עסקים משתתפים לא קפואים, מוצרים <code>approval_status='approved'</code> עם <code>price = COALESCE(price_override, sc.price)</code>.</li>
+<li>order: INSERT <code>store_orders</code> status 'pending_approval', order_source 'community_campaign', campaign_id, total = serverTotal; items JSONB + <code>store_order_items</code> → אחרי 100ms <code>upsertStoreCustomer</code> <u>לכל</u> עסקי הקמפיין עם הערה שונה לעסק המזמין ולאחרים (server.js:15545-15567).</li>
+</ol></div>
+<div>חישובים</div><div>ימים פעילים ברירת מחדל 0-6, שעות ברירת מחדל 00:00-23:59 לפי שעון השרת; פתוח אם <code>start ≤ now &lt; end</code>. מחיר תקין אם <code>base − (base×0.01+1) ≤ client ≤ maxAllowed + (maxAllowed×0.01+1)</code> כש-<code>maxAllowed = base + _maxOptionsExtra(options_text)</code> (סכום כל מחירי האפשרויות/שלבים) (server.js:15424-15448, 15532-15538). <code>serverTotal = Σ clientPrice × qty</code>.</div>
+<div>ממשק</div><div>הזמנות מקמפיין מתויגות "🛒 שוקה · {כותרת}" ברשימת ההזמנות של העסק (business-app.js:15700).</div>
+<div>פערים</div><div>ההערה מתארת תקרת כמות 50 שאינה ממומשת. שעות הפתיחה בשרת לפי TZ של השרת ובלקוח לפי הדפדפן.</div>
+</div></section>
+
+<section class="proc" data-f="campaign og preview campaign code whatsapp share"><h3>תצוגה מקדימה לשיתוף קמפיין קהילתי (<code>GET /campaign/:code</code>)</h3>
+<div class="kv">
+<div>שלבי עיבוד</div><div>קורא community-store.html; קמפיין active לפי code (lowercase); לא נמצא → HTML כמו שהוא. אחרת: title = <code>share_description || slogan || title || community_name || 'קמפיין קהילה'</code>; description קבוע "WEFLOWZ עושה לכם סדר"; image = <code>/api/public/logo</code>; og:url; og:site_name "WEFLOWZ — עושה לכם סדר"; הזרקת <code>window.__CAMPAIGN_CODE__</code> (server.js:15354-15382).</div>
+</div></section>
+
+<section class="proc" data-f="zm campaign link c camp campaign html lead form zm_campaign_leads"><h3>לינק קמפיין מנהל אזור (<code>/c/camp/:token</code> + campaign.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שיתוף לינק קמפיין גיוס של מנהל אזור; גולש ממלא טופס ב-campaign.html (<code>submitCampaignForm</code>, campaign.html:226).</div>
+<div>תנאים ואימותים</div><div><ul><li>קמפיין חייב <code>status='active'</code> → אחרת 404 "קמפיין לא נמצא או לא פעיל" (server.js:20040-20049). לקוח: לפחות שדה אחד מלא "אנא מלא לפחות שדה אחד"; שדות ברירת מחדל name, phone.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>/c/camp/:token</code>: og:image — באנר הקמפיין (data: → <code>/api/public/campaign-image/:token</code>, חיצוני כמו שהוא, SVG נפסל) → לוגו גלובלי → <code>/logo.png</code>; גודל 1200×630 עם באנר אחרת 512×512; תיאור עד 200 תווים; meta refresh מיידי ל-<code>/campaign.html?t=token</code> (server.js:25347-25406).</li>
+<li>submit: <code>lead_type</code> מהגוף, אחרת לפי <code>campaign_type</code> (business/family) אחרת 'unknown'; INSERT <code>zm_campaign_leads(data JSON, lead_type)</code> (server.js:20052-20064).</li>
+</ol></div>
+</div></section>
+
+<section class="proc" data-f="marketplace family businesses flw balance recently visited weekly deals near me"><h3>מרקטפלייס משפחתי (marketplace.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משתמש FAMILY פותח <code>/marketplace?groupId=…</code> (server.js:39225); <code>loadMarketplace</code> עם <code>apiFetch</code> שמוסיף טוקן משפחתי מ-<code>ofl_family_token</code> או מ-URL (marketplace.html:715-726).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamily; groupId = משפחת המשתמש → אחרת 403 (server.js:7982-7986, 7958-7962).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>יתרת FLW מ-<code>flow_wallets</code> (entity_type 'family').</li>
+<li>"ביקרת לאחרונה": 3 אחרונים מ-<code>family_business_visits</code>, עסקים לא מחוקים/קפואים/בארכיון.</li>
+<li>"הטבת השבוע": 2 מבצעים קהילתיים בתוקף עם <code>discount_pct</code> הגבוה.</li>
+<li>עסקים: type BUSINESS פעילים, סינון category (ILIKE) ו-q (שם); "קרובים אליי" — JOIN <code>biz_service_areas</code>, haversine, מסנן לפי רדיוס האזור (או רדיוס המשתמש, ברירת מחדל 15 ק"מ), לכל עסק האזור הקרוב, מיון לפי מרחק; עד 200 (server.js:8027-8075).</li>
+<li>היסטוריה מלאה: עד 50 ביקורים.</li>
+</ol></div>
+<div>פערים</div><div>"הטבת השבוע" מצטרפת על <code>cp.biz_code</code> שאינה עמודה ב-<code>community_promotions</code> (מילון DB) → השאילתה נכשלת ונבלעת, ולכן תמיד מוחזר מערך ריק (server.js:8015-8025). גם לא מסונן <code>status='approved'</code>.</div>
+</div></section>
+
+<h2 class="grp">נתיבים ציבוריים נלווים</h2>
+
+<section class="proc" data-f="public logo store logo campaign image binary og"><h3>הגשת תמונות בינאריות ל-og (לוגו פלטפורמה / לוגו חנות / באנר קמפיין)</h3>
+<div class="kv">
+<div>שלבי עיבוד</div><div><code>/api/public/logo</code>: <code>system_settings.global_ai_logo</code> אם data: → בינארי עם cache שעה, אחרת redirect ל-<code>/social-logo.jpg</code> (server.js:25190-25203). <code>/api/public/store-logo/:groupId</code>: <code>store_settings.logo_url</code> data: → בינארי, אחרת 404 (25221-25232). <code>/api/public/campaign-image/:token</code>: באנר <code>zm_campaigns</code> active data: → בינארי, אחרת 404 (25206-25217).</div>
+</div></section>
+
+<section class="proc" data-f="send quote service call customers send-quote dead"><h3>שליחת הצעה כהודעת קריאת שירות (<code>POST /api/store/customers/:id/send-quote</code>)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לא נמצאה קריאה מהלקוחות (client_calls) — נתיב לא בשימוש בממשק.</div>
+<div>שלבי עיבוד</div><div>לקוח חייב <code>family_group_id</code> → אחרת 400 "לקוח לא מקושר למשפחת WEFLOWZ"; קריאת שירות פתוחה אחרונה (status לא done/cancelled) בין העסק למשפחה מקבלת הודעה "הצעת מחיר"; אחרת נוצרת קריאה חדשה status 'new' priority 'normal' + הודעה (server.js:15255-15284).</div>
+<div>פערים</div><div>ללא אימות; <code>businessGroupId</code> מהגוף ללא בדיקה מול הלקוח.</div>
+</div></section>

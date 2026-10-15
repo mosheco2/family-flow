@@ -1,0 +1,220 @@
+<title>יומן החלטות WEFLOWZ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<style>
+:root{--bg:#F2F4F8;--surface:#FFFFFF;--fg:#111827;--fg2:#4B5563;--fg3:#8A93A3;--accent:#1D4ED8;--accent2:#DBEAFE;--warn:#B45309;--warn-bg:#FEF3C7;--bad:#B91C1C;--bad-bg:#FEE2E2;--ok:#065F46;--ok-bg:#D1FAE5;--mute-bg:#EEF0F4;--border:#E5E7EB;--code-bg:#EEF2FF;--crit:#991B1B;--high:#C2410C;--med:#A16207;--low:#4B5563}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0C0E14;--surface:#161921;--fg:#E8EBF4;--fg2:#9AA5BC;--fg3:#66708A;--accent:#60A5FA;--accent2:#1E3A5F;--warn:#FCD34D;--warn-bg:#292009;--bad:#FCA5A5;--bad-bg:#3B1111;--ok:#34D399;--ok-bg:#042F1E;--mute-bg:#1E2230;--border:#23273A;--code-bg:#1A1F36;--crit:#FCA5A5;--high:#FDBA74;--med:#FDE68A;--low:#9AA5BC;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0C0E14;--surface:#161921;--fg:#E8EBF4;--fg2:#9AA5BC;--fg3:#66708A;--accent:#60A5FA;--accent2:#1E3A5F;--warn:#FCD34D;--warn-bg:#292009;--bad:#FCA5A5;--bad-bg:#3B1111;--ok:#34D399;--ok-bg:#042F1E;--mute-bg:#1E2230;--border:#23273A;--code-bg:#1A1F36;--crit:#FCA5A5;--high:#FDBA74;--med:#FDE68A;--low:#9AA5BC;color-scheme:dark}
+[hidden]{display:none!important}
+*,*::before,*::after{box-sizing:border-box}
+html{direction:rtl}
+body{margin:0;font:14.5px/1.6 'Heebo',system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 80px}
+.wrap{max-width:1080px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;border-bottom:1px solid var(--border)}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+h1{font-size:20px;margin:0;font-weight:800;text-wrap:balance}
+.sub{color:var(--fg2);font-size:12.5px}
+.progress{flex:1 1 220px;min-width:0;height:8px;border-radius:6px;background:var(--mute-bg);overflow:hidden;display:flex}
+.progress i{display:block;height:100%}
+.stat{font-size:12.5px;color:var(--fg2);white-space:nowrap}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.filters select,.filters input{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);min-width:0}
+.filters input{flex:1 1 200px}
+.intro{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-block:14px;font-size:13.5px;color:var(--fg2)}
+.intro strong{color:var(--fg)}
+.banner{margin-block:10px;padding:10px 14px;border-radius:8px;font-size:13px;background:var(--warn-bg);color:var(--warn)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-block:10px;padding:14px 16px;border-inline-start:4px solid var(--border)}
+.card.s-critical{border-inline-start-color:var(--crit)}.card.s-high{border-inline-start-color:var(--high)}.card.s-medium{border-inline-start-color:var(--med)}.card.s-low{border-inline-start-color:var(--low)}
+.card.decided{opacity:.92}
+.head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.id{font:600 12px 'Fira Code',ui-monospace,monospace;color:var(--fg3);direction:ltr}
+.title{font-weight:700;font-size:15px;flex:1 1 300px;min-width:0;text-wrap:balance}
+.tag{font-size:11px;padding:1px 8px;border-radius:10px;background:var(--code-bg);color:var(--fg2);white-space:nowrap}
+.tag.crit{background:var(--bad-bg);color:var(--crit)}.tag.high{background:var(--warn-bg);color:var(--high)}.tag.med{background:var(--warn-bg);color:var(--med)}
+.tag.st{font-weight:600}.tag.st.approve,.tag.st.alt,.tag.st.custom{background:var(--ok-bg);color:var(--ok)}.tag.st.drop{background:var(--mute-bg);color:var(--fg2)}.tag.st.defer{background:var(--warn-bg);color:var(--warn)}
+.grid{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;margin-top:10px;font-size:13.5px}
+.grid>div{min-width:0;overflow-wrap:anywhere}
+.grid .k{color:var(--fg3);font-size:12px;font-weight:600;padding-top:2px}
+.prop{background:var(--ok-bg);color:var(--fg);border-radius:8px;padding:8px 10px}
+code{font-family:'Fira Code',ui-monospace,monospace;font-size:12px;background:var(--code-bg);border-radius:4px;padding:0 4px;direction:ltr;unicode-bidi:isolate}
+.refs{font:12px 'Fira Code',ui-monospace,monospace;color:var(--fg3);direction:ltr;text-align:right}
+.alts label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;cursor:pointer}
+.alts input{margin-top:5px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.on{outline:2px solid var(--accent);outline-offset:1px}
+button:disabled{opacity:.5;cursor:default}
+textarea{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);min-height:56px;resize:vertical}
+.who{font-size:12px;color:var(--fg3)}
+.empty{padding:40px;text-align:center;color:var(--fg3)}
+.bulk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--fg2)}
+@media (max-width:560px){.grid{grid-template-columns:1fr}.grid .k{padding-top:6px}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="row">
+    <h1>יומן החלטות · אפיון WEFLOWZ</h1>
+    <span class="sub" id="counts"></span>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <div class="progress" id="bar" aria-hidden="true"></div>
+    <span class="stat" id="pct"></span>
+  </div>
+  <div class="filters">
+    <select id="fDomain" aria-label="תחום"><option value="">כל התחומים</option></select>
+    <select id="fSev" aria-label="חומרה"><option value="">כל החומרות</option><option value="critical">קריטי</option><option value="high">גבוה</option><option value="medium">בינוני</option><option value="low">נמוך</option></select>
+    <select id="fCat" aria-label="קטגוריה"><option value="">כל הקטגוריות</option></select>
+    <select id="fStatus" aria-label="סטטוס"><option value="open">ממתין להחלטה</option><option value="">הכל</option><option value="decided">הוחלט</option><option value="approve">אושרה ההצעה</option><option value="alt">נבחרה חלופה</option><option value="custom">כלל אחר</option><option value="drop">מחוץ להיקף</option><option value="defer">נדחה לדיון</option></select>
+    <input id="fText" type="search" placeholder="חיפוש בכותרת, בהצעה, במזהה…" aria-label="חיפוש">
+  </div>
+  <div class="bulk" id="bulkRow" hidden>
+    <span id="bulkInfo"></span>
+    <button id="bulkBtn">אישור כל ההצעות ברשימה המסוננת</button>
+    <button id="bulkYes" class="primary" hidden>כן, לאשר</button>
+    <button id="bulkNo" hidden>ביטול</button>
+  </div>
+</header>
+
+<div class="intro"><strong>איך זה עובד.</strong> הפריטים נאספו מ-13 תחומים ומהארכיטקטורה הרוחבית. פריטים שחזרו בכמה תחומים אוחדו לכרטיס אחד, ובכרטיס כזה מופיעה השורה "אוחד עם". כל כרטיס הוא פער שנמצא בקוד הקיים. בכל כרטיס מופיע מה הקוד עושה היום ("כיום"), ומה מוצע שיהיה הכלל הנכון במערכת החדשה ("הצעה"). לכל כרטיס אפשר לבחור אחת מהאפשרויות: לאשר את ההצעה, לבחור חלופה, לכתוב כלל אחר, לסמן "מחוץ להיקף" (הפיצ'ר לא ייבנה), או לדחות לדיון. ההחלטות נשמרות אוטומטית, ו-Claude קורא אותן וממזג אותן לעמודי הלוגיקה, כך שהמסמך הופך לאפיון. מומלץ להתחיל בסינון "קריטי".</div>
+<div class="banner" id="dbBanner" hidden></div>
+<div id="list"></div>
+</div>
+
+<script id="items" type="application/json">@@DATA@@</script>
+<script>
+(function(){
+var ALL=JSON.parse(document.getElementById('items').textContent);var ITEMS=ALL.filter(function(it){return !it.dup_of;});var DUPS={};ALL.forEach(function(it){if(it.dup_of){(DUPS[it.dup_of]=DUPS[it.dup_of]||[]).push(it);}});var LIMIT=80;
+var SEV={critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'};
+var SEVC={critical:'crit',high:'high',medium:'med',low:''};
+var CAT={security:'אבטחה',money:'כסף',"data-integrity":'שלמות נתונים',functional:'תפקוד',ux:'חוויית משתמש',scope:'היקף',docs:'תיעוד',architecture:'ארכיטקטורה'};
+var ST={approve:'אושרה ההצעה',alt:'נבחרה חלופה',custom:'כלל אחר',drop:'מחוץ להיקף',defer:'נדחה לדיון'};
+var dec={}; var drafts={}; var db=null, user=null, canWrite=true, myId=null;
+var $=function(id){return document.getElementById(id)};
+// filters
+var domains=[],cats=[];
+ITEMS.forEach(function(it){if(domains.indexOf(it.domain)<0)domains.push(it.domain);if(cats.indexOf(it.category)<0)cats.push(it.category);});
+domains.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=d;$('fDomain').appendChild(o);});
+cats.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=CAT[c]||c;$('fCat').appendChild(o);});
+try{var saved=JSON.parse(localStorage.getItem('dec-filters')||'null');if(saved){['fDomain','fSev','fCat','fStatus'].forEach(function(k){if(saved[k]!=null)$(k).value=saved[k];});}}catch(e){}
+['fDomain','fSev','fCat','fStatus'].forEach(function(k){$(k).addEventListener('change',function(){try{localStorage.setItem('dec-filters',JSON.stringify({fDomain:$('fDomain').value,fSev:$('fSev').value,fCat:$('fCat').value,fStatus:$('fStatus').value}));}catch(e){}LIMIT=80;render();});});
+var tt;$('fText').addEventListener('input',function(){clearTimeout(tt);tt=setTimeout(function(){LIMIT=80;render();},150);});
+var SORD={critical:0,high:1,medium:2,low:3};
+function visible(){
+  var d=$('fDomain').value,s=$('fSev').value,c=$('fCat').value,st=$('fStatus').value,q=$('fText').value.trim().toLowerCase();
+  return ITEMS.filter(function(it){
+    var x=dec[it.id];var ch=x&&x.choice;
+    if(d&&it.domain!==d)return false; if(s&&it.severity!==s)return false; if(c&&it.category!==c)return false;
+    if(st==='open'&&ch&&ch!=='defer')return false;
+    if(st==='decided'&&!(ch&&ch!=='defer'))return false;
+    if(st&&st!=='open'&&st!=='decided'&&ch!==st)return false;
+    if(q){var hay=(it.id+' '+it.title+' '+it.proposal+' '+it.as_is+' '+(it.area||'')+' '+(DUPS[it.id]||[]).map(function(d){return d.id+' '+d.title;}).join(' ')).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    return true;
+  }).sort(function(a,b){return (SORD[a.severity]-SORD[b.severity])||a.id.localeCompare(b.id,'en',{numeric:true});});
+}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
+function stats(){
+  var n=ITEMS.length,done=0,by={approve:0,alt:0,custom:0,drop:0,defer:0},crit=0,critDone=0;
+  ITEMS.forEach(function(it){var x=dec[it.id];if(it.severity==='critical'){crit++;if(x&&x.choice&&x.choice!=='defer')critDone++;}if(x&&x.choice){by[x.choice]++;if(x.choice!=='defer')done++;}});
+  $('counts').textContent=n+' פריטים · '+done+' הוחלטו · קריטיים: '+critDone+'/'+crit;
+  $('pct').textContent=Math.round(done*100/n)+'%';
+  var bar=$('bar');bar.innerHTML='';
+  [['approve','var(--ok)'],['alt','var(--accent)'],['custom','var(--accent)'],['drop','var(--fg3)'],['defer','var(--warn)']].forEach(function(p){var i=document.createElement('i');i.style.width=(by[p[0]]*100/n)+'%';i.style.background=p[1];i.title=ST[p[0]]+': '+by[p[0]];bar.appendChild(i);});
+}
+var names={};
+async function resolveNames(ids){if(!user||!ids.length)return;try{var ps=await user.profiles(ids);Object.keys(ps).forEach(function(k){names[k]=ps[k].name||'';});}catch(e){}}
+function render(){
+  stats();
+  var list=$('list');list.innerHTML='';
+  var v=visible();
+  var open=v.filter(function(it){var x=dec[it.id];return !(x&&x.choice&&x.choice!=='defer');});
+  $('bulkRow').hidden=!(canWrite&&db&&open.length>0);
+  $('bulkInfo').textContent=v.length+' פריטים מוצגים, '+open.length+' מהם ממתינים להחלטה.';
+  if(!v.length){list.appendChild(el('div','empty','אין פריטים שתואמים לסינון.'));return;}
+  var frag=document.createDocumentFragment();
+  v.slice(0,LIMIT).forEach(function(it){frag.appendChild(card(it));});
+  list.appendChild(frag);
+  if(v.length>LIMIT){var more=el('button','','הצגת עוד '+Math.min(80,v.length-LIMIT)+' מתוך '+(v.length-LIMIT)+' הנותרים');more.style.margin='12px auto';more.style.display='block';more.addEventListener('click',function(){LIMIT+=80;render();});list.appendChild(more);}
+  var ids=[];v.forEach(function(it){var x=dec[it.id];if(x&&x.by&&ids.indexOf(x.by)<0)ids.push(x.by);});
+  resolveNames(ids).then(function(){document.querySelectorAll('[data-by]').forEach(function(n){var id=n.getAttribute('data-by');n.textContent=n.getAttribute('data-pre')+(names[id]||'משתמש');});});
+}
+function card(it){
+  var x=dec[it.id]||{};
+  var c=el('div','card s-'+it.severity+(x.choice&&x.choice!=='defer'?' decided':''));
+  var h=el('div','head');
+  h.appendChild(el('span','id',it.id));
+  h.appendChild(el('span','title',it.title));
+  h.appendChild(el('span','tag '+(SEVC[it.severity]||''),SEV[it.severity]||it.severity));
+  h.appendChild(el('span','tag',CAT[it.category]||it.category));
+  h.appendChild(el('span','tag',it.domain+(it.area?' · '+it.area:'')));
+  if(x.choice)h.appendChild(el('span','tag st '+x.choice,ST[x.choice]));
+  c.appendChild(h);
+  var g=el('div','grid');
+  g.appendChild(el('div','k','כיום'));g.appendChild(el('div','',it.as_is));
+  g.appendChild(el('div','k','הצעה'));g.appendChild(el('div','prop',it.proposal));
+  var alts=it.alternatives||[];
+  var altBox=null;
+  if(alts.length){g.appendChild(el('div','k','חלופות'));altBox=el('div','alts');
+    alts.forEach(function(a,i){var l=el('label');var r=document.createElement('input');r.type='radio';r.name='alt-'+it.id;r.value=i;if(x.choice==='alt'&&x.alt===i)r.checked=true;r.disabled=!canWrite||!db;l.appendChild(r);l.appendChild(el('span','',a));altBox.appendChild(l);});
+    g.appendChild(altBox);}
+  if(DUPS[it.id]){g.appendChild(el('div','k','אוחד עם'));var dd=el('div','refs');dd.textContent=DUPS[it.id].map(function(d){return d.id+' ('+d.domain+'): '+d.title;}).join(' · ');dd.style.direction='rtl';dd.style.fontFamily='inherit';g.appendChild(dd);}
+  if(it.refs&&it.refs.length){g.appendChild(el('div','k','מקורות'));g.appendChild(el('div','refs',it.refs.join(' · ')));}
+  g.appendChild(el('div','k','הערה / כלל אחר'));
+  var ta=document.createElement('textarea');ta.placeholder='אופציונלי. בבחירת "כלל אחר" כתבו כאן את הכלל שאתם רוצים.';ta.value=(drafts[it.id]!=null?drafts[it.id]:(x.note||''));ta.addEventListener('input',function(){drafts[it.id]=ta.value;});ta.disabled=!canWrite||!db;
+  var tw=el('div');tw.appendChild(ta);g.appendChild(tw);
+  c.appendChild(g);
+  var a=el('div','actions');
+  function btn(label,choice,primary){var b=el('button',primary?'primary':'',label);if(x.choice===choice)b.classList.add('on');b.disabled=!canWrite||!db;b.addEventListener('click',function(){
+      var payload={choice:choice,note:ta.value.trim()};
+      if(choice==='alt'){var sel=altBox&&altBox.querySelector('input:checked');if(!sel){flash(c,'בחרו קודם חלופה');return;}payload.alt=+sel.value;}
+      if(choice==='custom'&&!payload.note){flash(c,'כתבו את הכלל בתיבת ההערה');ta.focus();return;}
+      save(it.id,payload,b);});a.appendChild(b);return b;}
+  btn('✓ לאשר את ההצעה','approve',true);
+  if(alts.length)btn('בחירת החלופה המסומנת','alt');
+  btn('✎ כלל אחר (מההערה)','custom');
+  btn('✗ מחוץ להיקף','drop');
+  btn('⏸ לדחות לדיון','defer');
+  if(x.choice){var u=el('button','','איפוס');u.disabled=!canWrite||!db;u.addEventListener('click',function(){clear(it.id,u);});a.appendChild(u);}
+  c.appendChild(a);
+  if(x.by){var w=el('div','who');w.setAttribute('data-by',x.by);w.setAttribute('data-pre','החליט/ה: ');w.textContent='החליט/ה: …';if(x.at){w.title=new Date(x.at).toLocaleString('he-IL');}c.appendChild(w);}
+  return c;
+}
+function flash(c,msg){var f=c.querySelector('.flash');if(!f){f=el('div','who flash');c.appendChild(f);}f.textContent=msg;f.style.color='var(--bad)';setTimeout(function(){if(f.parentNode)f.parentNode.removeChild(f);},3500);}
+var pending={};
+async function save(id,payload,b){
+  if(!db||pending[id])return;pending[id]=true;if(b)b.disabled=true;
+  payload.by=myId||null;payload.at=new Date().toISOString();
+  try{await db.doc('decisions/'+id).set(payload);dec[id]=payload;delete drafts[id];render();}
+  catch(e){handleErr(e);if(b)b.disabled=false;}
+  finally{pending[id]=false;}
+}
+async function clear(id,b){if(!db||pending[id])return;pending[id]=true;b.disabled=true;try{await db.doc('decisions/'+id).delete();delete dec[id];render();}catch(e){handleErr(e);b.disabled=false;}finally{pending[id]=false;}}
+function handleErr(e){var code=e&&e.code;if(code==='invalid_argument'||code==='not_granted'){canWrite=false;showBanner('אין לך הרשאה לשמור החלטות בעמוד הזה. אפשר לצפות בלבד.');render();}else if(code==='quota_exceeded'){showBanner('מקום האחסון של העמוד מלא.');}else{showBanner('השמירה נכשלה. נסו שוב בעוד רגע.');}}
+function showBanner(t){var b=$('dbBanner');b.textContent=t;b.hidden=false;}
+// bulk approve
+$('bulkBtn').addEventListener('click',function(){$('bulkYes').hidden=false;$('bulkNo').hidden=false;$('bulkBtn').hidden=true;$('bulkInfo').textContent='לאשר את ההצעה בכל '+visible().filter(function(it){var x=dec[it.id];return !(x&&x.choice&&x.choice!=='defer');}).length+' הפריטים שממתינים ברשימה המסוננת?';});
+$('bulkNo').addEventListener('click',function(){$('bulkYes').hidden=true;$('bulkNo').hidden=true;$('bulkBtn').hidden=false;render();});
+$('bulkYes').addEventListener('click',async function(){
+  var todo=visible().filter(function(it){var x=dec[it.id];return !(x&&x.choice&&x.choice!=='defer');});
+  $('bulkYes').disabled=true;$('bulkNo').disabled=true;
+  for(var i=0;i<todo.length;i++){$('bulkInfo').textContent='שומר '+(i+1)+' / '+todo.length+'…';var p={choice:'approve',note:(dec[todo[i].id]&&dec[todo[i].id].note)||'',by:myId||null,at:new Date().toISOString(),bulk:true};
+    try{await db.doc('decisions/'+todo[i].id).set(p);dec[todo[i].id]=p;}catch(e){handleErr(e);break;}}
+  $('bulkYes').disabled=false;$('bulkNo').disabled=false;$('bulkYes').hidden=true;$('bulkNo').hidden=true;$('bulkBtn').hidden=false;render();
+});
+render();
+// capabilities
+(async function(){
+  try{
+    if(!window.claude||!window.claude.use){showBanner('שמירת החלטות זמינה רק בתצוגה ב-claude.ai.');canWrite=false;render();return;}
+    user=await window.claude.use('user');
+    db=await window.claude.use('db');
+    if(!db){canWrite=false;showBanner('אי אפשר לשמור החלטות בתצוגה הזו. צריך להיות מחוברים ל-claude.ai.');render();return;}
+    if(user){myId=await user.id();var cw=await user.can('data.write');if(cw===false){canWrite=false;showBanner('יש לך הרשאת צפייה בלבד.');}}
+    db.collection('decisions').onSnapshot(function(snap){var m={};snap.docs.forEach(function(d){if(d.exists)m[d.id]=d.data();});dec=m;render();},function(e){showBanner('החיבור לנתונים נותק. רעננו את העמוד.');});
+    render();
+  }catch(e){showBanner('טעינת השמירה נכשלה. רעננו את העמוד.');}
+})();
+})();
+</script>

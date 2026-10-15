@@ -1,0 +1,1052 @@
+<div class="intro">
+<p><b>TO-BE — יופי / קוסמטיקה (BTY).</b> המסמך מגדיר את התנהגות היעד לכל 50 התהליכים שתועדו ב-rules-beauty.html (לא הושמט ולא אוחד אף תהליך). כל מה שעובד היום הועתק כפי שהוא; שינויים נעשו רק לפי החלטות מאושרות. הוחלו 63 החלטות BTY (אין פריטי dup_of בתחום), והחלטות ARC חוצות הוחלו בהפניה: ARC-01/02/04/05/06 (אימות, groupId מהסשן, תפקידים), ARC-11 (טרנזקציות), ARC-12/13 (מיגרציות, טבלאות רפאים), ARC-14 (ישות לקוח), ARC-16 (התראות), ARC-17/18 (זכאות מודול <code>beauty_all</code>), ARC-23 (worker), ARC-25 (Asia/Jerusalem), ARC-26 (העלאות), ARC-30 (AI gateway), ARC-32 (PII), ARC-33/34 (שגיאות וולידציה), ARC-35/36 (נתיבים), ARC-37 (סוג עסק), ARC-42 (מדריכים).</p>
+<p>סיווג: FIX 26, HARDEN 11, CONSISTENCY 5, BEHAVIOR 17, SCOPE 4. <b>פריטים שתוקנו (REVISED) לפי כלל השימור — 17:</b></p>
+<ul>
+<li><code>BTY-03</code> — ההצעה אפשרה "להסיר" את <code>/availability</code> → בדיקת זמינות היא יכולת → <b>כלל סופי:</b> <code>/availability</code> מאוחד בפונקציית הזמינות של <code>/slots</code> (פרמטר <code>check</code>), לא נמחק כיכולת; נשאר ציבורי רק בתצורת תפוסה ללא שמות.</li>
+<li><code>BTY-04</code> — ההצעה הגבילה מטפלות לעריכת "תורים שלהן" בלבד ולא כללה פעולות כרטיס לקוח לכל התפקידים → היום כל מטפלת פועלת על כל תור ביומן ועל כל פעולות כרטיס הלקוח → <b>כלל סופי:</b> therapist/nail_tech/makeup_artist שומרות כתיבה על כל תורי היומן (יצירה, עריכה, השלמה, לא הגיע, ביטולים, אישור בקשות); כל תפקיד עם גישת לקוחות שומר את כל פעולות כרטיס הלקוח (פורמולות, תמונות, מכירה/מימוש מנוי, אישור גבייה). ההגבלה החדשה חלה רק על מה שלא נחשף להם בממשק (עמלות של אחרות, ניהול קטלוג, מלאי, RFQ, דשבורד מנהל) ועל תפקידים שאינם תפקידי יופי.</li>
+<li><code>BTY-08</code> — ההצעה ביטלה את הודעת ה-wa.me שהעסק שולח → <b>כלל סופי:</b> הסיסמה לא מוצגת לעולם; העסק ממשיך לשלוח הודעת הצטרפות ב-wa.me (וכן נשלח SMS אוטומטי), אך ההודעה נושאת קישור הפעלה חד-פעמי (72 שעות) במקום סיסמה.</li>
+<li><code>BTY-14</code> — ההצעה כתבה ל-<code>alert_notifications</code> → יישור ל-ARC-13/ARC-16 → <b>כלל סופי:</b> התראת שימור נכתבת לטבלת <code>notifications</code> המאוחדת (type=<code>beauty_retention</code>, recipient = העסק) עם מפתח dedup client_record_id+last_visit_at.</li>
+<li><code>BTY-16</code> — ההצעה אסרה כל מעבר מ-completed/no_show/cancelled ואסרה בחירת "הושלם" בעריכה → היום מסך העריכה מאפשר לבחור כל סטטוס ולתקן טעויות → <b>כלל סופי:</b> ה-select בעריכה ממשיך להציע הושלם/לא הגיע/בוטל/מאושר; בחירת "הושלם" מפעילה את זרימת complete (עם התופעות), "לא הגיע" את זרימת no-show; החזרה ממצב סופי ל-confirmed ("שחזור תור") מותרת ל-ADMIN/senior_therapist/branch_manager, ומ-completed היא מבטלת עמלות שטרם שולמו ורושמת תנועת הכנסה הפוכה. כל מעבר אחר שאינו בטבלה ⇒ 409.</li>
+<li><code>BTY-24</code> — ההצעה אפשרה עקיפה רק ל-ADMIN → היום כל עובד יומן קובע תור בכל משבצת → <b>כלל סופי:</b> הפרת available_days / allowed_practitioner_ids / שעות עבודה בקביעה פנימית מחזירה 409 <code>AVAILABILITY_RULE</code> עם פירוט, וכל תפקיד עם כתיבת יומן רשאי "לקבוע בכל זאת" (<code>force:true</code>, נרשם ב-audit). התנגשות מטפלת/משאב נשארת חסימה קשיחה כמו היום. בחנות — אכיפה מלאה ללא עקיפה.</li>
+<li><code>BTY-29</code> — ההצעה ביטלה קישור אוטומטי לחשבון WEFLOWZ לפי טלפון (יכולת "תור נשלח ללקוח לאישור") → <b>כלל סופי:</b> קישור שקט לפי טלפון מבוטל; אם הטלפון תואם משתמש WEFLOWZ שאין לו כרטיס מקושר, מודאל התור מציג "נמצא חשבון WEFLOWZ — לקשר ולשלוח לאישור?"; אישור העסק מקשר את הכרטיס ושולח את התור כ-pending_client באותה פעולה.</li>
+<li><code>BTY-42</code> — ההצעה הסירה את האירועים הסינתטיים, שנושאים היום גם סגירת יום (<code>[ALL_DAY]</code>) ושעות פתיחה (<code>calendar_settings</code>) → <b>כלל סופי:</b> החנות עוברת ל-<code>/slots</code>, ו-<code>/slots</code> מכבד גם אירועי <code>[ALL_DAY]</code> וגם <code>calendar_settings</code> כשאין למטפלת work_days; GET <code>/api/calendar/:groupId</code> הציבורי נשאר בתצורת תפוסה (BTY-03) לכל צרכן אחר.</li>
+<li><code>BTY-44</code> — ההצעה העבירה את רישום ההכנסה מהשלמה לאישור גבייה; זה משנה מהותית תזרים ו-KPIs קיימים של עסקים שאינם לוחצים "אשר גביה" → <b>כלל סופי (החלופה):</b> ההכנסה נרשמת בהשלמה כמו היום; אישור גבייה הוא סימון עם אמצעי תשלום אופציונלי; נוסף "בטל אישור גבייה"; מאזן הלקוח (טאב "פרטים ומאזן") מחושב מאותו מקור כמו טאב הגבייה.</li>
+<li><code>BTY-46</code> — ההצעה חסמה (409) כל כרטיס עם טלפון קיים; היום ניתן לפתוח כרטיס לשתי לקוחות עם טלפון משותף (אם ובת) → <b>כלל סופי:</b> ת"ז כפולה ⇒ 409 קשיח; טלפון כפול ⇒ 409 <code>DUPLICATE_PHONE</code> עם קישור לכרטיס הקיים, והממשק מציע "פתח כרטיס קיים" או "זו לקוחה אחרת — צור בכל זאת" (<code>allow_shared_phone:true</code>). דורש שהאילוץ UNIQUE של ARC-14 יחול על (group_id, phone_normalized) רק לכרטיסים שאינם מסומנים shared_phone.</li>
+<li><code>BTY-47</code> — ההצעה החליפה הזנת URL בהעלאת קובץ ו-10MB → <b>כלל סופי:</b> העלאת קובץ נוספת (ARC-26: עד 8MB, png/jpg/webp) ושדה URL נשמר כחלופה; consultation נתמך; הסכמה לצילום חובה.</li>
+<li><code>BTY-49</code> — "מכירת חבילה רושמת הכנסה/חוב כמו תור" יושר להחלטה המתוקנת BTY-44 → <b>כלל סופי:</b> מכירת חבילה במחיר&gt;0 רושמת הכנסה בעת המכירה ומופיעה במרכז הגבייה עד אישור גבייה; מימוש רק לחבילה פעילה, לא פגה ושייכת ללקוחה ולעסק; הכפתור הידני "סמן כניסה כמנוצלת (−1)" נשאר.</li>
+<li><code>BTY-55</code> — מטריצת המעברים המוצעת השמיטה את questionnaire_sent→plan_sent (מוצג היום בממשק) ודחייה ממצבי ביניים (מותרת היום) → <b>כלל סופי:</b> new→questionnaire_sent|plan_sent|rejected; questionnaire_sent→client_responded|plan_sent|rejected; client_responded→plan_sent|questionnaire_sent|rejected; plan_sent→accepted|rejected|plan_sent (עדכון תוכנית); accepted→booked. מעבר אחר ⇒ 409.</li>
+<li><code>BTY-58</code> — ההצעה החליפה את KPI "לקוחות עם חשבון מקושר" בספירת כל הכרטיסים → <b>כלל סופי:</b> הכרטיס שומר את התווית והערך (כרטיסים מקושרים, מתוך beauty_client_records ולא מתורים), ומתחתיו שורת משנה "סה"כ כרטיסים: N".</li>
+<li><code>BTY-59</code> — "היומן נפתח מסונן למטפלת" עלול לחסום ראיית יומן הצוות → <b>כלל סופי:</b> ברירת המחדל למטפלת היא סינון לעצמה, ובורר "כל המטפלות" זמין תמיד.</li>
+<li><code>BTY-61</code> — יושר ל-BTY-44 המתוקן כדי למנוע הכנסה כפולה → <b>כלל סופי:</b> "גבה תור" בקופה מסמן payment_confirmed ואמצעי תשלום בלבד (ההכנסה כבר נרשמה בהשלמה); מכירת מוצר יופי retail בקופה מנכה מ-beauty_inventory ורושמת הכנסה פעם אחת.</li>
+<li><code>BTY-63</code> — ההצעה מחקה מהמדריך הבטחות שאינן מכוסות בהחלטה → <b>כלל סופי:</b> לא נמחקת שום יכולת קיימת; הבטחות לא מכוסות (תזכורת 2 שעות, התראות מלאי ביומן, מוצרי קמעונאות בחנות, "מבקשת שינוי" ב-RFQ, סינון RFQ לפי תאריך/לקוחה, חידוש חבילה אוטומטי) עוברות לרשימת backlog מתועדת ומוסרות מהמדריך עד מימוש; אלרגיות כתג אדום בחלון התור — ממומש.</li>
+</ul>
+<p>מוסכמות לכל המסמך: "סשן" = <code>req.principal</code> (ARC-01); כל נתיבי <code>/api/beauty/*</code> עוברים <code>authenticate()</code> → <code>requireType</code> → <code>requireModule('beauty_all')</code> + business_type='beauty' (BTY-30) → guard תפקיד לפי מטריצת היופי (תהליך "הרשאות"); groupId נלקח מהסשן בלבד, ו-<code>:bizId</code> ב-URL, אם נשאר, חייב להיות שווה לו (BTY-01, ARC-04). כל כתיבה רב-טבלאית רצה ב-<code>withTransaction</code> (ARC-11). זמנים: TIMESTAMPTZ ו"יום עסקי" לפי Asia/Jerusalem (BTY-27, ARC-25). שגיאות: <code>{success:false, error:{code, message_he}}</code> (ARC-33).</p>
+</div>
+
+<h2 class="grp">יופי / קוסמטיקה — תשתית, הרשאות וניווט</h2>
+
+<section class="proc" data-f="beauty schema tables migrations init beauty_practitioners beauty_appointments segments"><h3>מודל הנתונים של מודול היופי (אתחול וברירות מחדל עסקיות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הסכמה מוגדרת במיגרציות מגורסות שרצות ב-deploy (<code>npm run migrate</code>) ולא ב-<code>initDB()</code> בעליית השרת (ARC-12). כל הטבלאות מסוננות לפי <code>business_group_id</code> (= group_id של העסק).</div>
+<div>הרשאות</div><div>אין גישה ישירה; DDL רק בכלי המיגרציה (ARC-10/12).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>אילוצי NOT NULL הקיימים נשמרים כמות שהם: <code>beauty_practitioners.display_name</code>, <code>beauty_resources.name</code>, <code>beauty_appointment_segments.segment_order/segment_type/start_time/end_time/duration_minutes</code>, <code>beauty_client_photos.photo_type/image_url</code>, <code>beauty_inventory.product_name/inventory_type</code>, <code>beauty_commissions.gross_amount/commission_rate/commission_amount</code>, <code>beauty_rfq.service_description</code>, <code>beauty_service_catalog.name/duration_minutes/price</code>.</li>
+<li>חדש: CHECK/enum על סטטוסים — תור: pending_client, confirmed, pending_cancel, completed, cancelled, no_show; RFQ: new, questionnaire_sent, client_responded, plan_sent, accepted, rejected, booked; patch_test_status: none, pending, passed, failed; photo_type: before, after, consultation, reference (BTY-15, BTY-47).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מיגרציה יוצרת את <code>beauty_practitioners</code> כולל <code>work_days JSONB</code> ו-<code>slot_minutes INT DEFAULT 60</code> בהגדרת הטבלה (BTY-10); כשל מיגרציה עוצר deploy.</li>
+<li>טבלאות קיימות נשמרות: practitioners, resources, appointments (כולל payment_confirmed FALSE, payment_confirmed_at), appointment_segments, client_records (+id_number), formulas, client_photos, inventory, commissions, rfq, service_catalog (+commission_pct, allowed_practitioner_ids INT[], available_days JSONB), subscription_types, client_subscriptions.</li>
+<li>עמודות חדשות לפי החלטות: <code>beauty_client_records.general_notes TEXT</code> (BTY-11), <code>shared_phone BOOL</code> (BTY-46), <code>beauty_appointments.client_record_id</code> (BTY-36), <code>status_before_cancel</code> (BTY-39), <code>payment_method</code> (BTY-44), <code>patch_test_override_by/_reason</code> (BTY-28); <code>beauty_rfq.client_name</code>/<code>client_phone</code> לא נוספות — שאילתות עוברות ל-client_family_id (BTY-12); <code>beauty_service_materials(service_id, inventory_id, qty)</code> (BTY-35); <code>beauty_inventory_movements(id, business_group_id, inventory_id, delta, reason, user_id, appointment_id, created_at)</code> (BTY-51); <code>beauty_commissions.source_ref</code> + <code>commission_type</code> service|retail (BTY-34); <code>beauty_rfq_messages</code> או הוספה אטומית ל-JSONB (BTY-07); <code>temp_booking_requests/calendar_events</code>: <code>preferred_practitioner_id, client_name, client_phone, converted_appointment_id</code> (BTY-40/41).</li>
+<li>עמודות ללא שימוש (BTY-15): ממומשות — <code>reminder_sent_at</code> (BTY-38), <code>resulting_appointment_ids</code> (BTY-55), <code>deposit_amount/deposit_paid</code> (BTY-37), <code>period_start/period_end</code> בעמלות (BTY-53); לא נבנות מחדש — <code>deposit_wallet_txn</code>, <code>followup_sent_at</code>, <code>loyalty_points</code>, <code>beauty_inventory.image_url</code>.</li>
+<li>מיגרציית נתונים חד-פעמית: <code>status='scheduled'</code> → <code>confirmed</code> (BTY-18); start/end נאיביים מומרים ל-TIMESTAMPTZ לפי Asia/Jerusalem, ו-end מחושב מחדש = start + duration_minutes (BTY-27).</li>
+<li><code>calendar_events.service_id</code> ללא FK נשמר (מכיל מזהי beauty_service_catalog). לפי ARC-14/19 הלקוחות והתורים ממופים לישויות המאוחדות (customers + beauty_client_profile; appointments + segments) — השמות בסעיף זה הם שמות לוגיים.</li>
+</ol></div>
+<div>חישובים</div><div>ברירות מחדל עסקיות ללא שינוי: עמלת שירות 30.00%, עמלת קמעונאות 10.00%; סטטוס תור ברירת מחדל <code>confirmed</code>; <code>booking_source</code> ברירת מחדל <code>biz</code>; <code>client_type</code> ברירת מחדל <code>external</code>; <code>patch_test_status</code> ברירת מחדל <code>none</code>; סף הזמנה מחדש 5; RFQ התחלתי <code>new</code>; חבילה: 5 כניסות, תוקף 365 יום.</div>
+<div>מכונת מצבים</div><div>ראו "מכונת המצבים של תור יופי" ו"מכונת המצבים של בקשת ייעוץ".</div>
+<div>תופעות לוואי</div><div>בדיקת סכמה ב-CI (EXPLAIN לכל שאילתה) נכשלת על עמודה חסרה (ARC-13).</div>
+<div>ממשק</div><div>אין.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-10</code> — work_days/slot_minutes חלק מהגדרת הטבלה במיגרציה; אין ALTER לפני CREATE.</li>
+<li><code>BTY-15</code> — CHECK על סטטוסים; עמודות מתות ממומשות או לא נבנות.</li>
+<li><code>BTY-11</code> — נוספה עמודה general_notes.</li>
+<li><code>BTY-18</code> — scheduled ממוזג ל-confirmed במיגרציה.</li>
+<li><code>BTY-27</code> — TIMESTAMPTZ והמרת נתונים קיימים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="permissions verifybiz verifybeautyclientaccess verifybeautypractitioneraccess roles therapist reception senior_therapist"><h3>הרשאות גישה ל-API של היופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל קריאה ל-<code>/api/beauty/*</code> עוברת שרשרת guards אחת (ARC-01/02): <code>authenticate()</code> → <code>requireType</code> → <code>requireModule('beauty_all')</code> ו-business_type='beauty' → guard תפקיד יופי. נתיבים ציבוריים מוצהרים ברשימה סגורה.</div>
+<div>הרשאות</div><div><div class="tbl-wrap"><table><tr><th>תפקיד</th><th>יומן ותורים</th><th>לקוחות (כולל כרטיס, פורמולות, תמונות, מנוי ללקוחה, גבייה)</th><th>מטפלות</th><th>שירותים/סוגי חבילות</th><th>מלאי</th><th>עמלות</th><th>RFQ</th><th>דשבורד מנהל/דוחות</th></tr>
+<tr><td>ADMIN</td><td>הכל</td><td>הכל</td><td>הכל</td><td>הכל</td><td>הכל</td><td>הכל + תשלום</td><td>הכל</td><td>כן</td></tr>
+<tr><td>branch_manager</td><td>הכל</td><td>הכל</td><td>ניהול</td><td>כתיבה</td><td>כתיבה</td><td>הכל + תשלום</td><td>הכל</td><td>כן</td></tr>
+<tr><td>senior_therapist</td><td>הכל</td><td>הכל</td><td>ניהול</td><td>כתיבה</td><td>כתיבה</td><td>הכל + תשלום</td><td>הכל</td><td>דשבורד בלבד</td></tr>
+<tr><td>therapist / nail_tech / makeup_artist</td><td>קריאה וכתיבה לכל התורים</td><td>הכל</td><td>קריאה</td><td>קריאה</td><td>קריאה (אישור חומרים בהשלמה)</td><td>שלהן בלבד, קריאה</td><td>—</td><td>—</td></tr>
+<tr><td>reception</td><td>קריאה וכתיבה לכל התורים</td><td>הכל</td><td>קריאה</td><td>קריאה</td><td>קריאה</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>תפקיד אחר (קופאי, מנקה…)</td><td colspan="8">403 על כל /api/beauty/* (גישה לקופה נקבעת במודול POS)</td></tr>
+</table></div>
+מימוש: <code>beautyRole('calendar:write')</code> וכד' מעל <code>requireRole/requirePermission</code> (ARC-06). ADMIN מזוהה לפי role; תפקידי צוות לפי employeeRoleType מרשימה סגורה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן חסר/לא תקין/פג ⇒ 401 (ההודעות הקיימות נשמרות: "נדרש token להתחברות עסקית"); סשן שאינו biz בנתיב עסקי ⇒ 403 "גישה מורשית לעסקים בלבד".</li>
+<li><code>:bizId</code> שונה מ-groupId בסשן ⇒ 403 "אין הרשאה" — נאכף ב-middleware אחד לכל הנתיבים, כולל approve-cancel, reject-cancel ו-by-customer (BTY-01). כל רשומה לפי id נבדקת <code>AND business_group_id=ctx.groupId</code>.</li>
+<li>עסק שאינו beauty או ללא זכאות beauty_all ⇒ 403/404 (BTY-30).</li>
+<li>הודעות 403 הקיימות נשמרות: "אין הרשאה לגשת למידע לקוחות", "אין הרשאה לנהל צוות מטפלות".</li>
+<li>נתיבים משותפים (verifyFamilyOrBiz): מצהירים על שני הסוגים במפורש; לסשן משפחה מוצב <code>req.principal.type='family'</code> בלבד ו-<code>req.bizAuth</code> לא מוצב (BTY-06, ARC-05).</li>
+<li>רשימה ציבורית סגורה (BTY-03): <code>/services/public</code>, <code>/practitioners/public</code> (שם, צבע, התמחויות בלבד), <code>/slots</code> (זמנים פנויים בלבד, כולל מצב check שמחליף את /availability), <code>/api/beauty/businesses</code>, ו-<code>GET /api/calendar/:groupId</code> בתצורה ציבורית (תפוסה עתידית start/end ללא שמות). הגרסה המלאה של יומן העסק, אישור בקשות (<code>PUT /api/calendar/events/:id/status</code>), <code>POST /api/calendar/services</code> ו-<code>GET /api/reports</code> דורשים סשן biz (BTY-02).</li>
+<li>cancel-by-customer: סשן storefront (principal_type='storefront') במקום <code>_scGetCustomerByToken</code> (ARC-01).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>authenticate → בניית ctx {type, userId, groupId, role, employeeRoleType}.</li><li>guard סוג, מודול, סוג עסק, תפקיד.</li><li>handler מקבל ctx בלבד.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>יומן ביקורת אחד (ARC-19ה): כל כתיבה מוצלחת נרשמת; פעולת משפחה נרשמת תחת group_id של העסק עם actor_type='family' ומזהה המשפחה (BTY-06). שינוי סטטוס תור ממשיך להירשם כ-<code>UPDATE_APPT_STATUS</code> ("תור #id עודכן לסטטוס X"). קריאת תיק לקוח עם מידע רפואי נרשמת ב-audit (BTY-09, ARC-32).</div>
+<div>ממשק</div><div><code>ROLE_TYPE_TABS</code> נשמר ומורחב: reception → beauty_calendar, beauty_clients, pos, tasks, timeclock; therapist/nail_tech/makeup_artist → beauty_calendar, beauty_clients, tasks, timeclock; senior_therapist → בנוסף beauty_practitioners, beauty_commissions, beauty_services, beauty_subscriptions, beauty_inventory, beauty_rfq; branch_manager → כמו senior + reports. רשימת התפקידים לבחירה בעסק יופי: reception, therapist, senior_therapist, nail_tech, makeup_artist, branch_manager (BTY-05).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-01</code> — בדיקת bizId מול הסשן ב-middleware אחד, כולל שלושת הנתיבים החסרים.</li>
+<li><code>BTY-02</code> — נתיבי יומן/שירות/דוחות משותפים דורשים סשן biz.</li>
+<li><code>BTY-03</code> — רשימה ציבורית סגורה; /availability מאוחד ב-/slots; יומן ציבורי מחזיר תפוסה בלבד.</li>
+<li><code>BTY-04</code> — מטריצת תפקידים בשרת (מתוקן: כתיבת יומן ופעולות לקוח נשמרות לכל תפקידי היופי).</li>
+<li><code>BTY-05</code> — senior_therapist ו-branch_manager ברשימת התפקידים.</li>
+<li><code>BTY-06</code> — bizAuth לא מוצב לסשן משפחה; audit עם actor_type.</li>
+<li><code>BTY-30</code> — בדיקת business_type בשרת.</li>
+<li><code>BTY-09</code> — audit על קריאת מידע רפואי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="navigation data-beauty-only gnav all_tabs business_types switchtab tabs"><h3>ניווט BIZ לעסק יופי (טאבים, data-beauty-only, הפניות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חשיפת 8 טאבי היופי למשתמשים של עסק <code>business_type='beauty'</code>, לפי הרשאות הטאב של המשתמש.</div>
+<div>הרשאות</div><div>החשיפה בתפריט נגזרת מ-<code>GET /api/me/entitlements</code> (ARC-17) + הרשאות טאב לפי תפקיד (מטריצת היופי); השרת אוכף בכל מקרה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>כפתורי ה-dropdown עם <code>data-beauty-only="1"</code> נשארים מוסתרים כברירת מחדל ב-business.html, ונחשפים בטעינת האפליקציה לכל משתמש של עסק יופי לפי הרשאות הטאב שלו — לא רק בריצת <code>renderBeautyAdminDashboard</code> (BTY-05). ל-ADMIN ההתנהגות זהה להיום.</li>
+<li><code>switchTab('customers')</code> בעסק יופי מופנה ל-<code>beauty_clients</code> (ללא שינוי).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GNAV_GROUPS</code>: team ← beauty_calendar, beauty_practitioners; sales ← beauty_services, beauty_subscriptions, beauty_clients, beauty_rfq; inventory ← beauty_inventory; finance ← beauty_commissions (ללא שינוי).</li>
+<li><code>ALL_TABS</code>: beauty_calendar "יומן מטפלות 💆", beauty_clients "תיקי לקוחות 📋", beauty_inventory "מלאי מקצועי 🧴", beauty_services, beauty_subscriptions, beauty_commissions "עמלות ושכר 💰", beauty_rfq "ייעוץ ובקשות 💬", beauty_practitioners "מטפלות 💆" (ללא שינוי).</li>
+<li>רשימת המודולים של סוג העסק נקראת מ-<code>business_type_modules</code> בשרת (ARC-18) עם אותו תוכן: feed, beauty_calendar, beauty_practitioners, beauty_services, beauty_subscriptions, pos, beauty_clients, beauty_inventory, beauty_commissions, beauty_rfq, timeclock, cashflow, tasks, shop, biz-ads, reports. <code>BUSINESS_TYPES[].modules[]</code> בלקוח נגזר מאותו API (מקור אמת יחיד).</li>
+<li>loaders ב-switchTab: כל טאב מפעיל <code>loadBeautyX()</code>; כשל טעינה מוצג כהודעת שגיאה ולא נבלע (BTY-21).</li>
+<li>מכלי התוכן <code>content-beauty_*</code> ו-Quick tiles (יומן תורים, לקוחות, מלאי מקצועי, עמלות, קופה עם badge הזמנות חנות pending/new, קטלוג, נוכחות) — ללא שינוי, מסוננים לפי הרשאות.</li>
+<li>נוסף טאב-משנה "חדרים וציוד" תחת "שירותים וטיפולים" (BTY-25).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>תוויות ה-dropdown ללא שינוי: "📅 יומן פנימי", "💆 מטפלות", "💎 שירותים וטיפולים", "🎁 מנויים וחבילות", "📋 תיקי לקוחות", "💬 ייעוץ ובקשות", "🧴 מלאי יופי", "💸 עמלות ושכר". בחירת סוג עסק לא מופיעה כאן (CLAUDE.md כלל 5, ARC-37).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-05</code> — טאבי יופי נחשפים לעובדים לפי הרשאות הטאב, לא רק ל-ADMIN.</li>
+<li><code>BTY-25</code> — טאב-משנה "חדרים וציוד".</li>
+<li><code>BTY-21</code> — שגיאות טעינה מוצגות.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">מטפלות, משאבים וזמינות</h2>
+
+<section class="proc" data-f="practitioner create post users linked commission tier work_days slot_minutes"><h3>יצירת מטפלת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בטאב "מטפלות" לוחצים "מטפלת חדשה" (<code>_beautyPractModal</code> → <code>_beautyPractSave</code>), או שלב המטפלות בויזארד ההקמה. המסלול: <code>POST /api/beauty/:bizId/practitioners</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager (מהסשן). בויזארד: ADMIN.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם חובה, "נא להזין שם מטפלת".</li>
+<li>שרת (חדש, ARC-34): display_name חובה 1–100 תווים; commission_rate_svc ו-commission_rate_retail בטווח 0–100 (BTY-19); slot_minutes ∈ {15,20,30,45,60,90,120}; work_days: מפתחות "0".."6" עם start&lt;end בפורמט HH:MM.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>withTransaction.</li>
+<li><code>INSERT users (group_id=ctx.groupId, nickname=display_name, role='MEMBER', status='active')</code> — משתמש מקושר ללא טלפון/סיסמה לשיוך משימות (ללא שינוי).</li>
+<li><code>INSERT beauty_practitioners</code> עם <code>user_id</code>.</li>
+<li>COMMIT; מוחזרת השורה. בשגיאה ROLLBACK ו-500 בפורמט אחיד.</li>
+<li>ויזארד: לכל מטפלת POST לנתיב הזה (לא ל-<code>/api/beauty/practitioners</code> שאינו קיים); כשל מוצג ואינו מאפשר מעבר שקט לשלב הבא (BTY-20).</li>
+</ol></div>
+<div>חישובים</div><div>ברירות מחדל: <code>tier ?? 'standard'</code>, <code>color_hex ?? '#6366f1'</code>, <code>specializations ?? []</code>, <code>commission_rate_svc ?? 30</code>, <code>commission_rate_retail ?? 10</code>, <code>slot_minutes ?? 60</code>, work_days JSON או NULL. שימוש ב-<code>??</code>: 0 מפורש נשמר כ-0; שדה ריק בטופס <b>לא נשלח</b> ומקבל 30/10 (BTY-19).</div>
+<div>מכונת מצבים</div><div>נוצרת ב-is_active=TRUE.</div>
+<div>תופעות לוואי</div><div>נוצר משתמש ב-<code>users</code>. ה-backfill <code>backfillPractitionerUsers()</code> הופך למיגרציית נתונים חד-פעמית (ARC-12) במקום ריצה 13 שניות אחרי עליית השרת.</div>
+<div>ממשק</div><div>טופס ללא שינוי: דרגות ['מטפלת ג׳וניור','מטפלת','מטפלת בכירה','מנהלת טיפולים']; התמחויות ['פנים','גוף','ציפורניים','שיער','הסרת שיער','עיסוי','איפור','ריסים']; slot ∈ {15,20,30,45,60,90,120}; זמינות שבועית 0-6 עם start/end (ברירת מחדל 09:00-18:00); יום לא מסומן = null; צבע ברירת מחדל #ec4899. אופציונלי: שיוך לחשבון עובד קיים (user_id) לצורך דשבורד מטפלת (BTY-59). תגובת שרת נבדקת (BTY-21).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-19</code> — 0% נשמר כ-0; ריק = 30/10; טווח 0–100 בשרת.</li>
+<li><code>BTY-20</code> — שמירת מטפלות בויזארד לנתיב הקיים, עם הצגת שגיאה.</li>
+<li><code>BTY-21</code> — המודאל הישן <code>_beautyManagePractitioners/_beautyAddPractitioner</code> (קוד מת) לא נבנה; התגובה נבדקת.</li>
+<li><code>BTY-59</code> — אפשרות לקשר מטפלת למשתמש עובד קיים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="practitioner update patch deactivate toggle is_active"><h3>עדכון / השבתת מטפלת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"עריכה" או "השבת/הפעל" ברשימת המטפלות (<code>_beautyPractSave</code> עם id, <code>_beautyPractToggle</code>). המסלול: <code>PATCH /api/beauty/:bizId/practitioners/:id</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>אישור <code>_uiConfirm</code> "להשבית מטפלת זו?" (ללא שינוי).</li><li>whitelist: display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, is_active, work_days, slot_minutes, user_id; ולידציה כמו ביצירה.</li><li>אין שדות ⇒ <code>{success:true}</code> ללא כתיבה (ללא שינוי). מטפלת שאינה בעסק ⇒ 404.</li><li>השבתה (is_active=false) כשיש למטפלת תורים עתידיים בסטטוס pending_client/confirmed: השרת מחזיר 409 <code>HAS_FUTURE_APPTS</code> עם רשימתם, אלא אם נשלח <code>reassign_to</code> (מטפלת אחרת) או <code>confirm_keep:true</code> (BTY-22).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction.</li><li>ערך object עובר JSON.stringify; <code>UPDATE beauty_practitioners ... WHERE id AND business_group_id</code>.</li><li>בהשבתה עם reassign_to: עדכון practitioner_id בסגמנטים העתידיים (בדיקת התנגשות למטפלת היעד; התנגשות ⇒ 409 עם פירוט).</li><li>בהשבתה: המשתמש המקושר ב-users מסומן <code>status='inactive'</code>; בהפעלה מחדש חוזר ל-active (BTY-22).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>is_active=TRUE</td><td>FALSE</td><td>ADMIN/senior_therapist/branch_manager</td><td>אישור; אם יש תורים עתידיים — שיבוץ מחדש או confirm_keep</td><td>מוסתרת מ-GET practitioners (ללא all=1), מהחנות ומ-slots; המשתמש המקושר inactive</td></tr><tr><td>FALSE</td><td>TRUE</td><td>אותו דבר</td><td>אישור</td><td>חוזרת לרשימות; המשתמש active</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>אין מחיקה פיזית (ללא שינוי).</div>
+<div>ממשק</div><div><code>GET /practitioners?all=1</code> ממשיך להחזיר גם לא פעילות; היומן בונה עמודה לתורים של מטפלת מושבתת עם "(לא פעילה)". חדש: חלון השבתה מציג את התורים העתידיים עם בורר "העבר למטפלת" או "השבת בכל זאת".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-22</code> — טיפול בתורים עתידיים ובמשתמש המקושר בהשבתה.</li><li><code>BTY-19</code> — ולידציית טווח עמלה גם ב-PATCH.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="slots availability work_days slot_minutes free slots practitioner calendar"><h3>חישוב משבצות פנויות למטפלת (slots) ובדיקת זמינות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פונקציה אחת בשרת <code>computeSlots(ctx, {date, practitionerId?, serviceId?})</code> (BTY-24) שמשרתת: מודאל "תור חדש" ביומן, בקשת תור בחנות (BTY-42), כרטיסי משבצות פנויות בתצוגת יום, ובדיקת זמינות של תור בודד (מצב <code>check</code>, שמחליף את <code>GET /availability</code> — BTY-03). מסלול: <code>GET /api/beauty/:bizId/slots?practitionerId&amp;date&amp;serviceId</code>.</div>
+<div>הרשאות</div><div>ציבורי (ללא סשן) ברשימה הסגורה; מחזיר רק זמנים פנויים. מוגבל ב-rate limit ציבורי (ARC-29).</div>
+<div>קלט ואימותים</div><div><ul><li>חסר date ⇒ 400 "חסר bizId או date" (ללא שינוי).</li><li>מטפלת לא קיימת בעסק או לא פעילה ⇒ <code>slots:[]</code>.</li><li>אין מפתח ב-work_days ליום בשבוע (לפי Asia/Jerusalem, 0=ראשון) ⇒ יום חופש, <code>slots:[]</code>.</li><li>serviceId: שירות פעיל של העסק; אם יש <code>available_days</code> והיום אינו בהם ⇒ <code>[]</code>; אם <code>allowed_practitioner_ids</code> לא ריק והמטפלת אינה בו ⇒ <code>[]</code>.</li><li>ללא practitionerId (חנות "ללא העדפה"): איחוד המשבצות של כל המטפלות הפעילות המורשות לשירות, עם רשימת מטפלות פנויות לכל משבצת.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>step = <code>slot_minutes ?? 60</code>; משך משבצת = <code>duration_minutes</code> של השירות אם הועבר serviceId, אחרת step (כמו היום).</li>
+<li>שעות עבודה: חיתוך של <code>work_days[dow]</code> (ברירת מחדל 09:00–18:00) עם <code>available_days[dow]</code> של השירות אם הוגדר. אם work_days הוא NULL או ללא מטפלת: שעות <code>calendar_settings</code> (open/close) של העסק אם קיימות, אחרת 09:00–18:00.</li>
+<li>אירוע <code>calendar_events</code> של העסק עם <code>[ALL_DAY]</code> ב-notes ביום המבוקש סוגר את היום (נשמר מהחנות היום).</li>
+<li>שליפת סגמנטים <code>active</code> של המטפלת באותו יום, <b>של אותו עסק</b>, שתורם אינו cancelled/no_show, ובקשות חנות pending שהמטפלת המועדפת בהן היא המטפלת (כחסימה רכה בחנות בלבד).</li>
+<li>לולאה מ-start בקפיצות step עד <code>cur+dur &lt;= end</code>; משבצת נכללת אם <code>slotStart &gt; now</code> ואין חפיפה בקטע חצי-פתוח <code>!(slotEnd &lt;= bs || slotStart &gt;= be)</code>.</li>
+<li>תגובה: <code>{success, slots:[{time:'HH:MM', start, end, practitioner_ids?}], slotMinutes}</code>; start/end כ-ISO עם offset.</li>
+<li>מצב check (<code>?check=1&amp;start&amp;duration&amp;resourceId</code>): מחזיר <code>{available, conflicts:[{type:'practitioner'|'resource'|'rule', ...}]}</code> לפי אותם כללים.</li>
+</ol></div>
+<div>חישובים</div><div>חפיפה בקטע חצי-פתוח; צעד = slot_minutes של המטפלת; משך = משך השירות (או step בהיעדר שירות).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>לחיצה על משבצת במודאל ממלאת את <code>bnap-time</code> (ללא שינוי). בתצוגת יום <code>_freeSlotCards</code> משתמש באותה לוגיקה ומסנן cancelled/no_show; לחיצה על כרטיס מקווקו קוראת ל-<code>_beautyNewApModal(time, practitionerId, date)</code>, שממלא שעה, מטפלת (עמודת המשבצת) ותאריך (BTY-23).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-24</code> — פונקציית זמינות אחת: משך שירות, available_days, allowed_practitioner_ids, סינון ביטולים ועסק.</li>
+<li><code>BTY-23</code> — המשבצת שנלחצה ממלאת שעה, מטפלת ותאריך.</li>
+<li><code>BTY-03</code> — /availability מאוחד כמצב check; ציבורי ללא שמות.</li>
+<li><code>BTY-42</code> — /slots מכבד [ALL_DAY] ו-calendar_settings, ומשרת את החנות.</li>
+<li><code>BTY-27</code> — יום בשבוע וזמנים לפי Asia/Jerusalem.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="resources rooms beauty_resources"><h3>משאבים (חדרים / ציוד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET/POST/PATCH /api/beauty/:bizId/resources</code>, עם ממשק חדש: טאב-משנה "חדרים וציוד" ושדה "חדר" אופציונלי בטופס התור (BTY-25).</div>
+<div>הרשאות</div><div>GET: כל תפקידי היופי. POST/PATCH: ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>name חובה (1–100); resource_type ∈ room|equipment (ברירת מחדל room).</li><li>GET מחזיר רק <code>is_active=TRUE</code> ממוין לפי name (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: <code>resource_type ?? 'room'</code>, <code>color_hex ?? '#94a3b8'</code>.</li><li>PATCH: COALESCE לכל שדה (name, resource_type, color_hex, is_active); השבתה = is_active=false.</li><li>בחירת חדר בתור מוסיפה resource_id לסגמנט ה-active, והתנגשות נבדקת (<code>RESOURCE_CONFLICT</code>, ראו "יצירת תור").</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>is_active TRUE↔FALSE (ADMIN/senior/branch_manager).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>רשימת חדרים/ציוד עם צבע, הוספה, עריכה והשבתה; ב"תור חדש" ובעריכה — select "חדר (אופציונלי)".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-25</code> — נוסף ממשק למשאבים ובחירת חדר בתור (החלופה "להסיר" לא נבחרה).</li></ul></div>
+</div></section>
+
+<h2 class="grp">שירותים (קטלוג טיפולים)</h2>
+
+<section class="proc" data-f="services catalog beauty_service_catalog create update deactivate commission_pct allowed_practitioner_ids available_days patch test"><h3>ניהול קטלוג שירותים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "שירותים וטיפולים" (<code>loadBeautyServices</code>, <code>_beautyServiceModal</code>, <code>_beautySubmitService</code>, <code>_beautyDeactivateService</code>). מסלולים: <code>GET/POST /api/beauty/:bizId/services</code>, <code>PATCH /services/:id</code>. הנתיב החלופי <code>POST /api/calendar/services</code> נשמר לעסק יופי וכותב לאותו קטלוג דרך אותה פונקציית service.</div>
+<div>הרשאות</div><div>GET: כל תפקידי היופי (נדרש ליומן). POST/PATCH (כולל הנתיב החלופי): ADMIN, senior_therapist, branch_manager; הנתיב החלופי דורש סשן biz (BTY-02).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם חובה, "שם שירות הוא שדה חובה"; משך ברירת מחדל 60.</li>
+<li>שרת: <code>!name || !duration_minutes</code> ⇒ 400 (הודעה בעברית: "שם ומשך הם שדות חובה"); price ≥ 0; commission_pct 0–100 או null; allowed_practitioner_ids — מטפלות של אותו עסק (ARC-04); available_days בפורמט {"0".."6":{start,end}}.</li>
+<li>GET (פנימי וציבורי) מחזיר רק <code>is_active=TRUE</code>, לפי category ואז name (ללא שינוי).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>POST: INSERT עם <code>category ?? 'general'</code>, <code>price ?? 0</code>, <code>color_hex ?? '#6366f1'</code>, <code>requires_patch_test ?? false</code>, commission_pct (null = ברירת מחדל מטפלת), allowed_practitioner_ids (ריק = כולן), available_days או NULL, ורשימת חומרים ברירת מחדל <code>materials:[{inventory_id, qty}]</code> ל-<code>beauty_service_materials</code> (BTY-35).</li>
+<li>PATCH: whitelist (name, category, duration_minutes, price, description, color_hex, requires_patch_test, is_active, commission_pct, allowed_practitioner_ids, available_days, materials).</li>
+<li>"הסר שירות" = <code>PATCH {is_active:false}</code> אחרי <code>_uiConfirm</code> (מחיקה רכה, ללא שינוי).</li>
+<li>הנתיב החלופי: name, duration (ברירת מחדל 30), price — ללא שינוי בשדות.</li>
+<li><code>GET /api/calendar/:groupId</code> (גרסת biz) ממשיך להחזיר שירותים מהקטלוג כ-<code>duration_mins</code>.</li>
+<li>ויזארד: שמירה לנתיב <code>/api/beauty/:bizId/services</code> עם הצגת שגיאה (BTY-20).</li>
+</ol></div>
+<div>חישובים</div><div>קטגוריות: hair, nails, face, body, spa, laser, makeup, general. available_days לימים המסומנים בלבד; אין יום מסומן ⇒ null. commission_pct נאכף בחישוב העמלה (BTY-34); available_days ו-allowed_practitioner_ids נאכפים בזמינות ובקביעה (BTY-24).</div>
+<div>מכונת מצבים</div><div>is_active TRUE→FALSE ("הסר שירות"); FALSE→TRUE דרך PATCH.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>רשימה מקובצת לפי קטגוריה; תג "⚠️ Patch Test"; שדה "% עמלה לשירות" עם placeholder "ריק = ברירת מחדל מטפלת"; חדש: סעיף "חומרים בטיפול" (מוצרי back-bar וכמות). <code>_beautySubmitService</code> בודק את התגובה ומציג שגיאה (BTY-21).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-21</code> — בדיקת תגובת שרת.</li>
+<li><code>BTY-34</code> — commission_pct משמש בחישוב.</li>
+<li><code>BTY-24</code> — available_days/allowed_practitioner_ids נאכפים.</li>
+<li><code>BTY-35</code> — רשימת חומרים ברירת מחדל לשירות.</li>
+<li><code>BTY-20</code> — שמירת שירותי ויזארד לנתיב הקיים.</li>
+<li><code>BTY-02</code> — POST /api/calendar/services דורש סשן biz.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="wizard ai generate beauty services gemini catalog"><h3>יצירת שירותים ב-AI בויזארד ההקמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בויזארד V2, שלב <code>services</code>, נקרא <code>_generateBeautyServices()</code> אם נבחרו <code>serviceCategories</code>.</div>
+<div>הרשאות</div><div>ADMIN בזמן ויזארד; קריאת ה-AI דרך aiGateway עם סשן וזכאות ומכסה (ARC-30).</div>
+<div>קלט ואימותים</div><div><ul><li>לפחות קטגוריה אחת נבחרה; תשובת AI נבדקת כמערך items עם name, duration_minutes (30–120), price ≥ 0, category.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>POST /api/ai/generate-catalog</code> עם promptText: "צור רשימת טיפולי יופי עבור: … צור בין 5 ל-10 טיפולים בהתאם לקטגוריות שנבחרו. החזר JSON בלבד: {items:[{name,duration_minutes,price,category}]} משך ריאלי בדקות (30-120), מחירים ריאליים בשקלים", <code>type:'BUSINESS'</code> (BTY-20).</li>
+<li>אם <code>!success</code>: שורות ידניות ריקות (ללא שינוי). אחרת items ממופים ל-<code>wizardV2Data.services</code> (ברירות מחדל duration 60, price 0, category = הקטגוריה הראשונה).</li>
+<li>במעבר לשלב הבא: POST לכל שירות בשם ל-<code>/api/beauty/:bizId/services</code>; כשל מציג "שמירת השירותים נכשלה" עם אפשרות לנסות שוב או לדלג במודע.</li>
+</ol></div>
+<div>חישובים</div><div>מספר הטיפולים 5–10.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>הפחתת מכסת AI אטומית (ARC-30).</div>
+<div>ממשק</div><div>ללא שינוי, למעט הודעת שגיאה בכשל שמירה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-20</code> — נתיב שמירה קיים, הצגת שגיאה, 5–10 שירותים.</li></ul></div>
+</div></section>
+
+<h2 class="grp">תורים — יצירה, יומן ומחזור חיים</h2>
+
+<section class="proc" data-f="appointment status state machine pending_client confirmed scheduled completed cancelled no_show pending_cancel in_progress"><h3>מכונת המצבים של תור יופי (beauty_appointments.status)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מקור אמת אחד לכל ערכי הסטטוס והמעברים; נאכף בשרת בפונקציה <code>transitionAppt(ctx, id, to, opts)</code> עם <code>UPDATE … WHERE status = ANY(allowedFrom) RETURNING</code>; 0 שורות ⇒ 409 <code>INVALID_TRANSITION</code> (BTY-16).</div>
+<div>הרשאות</div><div>לפי עמודת "מי" בטבלה; "עסק" = כל תפקיד עם כתיבת יומן (כולל therapist/reception — BTY-04 מתוקן).</div>
+<div>קלט ואימותים</div><div><ul><li>ערכים: <code>pending_client</code>, <code>confirmed</code>, <code>pending_cancel</code>, <code>completed</code>, <code>cancelled</code>, <code>no_show</code>. <code>scheduled</code> ממוזג ל-confirmed (BTY-18); <code>in_progress</code> לא קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כל מסלול שמשנה סטטוס קורא ל-transitionAppt בתוך הטרנזקציה של התופעות שלו.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(חדש)</td><td>pending_client</td><td>עסק (POST appointments, booking_source=biz)</td><td>לכרטיס הלקוח יש client_family_id (קיים, או קושר באישור העסק במודאל — BTY-29)</td><td>כרטיס לקוח מקושר; התראת inbox ללקוחה עם אשר/דחה (BTY-38)</td></tr>
+<tr><td>(חדש)</td><td>confirmed</td><td>עסק בלי לקוח מקושר, או משפחה (booking_source=family)</td><td>—</td><td>כרטיס לקוח; התראה ללקוחה מקושרת/לעסק (BTY-38)</td></tr>
+<tr><td>(חדש)</td><td>confirmed</td><td>אישור בקשת חנות</td><td>הבקשה pending; עסק beauty</td><td>booking_source=storefront, מחיר ומשך מהקטלוג (BTY-40), SMS ו-inbox ללקוחה; הבקשה → converted (BTY-41)</td></tr>
+<tr><td>pending_client</td><td>confirmed</td><td>לקוחת משפחה (client-confirm=confirm) או עסק ("אשר תור")</td><td>במסלול המשפחה: client_family_id = המשפחה</td><td>התראה לעסק כשהלקוחה אישרה (BTY-38)</td></tr>
+<tr><td>pending_client</td><td>cancelled</td><td>לקוחת משפחה (דחייה) או עסק (עריכה)</td><td>כנ"ל</td><td>התראה לצד השני</td></tr>
+<tr><td>pending_client, confirmed</td><td>pending_cancel</td><td>לקוחת חנות (cancel-by-customer)</td><td>תור עתידי; בעלות לפי טלפון מנורמל או family</td><td><code>status_before_cancel</code> נשמר; התראה לעסק; באנרים בדשבורד וביומן</td></tr>
+<tr><td>pending_client, confirmed</td><td>cancelled</td><td>לקוחת חנות — ביטול ישיר</td><td>רק אם הגדרת העסק <code>self_cancel_hours</code> מוגדרת ונותרו יותר שעות מהערך (ברירת מחדל: כבוי)</td><td>התראה לעסק</td></tr>
+<tr><td>pending_cancel</td><td>cancelled</td><td>עסק (approve-cancel)</td><td>—</td><td>התראה ללקוחה</td></tr>
+<tr><td>pending_cancel</td><td>status_before_cancel (ברירת מחדל confirmed)</td><td>עסק (reject-cancel)</td><td>אחרת 400 "הסטטוס אינו בקשת ביטול"</td><td>התראה ללקוחה</td></tr>
+<tr><td>confirmed</td><td>completed</td><td>עסק (POST complete, או בחירת "הושלם" בעריכה שמפעילה את אותה זרימה)</td><td>רק מ-confirmed; אחרת 409 "התור כבר הושלם או אינו ניתן להשלמה"</td><td>ניכוי חומרים, עמלות, סטטיסטיקת ביקור, הכנסה — באותה טרנזקציה</td></tr>
+<tr><td>confirmed, pending_client</td><td>no_show</td><td>עסק (POST no-show או בחירה בעריכה)</td><td>—</td><td>מדיניות no-show אם הוגדרה (BTY-37)</td></tr>
+<tr><td>confirmed</td><td>cancelled</td><td>עסק (עריכה)</td><td>—</td><td>התראה ללקוחה (BTY-38)</td></tr>
+<tr><td>completed</td><td>confirmed</td><td>ADMIN/senior_therapist/branch_manager ("שחזור תור")</td><td>נימוק חובה</td><td>ביטול עמלות התור שטרם שולמו (עמלה ששולמה ⇒ 409), תנועת הכנסה הפוכה, הפחתת visit_count/total_spent; audit</td></tr>
+<tr><td>cancelled, no_show</td><td>confirmed</td><td>ADMIN/senior_therapist/branch_manager ("שחזור תור")</td><td>המשבצת פנויה (בדיקת התנגשות)</td><td>audit; היפוך חילוט פיקדון אם נרשם</td></tr>
+</table></div>
+<p>PATCH כללי לא משנה סטטוס ישירות ל-completed או no_show; הוא מנתב לזרימות הייעודיות. כל מעבר שאינו בטבלה ⇒ 409.</p></div>
+<div>תופעות לוואי</div><div>כל מעבר נרשם ב-audit (<code>UPDATE_APPT_STATUS</code>) ומייצר התראה לפי BTY-38 (ARC-16).</div>
+<div>ממשק</div><div>מילון תוויות אחד לכל המסכים (יומן, כרטיס לקוח, מסך לקוח כללי, חנות, אפליקציה משפחתית — BTY-18): pending_client "ממתין לאישור הלקוחה", confirmed "מאושר", pending_cancel "בקשת ביטול", completed "הושלם", cancelled "בוטל", no_show "לא הגיעה". כפתורי "השלם" ו"לא הגיע" מוצגים ל-confirmed; "אשר תור" ל-pending_client; "שחזור תור" למצבים סופיים לבעלי ההרשאה. ה-select בעריכה מציע: מאושר, הושלם, בוטל, לא הגיעה (ו"ממתין לאישור הלקוחה" כשזה המצב הנוכחי).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-16</code> — מעברים מוגדרים ונאכפים (409); completed/no_show רק דרך הזרימות הייעודיות (מתוקן: הבחירה בעריכה נשמרת ומנותבת; שחזור ממצב סופי לבעלי הרשאה).</li>
+<li><code>BTY-17</code> — complete רק מ-confirmed.</li>
+<li><code>BTY-18</code> — scheduled ממוזג ל-confirmed; מילון תוויות יחיד.</li>
+<li><code>BTY-39</code> — בקשת ביטול רק לתור עתידי pending_client/confirmed; דחייה מחזירה למצב הקודם; ביטול ישיר אופציונלי.</li>
+<li><code>BTY-38</code> — התראות בכל מעבר.</li>
+<li><code>BTY-29</code> — pending_client רק לכרטיס מקושר.</li>
+<li><code>BTY-41</code> — אישור בקשת חנות אידמפוטנטי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment create post internal segments conflict patch test pending_client client record resolve phone"><h3>יצירת תור (פנימי או ממשפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"תור חדש" ביומן (<code>_beautyNewApModal</code>, <code>_beautySubmitNewAp</code>), "קבע תור" בכרטיס לקוח, או לקוחת משפחה. המסלול: <code>POST /api/beauty/:bizId/appointments</code> (סשן biz או family, מוצהר במפורש).</div>
+<div>הרשאות</div><div>biz: כל תפקיד עם כתיבת יומן (ADMIN, branch_manager, senior_therapist, therapist, nail_tech, makeup_artist, reception), bizId = ctx.groupId. family: booking_source='family' ו-client_family_id = ctx.groupId. אחרת 403 "אין הרשאה" (ללא שינוי בלוגיקת ה-IDOR).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם לקוח, תאריך ושעה חובה, "שם לקוח, תאריך ושעה הם שדות חובה".</li>
+<li>חוזה API אחד (BTY-32): ברמת התור — client_name, client_phone, client_record_id, client_family_id, notes, booking_source, rfq_id, group_booking_ref, deposit_amount, requires_patch_test, force, patch_test_override_reason; וסגמנטים <code>[{segment_order, segment_type, service_name, service_catalog_id, practitioner_id, resource_id, start_time, duration_minutes, price, gap_notes, backbar_items}]</code>. שדות לא מוכרים ⇒ 400. start_time כ-ISO עם offset (BTY-27).</li>
+<li>מזהים זרים (service_catalog_id, practitioner_id, resource_id, client_record_id, rfq_id) חייבים להיות של אותו עסק (ARC-04).</li>
+<li>התנגשות משאב ⇒ 409 <code>RESOURCE_CONFLICT</code>; התנגשות מטפלת (active) ⇒ 409 <code>PRACTITIONER_CONFLICT</code> — מול סגמנטים של <b>אותו עסק</b> שתורם אינו cancelled/no_show; התשובה כוללת את התור המתנגש (BTY-26). חסימה קשיחה כמו היום.</li>
+<li>כללי זמינות (BTY-24): שעות עבודה, available_days, allowed_practitioner_ids. הפרה ⇒ 409 <code>AVAILABILITY_RULE</code> עם פירוט; ב-biz כל תפקיד עם כתיבת יומן יכול לשלוח שוב עם <code>force:true</code> (נרשם ב-audit); ב-family אין עקיפה.</li>
+<li>בדיקת רגישות (BTY-28): נדרשת אם requires_patch_test או שירות בקטלוג מסומן. הכרטיס נמצא לפי client_record_id / client_family_id / טלפון מנורמל. ללא passed בתוקף (<code>patch_test_expires_at &gt;= היום</code>): ב-biz ⇒ 409 <code>PATCH_TEST_REQUIRED</code> עם שתי אפשרויות בממשק — "קבע תור לבדיקת רגישות" או "קבע בכל זאת" עם נימוק (<code>patch_test_override_reason</code>, נשמר בתור וב-audit); ב-family ⇒ 400 עם ההודעה "נדרשת בדיקת רגישות תקפה — פני לסלון".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>withTransaction.</li>
+<li>בדיקות התנגשות, זמינות ורגישות (לעיל).</li>
+<li><code>totalPrice = Σ parseFloat(seg.price||0)</code> (ללא שינוי).</li>
+<li>זיהוי לקוח (BTY-29): אם הועבר client_record_id — הכרטיס; אחרת חיפוש כרטיס בעסק לפי טלפון מנורמל (0XXXXXXXXX). לא מתבצע חיפוש חופשי ב-users. client_family_id = של הכרטיס, אם מקושר.</li>
+<li>סטטוס: <code>(client_family_id &amp;&amp; src==='biz') ? 'pending_client' : 'confirmed'</code>.</li>
+<li><code>INSERT beauty_appointments</code> (client_record_id, client_type ברירת מחדל external, deposit_amount ברירת מחדל 0, rfq_id, group_booking_ref).</li>
+<li><code>INSERT beauty_appointment_segments</code> לכל סגמנט; end_time = start_time + duration_minutes מחושב בשרת.</li>
+<li>אם אין כרטיס ויש שם: <code>INSERT beauty_client_records(name, phone, family)</code> <b>בתוך הטרנזקציה</b>, וקישור client_record_id לתור (במקום fire-and-forget). אם לכרטיס קיים חסר family ויש client_family_id ממסלול family — עדכון.</li>
+<li>אם יש rfq_id: הוספת id התור ל-<code>resulting_appointment_ids</code> ומעבר RFQ ל-booked אם הוא accepted (BTY-55).</li>
+<li>COMMIT; התראות (BTY-38) נכתבות ל-notifications אחרי COMMIT דרך תור עבודות (ARC-23).</li>
+<li>מוחזרת שורת התור.</li>
+</ol></div>
+<div>חישובים</div><div>בלקוח: <code>startTime = new Date(date+'T'+time)</code> בשעון Asia/Jerusalem → ISO עם offset; השרת מחשב end. סגמנט יחיד <code>{segment_order:1, segment_type:'active', service_name||'טיפול', service_catalog_id, practitioner_id, resource_id, price, duration_minutes}</code>; בחירת שירות ממלאת משך ומחיר מהקטלוג (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>(חדש)→pending_client|confirmed (ראו מכונת המצבים).</div>
+<div>תופעות לוואי</div><div>כרטיס לקוח נוצר/מקושר. התראה ללקוחה מקושרת: pending_client — inbox עם אשר/דחה; confirmed — הודעת "נקבע לך תור" (BTY-38). audit.</div>
+<div>ממשק</div><div>חיפוש לקוח קיים (מינימום 2 תווים) דרך <code>GET /clients?q</code>, עד 8 תוצאות, 🔗 למקושר (ללא שינוי). חדש: אם הטלפון שהוזן תואם משתמש WEFLOWZ שאין לו כרטיס מקושר (בדיקת check-oneflow), מוצג "נמצא חשבון WEFLOWZ — לקשר ולשלוח לאישור?"; אישור מקשר את הכרטיס ומשלח את התור כ-pending_client. חדש: כפתור "+ לקוחה חדשה" בטופס (תואם מדריך), select "חדר (אופציונלי)", ותג אלרגיות אדום אם ל-medical_notes של הלקוחה יש תוכן (BTY-63). Toast: "תור נשלח ללקוח לאישור ⏳" או "תור נקבע בהצלחה! 💅" (ללא שינוי). הודעות 409 מוצגות עם פרטי ההתנגשות ואפשרות "קבע בכל זאת" כשמותר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-26</code> — התנגשות רק מול תורים פעילים באותו עסק, עם פרטי המתנגש.</li>
+<li><code>BTY-24</code> — כללי זמינות נאכפים עם עקיפה מתועדת ב-biz (מתוקן: לכל תפקיד יומן).</li>
+<li><code>BTY-28</code> — רגישות: אזהרה עם קביעת בדיקה או עקיפה מתועדת, במקום חסימה קבועה.</li>
+<li><code>BTY-29</code> — אין קישור שקט לפי טלפון; הצעת קישור במודאל (מתוקן).</li>
+<li><code>BTY-27</code> — ISO עם offset; end מחושב בשרת.</li>
+<li><code>BTY-32</code> — חוזה סגמנטים אחד; שדות לא מוכרים נדחים.</li>
+<li><code>BTY-36</code> — client_record_id בכל תור; יצירת כרטיס בתוך הטרנזקציה.</li>
+<li><code>BTY-38</code> — התראה ללקוחה.</li>
+<li><code>BTY-30</code> — עסק חייב להיות beauty.</li>
+<li><code>BTY-25</code> — שדה חדר.</li>
+<li><code>BTY-63</code> — תג אלרגיות בטופס/חלון התור.</li>
+<li><code>BTY-55</code> — rfq_id מקשר ומעביר ל-booked.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar view day week month list loadbeautycalendar render practitioners columns pending banners"><h3>יומן פנימי (תצוגה וטעינה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פתיחת טאב <code>beauty_calendar</code> מריצה את <code>loadBeautyCalendar()</code> ואת <code>_renderBeautyCalendar()</code>.</div>
+<div>הרשאות</div><div>כל תפקידי היופי (קריאה של כל התורים). קריאות ה-API עם סשן; <code>/api/calendar/:biz</code> בגרסת biz המלאה (BTY-02/03).</div>
+<div>קלט ואימותים</div><div><ul><li>GET appointments: from/to כתאריכים, practitioner_id/resource_id/status אופציונליים, שייכים לעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טווח לפי תצוגה: day = היום הנבחר; week/list = ראשון עד שבת; month = 1 עד סוף החודש — לפי Asia/Jerusalem.</li>
+<li>4 קריאות במקביל: <code>/practitioners</code>, <code>/practitioners?all=1</code>, <code>/appointments?from&amp;to</code>, <code>/api/calendar/:biz</code> (גרסת biz, עם סשן) לשירותים ובקשות pending מהחנות.</li>
+<li><code>pendingCancelAppts</code> = תורים בטווח ב-pending_cancel; <code>pendingCalEvents</code> = <code>calendar_events.status='pending'</code>.</li>
+<li>GET appointments: סינון <code>bas.start_time</code> בטווח (שעון ישראל); סינון practitioner_id/resource_id בוחר תורים ב-<code>EXISTS</code> ומחזיר את <b>כל</b> הסגמנטים של התור (BTY-31). מחזיר ba.* + segments (כולל practitioner_name) ממוין לפי MIN(start_time).</li>
+</ol></div>
+<div>חישובים</div><div>תצוגת יום (ללא שינוי): עמודה לכל מטפלת פעילה + מטפלות לא פעילות עם תור בטווח + "ללא מטפלת"; 08:00–20:00, 13 שעות × 60px; <code>top% = ((h-8)*60+m)/(13*60)*100</code>, <code>height% = max(dur/13h*100, 3)</code>; רוחב עמודה <code>max(140, floor(320/n))</code>; תג לפי booking_source: storefront 🌐, biz 📅, rfq 📋. h/m מחושבים בשעון ישראל.</div>
+<div>מכונת מצבים</div><div>אין (תצוגה).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>תצוגות day/week/month/list ("רצף") וניווט ‹ › (±1 יום / ±7 / ±1 חודש) — ללא שינוי. באנר "🚫 בקשות ביטול ממתינות לאישורך" (אשר ביטול/דחה) ובאנר "📋 בקשות תור ממתינות לאישור" (✓ אשר / ✕) מוצגים <b>בכל התצוגות</b> (BTY-31). cancelled/no_show מוצגים מעומעמים עם קו חוצה, ומתג "הצג ביטולים" (ברירת מחדל: מוצג) מאפשר להסתיר. חדש: בורר "מטפלת" (כל המטפלות / מטפלת אחת); למשתמש שמקושר למטפלת ברירת המחדל היא עצמה, עם "כל המטפלות" זמין (BTY-59). לחיצה על תור פותחת את <code>_beautyOpenAp</code>: שירות, לקוח, תאריך, מטפלת, חדר, סטטוס (מילון אחיד), הערות, מחיר, תג אלרגיות, וכפתורים לפי סטטוס.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-31</code> — סינון ב-EXISTS, באנרים בכל התצוגות, הבחנה בביטולים, בורר מטפלת.</li>
+<li><code>BTY-59</code> — ברירת מחדל מסוננת למטפלת עם מעבר לכל המטפלות (מתוקן).</li>
+<li><code>BTY-02</code> — /api/calendar/:biz עם סשן.</li>
+<li><code>BTY-27</code> — טווחים ומיקום לפי שעון ישראל.</li>
+<li><code>BTY-18</code> — מילון תוויות אחיד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment edit patch status time practitioner service payment_confirmed notes audit"><h3>עריכת תור / שינוי סטטוס / אישור גבייה (PATCH)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✏️ ערוך" (<code>_beautyEditApModal</code>, <code>_beautySubmitEditAp</code>), "✅ אשר תור" (<code>_beautyConfirmApByBiz</code>), "אשר גביה" (<code>_bcmConfirmPayment</code>, <code>_beautyConfirmPaymentGlobal</code>), חדש "בטל אישור גבייה", ופעולת AI. המסלול: <code>PATCH /api/beauty/:bizId/appointments/:id</code>.</div>
+<div>הרשאות</div><div>כל תפקיד עם כתיבת יומן; אישור/ביטול גבייה — כל תפקיד עם גישת לקוחות; "שחזור תור" ממצב סופי — ADMIN/senior_therapist/branch_manager.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>התור קיים בעסק, אחרת 404 (חדש).</li>
+<li>status: רק מעבר חוקי לפי מכונת המצבים, אחרת 409; completed/no_show מנותבים לזרימות הייעודיות (BTY-16).</li>
+<li>שינוי זמן/מטפלת/חדר: בדיקת התנגשות וזמינות כמו ביצירה, מול תורים אחרים (לא התור הנערך) (BTY-26); force לכללי זמינות.</li>
+<li>שדות לא מוכרים ⇒ 400 (BTY-32).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>withTransaction.</li>
+<li><code>UPDATE beauty_appointments</code>: notes, internal_notes, deposit_paid עם COALESCE (ללא שינוי). <code>payment_confirmed</code> מתעדכן רק אם המפתח קיים; true ⇒ <code>payment_confirmed_at=NOW()</code> ו-<code>payment_method</code> (אופציונלי: cash/card/bit/transfer/other); false ("בטל אישור גבייה") ⇒ payment_confirmed_at=NULL (BTY-44). updated_at=NOW().</li>
+<li>status: דרך transitionAppt; audit <code>UPDATE_APPT_STATUS</code> "תור #id עודכן לסטטוס X".</li>
+<li>שינוי date/time/duration_minutes/practitioner_id (גם null)/resource_id/service: היסט הזמן (newStart − oldStart של סגמנט 1) מוחל על <b>כל</b> הסגמנטים; duration חל על סגמנט 1 והסגמנטים שאחריו זזים בהתאם (BTY-32).</li>
+<li>שינוי שירות: service_catalog_id, service_name, duration_minutes ו-price של הסגמנט מהקטלוג, אלא אם נשלח price ידני; <code>total_price = Σ price</code> של הסגמנטים (BTY-32).</li>
+<li>COMMIT; התראה ללקוחה על שינוי מועד או ביטול (BTY-38).</li>
+</ol></div>
+<div>חישובים</div><div>start מחושב מ-date+time בשעון ישראל; end = start + dur בשרת, <code>dur = parseInt(duration_minutes) || seg.duration_minutes || 60</code> (ללא שינוי בנוסחה).</div>
+<div>מכונת מצבים</div><div>לפי "מכונת המצבים של תור יופי".</div>
+<div>תופעות לוואי</div><div>audit; התראות; אישור גבייה אינו רושם הכנסה (ההכנסה נרשמת בהשלמה — BTY-44 מתוקן).</div>
+<div>ממשק</div><div>טופס העריכה (ללא שינוי בשדות הקיימים): שירות מהקטלוג או "אחר" ידני, תאריך, שעה, משך (min 5, step 5), מטפלת (כולל לא פעילות), סטטוס (מילון אחיד), הערות; נוספו: מחיר (נטען מהשירות, ניתן לעריכה), חדר. "אשר גביה ✓" פותח בחירת אמצעי תשלום אופציונלית. "בטל אישור גבייה" עם confirm.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-16</code> — whitelist מעברים, בדיקת קיום, ניתוב completed/no_show.</li>
+<li><code>BTY-26</code> — בדיקת התנגשות בעריכה.</li>
+<li><code>BTY-32</code> — כל הסגמנטים זזים; שירות מעדכן קטלוג/משך/מחיר; חוזה אחד.</li>
+<li><code>BTY-27</code> — אין ערבוב UTC/מקומי.</li>
+<li><code>BTY-44</code> — אמצעי תשלום וביטול אישור גבייה (מתוקן: ההכנסה נשארת בהשלמה).</li>
+<li><code>BTY-33</code> — פעולת AI עוברת עם Authorization.</li>
+<li><code>BTY-38</code> — התראה על שינוי מועד/ביטול.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment complete backbar inventory depletion commission visit stats avg interval income"><h3>השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✅ השלם" בחלון התור (<code>_beautyCompleteAp</code>), בחירת "הושלם" בעריכה, או פעולת AI. המסלול: <code>POST /api/beauty/:bizId/appointments/:id/complete</code>.</div>
+<div>הרשאות</div><div>כל תפקיד עם כתיבת יומן; נבדק <b>לפני</b> BEGIN (BTY-17).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>אופציונלי: <code>materials:[{inventory_id, qty}]</code> (כמויות שאושרו/נערכו), <code>redeem_subscription_id</code> (BTY-49).</li>
+<li>תור לא נמצא ⇒ 404 "Not found"; סטטוס ≠ confirmed ⇒ 409 "התור כבר הושלם או אינו ניתן להשלמה" (BTY-17).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>withTransaction (client אחד, release יחיד — ARC-11).</li>
+<li><code>UPDATE beauty_appointments SET status='completed' WHERE id AND business_group_id AND status='confirmed' RETURNING total_price, client_record_id, client_family_id</code>; 0 שורות ⇒ 409.</li>
+<li>חומרים (BTY-35): הרשימה = materials מהבקשה, או ברירת המחדל של השירותים בסגמנטים (beauty_service_materials), או backbar_items בסגמנט. לכל פריט: <code>UPDATE beauty_inventory SET stock_qty=stock_qty-qty WHERE … AND stock_qty&gt;=qty</code>; אם אין מספיק — לא חוסם: נרשם חוסר והתראת מלאי. כל ניכוי נרשם ב-<code>beauty_inventory_movements</code> (reason='usage', appointment_id).</li>
+<li>עמלה (BTY-34): לכל סגמנט active עם practitioner_id ו-price&gt;0: <code>rate = service.commission_pct ?? practitioner.commission_rate_svc</code>; <code>INSERT beauty_commissions(commission_type='service', gross_amount=price, commission_rate=rate, commission_amount, source_ref=appointment_id)</code>.</li>
+<li>מימוש חבילה (BTY-49): אם נשלח redeem_subscription_id — מימוש כניסה (ראו "מכירת מנוי ומימוש") והתור מסומן <code>payment_confirmed=true, payment_method='subscription'</code> (לא נכנס לגבייה ולא נרשמת הכנסה נוספת).</li>
+<li>סטטיסטיקה (BTY-36): לפי client_record_id (גם ללקוח לא מקושר): <code>visit_count+1</code>, <code>last_visit_at = start_time של התור</code>, <code>total_spent += total_price</code>, וחישוב מחדש של avg_visit_interval_days.</li>
+<li>הכנסה: אם total_price&gt;0 ולא מומש מחבילה — <code>logBizIncome(ctx.groupId, total_price, "תור יופי — {client_name||'לקוח'}")</code> <b>בתוך הטרנזקציה</b> (transactions: category='sales', type='income', is_manual=FALSE, user_id = ctx.userId) (BTY-17, BTY-44 מתוקן).</li>
+<li>COMMIT.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>commission_amount = +(gross × rate / 100).toFixed(2)</code> (ללא שינוי).</li>
+<li><code>avg_visit_interval_days = ROUND(AVG(diff),1)</code> כאשר diff = הפרש הימים בין מועדי טיפול (start_time) של תורים completed <b>עוקבים</b> של אותו כרטיס, על 10 האחרונים (BTY-36).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>confirmed → completed בלבד.</div>
+<div>תופעות לוואי</div><div>הכנסה בתזרים; עמלות ממתינות; ירידת מלאי ותנועות מלאי; התראת מלאי נמוך/חוסר. Toast: "טיפול הושלם! מלאי ועמלות עודכנו ✅" (ללא שינוי).</div>
+<div>ממשק</div><div>כששירות בתור כולל חומרים ברירת מחדל, לחיצה על "השלם" פותחת חלון קצר "חומרים בטיפול" עם הכמויות לאישור/עריכה; כשאין — ההשלמה בלחיצה אחת כמו היום. אם ללקוחה חבילה פעילה שכוללת את השירות (service_ids), מוצע "מימוש מהחבילה (נותרו N)". AI: <code>_aiCompleteAppt</code> עובר דרך fetch מאומת (BTY-33).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-17</code> — guard נגד השלמה כפולה; הכנסה ועמלות באותה טרנזקציה; הרשאה לפני BEGIN; ללא release כפול.</li>
+<li><code>BTY-34</code> — commission_pct של השירות קודם לשיעור המטפלת.</li>
+<li><code>BTY-35</code> — חומרים ברירת מחדל, אישור כמויות, יומן תנועות, התראת חוסר.</li>
+<li><code>BTY-36</code> — סטטיסטיקה לפי כרטיס; ממוצע לפי מועדי טיפול עוקבים.</li>
+<li><code>BTY-49</code> — הצעת מימוש מחבילה בהשלמה.</li>
+<li><code>BTY-44</code> — ההכנסה נשארת בהשלמה (מתוקן).</li>
+<li><code>BTY-33</code> — פעולת AI מאומתת.</li>
+<li><code>BTY-40</code> — תור מאושר מהחנות נושא מחיר קטלוגי ולכן מייצר הכנסה ועמלה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="no-show noshow appointment"><h3>סימון "לא הגיע" (no-show)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"😞 לא הגיע" (<code>_beautyNoShowAp</code>), בחירה בעריכה, או AI (<code>_aiNoShowAppt</code>). המסלול: <code>POST /appointments/:id/no-show</code>.</div>
+<div>הרשאות</div><div>כל תפקיד עם כתיבת יומן.</div>
+<div>קלט ואימותים</div><div><ul><li>תור בעסק, אחרת 404; מצב confirmed או pending_client, אחרת 409.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction.</li><li><code>UPDATE status='no_show', updated_at=NOW() WHERE id AND business_group_id AND status IN (...)</code>.</li><li>מדיניות (BTY-37): אם <code>no_show_policy='forfeit_deposit'</code> בהגדרות העסק ו-deposit_paid&gt;0 — <code>logBizIncome(deposit_paid, "חילוט פיקדון — {client_name}")</code>.</li></ol></div>
+<div>חישובים</div><div>תג אזהרה בכרטיס הלקוח: ≥2 no_show ב-90 הימים האחרונים (לפי start_time, שעון ישראל).</div>
+<div>מכונת מצבים</div><div>confirmed|pending_client → no_show.</div>
+<div>תופעות לוואי</div><div>נספר ב-<code>no_show_today</code>; המשבצת משתחררת ב-/slots (ללא שינוי). התראה ללקוחה אינה נשלחת על no-show.</div>
+<div>ממשק</div><div>ללא שינוי בכפתור; בהגדרות העסק (יופי): "מדיניות אי-הגעה: ללא (ברירת מחדל) / חילוט פיקדון".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-37</code> — מדיניות no-show אופציונלית (ברירת מחדל none — ההתנהגות הנוכחית) ותג אזהרה.</li><li><code>BTY-16</code> — בדיקת מצב קודם.</li><li><code>BTY-33</code> — פעולת AI מאומתת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="client confirm pending_client family app accept decline"><h3>אישור / דחיית תור ע"י הלקוח באפליקציה המשפחתית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוחת משפחה רואה בכרטיס העסק, בלשונית "בקשות תור", תורים ב-pending_client עם "⏳ ממתין לאישורך" — וגם בהודעת inbox החדשה (BTY-38). הלחיצה מפעילה <code>_clientConfirmBeautyAppt</code> → <code>PUT /api/family/:familyGroupId/beauty/appointments/:id/client-confirm</code>.</div>
+<div>הרשאות</div><div>סשן family; familyGroupId = ctx.groupId, אחרת 403 (ללא שינוי).</div>
+<div>קלט ואימותים</div><div><ul><li>UPDATE רק אם client_family_id = המשפחה ו-status='pending_client'; אחרת 404 "לא נמצא או שהסטטוס שונה כבר" (ללא שינוי).</li><li>action ∈ confirm|decline.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>newStatus = action==='confirm' ? 'confirmed' : 'cancelled'</code> דרך transitionAppt.</li><li>תגובה <code>{success, newStatus}</code>; הלקוח טוען מחדש את business-activity.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>pending_client → confirmed | cancelled (לקוחה).</div>
+<div>תופעות לוואי</div><div>התראה לעסק: "הלקוחה {name} אישרה/דחתה את התור" (BTY-38). audit עם actor_type='family' תחת group_id של העסק (BTY-06).</div>
+<div>ממשק</div><div>ללא שינוי; הודעת ה-inbox כוללת קישור לאותה פעולה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-38</code> — התראה לעסק.</li><li><code>BTY-06</code> — רישום audit נכון.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="cancel by customer storefront pending_cancel approve reject cancel"><h3>בקשת ביטול ע"י לקוח חנות ואישור/דחייה ע"י העסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוחה מחוברת בחנות לוחצת "ביטול תור" על תור עתידי → <code>POST /api/beauty/:bizId/appointments/:id/cancel-by-customer</code>. העסק מאשר/דוחה מהבאנרים ביומן או בדשבורד או מכרטיס הלקוח: <code>POST approve-cancel</code> / <code>reject-cancel</code>.</div>
+<div>הרשאות</div><div>cancel-by-customer: סשן storefront בלבד. approve/reject: סשן biz עם כתיבת יומן, bizId = ctx.groupId (BTY-01).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>cancel-by-customer: לא מחובר ⇒ 401 "לא מחובר"; תור לא בעסק ⇒ 404 "תור לא נמצא"; בעלות: טלפון מנורמל (0XXXXXXXXX) שווה, או client_family_id = family של הלקוחה, אחרת 403; <b>בשרת</b>: תור עתידי (start_time &gt; now) במצב pending_client/confirmed, אחרת 409 (BTY-39).</li>
+<li>לקוח: הכפתור מוצג לתאריך ≥ היום ולסטטוס שאינו cancelled/pending_cancel/completed/no_show; אישור "לשלוח בקשת ביטול לעסק?" (ללא שינוי).</li>
+<li>approve-cancel: התור בעסק ובמצב pending_cancel, אחרת 404/409.</li>
+<li>reject-cancel: בעסק, אחרת 404; pending_cancel, אחרת 400 "הסטטוס אינו בקשת ביטול" (ללא שינוי).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>לקוחה: אם הוגדר <code>self_cancel_hours</code> ונותרו יותר שעות — <code>status='cancelled'</code> ישירות; אחרת <code>status_before_cancel=status, status='pending_cancel'</code>.</li>
+<li>אישור: <code>status='cancelled'</code>. דחייה: <code>status=COALESCE(status_before_cancel,'confirmed')</code>.</li>
+</ol></div>
+<div>חישובים</div><div>נרמול טלפון: הסרת תווים שאינם ספרות, 972XXXXXXXXX → 0XXXXXXXXX.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>pending_client/confirmed</td><td>pending_cancel</td><td>לקוחת חנות</td><td>עתידי; בעלות</td><td>התראה לעסק</td></tr><tr><td>pending_client/confirmed</td><td>cancelled</td><td>לקוחת חנות</td><td>self_cancel_hours מוגדר ונותר מעבר לו</td><td>התראה לעסק</td></tr><tr><td>pending_cancel</td><td>cancelled</td><td>עסק</td><td>—</td><td>התראה ללקוחה</td></tr><tr><td>pending_cancel</td><td>status_before_cancel</td><td>עסק</td><td>—</td><td>התראה ללקוחה</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>התראות לפי BTY-38 (inbox ללקוחה מקושרת; SMS לפי הגדרת העסק).</div>
+<div>ממשק</div><div>confirm בדפדפן ללא שינוי: "לאשר את בקשת הביטול? התור יבוטל סופית." / "לדחות את בקשת הביטול? התור יחזור להיות פעיל." דשבורד מנהל: באנר אדום עם עד 10 בקשות. הגדרת עסק חדשה "ביטול עצמי ללא אישור עד N שעות לפני" (ברירת מחדל: כבוי).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-39</code> — בדיקת מצב ומועד בשרת; טלפון מנורמל; דחייה למצב הקודם; ביטול ישיר אופציונלי.</li>
+<li><code>BTY-01</code> — bizId מול הסשן ב-approve/reject.</li>
+<li><code>BTY-38</code> — התראות לשני הצדדים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront booking request sms verify calendar_events pending approve beauty appointment synthetic"><h3>בקשת תור מהחנות הציבורית ואישורה (המרה לתור יופי)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוחה בחנות פותחת את מודאל ההזמנה: נטענים <code>/practitioners/public</code> ו-<code>/services/public</code>, נבחרים שירות, מטפלת ("ללא העדפה"), תאריך ושעה מתוך <code>/slots</code> (BTY-42), ונשלחת בקשה. העסק מאשר מהבאנר.</div>
+<div>הרשאות</div><div>request/verify: ציבורי עם rate limit (ARC-29) ודרישת התחברות storefront בלקוח (ללא שינוי). אישור/דחייה (<code>PUT /api/calendar/events/:id/status</code>, <code>deleteCalendarEvent</code>): סשן biz עם כתיבת יומן ובעלות על האירוע (BTY-02).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם, טלפון, תאריך ושעה חובה, "יש למלא שם, טלפון, תאריך ושעה"; <code>scAuth.requireLogin</code> (ללא שינוי).</li>
+<li>request-booking-sms: אותם שדות, אחרת 400 "חסרים פרטים חובה"; service_id ו-preferred_practitioner_id שייכים לעסק; המשבצת פנויה לפי computeSlots (אחרת 409 "השעה כבר לא פנויה").</li>
+<li>verify-booking-sms: קוד באורך שנקבע ב-ARC-29 (6 ספרות, 10 דקות, 5 ניסיונות); temp pending ושייך לעסק, אחרת 404; קוד שגוי ⇒ 400 "קוד שגוי"; פג ⇒ "קוד פג תוקף". קוד דיבאג רק מחוץ לייצור (ARC-31).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>request: קוד אקראי; <code>INSERT temp_booking_requests</code> (service_id, preferred_practitioner_id, client_name, client_phone); SMS: "{biz} — בקשת תור ✅ … קוד אישור: X" (ללא שינוי בנוסח).</li>
+<li>verify: איתור family לפי טלפון; <code>INSERT calendar_events(status='pending', title="{name} — {service}", service_id, customer_group_id, preferred_practitioner_id, client_name, client_phone)</code> — המטפלת המועדפת והשם/טלפון נפרדים נשמרים (BTY-40); temp → verified; <code>upsertStoreCustomer</code>; קישור/יצירת כרטיס לקוח בעסק לפי טלפון מנורמל. אם השירות דורש בדיקת רגישות ואין passed בתוקף — הבקשה מסומנת <code>needs_patch_test</code> (BTY-28).</li>
+<li>הבקשה מופיעה בבאנר "בקשות תור ממתינות" ביומן ובדשבורד (<code>status='pending' AND call_type≠'table_reservation'</code>), עם תג "נדרשת בדיקת רגישות" אם רלוונטי.</li>
+<li>אישור (<code>approveCalendarEvent</code>) → <code>PUT /api/calendar/events/:id/status {status:'approved', practitioner_id?}</code>. בעסק beauty, withTransaction:
+<ol><li><code>UPDATE calendar_events SET status='converted' WHERE id AND group_id AND status='pending' RETURNING *</code>; 0 שורות ⇒ 409 "הבקשה כבר טופלה" (BTY-41).</li>
+<li>שירות מהקטלוג: name, duration_minutes, price (ללא קטלוג: dur=60, שם = שם השירות מהבקשה). מטפלת = practitioner_id שנבחר באישור, או המועדפת (BTY-40).</li>
+<li>בדיקת התנגשות וזמינות (כמו ביצירה, עם force ב-biz).</li>
+<li><code>INSERT beauty_appointments(booking_source='storefront', status='confirmed', total_price = מחיר השירות, client_family_id=customer_group_id, client_record_id, client_name, client_phone)</code>; <code>INSERT segment(1, 'active', service_name, service_catalog_id, start, end, dur, price, practitioner_id)</code>; <code>calendar_events.converted_appointment_id</code> = id התור.</li>
+<li>COMMIT, ואחריו SMS: "{biz} — התור שלך אושר! ✅ תאריך… שעה… שירות… נתראה! 💅 WEFLOWZ" ו-inbox (sender_name 'הסלון', subject "התור שלך אושר ✅") אם יש customer_group_id (ללא שינוי בנוסח).</li></ol></li>
+<li>אחרי האישור הממשק מנווט ל-beauty_calendar בתאריך התור, בתצוגת יום (ללא שינוי).</li>
+</ol></div>
+<div>חישובים</div><div>start מ-event_date+start_time בשעון ישראל; end = start + duration.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>(temp) pending</td><td>verified + calendar_events pending</td><td>לקוחה</td><td>קוד תקין</td><td>כרטיס לקוח בחנות ובעסק</td></tr><tr><td>pending</td><td>converted</td><td>עסק</td><td>אין התנגשות (או force)</td><td>תור יופי confirmed, SMS, inbox</td></tr><tr><td>pending</td><td>נמחק (דחייה)</td><td>עסק</td><td>—</td><td>התראה ללקוחה על דחייה (BTY-38)</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>שני SMS, inbox, כרטיס לקוח. <code>POST /api/calendar/events</code> עם customerGroupId וטלפון ממשיך לקשר/ליצור כרטיס לקוח (ללא שינוי), דרך פונקציית upsert אחת עם נרמול טלפון (BTY-46).</div>
+<div>ממשק</div><div>דחייה = <code>deleteCalendarEvent(id,true)</code> (ללא שינוי). חלון האישור מאפשר לבחור/להחליף מטפלת. האפליקציה המשפחתית מציגה רק את תור היופי שנוצר, לא את האירוע ב-converted (BTY-41).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-40</code> — מטפלת מועדפת, מחיר ומשך מהקטלוג, שם וטלפון נפרדים, כרטיס לקוח מקושר.</li>
+<li><code>BTY-41</code> — אישור אידמפוטנטי (converted), בדיקת התנגשות, ללא כפילות באפליקציה המשפחתית.</li>
+<li><code>BTY-42</code> — בחירת שעה בחנות מ-/slots.</li>
+<li><code>BTY-28</code> — סימון "נדרשת בדיקת רגישות" בבקשה.</li>
+<li><code>BTY-02</code> — אישור/דחייה דורשים סשן biz.</li>
+<li><code>BTY-38</code> — התראה על דחייה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="synthetic calendar events bap- is_beauty_internal api calendar storefront availability"><h3>אירועי יומן סינתטיים (bap-*) וזמינות בחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/calendar/:groupId</code> משמש את יומן העסק (גרסת biz) ואת החנות (גרסה ציבורית). בעסק beauty החנות מחשבת זמינות דרך <code>/slots</code> ולא דרך אירועים סינתטיים (BTY-42).</div>
+<div>הרשאות</div><div>גרסת biz: סשן biz של העסק. גרסה ציבורית: ללא סשן, תפוסה בלבד (BTY-03).</div>
+<div>קלט ואימותים</div><div><ul><li>groupId של עסק קיים; בגרסה הציבורית רק טווח עתידי (מהיום, עד 60 יום).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>services = שירותים פעילים מהקטלוג (id, name, <code>duration_minutes AS duration_mins</code>, price) — בשתי הגרסאות.</li>
+<li>גרסת biz: <code>events</code> = calendar_events עם status='pending' (לבאנרים). התורים עצמם נטענים מ-<code>/api/beauty/:bizId/appointments</code>; אירועי <code>bap-*</code> לא נבנים.</li>
+<li>גרסה ציבורית: <code>busy:[{start, end}]</code> לתורים שאינם cancelled/no_show/completed מהיום והלאה, ללא שמות שירות/לקוח/מטפלת, ו-<code>closed_days</code> מאירועי [ALL_DAY]. לצרכנים שאינם חנות יופי.</li>
+</ol></div>
+<div>חישובים</div><div>בחנות של עסק יופי: הזמנים המוצגים = <code>computeSlots(date, practitionerId|ללא העדפה, serviceId)</code>; "ללא העדפה" = איחוד המטפלות המורשות. <code>calendar_settings</code> (open/close/interval) ו-[ALL_DAY] נלקחים בחשבון בתוך computeSlots. בעסק שאינו יופי — הלוגיקה הקיימת של החנות ללא שינוי.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>בחנות: רשימת שעות פנויות לפי שירות ומטפלת; שעה שאינה פנויה לא מוצגת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-42</code> — החנות משתמשת ב-/slots לפי שירות, מטפלת, משך ושעות; אירועים סינתטיים לא נבנים (מתוקן: [ALL_DAY] ו-calendar_settings נשמרים).</li>
+<li><code>BTY-03</code> — הגרסה הציבורית מחזירה תפוסה עתידית בלבד, ללא שמות; customer_phone עם שם מטפלת לא קיים עוד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointments by customer client history storefront activity family business activity linked businesses"><h3>שליפת היסטוריית תורים לפי לקוח (עסק, חנות, משפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כרטיס לקוח (טאבים "תורים" ו"גביה"), מודאל לקוח כללי, "הפעילות שלי" בחנות, וכרטיס העסק באפליקציה המשפחתית.</div>
+<div>הרשאות</div><div>by-customer: סשן biz עם גישת לקוחות, bizId = ctx.groupId (BTY-01). sc-auth activity: סשן storefront. business-activity ו-linked-businesses: סשן family, familyGroupId = ctx.groupId.</div>
+<div>קלט ואימותים</div><div><ul><li>by-customer: client_id | phone | name; ללא פרמטר ⇒ <code>[]</code> (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /appointments/by-customer</code>: עדיפות client_id → תורים לפי <code>client_record_id</code> (ובנוסף לפי client_family_id / טלפון מנורמל של הכרטיס לתורים ישנים); phone → נרמול והתאמה; name → ILIKE. שדות מוחזרים ללא שינוי (id, status, client_name/phone, created_at, total_price, payment_confirmed(_at), payment_method, service_name, start_time של סגמנט 1); LIMIT 50, start_time/created_at יורד. נשאר לשימוש מודאל הלקוח הכללי; כרטיס היופי נטען מ-GET /clients/:id (BTY-43).</li>
+<li><code>GET /api/sc-auth/activity/:bizGroupId</code>: beautyBookings = סטטוס שאינו cancelled/no_show/completed (עד 20, עולה); beautyHistory = cancelled/no_show/completed/pending_cancel (עד 30, יורד); התאמה לפי טלפון מנורמל או family (BTY-39).</li>
+<li><code>GET /api/family/business-activity/:fam/:biz</code> ענף beauty: תורים לפי client_family_id או טלפון (ללא שינוי, עם נרמול); RFQ לפי <code>client_family_id = fam</code> (BTY-12); calendar_events — ללא אירועים ב-converted (BTY-41); inbox; ציר זמן מאוחד (עד 50, beauty_appt).</li>
+<li><code>GET /api/family/linked-businesses/:groupId</code>: עסק עם כרטיס לקוח שמקושר למשפחה נחשב "מקושר" (link_type beauty, active) — ללא שינוי.</li>
+</ol></div>
+<div>חישובים</div><div>נרמול טלפון כמו בבקשת ביטול.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>רשימת הייעוץ בכרטיס העסק באפליקציה המשפחתית מציגה את בקשות ה-RFQ של המשפחה. תוויות סטטוס מהמילון האחיד.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-01</code> — by-customer מאמת bizId.</li>
+<li><code>BTY-12</code> — שאילתת RFQ לפי client_family_id (לא client_phone).</li>
+<li><code>BTY-43</code> — כרטיס הלקוח נטען לפי מזהה (client_record_id).</li>
+<li><code>BTY-41</code> — ללא כפילות אירוע+תור.</li>
+<li><code>BTY-18</code> — תוויות אחידות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="payment collection pending payments payment_confirmed collection center gvia"><h3>גבייה: מרכז גבייה ואישור תשלום לתור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>KPI "ממתין לגביה מלקוחות" פותח את <code>_beautyOpenCollectionCenter</code>; טאב "💰 גביה" בכרטיס הלקוח; "גבה תור" בקופה (BTY-61).</div>
+<div>הרשאות</div><div>כל תפקיד עם גישת לקוחות (ADMIN, branch_manager, senior_therapist, therapist, nail_tech, makeup_artist, reception).</div>
+<div>קלט ואימותים</div><div><ul><li><code>GET /pending-payments</code>: תורים completed או confirmed (scheduled מוזג), עם payment_confirmed FALSE/NULL ו-total_price&gt;0, ובנוסף מכירות חבילה במחיר&gt;0 שלא אושרה גבייתן (BTY-49); LIMIT 300, start_time יורד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>"אשר גביה ✓" → <code>PATCH /appointments/:id {payment_confirmed:true, payment_method?}</code> → payment_confirmed_at=NOW() (לחבילה: <code>PATCH /client-subscriptions/:id {payment_confirmed:true}</code>).</li><li>"בטל אישור גבייה" → payment_confirmed=false, payment_confirmed_at=NULL (BTY-44).</li><li>רענון הרשימה.</li></ol></div>
+<div>חישובים</div><div>בכרטיס: סה"כ עסקאות = Σ total_price של תורים completed/confirmed עם מחיר&gt;0 + מכירות חבילה; שולם = Σ המאושרים; ממתין = השאר. KPI בשרת <code>pending_payment_sum/cnt</code> באותו תנאי. טאב "פרטים ומאזן" מחושב מאותו מקור (לא מ-<code>/api/clients/financial-summary</code>) (BTY-44).</div>
+<div>מכונת מצבים</div><div>payment_confirmed: FALSE → TRUE (אישור), TRUE → FALSE (ביטול אישור) — כל תפקיד עם גישת לקוחות; audit.</div>
+<div>תופעות לוואי</div><div>אישור גבייה אינו רושם תנועה בתזרים (ההכנסה נרשמה בהשלמה/במכירה) — כמו היום. audit לכל אישור וביטול.</div>
+<div>ממשק</div><div>ללא שינוי במרכז הגבייה, בתוספת בחירת אמצעי תשלום וכפתור "בטל אישור" לרשומות מאושרות בטאב הגבייה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-44</code> — ביטול אישור גבייה, אמצעי תשלום, מקור מאזן אחיד (מתוקן: רישום ההכנסה נשאר בהשלמה).</li>
+<li><code>BTY-49</code> — מכירות חבילה מופיעות בגבייה.</li>
+<li><code>BTY-18</code> — scheduled מוזג.</li>
+<li><code>BTY-61</code> — גבייה גם מהקופה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">תיקי לקוחות</h2>
+
+<section class="proc" data-f="clients list search beauty_client_records"><h3>רשימת לקוחות וחיפוש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_clients</code> מריץ <code>loadBeautyClients()</code> ו-<code>GET /api/beauty/:bizId/clients?q&amp;page</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות: ADMIN, branch_manager, senior_therapist, therapist, nail_tech, makeup_artist, reception.</div>
+<div>קלט ואימותים</div><div><ul><li>q עד 100 תווים; page ≥ 1.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם יש q: ILIKE על client_name, client_email, ו-phone_normalized לפי ספרות q.</li><li>מיון <code>last_visit_at DESC NULLS LAST</code>; עימוד 50 לעמוד עם total (במקום LIMIT 100 קבוע) (BTY-45).</li><li>שדות מוחזרים מפורשים (ARC-32); medical_notes לא מוחזר ברשימה, רק סימון has_allergies.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>חיפוש בשרת עם debounce 300ms (במקום סינון מקומי) ו"טען עוד" (BTY-45). ללא שינוי: תג פאץ׳ (passed, failed, pending, expired — expired מחושב: expires_at &lt; היום), "ממוצע ביקור: כל N יום", כפתור "🔗 WEFLOWZ", כפתור "טפסי ייעוץ" בכותרת, פאנל שדות חובה. שמות שדות לפי הסכמה: <code>client_email</code>, <code>client_phone</code> (גם ב-<code>_ofwSearch</code>). תג אזהרת no-show (BTY-37).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-45</code> — חיפוש בשרת ועימוד 50; שמות שדות מתוקנים.</li><li><code>BTY-28</code> — expired מחושב.</li><li><code>BTY-09</code> — אין מידע רפואי בתגובת הרשימה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="client create new required fields customer_required_fields oneflow link"><h3>הוספת לקוח חדש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"לקוח חדש" (<code>_beautyNewClientModal</code>, <code>_beautySubmitNewClient</code>), "+ לקוחה חדשה" בטופס התור, או פעולת AI <code>_aiAddBeautyClient</code>. המסלול: <code>POST /api/beauty/:bizId/clients</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חוזה שדות אחיד (BTY-11): client_name, client_phone, client_email, date_of_birth, medical_notes ("הערות / אלרגיות"), general_notes, skin_type, hair_type, id_number, client_family_id.</li>
+<li>שרת: client_name חובה (אחרי trim), "שם לקוח הוא שדה חובה" (ללא שינוי).</li>
+<li>שדות חובה דינמיים לפי <code>store_settings.customer_required_fields</code>, אותן הודעות: "מספר ת.ז הוא שדה חובה לפי הגדרות העסק", "טלפון הוא שדה חובה…", "אימייל הוא שדה חובה…" — נבדקים מול השדות בשמם האחיד, כך שאימייל שמולא עובר.</li>
+<li>כפילות (BTY-46): id_number קיים בעסק ⇒ 409 <code>DUPLICATE_ID</code> עם קישור לכרטיס; טלפון מנורמל קיים ⇒ 409 <code>DUPLICATE_PHONE</code> עם קישור לכרטיס, אלא אם <code>allow_shared_phone:true</code> (הכרטיס החדש מסומן shared_phone).</li>
+<li>id_number: 9 ספרות; client_email בפורמט תקין; client_family_id — רק מתוצאת בדיקת WEFLOWZ באותו סשן (ARC-04).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>INSERT beauty_client_records</code> עם כל השדות; medical_notes ו-id_number מוצפנים ברמת עמודה (BTY-09, ARC-32).</li><li>אם קושר WEFLOWZ — <code>client_family_id = _bncLinkedFamilyId</code> (ללא שינוי).</li><li>מוחזרת השורה (<code>{success, data}</code>).</li></ol></div>
+<div>חישובים</div><div>phone_normalized כמו בבקשת ביטול.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>audit.</div>
+<div>ממשק</div><div>שדות בטופס (ללא שינוי): שם, ת.ז (9 ספרות), טלפון וכפתור WEFLOWZ, אימייל, תאריך לידה, "הערות / אלרגיות" (נשמר כ-medical_notes). חלון כפילות: "פתח כרטיס קיים" / "זו לקוחה אחרת — צור בכל זאת" (לטלפון בלבד). AI: <code>_aiAddBeautyClient</code> שולח <code>{client_name, client_phone, general_notes}</code> דרך fetch מאומת (BTY-33).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-11</code> — חוזה שדות אחיד; אימייל והערות נשמרים; אימייל חובה עובד.</li>
+<li><code>BTY-46</code> — ת"ז ייחודית; טלפון כפול עם אפשרות "טלפון משותף" (מתוקן).</li>
+<li><code>BTY-33</code> — פעולת AI עם שמות שדות נכונים ובדיקת תגובה נכונה.</li>
+<li><code>BTY-09</code> — הצפנת מידע רפואי ות"ז.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="check oneflow weflowz lookup create member account whatsapp link family"><h3>בדיקת WEFLOWZ, קישור ויצירת חשבון חבר ללקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "WEFLOWZ" בטופס לקוח חדש (<code>_beautyCheckOneflow</code>) ובדיקה אוטומטית בטופס התור (BTY-29) → <code>GET /api/beauty/:bizId/check-oneflow?phone|name</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות.</div>
+<div>קלט ואימותים</div><div><ul><li>חסרים טלפון ושם: בלקוח "הכנס טלפון או שם לפני הבדיקה"; בשרת <code>{found:false}</code> (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שרת: חיפוש users בקבוצות FAMILY לפי טלפון מנורמל, או (בלי טלפון) nickname ILIKE; LIMIT 5; מוחזרים שדות מינימליים (שם, טלפון ממוסך חלקית, family_id) (ARC-32).</li>
+<li>התאמה יחידה: <code>_beautyLinkOneflow</code> ממלא שדות ריקים בלבד (שם, email, id_number, תאריך לידה = birth_year-01-01) ושומר <code>_bncLinkedFamilyId</code> (ללא שינוי).</li>
+<li>כמה התאמות: רשימה לבחירה ידנית (ללא שינוי).</li>
+<li>אין התאמה: "צור חשבון WEFLOWZ וקשר ללקוח" → <code>POST /api/member/create-for-business</code> (business_group_id מהסשן, name, phone, admin_name). החשבון נוצר <b>ללא סיסמה</b>; נוצר קישור הפעלה חד-פעמי בתוקף 72 שעות; SMS אוטומטי עם הקישור; בממשק מוצגים קוד ושם (ללא סיסמה) וכפתור wa.me עם הודעת הצטרפות שכוללת את קישור ההפעלה. לחשבון קיים — הודעה ללא סיסמה (ללא שינוי) (BTY-08).</li>
+</ol></div>
+<div>חישובים</div><div>טלפון ל-wa.me: <code>phone.replace(/^0/,'972')</code> (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>חשבון חבר: נוצר (pending_activation) → active כשהלקוחה מגדירה סיסמה דרך הקישור; קישור שפג ⇒ העסק יכול "שלח קישור מחדש".</div>
+<div>תופעות לוואי</div><div>חשבון חבר; SMS הפעלה; WhatsApp ידני דרך wa.me.</div>
+<div>ממשק</div><div>חלון ההצלחה: "החשבון נוצר — נשלח ללקוחה קישור להגדרת סיסמה" + קוד + כפתור "שלח ב-WhatsApp" + "שלח קישור מחדש".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-08</code> — אין סיסמה גלויה; קישור הפעלה 72 שעות; wa.me נשמר עם הקישור (מתוקן).</li><li><code>BTY-29</code> — הבדיקה משמשת גם להצעת קישור בטופס התור.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="client card modal tabs details appts beauty sub collection"><h3>כרטיס לקוח (מודאל עם טאבים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על לקוח ברשימה → <code>_beautyOpenClient(clientId, openTab)</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות; כל פתיחה עם מידע רפואי נרשמת ב-audit (BTY-09).</div>
+<div>קלט ואימותים</div><div><ul><li>הכרטיס שייך לעסק, אחרת 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>skeleton עם 5 טאבים (ללא שינוי): פרטים ומאזן, 📅 תורים, 💅 יופי, 🎁 מנוי, 💰 גביה.</li>
+<li>קריאה אחת <code>GET /clients/:id</code> שמחזירה: פרטים (כולל medical_notes מפוענח, general_notes), תורים לפי client_record_id, פורמולות, תמונות, מנויים, וסוגי חבילות פעילים (BTY-43) — במקום 5 קריאות.</li>
+<li><code>_bcmTab</code>: פרטים (שדות לעריכה, סטטוס פאץ׳ ותוקפו, כפתור "רשום בדיקת רגישות" (BTY-28), "ממוצע ביקור… צפוי"), תורים (כולל אישור/דחיית ביטול ל-pending_cancel), יופי (פורמולות וגלריה), מנוי, גביה (כולל "בטל אישור").</li>
+<li>"קבע תור" סוגר את הכרטיס, עובר ליומן, ופותח מודאל תור חדש עם שם, טלפון, family ו-client_record_id (ללא שינוי בזרימה; ההשהיה 600ms מוחלפת בהמתנה לטעינת היומן).</li>
+</ol></div>
+<div>חישובים</div><div>מועד ביקור צפוי = <code>last_visit_at + avg_visit_interval_days</code> ימים (BTY-36). מאזן = מקור אחד עם טאב הגבייה (BTY-44).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>audit קריאה.</div>
+<div>ממשק</div><div>אלרגיות (medical_notes) מוצגות כתג אדום בראש הכרטיס ובחלון התור (BTY-63). תג אזהרת no-show (BTY-37). תוויות סטטוס אחידות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>BTY-43</code> — טעינה מנתיב אחד GET /clients/:id לפי מזהה.</li>
+<li><code>BTY-36</code> — ביקור צפוי מהביקור האחרון.</li>
+<li><code>BTY-28</code> — "רשום בדיקת רגישות".</li>
+<li><code>BTY-44</code> — מאזן ממקור אחד.</li>
+<li><code>BTY-63</code> — תג אלרגיות אדום.</li>
+<li><code>BTY-09</code> — audit קריאת תיק.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="client update patch details general_notes"><h3>עדכון פרטי לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שמור פרטים" בכרטיס (<code>_bcmSaveDetails</code>) → <code>PATCH /api/beauty/:bizId/clients/:id</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: שם חובה (ללא שינוי). שרת: whitelist ללא שינוי — client_name, client_phone, client_email, medical_notes, general_notes, patch_test_status, patch_test_date, patch_test_expires_at, skin_type, hair_type, preferred_practitioner_id, id_number — כולם עמודות קיימות (general_notes נוספה) (BTY-11).</li><li>ולידציה (ARC-34): client_name לא ריק; אימייל תקין; ת"ז 9 ספרות; patch_test_status מהרשימה; preferred_practitioner_id של העסק; כפילות ת"ז/טלפון כמו ביצירה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE של השדות שהועברו (כל ערך שאינו undefined, כולל מחרוזת ריקה — ללא שינוי), <code>updated_at=NOW()</code>.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>audit עם diff.</div>
+<div>ממשק</div><div>ללא שינוי; השמירה מצליחה ומציגה הודעת הצלחה, ושגיאה מוצגת כפי שהגיעה מהשרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-11</code> — העמודה general_notes קיימת ולכן השמירה עובדת.</li><li><code>BTY-46</code> — בדיקת כפילות בעדכון.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="patch test sensitivity patch_test_status passed expired"><h3>בדיקת רגישות (Patch Test)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שירות עם <code>requires_patch_test</code> דורש מהלקוחה בדיקת רגישות תקפה. חדש: "רשום בדיקת רגישות" בכרטיס הלקוח (BTY-28).</div>
+<div>הרשאות</div><div>רישום תוצאה: תפקידי לקוחות. עקיפה בקביעת תור: כל תפקיד עם כתיבת יומן, עם נימוק.</div>
+<div>קלט ואימותים</div><div><ul><li>רישום: patch_test_date (≤ היום), תוצאה passed|failed, patch_test_expires_at (ברירת מחדל: date + 6 חודשים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>PATCH הכרטיס עם השדות.</li><li>אופציונלי: "קבע תור לבדיקת רגישות" יוצר תור קצר (שירות "בדיקת רגישות", 15 דק') בזרימת יצירת התור; סטטוס הכרטיס → pending עד רישום התוצאה.</li><li>בקביעת תור: ראו "יצירת תור" — ב-biz אזהרה עם קביעת בדיקה או עקיפה מתועדת; ב-family חסימה עם הנחיה לפנות לסלון; בחנות הבקשה מסומנת "נדרשת בדיקת רגישות".</li></ol></div>
+<div>חישובים</div><div>expired מחושב בתצוגה ובבדיקה: <code>status='passed' AND patch_test_expires_at &lt; todayIL()</code>; אינו נכתב כערך.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>none/failed/expired</td><td>pending</td><td>תפקיד לקוחות</td><td>נקבע תור בדיקה</td><td>—</td></tr><tr><td>none/pending/expired/failed</td><td>passed</td><td>תפקיד לקוחות</td><td>רישום תוצאה</td><td>expires_at נקבע</td></tr><tr><td>none/pending/expired</td><td>failed</td><td>תפקיד לקוחות</td><td>רישום תוצאה</td><td>אזהרה בכל קביעה לשירות</td></tr><tr><td>passed</td><td>(expired מחושב)</td><td>מערכת</td><td>expires_at עבר</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>עקיפה נרשמת בתור (patch_test_override_by/_reason) וב-audit.</div>
+<div>ממשק</div><div>תג סטטוס (ללא שינוי) + כפתור "רשום בדיקת רגישות" + חלון אזהרה בקביעה ("ללקוחה אין בדיקת רגישות בתוקף לשירות זה" עם "קבע תור לבדיקה" / "קבע בכל זאת").</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-28</code> — ממשק רישום, expired מחושב, אזהרה ועקיפה מתועדת במקום חסימה קבועה, סימון בחנות.</li><li><code>BTY-11</code> — PATCH הכרטיס עובד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="formulas photos before after consent gallery"><h3>פורמולות ותמונות לפני/אחרי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "💅 יופי" בכרטיס: "+ הוסף" פורמולה (<code>_beautyAddFormulaModal</code>, <code>_beautySubmitFormula</code>) ו-"+ העלה" תמונה (<code>_beautyUploadPhotoModal</code>, <code>_beautySubmitPhoto</code>). מסלולים: <code>POST/GET /clients/:id/formulas</code>, <code>POST/GET /clients/:id/photos</code>.</div>
+<div>הרשאות</div><div>תפקידי לקוחות; הכרטיס שייך לעסק, אחרת 403 "אין הרשאה" (ללא שינוי).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>פורמולה: פרטים חובה, "נא הזן פרטי פורמולה" (ללא שינוי); appointment_id/practitioner_id של העסק.</li>
+<li>תמונה: קובץ (png/jpg/webp, עד 8MB, בדיקת magic bytes — ARC-26) <b>או</b> URL (http/https), אחרת "נא העלי קובץ או הזיני URL לתמונה"; photo_type ∈ before|after|consultation|reference (enum, לא VARCHAR(10)); <code>is_consent_given=true</code> חובה, אחרת 400 "יש לאשר הסכמת הלקוחה לצילום" (BTY-47).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פורמולה: <code>INSERT beauty_formulas(treatment_type||'כללי', formula_data={}, application_notes, appointment_id?, practitioner_id?, processing_time_min?)</code> (ללא שינוי).</li>
+<li>תמונה: העלאה חתומה לאחסון אובייקטים + thumbnail; <code>INSERT beauty_client_photos(photo_type, image_url, notes, is_consent_given)</code>.</li>
+<li>אחרי שמירה הכרטיס מתרענן (ללא סגירה ופתיחה מחדש).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אובייקט באחסון; מחיקת תמונה מוחקת את האובייקט (ARC-26).</div>
+<div>ממשק</div><div>בחלון התמונה: "העלה קובץ" או "הדבק קישור", סוג (לפני/אחרי/ייעוץ/רפרנס), תיבת סימון חובה "הלקוחה אישרה צילום ושמירה".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-47</code> — העלאת קובץ בנוסף ל-URL, consultation נתמך, הסכמה חובה (מתוקן: URL נשמר, 8MB לפי ARC-26).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="retention cron overdue clients avg visit interval group_notifications"><h3>Cron שימור לקוחות (Retention)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימה מתוזמנת <code>beauty_retention</code> ב-worker (ARC-23), יומית ב-09:00 Asia/Jerusalem, singleton בכל המערכת.</div>
+<div>הרשאות</div><div>מערכת.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוחה בפיגור: <code>avg_visit_interval_days &gt; 0</code>, last_visit_at קיים, <code>last_visit_at + avg ≤ NOW()</code>, ואין לה תור עתידי pending_client/confirmed באותו עסק — התאמה לפי client_record_id (גם לקוחה לא מקושרת) (BTY-14, BTY-36).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל לקוחה: <code>INSERT notifications(recipient_type='group', recipient_id=העסק, type='beauty_retention', title="לקוח/ה {name} לא ביקר/ה זמן מה", body="ממוצע ביקור כל {round(avg)} יום — כדאי ליצור קשר", ref_type='beauty_client', ref_id=client_record_id)</code>, עם dedup לפי (type, ref, last_visit_at) — פעם אחת לכל מחזור ביקור (ARC-16).</li><li>לוג מובנה של מספר ההתראות; כשל נרשם עם התראה (ARC-23/33), לא נבלע.</li></ol></div>
+<div>חישובים</div><div>ראו תנאי הפיגור.</div>
+<div>מכונת מצבים</div><div>התראה: unread → read (קריאה בממשק).</div>
+<div>תופעות לוואי</div><div>התראות בפעמון העסק.</div>
+<div>ממשק</div><div>ההתראה מוצגת במרכז ההתראות של העסק; לחיצה פותחת את כרטיס הלקוחה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-14</code> — כתיבה לטבלה קיימת (notifications המאוחדת — מתוקן לפי ARC-16), dedup למחזור, לקוחות לא מקושרות, 09:00 שעון ישראל.</li><li><code>BTY-18</code> — תנאי התור העתידי pending_client/confirmed.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מנויים וחבילות</h2>
+
+<section class="proc" data-f="subscription types packages create update deactivate"><h3>ניהול סוגי חבילות (קטלוג מנויים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "מנויים וחבילות" (<code>loadBeautySubscriptions</code>, <code>_beautySubTypeModal</code>, <code>_beautySubmitSubType</code>, <code>_beautyDeactivateSubType</code>). מסלולים: <code>GET/POST /subscription-types</code>, <code>PATCH /subscription-types/:id</code>.</div>
+<div>הרשאות</div><div>GET: כל תפקידי היופי (נדרש למכירה בכרטיס). POST/PATCH: ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>שרת POST: <code>!name || !sessions_count</code> ⇒ 400 ("שם ומספר כניסות הם שדות חובה"); sessions_count ≥ 1; price ≥ 0; validity_days ≥ 1; service_ids של העסק. לקוח: שם חובה; כניסות ברירת מחדל 5; תוקף ברירת מחדל 365 (min=30 ב-input) — ללא שינוי.</li><li>GET מחזיר פעילים לפי price (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT עם <code>price ?? 0</code>, <code>validity_days ?? 365</code>, service_ids JSON (ברירת מחדל []).</li><li>PATCH: whitelist (name, description, sessions_count, price, validity_days, service_ids, is_active); מעדכן רק שדות שנשלחו (BTY-48).</li><li>הסרה = is_active=false.</li></ol></div>
+<div>חישובים</div><div>service_ids משמש להצעת מימוש בהשלמת תור (BTY-49).</div>
+<div>מכונת מצבים</div><div>is_active TRUE→FALSE ("הסר").</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>טופס העריכה טוען את כל השדות מהשרת (כולל תיאור ושירותים כלולים) (BTY-48); נוסף בורר "שירותים כלולים" (service_ids); התגובות נבדקות (BTY-21). טקסט ההדרכה "בקביעת תור — המערכת מציגה מנויים פעילים ומאפשרת מימוש כניסה" הופך לנכון (המימוש מוצע בהשלמה ובחלון התור).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-48</code> — עריכה לא דורסת תיאור.</li><li><code>BTY-21</code> — בדיקת תגובה.</li><li><code>BTY-49</code> — service_ids בשימוש.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="client subscription sell use session redeem depleted expires"><h3>מכירת מנוי ללקוח ומימוש כניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "🎁 מנוי" בכרטיס הלקוח: "+ מכור מנוי חדש" (<code>_bcmSellSubscriptionModal</code>, <code>_bcmSubmitSellSubscription</code>) ו-"סמן כניסה כמנוצלת (−1)" (<code>_bcmUseSubscription</code>); חדש: מימוש מתוך השלמת תור (BTY-49).</div>
+<div>הרשאות</div><div>תפקידי לקוחות (כולל reception — מכירת מנוי).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>POST <code>/client-subscriptions</code>: <code>!client_record_id || !sessions_total</code> ⇒ 400; client_record_id ו-subscription_type_id של העסק (BTY-49, ARC-04). לקוח: כניסות ≥1, "נא הזן כמות כניסות תקינה" (ללא שינוי).</li>
+<li>PATCH <code>/client-subscriptions/:id/use</code>: רק אם is_active=TRUE, <code>expires_at &gt;= todayIL()</code>, שייך לעסק, ואם הועבר client_record_id/appointment_id — שייך לאותה לקוחה; אחרת 404 "subscription not found or depleted" / 409 "החבילה פגה" (BTY-49).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מכירה (withTransaction): <code>expires_at = todayIL() + (validity_days ?? 365)</code>; <code>INSERT beauty_client_subscriptions(subscription_type_id|null, subscription_name, sessions_total, expires_at, price)</code>; purchase_date = היום. אם price&gt;0: <code>logBizIncome(price, "מכירת חבילה — {name} — {client}")</code> והרשומה מופיעה במרכז הגבייה עד אישור (BTY-49 מתוקן לפי BTY-44).</li>
+<li>מימוש (אטומי): <code>UPDATE … SET sessions_used=sessions_used+1, is_active = (sessions_used+1 &lt; sessions_total) WHERE id AND business_group_id AND is_active AND expires_at &gt;= todayIL() AND sessions_used &lt; sessions_total RETURNING</code>; appointment_id אופציונלי נרשם.</li>
+</ol></div>
+<div>חישובים</div><div>נותרו = <code>max(0, sessions_total − sessions_used)</code>. תווית: is_active=false ⇒ "פג תוקף" (תאריך עבר) או "נוצל במלואו"; אחרת "פעיל"; פג תאריך עם is_active=true מוצג "פג תוקף" (מחושב). כפתור המימוש מוצג רק לפעיל, לא פג, עם כניסות (ללא שינוי).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>(חדש)</td><td>active</td><td>תפקיד לקוחות</td><td>—</td><td>הכנסה אם price&gt;0; בגבייה</td></tr><tr><td>active</td><td>active (−1)</td><td>תפקיד לקוחות / השלמת תור</td><td>לא פג, נותרו כניסות</td><td>sessions_used+1</td></tr><tr><td>active</td><td>depleted (is_active=false)</td><td>אותו דבר</td><td>הכניסה האחרונה</td><td>—</td></tr><tr><td>active</td><td>expired (מחושב)</td><td>מערכת</td><td>expires_at עבר</td><td>מימוש נחסם</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>הכנסה בעת מכירה (חדש); תור שמומש מחבילה לא נכנס לגבייה.</div>
+<div>ממשק</div><div>חלון המכירה ללא שינוי בשדות; ההנחיה "יש לגבות את התשלום מהלקוחה בנפרד" מוחלפת ב-"המכירה נרשמה כהכנסה ותופיע בגבייה עד אישור תשלום". הכפתור הידני "סמן כניסה כמנוצלת (−1)" נשאר.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-49</code> — מימוש רק לחבילה תקפה ושייכת; הצעת מימוש בהשלמה; מכירה רושמת הכנסה ונכנסת לגבייה (מתוקן לפי BTY-44).</li></ul></div>
+</div></section>
+
+<h2 class="grp">מלאי מקצועי</h2>
+
+<section class="proc" data-f="inventory list alerts retail backbar low stock reorder threshold"><h3>רשימת מלאי והתראות מלאי נמוך</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_inventory</code> מריץ <code>loadBeautyInventory()</code> עם <code>GET /inventory?type</code> ו-<code>GET /inventory/alerts</code>.</div>
+<div>הרשאות</div><div>קריאה: כל תפקידי היופי. כתיבה (התאמה, הוספה, עריכה, מכירה): ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>type ∈ retail|backbar אופציונלי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>inventory: is_active=TRUE, אופציונלית לפי inventory_type, לפי type ואז name (ללא שינוי); כל שורה כוללת <code>is_low</code> מחושב בשרת.</li><li>alerts: <code>reorder_threshold &gt; 0 AND stock_qty &lt;= reorder_threshold</code>, לפי stock_qty עולה.</li></ol></div>
+<div>חישובים</div><div>isLow = <code>Number(stock_qty) &lt;= Number(reorder_threshold)</code> וסף&gt;0 (סף 0 = ללא התראה) (BTY-50). פס התקדמות = <code>min(100, round(stock/(threshold×3)×100))</code>, או 50% כש-threshold=0 (ללא שינוי). ערכים מספריים מומרים ל-Number לפני כל השוואה.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי: סינון הכל / מכירה 🛍️ / Back-bar 🧴; באנר אדום "N מוצרים במלאי נמוך" עם 3 שמות; + ו-−; "מכור ללקוחה" לפריט retail. נוספו: "ערוך" ו"השבת" לכל פריט, ו"היסטוריית תנועות" (BTY-51).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-50</code> — השוואה מספרית / is_low מהשרת; סף 0 = ללא התראה.</li><li><code>BTY-51</code> — עריכה, השבתה והיסטוריה מהרשימה.</li><li><code>BTY-04</code> — כתיבה למנהלים בלבד (תואם לממשק הקיים).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="inventory create add product"><h3>הוספת מוצר למלאי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"הוסף מוצר" (<code>_beautyAddInventoryModal</code>, <code>_beautySubmitInventory</code>) → <code>POST /inventory</code>; חדש: "ערוך" → <code>PATCH /inventory/:id</code> (BTY-51).</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: שם חובה, "שם מוצר הוא שדה חובה" (ללא שינוי). שרת (חדש): product_name חובה ⇒ 400 במקום 500; inventory_type ∈ retail|backbar; מספרים ≥ 0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT עם <code>inventory_type ?? 'retail'</code>, <code>unit ?? 'unit'</code>, <code>stock_qty ?? 0</code>, <code>reorder_threshold ?? 5</code>, <code>cost_price ?? 0</code>, <code>retail_price ?? 0</code> — 0 מפורש נשמר (BTY-50).</li><li>אם stock_qty&gt;0 — תנועת מלאי reason='initial'.</li><li>PATCH: whitelist (product_name, brand, unit, reorder_threshold, cost_price, retail_price, is_active, inventory_type); שינוי כמות רק דרך adjust.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>is_active TRUE↔FALSE (השבתה, ללא מחיקה פיזית).</div>
+<div>תופעות לוואי</div><div>תנועת מלאי התחלתית.</div>
+<div>ממשק</div><div>ברירות מחדל בטופס ללא שינוי: type=backbar, כמות 1, מינימום 2, יחידה "יח׳"; מינימום 0 שהוזן נשמר כ-0. תווית "כמות בארגז" מוחלפת ב-"כמות במלאי" (BTY-51).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-50</code> — סף 0 נשמר.</li><li><code>BTY-51</code> — עריכה והשבתה מהממשק; תווית "כמות במלאי"; תנועה התחלתית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="inventory adjust stock delta reason"><h3>התאמת כמות מלאי (+/−)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתורי + ו-− (<code>_beautyAdjustStock</code>, <code>_beautySubmitAdjust</code>) → <code>POST /inventory/:id/adjust</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>delta מספר סופי ≠ 0, אחרת 400 "נדרש שינוי כמות תקין" (ללא שינוי); reason ∈ purchase|return|correction|usage|waste; cost_total אופציונלי ≥ 0 ל-purchase.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction.</li><li><code>stock_qty = GREATEST(stock_qty + delta, 0)</code> (ללא שינוי); מוחזר stock_qty.</li><li><code>INSERT beauty_inventory_movements(delta בפועל, reason, user_id=ctx.userId)</code>.</li><li>reason='purchase' עם cost_total&gt;0 ובחירת "רשום הוצאה": <code>logBizExpense(cost_total, "רכש מלאי — {name}")</code> (אופציונלי).</li></ol></div>
+<div>חישובים</div><div>delta בפועל = new − old (מתחשב ב-GREATEST).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>תנועת מלאי; הוצאה אופציונלית בתזרים.</div>
+<div>ממשק</div><div>סיבות ללא שינוי (הוספה: purchase/return/correction; הסרה: usage/waste/correction). לרכש: שדה "עלות כוללת" ותיבת "רשום כהוצאה בתזרים".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-51</code> — reason נשמר ביומן תנועות; הוצאת רכש אופציונלית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="inventory sell retail income transaction"><h3>מכירת מוצר קמעונאי מהמלאי המקצועי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מכור ללקוחה" (<code>_beautySellInventoryModal</code>, <code>_beautySubmitSellInventory</code>) → <code>POST /inventory/:id/sell</code>. אותה פונקציית service משמשת מכירת מוצר יופי בקופה (BTY-61).</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager מטאב המלאי; בקופה — לפי הרשאות POS (כולל reception).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>qty שלם ≥1, אחרת 400 "נדרשת כמות תקינה" (ללא שינוי).</li>
+<li>פריט בעסק, אחרת 404 "פריט לא נמצא" (ללא שינוי).</li>
+<li>פריט לא פעיל או inventory_type≠retail ⇒ 400 "פריט אינו זמין למכירה" (BTY-52).</li>
+<li><code>stock_qty &lt; qty</code> ⇒ 400 "אין מספיק מלאי לכמות המבוקשת"; עדכון אטומי עם <code>stock_qty&gt;=qty</code>, 0 שורות ⇒ 409 "המלאי השתנה, נסה שוב" (ללא שינוי).</li>
+<li>אופציונלי: client_record_id, practitioner_id של העסק (BTY-52).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction (BTY-52).</li><li>unitPrice = <code>body.unit_price ?? retail_price ?? 0</code>; total = unitPrice × qty (ללא שינוי).</li><li><code>UPDATE stock_qty = stock_qty − qty</code>; תנועת מלאי reason='sale'.</li><li>אם total&gt;0: <code>logBizIncome(total, "מכירת מוצר — {name} × {qty}")</code>.</li><li>אם practitioner_id: <code>INSERT beauty_commissions(commission_type='retail', gross_amount=total, commission_rate=commission_rate_retail, commission_amount)</code> (BTY-34).</li></ol></div>
+<div>חישובים</div><div>עמלה קמעונאית = <code>+(total × commission_rate_retail / 100).toFixed(2)</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>הכנסה (sales/income); עמלה קמעונאית אם יש מטפלת; תנועת מלאי; קישור ללקוחה.</div>
+<div>ממשק</div><div>החלון ללא שינוי בשדות הקיימים; נוספו בוררי "לקוחה (אופציונלי)" ו"מטפלת שמכרה (אופציונלי)".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-52</code> — טרנזקציה; פריט לא פעיל/לא retail נחסם; קישור ללקוחה ולמטפלת.</li><li><code>BTY-34</code> — עמלת קמעונאות.</li><li><code>BTY-61</code> — אותה לוגיקה בקופה.</li></ul></div>
+</div></section>
+
+<h2 class="grp">עמלות</h2>
+
+<section class="proc" data-f="commissions list grouped practitioner unpaid"><h3>מסך עמלות (צבירה לפי מטפלת)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_commissions</code> מריץ <code>loadBeautyCommissions()</code> עם <code>GET /commissions</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager — כל הצוות. therapist/nail_tech/makeup_artist — רק השורות שבהן practitioner.user_id = ctx.userId (השרת מכפה את הסינון) (BTY-04, BTY-59). reception ותפקידים אחרים ⇒ 403.</div>
+<div>קלט ואימותים</div><div><ul><li>פילטרים: practitioner_id, is_paid, from, to — לפי created_at בשעון ישראל (ללא שינוי בסמנטיקה).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>JOIN מטפלות: practitioner_name, <b>color_hex</b>; JOIN תור וסגמנט: client_name, service_name, appointment start_time (BTY-54); ממוין created_at יורד (ללא שינוי).</li><li>בלקוח: קיבוץ לפי practitioner_id; total = Σ commission_amount; unpaid = Σ של <code>paid_at === null</code> (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>ראו לעיל.</div>
+<div>מכונת מצבים</div><div>אין (ראו "סימון עמלות כשולמו").</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כרטיס לכל מטפלת בצבעה עם <b>3 העמלות האחרונות</b> (<code>slice(0,3)</code> מהרשימה היורדת) (BTY-54); "פרט" פותח פירוט עמלה לפי תור: תאריך, לקוחה, שירות, סכום ברוטו, שיעור, עמלה, סוג (שירות/קמעונאות). פילטר חודש (ברירת מחדל החודש הנוכחי, אפשרות "הכל"). כפתור "שלם ₪X" וסיכום: סה"כ, לא שולם, מספר מטפלות (ללא שינוי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-54</code> — 3 האחרונות, צבע, פילטר חודש, פירוט לפי תור.</li><li><code>BTY-04</code> — מטפלת רואה רק את שלה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="commissions pay mark paid"><h3>סימון עמלות כשולמו</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שלם ₪X" (<code>_beautyPayCommissions(practitionerId)</code>) → <code>POST /commissions/pay</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager (ללא שינוי + branch_manager).</div>
+<div>קלט ואימותים</div><div><ul><li>בלי commission_ids ובלי practitioner_id ⇒ 400 "נדרש commission_ids או practitioner_id" (ללא שינוי).</li><li>חדש: <code>until_date</code> אופציונלי (ברירת מחדל היום); commission_ids של העסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction.</li><li><code>UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW(), period_end=until_date WHERE business_group_id AND is_paid=FALSE AND (id = ANY(ids) OR (practitioner_id=$p AND created_at &lt; until_date+1)) RETURNING commission_amount</code>.</li><li>sum = Σ; אם sum&gt;0: <code>logBizExpense(sum, "תשלום עמלות — {practitioner_name}", category='salary')</code> (BTY-53).</li><li>מוחזר <code>{updated, amount_paid: sum}</code>.</li></ol></div>
+<div>חישובים</div><div>amount_paid = Σ commission_amount של השורות שעודכנו.</div>
+<div>מכונת מצבים</div><div>is_paid FALSE → TRUE (ADMIN/senior/branch_manager); אין חזרה (עמלה ששולמה חוסמת "שחזור תור" מ-completed).</div>
+<div>תופעות לוואי</div><div>הוצאת שכר בתזרים בסכום זהה; audit.</div>
+<div>ממשק</div><div>חלון אישור: "לשלם ל{name} ₪X עבור עמלות עד {date}?" עם בורר תאריך (ברירת מחדל היום — כלומר כל הלא-משולמות, כמו היום) (BTY-53).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-53</code> — חלון אישור, תשלום עד תאריך, הוצאת שכר, החזרת הסכום.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ייעוץ ובקשות (RFQ)</h2>
+
+<section class="proc" data-f="rfq state machine new questionnaire_sent client_responded plan_sent accepted rejected booked photos_requested"><h3>מכונת המצבים של בקשת ייעוץ (beauty_rfq.status)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תהליך ייעוץ בין לקוחת משפחה (app.js) לעסק (business-app.js); מעברים נאכפים בשרת (<code>UPDATE … WHERE status = ANY(allowedFrom)</code>, אחרת 409 <code>INVALID_TRANSITION</code>) (BTY-55).</div>
+<div>הרשאות</div><div>עסק: ADMIN, senior_therapist, branch_manager (BTY-04). משפחה: client_family_id = ctx.groupId.</div>
+<div>קלט ואימותים</div><div><ul><li>ערכים: new, questionnaire_sent, client_responded, plan_sent, accepted, rejected, booked. photos_requested לא בשימוש ומוסר מהמפה; client_responded נוסף למפת הסטטוסים בעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כל מסלול RFQ מבצע את המעבר ואת עדכון הנתונים באותו UPDATE.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(חדש)</td><td>new</td><td>משפחה (POST /api/beauty/rfq)</td><td>client_family_id = המשפחה; העסק beauty</td><td>התראה לעסק</td></tr>
+<tr><td>new, client_responded</td><td>questionnaire_sent</td><td>עסק</td><td>שאלון תקין (מערך)</td><td>questionnaire_data={questions, sent_at}; התראה ללקוחה</td></tr>
+<tr><td>questionnaire_sent</td><td>client_responded</td><td>משפחה</td><td>answers באורך questions</td><td>answers, answered_at, client_photos; התראה לעסק</td></tr>
+<tr><td>new, questionnaire_sent, client_responded, plan_sent</td><td>plan_sent</td><td>עסק</td><td>כותרת</td><td>treatment_plan; התראה ללקוחה</td></tr>
+<tr><td>plan_sent</td><td>accepted</td><td>משפחה</td><td>יש treatment_plan</td><td>plan_accepted_at; התראה לעסק</td></tr>
+<tr><td>new, questionnaire_sent, client_responded, plan_sent</td><td>rejected</td><td>משפחה או עסק</td><td>—</td><td>התראה לצד השני</td></tr>
+<tr><td>accepted</td><td>booked</td><td>עסק (קביעת תור מה-RFQ)</td><td>תור נוצר עם rfq_id</td><td>id התור נוסף ל-resulting_appointment_ids; התראה ללקוחה</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>כל מעבר שולח התראה לצד השני (ARC-16).</div>
+<div>ממשק</div><div>כפתור "שלח תוכנית טיפולים" מוצג ב-new, questionnaire_sent, client_responded ו-plan_sent ("עדכן תוכנית"); "קבע תור מהבקשה" מוצג ב-accepted.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-55</code> — מעברים נאכפים; שליחת תוכנית אחרי תשובת לקוחה; booked ו-resulting_appointment_ids; התראות (מתוקן: questionnaire_sent→plan_sent ודחייה ממצבי ביניים נשמרים).</li><li><code>BTY-04</code> — RFQ בעסק למנהלים/בכירות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq family create list businesses discovery"><h3>יצירת בקשת ייעוץ ע"י לקוח משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>באפליקציה המשפחתית: "שירותי יופי וקוסמטיקה" (<code>loadFamilyBeautyRfqInline</code>) או "💌 ייעוץ מקדים" בכרטיס העסק; "שלח פנייה" → <code>_familyNewRfqModal</code>, <code>_submitFamilyRfq</code>.</div>
+<div>הרשאות</div><div>סשן family; client_family_id = ctx.groupId, אחרת 403 (ללא שינוי). <code>GET /api/beauty/businesses</code> ציבורי (רשימה סגורה).</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: תיאור חובה, "נא תארי את הבקשה" (ללא שינוי). שרת: service_description 1–2000 תווים; business_group_id של עסק beauty פעיל עם זכאות, אחרת 404 (BTY-30).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>INSERT beauty_rfq(business_group_id, client_family_id, service_description)</code>, new.</li><li>גילוי עסקים: <code>GET /api/beauty/businesses</code> — עסקים BUSINESS עם business_type='beauty' (שדות ציבוריים בלבד).</li><li>בקשות המשפחה: <code>GET /api/beauty/rfq/family/:familyId</code> (familyId = ctx.groupId), כולל business_name, updated_at יורד (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>(חדש) → new.</div>
+<div>תופעות לוואי</div><div>התראה לעסק "בקשת ייעוץ חדשה" (BTY-55). audit עם actor_type='family' (BTY-06).</div>
+<div>ממשק</div><div>תג "נדרשת פעולה" ב-questionnaire_sent או plan_sent (ללא שינוי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-30</code> — בדיקה שהעסק beauty.</li><li><code>BTY-55</code> — התראה לעסק.</li><li><code>BTY-06</code> — audit נכון.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq questionnaire send business forms builder templates"><h3>שליחת שאלון ע"י העסק (שתי דרכים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) "📋 שלח שאלון" בכרטיס RFQ (<code>_beautyRfqSendQuestionnaire</code>). (ב) "טפסי ייעוץ" בכותרת תיקי הלקוחות (<code>_beautyFormsBuilderModal</code>, <code>_previewConsultationForm</code>). שתיהן → <code>PATCH /api/beauty/rfq/:id/questionnaire</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager; RFQ של העסק, אחרת 403.</div>
+<div>קלט ואימותים</div><div><ul><li>שרת: <code>questions</code> חייב להיות מערך מחרוזות לא ריקות (1–30, כל אחת עד 500 תווים), אחרת 400 (BTY-56).</li><li>(ב): חובה לבחור פנייה, "נא לבחור פנייה", ולפחות שאלה אחת; רשימת הפניות כוללת new ו-client_responded.</li><li>מעבר חוקי לפי המכונה (BTY-55).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>(א) prompt עם שאלות מופרדות בפסיק → נשלחות כ<b>מערך</b> (BTY-56). (ב) תבניות color, keratin, nails, skin (4 שאלות כל אחת) או ידניות → מערך (ללא שינוי).</li><li>שרת: <code>questionnaire_data = {questions, sent_at}</code>, <code>status='questionnaire_sent'</code>.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>new|client_responded → questionnaire_sent.</div>
+<div>תופעות לוואי</div><div>התראה ללקוחה (BTY-55).</div>
+<div>ממשק</div><div>(א) בודקת את תגובת השרת (BTY-21). בכרטיס ה-RFQ בעסק השאלון מוצג כזוגות שאלה–תשובה (ולא <code>k: v</code>) (BTY-56).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-56</code> — פורמט מערך אחיד, ולידציה, תצוגת שאלה–תשובה.</li><li><code>BTY-21</code> — בדיקת תגובה.</li><li><code>BTY-55</code> — מעבר נאכף והתראה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq client response answers photos"><h3>תשובת לקוח לשאלון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודאל פרטי ה-RFQ במשפחה, ב-questionnaire_sent: "שלח תשובות" (<code>_submitRfqAnswers</code>) → <code>POST /api/beauty/rfq/:id/client-response</code>.</div>
+<div>הרשאות</div><div>סשן family; RFQ של המשפחה, אחרת 403 (ללא שינוי).</div>
+<div>קלט ואימותים</div><div><ul><li>answers = מערך מחרוזות באורך questions (BTY-56); photos — URLs מהעלאה מאושרת (ARC-26), עד 4.</li><li>status = questionnaire_sent, אחרת 409.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>questionnaire_data = {...existing, answers, answered_at}</code>, <code>client_photos</code>, <code>status='client_responded'</code> (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>questionnaire_sent → client_responded.</div>
+<div>תופעות לוואי</div><div>התראה לעסק (BTY-55).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-56</code> — ולידציית אורך תשובות.</li><li><code>BTY-55</code> — בדיקת מצב והתראה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq treatment plan send accept reject payment link"><h3>תוכנית טיפולים: שליחה, אישור ודחייה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: "📄 שלח תוכנית טיפולים" (<code>_beautyRfqSendPlan</code>, <code>_beautyRfqSubmitPlan</code>) → <code>POST /api/beauty/rfq/:id/plan</code>. משפחה: "אשר תוכנית ✅" (<code>_acceptRfqPlan</code>) / "דחה ✕" (<code>_rejectRfqPlan</code>). חדש בעסק: "קבע תור מהבקשה" ב-accepted.</div>
+<div>הרשאות</div><div>plan: ADMIN/senior_therapist/branch_manager, RFQ של העסק. accept: family, RFQ של המשפחה. reject: עסק (אותם תפקידים) או משפחה של ה-RFQ.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>plan: כותרת חובה, "כותרת חובה" (ללא שינוי); sessions [{name, duration_min?, price ≥ 0}]; total_price ≥ 0; deposit_amount ≥ 0 אופציונלי; payment_link (https) אופציונלי (BTY-57).</li>
+<li>accept: status=plan_sent ויש treatment_plan, אחרת 409 (BTY-55).</li>
+<li>reject: אם accepted ⇒ 400 "לא ניתן לדחות בקשה שכבר אושרה" (ללא שינוי); לא קיים ⇒ 404 "לא נמצא".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>plan: <code>treatment_plan = {title, sessions:[{name: desc||title, price}], total_price, deposit_amount, payment_link, sent_at}</code>, <code>status='plan_sent'</code>; הערה נשלחת גם כהודעה עם from נגזר מהסשן (BTY-07).</li>
+<li>accept: <code>status='accepted'</code>, <code>plan_accepted_at=NOW()</code>.</li>
+<li>reject: <code>status='rejected'</code>.</li>
+<li>"קבע תור מהבקשה": פותח את מודאל התור החדש עם שם הלקוחה, family, rfq_id ושירות/מחיר מהתוכנית; יצירת התור מעבירה ל-booked (BTY-55).</li>
+</ol></div>
+<div>חישובים</div><div>total_price כפי שהוזן (ברירת מחדל Σ sessions.price).</div>
+<div>מכונת מצבים</div><div>ראו "מכונת המצבים של בקשת ייעוץ".</div>
+<div>תופעות לוואי</div><div>התראה לצד השני בכל מעבר.</div>
+<div>ממשק</div><div>אצל המשפחה: sessions (name, duration_min, price), סה"כ, "מקדמה נדרשת: ₪X" אם הוגדרה, וקישור "שלם עכשיו 💳" אם יש payment_link (ללא שינוי בתצוגה הקיימת). בעסק: שדות "מקדמה נדרשת" ו"קישור לתשלום" נשלחים; התגובה נבדקת (BTY-21); confirm לדחייה ללא שינוי: "לדחות את הבקשה? הלקוחה תראה שהבקשה נדחתה ולא ניתן יהיה לשנות זאת.".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-57</code> — מקדמה וקישור תשלום נשלחים ומוצגים.</li><li><code>BTY-55</code> — בדיקות מצב; המשך ל-booked.</li><li><code>BTY-21</code> — בדיקת תגובה.</li><li><code>BTY-07</code> — from מהסשן.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq messages chat"><h3>הודעות בתוך בקשת ייעוץ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: "💬 צ'אט" (<code>_beautyRfqChat</code>). משפחה: <code>_sendRfqMsg</code>. מסלול: <code>POST /api/beauty/rfq/:id/message</code>.</div>
+<div>הרשאות</div><div>עסק (ADMIN/senior_therapist/branch_manager) או המשפחה של ה-RFQ; אחרת 403; לא קיים ⇒ 404 (ללא שינוי).</div>
+<div>קלט ואימותים</div><div><ul><li>text חובה, 1–2000 תווים (BTY-07). from <b>לא</b> נקרא מה-body.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>from = ctx.type==='biz' ? 'biz' : 'client'</code> (BTY-07).</li><li>הוספה אטומית: <code>UPDATE beauty_rfq SET messages = COALESCE(messages,'[]') || $1::jsonb, updated_at=NOW() WHERE id …</code> עם <code>{from, text, ts}</code> (או INSERT ל-beauty_rfq_messages).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>התראה לצד השני (BTY-55).</div>
+<div>ממשק</div><div>ללא שינוי; "הסלון" אם from=biz, אחרת "לקוחה". טקסט מוצג דרך esc() (ARC-27).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-07</code> — from מסוג הסשן, ולידציית text, הוספה אטומית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq business list stats"><h3>רשימת בקשות ייעוץ בעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_rfq</code> מריץ <code>loadBeautyRfq()</code> עם <code>GET /api/beauty/:bizId/rfq?status</code>.</div>
+<div>הרשאות</div><div>ADMIN, senior_therapist, branch_manager.</div>
+<div>קלט ואימותים</div><div><ul><li>status אופציונלי מהרשימה הסגורה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שליפת RFQ של העסק עם <code>client_name</code> (שם המשפחה/הלקוחה, במקום client_name_family) (BTY-57).</li></ol></div>
+<div>חישובים</div><div>פתוחות = סטטוס שאינו accepted, rejected או booked; "ממתינות לתגובה" = questionnaire_sent (photos_requested הוסר); "ממתינות לך" = new או client_responded; "הפכו לתורים" = status='booked' (BTY-57).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כרטיס RFQ ללא שינוי במבנה: תג סטטוס (כולל client_responded "הלקוחה ענתה"), תאריך, תיאור, שם לקוחה (מוצג כעת), הודעה אחרונה, תשובות כזוגות שאלה–תשובה, עד 4 תמונות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-57</code> — client_name מוחזר; "הפכו לתורים" נספר מ-booked.</li><li><code>BTY-55</code> — client_responded במפת הסטטוסים.</li></ul></div>
+</div></section>
+
+<h2 class="grp">דשבורד, KPIs, דוחות ו-AI</h2>
+
+<section class="proc" data-f="dashboard kpi renderbeautyadmindashboard appt_today revenue unpaid commissions low inventory no show pending payment"><h3>דשבורד מנהל יופי ו-KPIs</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN (וגם branch_manager, senior_therapist) של עסק beauty שנכנס לדף הבית מריץ <code>renderBeautyAdminDashboard(dashEl)</code> → <code>GET /api/beauty/:bizId/dashboard</code>. רענון כל 30 שניות כשהמכל גלוי; דגל <code>_beautyDashRendering</code> מונע ריצה כפולה (ללא שינוי).</div>
+<div>הרשאות</div><div>ADMIN, branch_manager, senior_therapist (BTY-04).</div>
+<div>קלט ואימותים</div><div><ul><li>בכשל מוצגת הודעת "לא ניתן לטעון נתונים" עם ניסיון חוזר, במקום אפסים שקטים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שאילתה אחת מרכזת את כל המדדים לפי todayIL()/monthStartIL() (ARC-25).</li></ol></div>
+<div>חישובים</div><div>(today/month לפי Asia/Jerusalem; מדדי תורים לפי start_time של סגמנט 1)
+<ul>
+<li><code>appt_today</code>: תורים שמתחילים היום, סטטוס שאינו cancelled/no_show (ללא שינוי).</li>
+<li><code>appt_pending</code> ("תורים עתידיים"): <code>start_time &gt; NOW() AND status IN ('pending_client','confirmed')</code> (BTY-18).</li>
+<li><code>revenue_today</code> / <code>revenue_month</code>: Σ תנועות הכנסה של מודול היופי (תורים, מכירות מוצר, חבילות, חילוט פיקדון) שנרשמו ב-transactions היום / מתחילת החודש עד סופו, בשעון ישראל — עם ההכנסה בהשלמה (BTY-44 מתוקן) זה שווה ערך ל-Σ התורים שהושלמו + מכירות (BTY-58).</li>
+<li><code>unpaid_comm_sum/cnt</code>: Σ ו-COUNT עמלות is_paid=FALSE (ללא שינוי).</li>
+<li><code>low_inventory</code>: פריטים פעילים עם <code>reorder_threshold&gt;0 AND stock_qty&lt;=reorder_threshold</code>.</li>
+<li><code>no_show_today</code>: no_show שמתחילים היום (ללא שינוי).</li>
+<li><code>total_clients</code>: COUNT כרטיסי לקוח בעסק עם client_family_id (מקושרים); <code>total_client_cards</code>: COUNT כל הכרטיסים (BTY-58).</li>
+<li><code>pending_cancel_appts</code> עד 10 לפי start_time עולה; <code>pending_booking_requests</code> עד 10 calendar_events pending שאינם table_reservation (ללא שינוי).</li>
+<li><code>pending_payment_sum/cnt</code>: תורים completed/confirmed + חבילות שלא אושרה גבייתם ומחירם&gt;0.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>7 כרטיסי KPI (ללא שינוי במבנה): תורים היום → יומן; הכנסה היום → דוח הכנסות (טאב sales/reports, ללא שינוי ביעד הקיים); תורים עתידיים → יומן; "לקוחות עם חשבון מקושר" (שורת משנה "סה"כ כרטיסים: N") → לקוחות; עמלות לתשלום (כתום אם cnt&gt;0) → עמלות; הכנסה החודש → דוח הכנסות; "ממתין לגביה מלקוחות" (אדום אם cnt&gt;0) → מרכז גבייה. באנרים: ביטולים ממתינים, בקשות תור, התראה כתומה (מלאי נמוך / no-show). 8 פעולות מהירות ללא שינוי: יומן תורים, לקוחות, מטפלות, שירותים, מנויים, עמלות, קופה, משימות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-58</code> — הכנסה לפי תנועות בשעון ישראל עם גבול עליון לחודש; כרטיס הלקוחות המקושרים נשמר עם שורת סה"כ (מתוקן).</li><li><code>BTY-18</code> — תורים עתידיים = pending_client+confirmed.</li><li><code>BTY-27</code> — "היום" לפי Asia/Jerusalem.</li><li><code>BTY-05</code> — חשיפת כפתורי data-beauty-only אינה תלויה עוד בדשבורד זה.</li><li><code>BTY-04</code> — הדשבורד למנהלים/בכירות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="staff dashboard therapist reception nail_tech makeup_artist senior"><h3>דשבורד צוות יופי (לפי תפקיד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עובד עם employee_role_type מסוג therapist, senior_therapist, nail_tech, makeup_artist, reception או branch_manager מקבל <code>renderBeautyStaffDashboard(el, roleType)</code> (senior_therapist/branch_manager יכולים לעבור לדשבורד המנהל).</div>
+<div>הרשאות</div><div>הנתונים האישיים נשלפים לפי practitioner.user_id = ctx.userId (BTY-59).</div>
+<div>קלט ואימותים</div><div><ul><li>אין מטפלת מקושרת למשתמש ⇒ מוצגות רק פעולות מהירות ומשימות (כמו היום) עם הודעה "בקשי מהמנהלת לקשר אותך לכרטיס מטפלת".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>CONFIG לפי תפקיד (ללא שינוי): therapist/nail_tech/makeup_artist — יומן, לקוחות, משימות; senior_therapist — + צוות מטפלות ועמלות; reception — יומן, לקוחות, קופה, משימות; תפקיד לא מוכר ⇒ therapist.</li><li>עד 6 משימות פתוחות (לא shift, לא done, לא משויכות או משויכות לי) — ללא שינוי.</li><li>חדש (מטפלות): <code>GET /api/beauty/:bizId/me/summary</code> → תורי היום שלי, הביקורים הבאים (3), עמלות לא משולמות שלי (סכום וספירה).</li></ol></div>
+<div>חישובים</div><div>עמלות שלי = Σ commission_amount WHERE practitioner_id = שלי AND is_paid=FALSE.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>בנוסף לפעולות ולמשימות: כרטיס "התורים שלי היום", "הבאים בתור", "עמלות לתשלום". הפעולה "יומן" פותחת את היומן מסונן למטפלת עם בורר "כל המטפלות".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-59</code> — קישור user↔practitioner; תורים ועמלות אישיים; יומן מסונן כברירת מחדל (מתוקן: עם מעבר לכל המטפלות).</li><li><code>BTY-05</code> — branch_manager נתמך.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="reports beauty btype apptbystatus revbypractitioner topservices"><h3>דוחות אחידים — ענף יופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/reports?period&amp;btype=beauty</code> (groupId מהסשן — ARC-04).</div>
+<div>הרשאות</div><div>ADMIN, branch_manager (BTY-02, BTY-05); ללא סשן ⇒ 401.</div>
+<div>קלט ואימותים</div><div><ul><li>period ∈ today|week|month|year (ברירת מחדל month).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>df לפי Asia/Jerusalem: today, week (7 ימים אחורה), month, year (ללא שינוי בהגדרות).</li><li>הסינון לפי start_time של הטיפול (סגמנט 1) ולא לפי created_at (BTY-60).</li></ol></div>
+<div>חישובים</div><div><code>apptByStatus</code>: COUNT ו-Σtotal_price לפי status (כל הסטטוסים, מוצגים בנפרד). <code>revByPractitioner</code>: COUNT סגמנטים ו-Σ price לפי מטפלת — <b>רק מתורים completed</b>. <code>topServices</code>: 10 המובילים לפי ספירה עם Σ price — מתורים completed (BTY-60).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי במבנה; כותרת העמודה "הכנסה (טיפולים שהושלמו)".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-60</code> — לפי מועד טיפול; הכנסה רק מ-completed.</li><li><code>BTY-02</code> — דורש סשן ותפקיד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="ai chat assistant gemini beauty section actions update_appt_status complete_appt no_show_appt add_beauty_client"><h3>עוזר AI עסקי — הקשר יופי ופקודות פעולה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>צ'אט העוזר העסקי → <code>POST /api/biz/chat-assistant</code> דרך aiGateway (ARC-30): סשן biz, זכאות, מכסה אטומית (standard 10, premium 50, enterprise ללא הגבלה; איפוס בחצות שעון ישראל). מודל Gemini לפי config.</div>
+<div>הרשאות</div><div>סשן biz; כפתורי הפעולה מבצעים קריאות API רגילות ולכן כפופים למטריצת היופי של המשתמש.</div>
+<div>קלט ואימותים</div><div><ul><li>פקודות שמפוענחות מהתשובה מאומתות לפני הצגה: id של תור שקיים בהקשר; סטטוס ∈ confirmed|cancelled.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>השרת בונה את <code>beauty_appointments_today</code> מה-DB (תורי היום, עד 30): id, client, phone, service, practitioner (שם מטפלת), time, status, price — במקום מ-<code>window._beautyState</code> (BTY-33).</li>
+<li>הפרומפט מוסיף <code>beautySection</code> (ללא שינוי): no_show rate = <code>no_show/(completed+no_show)×100</code> (יעד &lt;10%, &gt;15% בעיה); מטפלת עם יותר מ-6 תורים ביום = עומס גבוה; פקודות <code>[ACTION:UPDATE_APPT_STATUS|id|confirmed/cancelled|name]</code>, <code>[ACTION:COMPLETE_APPT|id|name]</code>, <code>[ACTION:NO_SHOW_APPT|id|name]</code>, <code>[ACTION:ADD_BEAUTY_CLIENT|name|phone|notes]</code>, <code>[ACTION:OPEN_TAB|beauty_*|pos]</code>.</li>
+<li>הלקוח מפענח ומציג כפתורים; ה-handlers (<code>_aiUpdateApptStatus</code>, <code>_aiCompleteAppt</code>, <code>_aiNoShowAppt</code>, <code>_aiAddBeautyClient</code>) עוברים דרך פונקציית fetch מאומתת משותפת עם שמות השדות של ה-API (client_name, client_phone, general_notes) ובודקים <code>res.ok</code> (BTY-33).</li>
+</ol></div>
+<div>חישובים</div><div>ראו beautySection.</div>
+<div>מכונת מצבים</div><div>פעולות הסטטוס כפופות למכונת המצבים של התור (409 מוצג כהודעה).</div>
+<div>תופעות לוואי</div><div>ai_usage_log (ARC-30); הפעולות עצמן — כמו המסלולים הרגילים.</div>
+<div>ממשק</div><div>ללא שינוי; הודעת שגיאה ברורה בכשל.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-33</code> — Authorization בכל הפעולות, שמות שדות נכונים, הקשר מה-DB כולל שם מטפלת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="backup snapshot restore beauty tables"><h3>גיבוי ושחזור נתוני יופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירת snapshot של עסק ושחזור (מסלולי הגיבוי הכלליים).</div>
+<div>הרשאות</div><div>לפי מסלול הגיבוי הכללי (ADMIN של העסק / SA) — מחוץ לתחום זה.</div>
+<div>קלט ואימותים</div><div><ul><li>השחזור מאמת גרסת snapshot ושייכות לעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הגיבוי כולל את <b>כל</b> טבלאות היופי בשלמותן, לפי שמות העמודות האמיתיים: practitioners, resources, appointments (כל התקופה), appointment_segments, client_records, formulas, client_photos (metadata ו-URL), inventory, inventory_movements, service_catalog, service_materials, subscription_types, client_subscriptions, commissions (כולן, לפי is_paid), rfq (כל התקופה) (BTY-13).</li><li>השחזור (withTransaction): upsert לפי id לכל הטבלאות בסדר תלויות, עם העמודות האמיתיות (client_name, client_phone, client_email, medical_notes…).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>בדיקת round-trip אוטומטית ב-CI (גיבוי → שחזור לעסק ריק → השוואה) (BTY-13, ARC-43).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-13</code> — גיבוי מלא של כל טבלאות היופי בשמות הנכונים; שחזור הפיך ונבדק.</li></ul></div>
+</div></section>
+
+<h2 class="grp">התאמת beauty-guide.html (CLAUDE.md כלל 6)</h2>
+
+<section class="proc" data-f="guide mismatch beauty-guide documentation"><h3>פערים בין המדריך לקוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל שינוי לפי מסמך זה מעדכן את <code>public/beauty-guide.html</code> באותו קומיט (כלל 6, ARC-42); המדריך נגזר מהמפרט.</div>
+<div>הרשאות</div><div>לא רלוונטי (תיעוד).</div>
+<div>קלט ואימותים</div><div><ul><li>בדיקת PR: שינוי בקבצי היופי ללא שינוי במדריך מסומן לסקירה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>תיקוני ניווט וטפסים (BTY-62): הוספת מטפלת בטאב "💆 מטפלות" (ללא טלפון; שיוך אופציונלי לעובד); "+ לקוחה חדשה" בטופס התור (קיים כעת); כרטיס לקוח 5 טאבים; 7 KPIs כולל "ממתין לגביה"; "+ חבילה חדשה" ותוקף בימים ושירותים כלולים; סטטוסים לפי המילון האחיד (ללא "הגיע"/"בטיפול"); השבתת מטפלת (אין מחיקה) עם שיבוץ מחדש; תפקידים ורשאויות לפי מטריצת היופי (מטפלת — קריאת מלאי בלבד); AI 5–10 שירותים; בחירת חדר.</li>
+<li>הבטחות שמומשו בהחלטות ונשארות (BTY-63): תזכורת 24 שעות והתראות Inbox (BTY-38); אלרגיות כתג אדום בחלון התור; סינון לפי מטפלת (BTY-31); חסימת משבצות לפי משך ומטפלת (BTY-24/42); Patch Test כאזהרה עם רישום (BTY-28); עמלה לפי שירות, פילטר חודש ופירוט לפי תור (BTY-34/54); שימוש בחומרים בטיפול (BTY-35); קביעת תור מבקשת ייעוץ (BTY-55); "התורים שלה, העמלות שלה" (BTY-59); חיבור קופה לתורים ולמלאי (BTY-61); חדרים (BTY-25).</li>
+<li>הבטחות שאינן מכוסות — מוסרות מהמדריך ומתיאורי המודולים בקטלוג הרישוי ונרשמות ב-backlog (לא הסרת יכולת קיימת): תזכורת 2 שעות; התראות מלאי ביומן; הצגת מוצרי קמעונאות בחנות הציבורית; "מבקשת שינוי" ב-RFQ; סינון RFQ לפי תאריך ולקוחה; "חידוש אוטומטי" של חבילות.</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>רשימת backlog מתועדת ביומן ההחלטות (ARC-42).</div>
+<div>ממשק</div><div>המדריך: נתיבי ניווט, שדות טפסים, פעולות מהירות ו-KPIs תואמים למצב היעד.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-62</code> — עדכון המדריך לכל ההחלטות באותו קומיט.</li><li><code>BTY-63</code> — הבטחות מכוסות נשארות; לא מכוסות → backlog (מתוקן); אלרגיות בתג אדום.</li></ul></div>
+</div></section>

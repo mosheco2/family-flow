@@ -1,0 +1,669 @@
+<h2 class="grp">אימות, תפקידים ומידור (BIZ)</h2>
+
+<section class="proc" data-f="auth verifybiz verifybizorlegacy verifyfamilyorbiz verifyfamily session token middleware"><h3>שכבת אימות עסקית — verifyBiz / verifyBizOrLegacy / verifyFamilyOrBiz / verifyFamily</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>Middleware שרץ לפני כל endpoint עסקי. הטוקן נשלח ע"י הלקוח ב-<code>Authorization: Bearer ${window._bizToken}</code> (business-app.js בכל fetch מאובטח). כל ה-sessions (משפחה ועסק) נשמרים באותה טבלה <code>family_sessions</code> ומובחנים ב-<code>session_type</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>verifyBiz</code> (server.js:41914-41948): חסר טוקן → 401 "נדרש token להתחברות עסקית"; טוקן מגובב (<code>_hashToken</code>) ומחופש ב-<code>family_sessions.token_hash</code>; לא נמצא → 401 "פגישה לא תקינה — יש להתחבר מחדש"; <code>expires_at</code> עבר → מחיקה אסינכרונית + 401 "פגישה פגה — יש להתחבר מחדש"; <code>session_type !== 'biz'</code> → 403 "גישה מורשית לעסקים בלבד" (41936). מציב <code>req.bizAuth={groupId,userId,role,employeeRoleType}</code> — role ו-employee_role_type נשלפים מ-<code>users</code> (41941).</li>
+<li><code>verifyBizOrLegacy</code> (43056-43086): אם יש טוקן — חייב להיות תקף ומסוג biz (אחרת 403 "נדרש token מסוג עסקי" / 401 "token לא תקף"); מציב <code>fromToken:true</code> (43073). <b>אם אין header כלל</b> — fallback: <code>groupId</code> נלקח מ-<code>req.body.groupId</code> או <code>req.query.groupId</code>, <code>fromToken:false</code>, נרשם console.warn ועובר הלאה (43082-43085). לא מציב role.</li>
+<li><code>verifyFamilyOrBiz</code> (43089-43118): מקבל שני סוגי session; מציב <code>req.callerAuth={groupId,userId,type:'business'|'family',role}</code> וגם alias <code>req.bizAuth={groupId,userId,role}</code> (43109) — לכן גם בקשות שעוברות דרכו נרשמות ביומן הביקורת הגלובלי.</li>
+<li><code>verifyFamily</code> (41876-41910): <b>לא בודק session_type</b> — טוקן עסקי עובר גם בו. מציב <code>req.familyAuth</code>. ה-BIZ משתמש בו בפועל ל-PUT/DELETE משתמשים ותנועות.</li>
+<li>כל ה-middlewares מעדכנים <code>last_seen=NOW()</code> אסינכרונית.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>חילוץ טוקן (עם/בלי "Bearer ").</li><li>SELECT מ-<code>family_sessions</code> לפי hash.</li><li>בדיקת תפוגה וסוג.</li><li>UPDATE last_seen (fire&amp;forget).</li><li>(verifyBiz/OrBiz) SELECT role מ-users.</li></ol></div>
+<div>תופעות לוואי</div><div>Cron יומי מוחק sessions שפגו (server.js:43835-43845, כל 24 שעות).</div>
+<div>פערים</div><div><ul><li><code>requireModule</code> נאכף רק כש-<code>fromToken===true</code>, ש-<b>רק</b> verifyBizOrLegacy מציב; לכן מסלול ללא header עוקף את שער המודול לחלוטין (43128) ואף מקבל groupId שרירותי מה-body.</li><li>verifyFamily מקבל טוקן עסקי (חוסר בדיקת session_type) — מכוון בפועל, אך לא מתועד.</li><li>endpoints רבים בתחום (timeclock, alerts, sla, shift-templates, team-posts, inbox, chat, surveys, timelog, reports, payroll, licenses, business-settings) הם <b>ללא middleware בכלל</b> — מקבלים groupId/userId מה-body/query/params.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="roles role_defaults admin manager senior member permissions tabs enforcepermissions role_type_tabs employee_role_type"><h3>תפקידים והרשאות טאבים — ROLE_DEFAULTS, ROLE_TYPE_TABS, enforcePermissions</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>קביעת אילו טאבים זמינים לכל עובד בממשק BIZ. רץ ב-<code>enforcePermissions()</code> (business-app.js:3903) אחרי כל <code>fetchData</code> (4474, setTimeout 100ms), אחרי כל <code>switchTab</code> עטוף (4118, +50ms) ופעם אחת 1500ms אחרי טעינה (4122).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ערכי <code>users.role</code> בעסק: <code>ADMIN</code>, <code>MANAGER</code>, <code>SENIOR</code>, <code>MEMBER</code> (בחירה ב-smart invite 4283-4286 ובמודל ההרשאות). השרת ב-<code>/api/admin/change-role</code> מכיר רק <code>ADMIN|CHILD|MEMBER</code> (server.js:11612).</li>
+<li><code>ROLE_DEFAULTS</code> (3893-3898): ADMIN=כל ALL_TABS; MANAGER=[feed,timeclock,shifts,calendar,shop,pantry,equipment,tasks,academy,sales,pos,customers]; SENIOR=[feed,timeclock,shifts,pantry,tasks,academy,pos]; MEMBER=[feed,timeclock,shifts,tasks,academy].</li>
+<li>טאבים אפקטיביים = <code>permissions.tabs</code> (JSON ב-users.permissions) ואם חסר — ROLE_DEFAULTS[role] (3910). בעל החשבון (<code>owner_user_id</code>) מקבל תמיד <code>members</code> (3913). מתווספים טאבי <code>ROLE_TYPE_TABS[employee_role_type]</code> (3916-3918).</li>
+<li><code>ROLE_TYPE_TABS</code> (37506-37524): salesperson, field_tech, instructor, delivery, warehouse, cleaner, support, cashier, shift_manager, branch_manager, waiter, cook, reception, therapist, senior_therapist, nail_tech, makeup_artist — כל אחד מוסיף רשימת טאבים קבועה (למשל branch_manager: pos,sales,tasks,members,timeclock,shifts,customers,cashflow,budget,pantry,reviews,equipment,reports).</li>
+<li>תמיד פתוחים לכולם: feed, settings, biz-ads (3928).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>לכל tab ב-ALL_TABS: אם לא מורשה — מוסיף לכפתור <code>tab-perm-locked opacity-40 grayscale</code> + pointer-events:none + אייקון מנעול, גם לכפתור הישן <code>tab-{id}</code> וגם ל-<code>gdrop-{id}</code> (3927-3958).</li>
+<li>אכיפת feature flags מ-<code>currentGroup.features</code> (ברירת מחדל: כולם true, 3921) עבור 17 מודולים ממופים (3982-3998): store→sales, b2b→shop, academy, calendar, finance→bank, inventory→pantry, crm→customers, deliveries, foodcost, timeclock, cashflow, budget, forecast, tasks, community, members, shifts. מודול כבוי → class <code>locked-module</code>. flag לא מוגדר = פתוח (3967).</li>
+<li><code>features.ai===false</code> → הסתרת כפתורי AI <code>btn-global-ai</code>/<code>btn-sp-ai</code> (4003).</li>
+<li>אם הטאב הפעיל ננעל → <code>switchTab('feed')</code> (4012-4017).</li>
+<li>לא-ADMIN: הסתרת bank-admin-view, admin-loans-panel, admin-members-tools, timeclock-admin-view, academy-admin-view, admin-shop-tools, shop-requests-container, btn-sales-catalog, btn-sales-settings (4028).</li>
+<li>קריאה ל-<code>updateGroupNavVisibility()</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>עטיפת <code>window.switchTab</code> (4104-4121): כפתור עם <code>locked-module</code> → <code>openModuleUnlockModal(tabId)</code>; עם <code>tab-perm-locked</code> → <code>openLockedModuleModal(name)</code> (בקשת פתיחה כטיקט תמיכה); אחרת ניווט + enforcePermissions אחרי 50ms.</div>
+<div>ממשק</div><div>עובד עם employee_role_type ולא ADMIN שעובר ל-feed רואה לוח בקרת תפקיד (<code>showRoleDashboard</code>, 2895-2898; 38048) במקום הדשבורד; לתפקידים waiter/cook/shift_manager רענון אוטומטי כל 20ש' (38120-38134); בתחזוקה (maintenance_repair) field_tech/branch_manager כל 20ש' (38100-38106). תפקיד ללא לוח ייעודי → הודעה "לא נמצא לוח בקרה ייעודי לתפקיד" (38088).</div>
+<div>פערים</div><div><ul><li>ההרשאות נאכפות <b>בצד לקוח בלבד</b>; רוב endpoints בצד השרת בודקים רק ADMIN או כלום.</li><li>רמות MANAGER/SENIOR אינן מוכרות בשרת — שם כל מי שאינו ADMIN מטופל כעובד רגיל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="permissions modal put users permissions role-type change-role role employee_role_type"><h3>עדכון הרשאות ותפקיד מקצועי לעובד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל פותח "סיווג והרשאות" בכרטיס עובד (<code>openPermissionsModal</code> business-app.js:3711) ושומר (<code>submitPermissions</code> 3787).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>PUT <code>/api/users/:id/permissions</code> (verifyFamily, server.js:11555-11582): המבקש חייב <code>role='ADMIN'</code> בקבוצתו → אחרת 403 "נדרשת הרשאת מנהל"; היעד חייב להיות באותה קבוצה → אחרת 404 "משתמש לא נמצא בקבוצה". <code>feed</code> נוסף אוטומטית אם חסר (11569). <code>role</code> <b>לא מאומת מול רשימה</b> — נשמר כפי שנשלח.</li>
+<li>PATCH <code>/api/users/:id/role-type</code> (verifyFamily, 26446-26463): ADMIN בלבד, יעד באותה קבוצה; <code>employee_role_type</code> נשמר או NULL. ללא רשימת ערכים מותרים.</li>
+<li>POST <code>/api/admin/change-role</code> (verifyFamilyOrBiz, 11609-11625): newRole ∈ {ADMIN,CHILD,MEMBER} → אחרת 400 "תפקיד לא חוקי"; ADMIN בלבד; יעד באותה קבוצה. דורס permissions אוטומטית: ADMIN→[feed,shop,tasks,budget,members,goals,pantry,loans,academy,cashflow,community]; CHILD→[feed,shop,tasks,goals,academy,bank,cashflow,community]; אחר→[feed,community].</li>
+<li>בלקוח: מקטע "ממשק תפקיד" מוצג רק אם יש לפחות תפקיד אחד מ-<code>EMPLOYEE_ROLE_TYPES</code> שעבורו <code>isFeatureLicensed(feature_key)</code> (3742) — ADMIN תמיד true (37594), אחרת <code>licensed_features[key]===true</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח אוסף checkboxes → <code>tabs=['feed',...]</code> ו-role מ-select.</li><li>PUT permissions: <code>UPDATE users SET permissions=$json[, role=$role]</code>.</li><li>אם נבחר רדיו תפקיד — PATCH role-type.</li><li>אם המשתמש הנוכחי עודכן — עדכון currentUser, enforcePermissions ו-switchTab('feed') אחרי 200ms (3817-3824).</li><li>fetchMembers().</li></ol></div>
+<div>חישובים</div><div>בחירת תפקיד מקצועי ברדיו מסמנת אוטומטית את טאבי ROLE_TYPE_TABS שלו + toast "סומנו N מודולים לתפקיד זה" (3754-3770). <code>applyRoleDefaults(role)</code> מסמן לפי ROLE_DEFAULTS (3780).</div>
+<div>ממשק</div><div>מודל <code>permissions-modal</code>; מסלול נוסף: <code>assignRoleType</code> (42295) ממודל role-type-modal; תפקיד לא מורשה מציג toast "ממשק X לא מורשה לעסק זה".</div>
+<div>פערים</div><div><ul><li><code>assignRoleType</code> (business-app.js:42295-42306) שולח PATCH <b>ללא Authorization</b> → השרת מחזיר 401 אבל הלקוח מציג "ממשק שובץ בהצלחה" ומעדכן cache מקומי.</li><li>PUT permissions: <code>tabs.includes</code> על body חסר → קריסה 500.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ניווט ושערי מודולים</h2>
+
+<section class="proc" data-f="navigation all_tabs gnav_groups switchtab group nav dropdown badges business_types"><h3>ניווט BIZ — ALL_TABS, GNAV_GROUPS, switchTab</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מעבר בין מסכים ב-business.html. כל לחיצה בניווט העליון (<code>#group-nav</code>, business.html:728-815) קוראת <code>switchTab(id)</code> (business-app.js:2854).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>ALL_TABS</code> (3838-3891) — 52 טאבים: feed, timeclock, shifts, calendar, shop, pantry, sales, pos, customers, deliveries, reviews, foodcost, bank, cashflow, budget, forecast, tasks, equipment, academy, community, surveys, members, 8×beauty_*, settings, 11×logistics_*, biz-ads, cases, timelog, content, leads, documents, reports, whatsapp-alerts, menu_templates, routines.</li>
+<li><code>GNAV_GROUPS</code> (5402-5408): team=[timeclock,shifts,calendar,tasks,academy,members,beauty_calendar,beauty_practitioners,routines]; sales=[pos,sales,customers,cases,leads,deliveries,reviews,menu_templates,beauty_services,beauty_subscriptions,beauty_clients,beauty_rfq]; inventory=[shop,pantry,equipment,foodcost,beauty_inventory]; finance=[bank,cashflow,budget,timelog,forecast,beauty_commissions,reports]; more=[community,surveys,content,documents,biz-ads,whatsapp-alerts,settings].</li>
+<li>switchTab: עסק beauty — <code>customers</code> מומר ל-<code>beauty_clients</code> (2862); <code>routines</code> נחסם אם business_type אינו restaurant/maintenance_repair (2865).</li>
+<li>שער billing (2867-2886): אם <code>billing_config</code> קיים ו-tab אינו ב-ALWAYS_OPEN [feed,settings,biz-ads] — מותר רק אם tab ∈ (מודולי החבילה המפורסרים מ-desc של הקטלוג ∪ <code>billing_config.modules</code> שאינם <code>open:false</code>); אחרת נפתח <code>openModuleUnlockModal(t)</code> ויוצאים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הסתרת כל ה-<code>content-*</code> והסרת tab-active.</li><li>הצגת content-{t} עם אנימציה.</li><li>עובד עם employee_role_type (לא ADMIN) ב-feed → לוח תפקיד (אלא אם <code>_suppressRoleDash</code>).</li><li>עצירת polling שליחויות/שולחנות.</li><li>עדכון מצב הניווט, באדג'ים (updateGroupNavActiveState, syncGnavAlertBadge, updateGroupNavBadges).</li><li>loader פר-טאב: feed→renderDashboard; cashflow→renderCashflow+fetchCommissionSummary; timeclock→fetchTimeclockReport (ADMIN) + checkTimeclockStatus; shifts→renderShifts; sales→התאמות לפי סוג עסק; budget→fetchBudget; bank→fetchLoans; tasks→renderTasks; members→fetchMembers; academy→ADMIN:renderAdminAcademy אחרת renderMyAssignments+renderLibrary; reports→renderUnifiedReportsTab; ועוד (2918-3030).</li></ol></div>
+<div>חישובים</div><div>באדג' צוות = מספר tasks עם status='pending' (מוצג "9+" מעל 9); באדג' מכירות = storeOrdersCache עם status='new' (5509-5527).</div>
+<div>ממשק</div><div><code>updateGroupNavVisibility</code> (5470-5498): MEMBER/SENIOR לא רואים קבוצות finance/inventory אלא אם יש להם הרשאה מפורשת לאחד הטאבים בקבוצה; קבוצה מוסתרת אם אין בה פריט לא-נעול. בטאב sales: עסק professional — כותרת "הצעות ותיקים", הסתרת הזמנות/complex, פתיחה ב-quotes; restaurant — "פקודות עבודה" מוצג כ"אירועים"; תפריטים רק ל-restaurant/events/food_production; פקודות עבודה מוסתרות ל-sport,retail,beauty,store_only,logistics,education,healthcare (2926-2979). dropdown מועבר ל-body (portal) ברוחב 170px (5413-5435).</div>
+<div>פערים</div><div>שני מימושי שער שונים: switchTab מחשיב מודול פתוח אם <code>open !== false</code> (2879) בעוד <code>applyBusinessTypeFilter</code> דורש <code>open === true</code> (37936) — מודול בלי שדה open ייראה נעול בתפריט אך יהיה נגיש ב-switchTab.</div>
+</div></section>
+
+<section class="proc" data-f="module gating billing_config managed_modules requiremodule features applybusinesstypefilter locked"><h3>שערי מודולים — billing_config / managed_modules / features / requireModule</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>קביעה אילו מודולים העסק "רכש". שלושה שדות נפרדים ב-<code>family_groups</code>: <code>billing_config</code> (JSON, שער ניווט בלקוח), <code>features</code> (JSON flags, enforceModule בלקוח), <code>managed_modules</code> (מערך, אכיפת API בשרת). נקבעים ע"י SA (POST <code>/api/sa/groups/:id/billing</code> server.js:5732, PUT <code>/api/sa/groups/:id</code> ~8770-8790) ובאישור בקשת מודול.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>requireModule(name)</code> (43126-43150): דילוג אם <code>!req.bizAuth.fromToken</code> או אין groupId; managed_modules נקרא מ-cache בזיכרון (TTL 60,000ms, 43124); מערך ריק/null → pass-through ("עסק ותיק"); מודול לא כלול → 403 <code>{error:'גישה למודול זה אינה כלולה בחבילה שלך', module}</code>; שגיאה → fail-open.</li>
+<li>שימוש: <code>requireModule('sales')</code> על /api/store/catalog*, /api/store/quotes*, coupons, promotions, store/customers PUT/DELETE ו-/api/biz/retail/* ; <code>'logistics'</code> על /api/logistics/*; <code>'menu_templates'</code> על תפריטים. כולם אחרי verifyBizOrLegacy.</li>
+<li>גזירת managed_modules בשמירת SA: מ-<code>billing_config.modules</code> — כל מחרוזת, או אובייקט עם <code>open !== false</code> → id (5740-5746; 8780-8786); אחרי UPDATE — <code>_modCache.delete(groupId)</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לקוח: <code>applyBusinessTypeFilter()</code> (37909) אחרי fetchData.</li><li>אין billing_config → כל הטאבים גלויים ופתוחים + enforceRoutinesTabVisibility (37959-37969).</li><li>אחרת openIds = מודולי bundle (desc של <code>catalog.find(g=&gt;g.groupId===bundle_id).modules[0].desc</code> עד "(" מפוצל בפסיקים) ∪ modules עם <code>open===true</code> (alias whatsapp_alerts→whatsapp-alerts).</li><li>נגיש = openIds ∪ ALWAYS_VISIBLE[feed,settings,biz-ads] ∪ הרשאות מפורשות של העובד (perms.tabs + ROLE_TYPE_TABS) (37972-37976). <b>גם ADMIN נחסם</b> ממה שלא שולם (37975).</li><li>לא נגיש: <code>tab-{id}</code> מקבל hidden+locked-module; <code>gdrop-{id}</code> נשאר גלוי עם opacity 0.55, אייקון מנעול ו-onclick שמוחלף ל-<code>openModuleUnlockModal</code> (37652-37665).</li><li>קבוצת ניווט ריקה מוסתרת.</li><li>שינוי שמות טאבים לפי סוג עסק (TAB_RENAME 38010-38019), למשל sport: customers="חברים 🤝", members="חברי מועדון 👥".</li></ol></div>
+<div>ממשק</div><div>מודל <code>module-unlock-modal</code> (37676-37695): אייקון/שם/תיאור מ-<code>MODULE_DESCRIPTIONS</code>, מחיר "X ₪ / חודש" מהקטלוג אם המודול לא free. "שגרות" מוצג רק ל-restaurant/maintenance_repair ללא תלות ב-billing (37895-37907).</div>
+<div>פערים</div><div><ul><li><code>BUSINESS_TYPES[].modules</code> (37526-37542) <b>אינו משמש לשער כלל</b> — <code>getEnabledModules()</code> (37599) לא נקרא בשום מקום; BUSINESS_TYPES משמש רק לשם/אייקון. ברשימות מופיע 'kds' שאינו ב-ALL_TABS.</li><li>3 מקורות אמת שאינם מסונכרנים (features, billing_config, managed_modules) — עלול לגרום לטאב פתוח בממשק אך 403 ב-API ולהיפך.</li><li>requireModule לא חל על טוקן מ-verifyBiz (אין fromToken).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="module request unlock biz module-request sa approve deny cancel member request-module support ticket"><h3>בקשת פתיחת/ביטול מודול ואישורה ע"י SA</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק לוחץ על מודול נעול → "שליחת בקשה" (<code>sendModuleUnlockRequest</code> 37701); או "ביטול" ליד מודול בתשלום ב"החבילה שלי" (<code>openModuleCancelRequest</code> 37884); או טאב נעול-הרשאה → <code>requestModuleUnlock</code> (4067) שפותח טיקט תמיכה.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/biz/module-request</code> (verifyBiz, server.js:5918-5935): חסר groupId או moduleId → 400 "missing fields".</li>
+<li>ביטול נשלח כ-<code>moduleId='CANCEL_'+id</code>, <code>moduleName='ביטול: '+name</code>, note 'בקשת ביטול מודול' (37889) — אחרי confirm בלקוח.</li>
+<li>PATCH <code>/api/sa/groups/:id/module-request</code> (verifySA, 5971-6012): חובה moduleId+action → אחרת 400.</li>
+<li>POST <code>/api/member/request-module</code> (31042-31060): <b>ללא auth</b>; חובה groupId+moduleKey.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>biz: בונה אובייקט <code>{moduleId, moduleName||moduleId, note||'', requested_at: ISO, status:'pending'}</code> ומחליף בקשה קודמת לאותו moduleId ב-<code>family_groups.module_requests</code> (jsonb: מסנן את הקיים ומוסיף) (5923-5932). לא טרנזקציה, UPDATE יחיד.</li>
+<li>SA רואה רשימה מ-GET <code>/api/sa/module-requests</code> (5949-5960) — פריסת jsonb_array_elements לעסקים type='BUSINESS'.</li>
+<li>approve עם <code>managed_modules</code> מערך: features[MODULE_ID_TO_FEATURE_KEY[moduleId]]=true (מיפוי 5963-5968: sales→store, shop→b2b, bank→finance, pantry→inventory, customers→crm וכו'); push moduleId ל-billing_config.modules אם חסר; UPDATE managed_modules, features, billing_config והסרת הבקשה (5992-5999).</li>
+<li>deny (או approve ללא managed_modules) — הסרת הבקשה בלבד (6001-6008).</li>
+<li>member/request-module: מוסיף <code>{key,name,requested_at}</code> עם DISTINCT (מבנה שונה — key במקום moduleId).</li>
+<li>requestModuleUnlock: POST <code>/api/support/ticket</code> עם subject "בקשת שדרוג / פתיחת מודול: X" ותיאור קבוע (4073-4085) → טיקט + מייל ל-SA.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending (ברשימה)</td><td>עסק (כל משתמש עם טוקן biz)</td><td>moduleId</td><td>החלפת בקשה קודמת לאותו מודול</td></tr>
+<tr><td>pending</td><td>נמחקת + מודול פתוח</td><td>SA</td><td>action=approve ו-managed_modules מערך</td><td>features/billing_config/managed_modules עודכנו</td></tr>
+<tr><td>pending</td><td>נמחקת</td><td>SA</td><td>action=deny או חסר managed_modules</td><td>אין</td></tr></table></div></div>
+<div>ממשק</div><div>אחרי שליחה: <code>mum-form</code> מוסתר ו-<code>mum-sent</code> מוצג (גם אם השרת החזיר שגיאה — אין בדיקת res.ok, 37708-37714).</div>
+<div>פערים</div><div><ul><li>approve לא מנקה <code>_modCache</code> → requireModule עשוי לחסום עוד עד 60 שניות.</li><li>billingConfig.modules עשוי להכיל אובייקטים; <code>includes(moduleId)</code> לא יזהה אובייקט קיים → כפילות מחרוזת+אובייקט.</li><li>ביטול מודול (CANCEL_x) שמאושר ב-approve יפתח feature/billing לפי מזהה 'CANCEL_x' במקום לבטל.</li><li>member/request-module ו-biz/module-request משתמשים במבנים שונים באותו שדה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pricing catalog module_pricing_catalog free months promo my plan bundle"><h3>קטלוג מחירים ו"החבילה שלי"</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מגדיר מחירון מודולים; העסק מציג מחירים במודל נעילה, בויזארד וב"החבילה שלי" בהגדרות.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/sa/pricing-catalog</code> (verifySA, 5796-5819): catalog חייב להיות מערך → 400 "catalog must be an array"; free_months נשמר רק אם int ≥0; promo_text נחתך ל-200 תווים אחרי trim.</li>
+<li>GET <code>/api/sa/pricing-catalog</code> מריץ קודם <code>patchPricingCatalogForRoutines()</code> (self-heal, 5783).</li>
+<li>GET <code>/api/public/pricing-catalog</code> (5889, ציבורי) ו-GET <code>/api/biz/pricing-catalog</code> (5903, verifyBiz — בלי promo_text).</li></ul></div>
+<div>חישובים</div><div><ul><li>free_months ברירת מחדל 3 אם המפתח חסר (5790, 5897, 5910); בציבורי ערך לא-מספרי → 0.</li><li>"החבילה שלי" (<code>renderMyPlanSection</code> 37722-37854): סה"כ חודשי = מחיר bundle (custom_price של רשומת ה-bundle ב-billing.modules, אחרת <code>catalog[bundle].modules[0].price</code>) + Σ מחירי מודולים פתוחים עם billing!==false (custom_price או מחיר קטלוג) + <code>billing.ai_monthly_cost</code> + <code>billing.extra_users_cost</code>. מודול עם מחיר 0 או billing:false מוצג ב"כלול בתכנית".</li><li>אם אין billing_config וגם managed_modules ריק → "חבילה טרם הוגדרה".</li></ul></div>
+<div>שלבי עיבוד</div><div>הקטלוג נטען פעם אחת לסשן ל-<code>window._pricingCatalogBiz</code> בזמן fetchData (4461-4466). מבנה: <code>[{groupId, groupName|name, modules:[{id,name,price,free,desc}]}]</code>.</div>
+<div>פערים</div><div>פענוח מודולי bundle מתבסס על טקסט חופשי ב-desc של המודול הראשון (37924-37926; 2875) — שבירות תלויה בפורמט טקסט.</div>
+</div></section>
+
+<section class="proc" data-f="licensed_features group_licenses business-settings licenses business_type table_count"><h3>רישוי פיצ'רים — licensed_features / group_licenses / business-settings</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מנהל רישיונות לממשקי תפקיד (<code>role_*</code>) ופיצ'רים פר-עסק (<code>saManageLicenses</code> business-app.js:42310).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET/POST <code>/api/groups/:id/licenses</code> (server.js:26465-26488) — <b>ללא auth</b>.</li>
+<li>PATCH <code>/api/groups/:id/business-settings</code> (26373-26382) — <b>ללא auth</b>; מעדכן business_type (ברירת מחדל 'other'), licensed_features (JSON), table_count (ברירת מחדל 8), send_order_email (≠false).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT ל-<code>group_licenses(group_id,feature_key)</code> עם is_active (ברירת מחדל true), price_monthly (ברירת מחדל 0).</li><li>סנכרון: SELECT כל הרישיונות ובניית <code>{feature_key:is_active}</code> → UPDATE <code>family_groups.licensed_features</code> (26480-26484).</li></ol></div>
+<div>ממשק</div><div><code>isFeatureLicensed(key)</code> (37592): ADMIN תמיד true; אחרים — <code>licensed_features[key]===true</code>. משמש לסינון ממשקי התפקיד במודל ההרשאות ו-role-type. מחירי תפקידים ב-<code>EMPLOYEE_ROLE_TYPES</code> (37567-37588): 15–39 ₪ (למשל branch_manager 39, cashier 19, waiter 15).</div>
+<div>פערים</div><div>endpoint business-settings מאפשר לכל אחד לשנות סוג עסק — סותר את כלל CLAUDE.md "בחירת סוג עסק רק בויזארד/SA" ברמת API (לא בממשק).</div>
+</div></section>
+
+<section class="proc" data-f="biz visibility hidden keys tab feature data-viz-key sa"><h3>הסתרת אלמנטים לפי סוג עסק (SA Visibility)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מסתיר טאבים/פיצ'רים לכל סוגי עסק מסוימים. הלקוח מריץ <code>window._applyBizVisibility()</code> אחרי fetchData (4474; מימוש 57259).</div>
+<div>תנאים ואימותים</div><div><ul><li>טבלה <code>biz_type_visibility(business_type, element_key)</code> PK כפול (server.js:25312).</li><li>POST <code>/api/sa/biz-visibility/:type/toggle</code> (verifySA, 25325): key חובה; hidden=true → INSERT, אחרת DELETE.</li><li>GET <code>/api/biz-visibility/:type</code> ציבורי (25339).</li><li>business_type 'other' או חסר — הלקוח לא מריץ.</li></ul></div>
+<div>שלבי עיבוד</div><div>מפתחות <code>tab:{id}</code> → הסתרת tab-{id} ו-gdrop-{id}, חישוב מחדש של קבוצות ניווט; מפתחות <code>feature:*</code> → CSS <code>[data-viz-key="..."]{display:none!important}</code> בתגית style#biz-viz-style.</div>
+</div></section>
+
+<section class="proc" data-f="biz me settings name business name filled_by_role"><h3>פרטי עסק נוכחי ושינוי שם עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>GET <code>/api/biz/me</code> (verifyBiz, server.js:8296-8329) — טעינת נתוני העסק (בשימוש ב-<code>refreshImpersonatedBusiness</code> business-app.js:232). PATCH <code>/api/biz/settings/name</code> (5938) — שינוי שם מהגדרות (<code>saveBusinessName</code> 37856).</div>
+<div>תנאים ואימותים</div><div><ul><li>me: עסק לא נמצא → 404 "עסק לא נמצא".</li><li>name: name ריק → 400 "missing name"; <b>אין בדיקת ADMIN</b> בשרת.</li><li>לקוח: לא שולח אם השמות לא השתנו.</li></ul></div>
+<div>חישובים</div><div><code>filled_by_role</code> = COUNT משתמשים פעילים לכל employee_role_type (8301-8306); מוחזר גם first/last_name ו-birth_year של המשתמש המבקש.</div>
+<div>שלבי עיבוד</div><div>name: <code>UPDATE family_groups SET name=trim, name_en=nameEn||''</code>.</div>
+</div></section>
+
+<h2 class="grp">צוות ועובדים</h2>
+
+<section class="proc" data-f="invite join employee whatsapp smart invite pending approve user group_code role_type"><h3>הזמנת עובד, הצטרפות בקוד ואישור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל לוחץ "הזמן עובד בווצאפ" במסך ניהול צוות (<code>openSmartInviteModal</code> business-app.js:4266). העובד נרשם דרך הקישור (POST <code>/api/join</code> server.js:10359), והמנהל מאשר (<code>approveUser</code> → POST <code>/api/admin/approve-user</code> 11597).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>הזמנה: חובה <code>currentGroup.group_code</code> → אחרת toast "קוד ארגון לא זמין. נסו לרענן." (4318). קישור: <code>/business.html?code={group_code}&amp;role={role}[&amp;role_type=…]</code>.</li>
+<li>אפשרויות תפקיד מקצועי לפי סוג עסק — <code>_ROLE_TYPE_OPTIONS</code> (4257-4265): restaurant: waiter, cook, cashier, delivery, shift_manager, branch_manager; beauty: therapist, makeup_artist, nail_tech, reception, branch_manager; sport: instructor, cashier, shift_manager, branch_manager; services: field_tech, support, cashier, branch_manager; maintenance_repair: field_tech, branch_manager; professional: consultant, associate, partner; אחר: branch_manager.</li>
+<li>/api/join: חובה groupCode, nickname, password, email → 400 "חסרים נתונים חובה"; קוד לא קיים → 404 "קוד ארגון/משפחה לא חוקי"; גיל ≥10 (לפי birthYear) בלי phone → 400 "מספר טלפון הוא שדה חובה מגיל 10" (10375).</li>
+<li>תפקיד בהצטרפות: <b>תמיד MEMBER</b> (או CHILD אם נשלח) — ADMIN לעולם לא נקבע דרך join (10368-10370).</li>
+<li>approve-user: ADMIN בלבד → 403 "רק מנהל/ת יכול/ה לאשר בקשות"; היעד באותה קבוצה → 403 "משתמש לא שייך לקבוצה זו".</li>
+<li>pending-users (11584): groupId ב-query חייב להתאים לטוקן; ADMIN בלבד; מחזיר status IN ('pending','invited').</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הזמנה: פתיחת wa.me עם טקסט קבוע הכולל שם התפקיד, קוד העסק והקישור ו"📱 בהרשמה יש להכניס מספר טלפון (חובה מגיל 10)" (4324-4332).</li><li>join: bcrypt(password,10); אם יש משתמש status='invited' עם אותו טלפון בקבוצה → UPDATE (nickname, first/last, birth_year, hash, role, status='pending', email, employee_role_type); אחרת INSERT users status='pending' (10383-10403).</li><li>התראות async: <code>sendAlertEmail</code> למייל המנהל + <code>sendSystemEmail</code> למייל ה-SA (admin_notification_email) עם נושא "WEFLOWZ | עובד/ת חדש/ה הצטרף/ה ל-…" (10406-10427).</li><li>approve: <code>UPDATE users SET status='active'</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—/invited</td><td>pending</td><td>העובד (ציבורי)</td><td>קוד תקין</td><td>מייל למנהל ול-SA</td></tr>
+<tr><td>pending</td><td>active</td><td>ADMIN</td><td>אותה קבוצה</td><td>מופיע ב-/api/group/members</td></tr></table></div></div>
+<div>ממשק</div><div>פאנל <code>admin-panel</code> עם רשימת ממתינים (<code>fetchPendingUsers</code> 8129), נטען ב-polling של 30 שניות לאדמין (3196).</div>
+<div>פערים</div><div>הקישור והודעת הווצאפ מציינים "הוגדרת במערכת תחת תפקיד: מנהל/בעלים" (ADMIN/MANAGER/SENIOR), אך השרת מתעלם מ-role ומגדיר MEMBER — הבטחה לא מקוימת.</div>
+</div></section>
+
+<section class="proc" data-f="members list group members delete user user-details send credentials fetchmembers"><h3>רשימת צוות, עריכת פרטים ומחיקת עובד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב members (<code>fetchMembers</code> business-app.js:4336) ומסכי בנק/נוכחות הנשענים על <code>membersCache</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET <code>/api/group/members</code> (verifyFamilyOrBiz, server.js:11541): groupId ב-query חייב להיות של הטוקן → 403 "אין הרשאה". מחזיר רק status='active', ממוין role,nickname. fallback לשאילתה בלי permissions/base_salary אם העמודות חסרות (11549).</li>
+<li>GET <code>/api/members/:groupId</code> (25443) — <b>ללא auth</b>; id,nickname,role,employee_role_type,phone,status פעילים (בשימוש בלוחות תפקיד ותחזוקה).</li>
+<li>DELETE <code>/api/users/:id</code> (verifyFamily, 11627-11656): ADMIN בלבד; יעד באותה קבוצה → 404; ADMIN שמוחק את עצמו כשיש ≤1 ADMIN פעיל → 403 "לא ניתן למחוק את המנהל היחיד בקבוצה". DELETE פיזי מ-users.</li>
+<li>PUT <code>/api/admin/user-details/:userId</code> (11668): ADMIN; nickname ≤100 תווים; email lowercase; password ≥4 תווים → bcrypt; role רק ADMIN/CHILD/MEMBER.</li>
+<li>POST <code>/api/admin/send-credentials</code> (10336): ADMIN; חייב admin_email → 400 "לא נמצאה כתובת מייל מוגדרת בהרשמה.". שולח רשימת שמות ותפקידים בלבד (ללא סיסמאות).</li>
+<li>PATCH <code>/api/users/:id/profile</code> (26423): עריכת nickname — לעצמי או ADMIN לאחר; nickname ריק → 400.</li></ul></div>
+<div>ממשק</div><div>לכל עובד: אות ראשונה, תווית מנהל/עובד, יתרה (או 🔒), ולאדמין: הגדרות שכר, הרשאות, מחיקה (לא על עצמו) (4384-4395). בעסק maintenance_repair נשלפות קריאות שירות פתוחות ומוצג באדג' 🔧 ליד field_tech (4347-4356, 4392). אדמין: מילוי selectים של budget/feed/cashflow/goal (4360-4364).</div>
+<div>פערים</div><div>מודל המשימה מציג "⚠️ ללא התחברות" כשאין <code>m.phone</code> (4685), אך /api/group/members לא מחזיר phone → האזהרה מוצגת לכל העובדים.</div>
+</div></section>
+
+<section class="proc" data-f="salary settings hourly rate base salary update-settings adjust-balance bonus deduct allowance interest"><h3>הגדרות שכר לעובד ותיקון יתרה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין לוחץ ⚙️ (<code>openBankSettings</code> 7580 / <code>submitBankSettings</code> 7618) או "תיקון/בונוס" (<code>openBalanceAdjustmentModal</code> 4177 / <code>submitBalanceAdjustment</code> 4221).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/admin/update-settings</code> (verifyFamilyOrBiz, 11786): ADMIN; עובד בקבוצה → 404. ערכים שליליים מאופסים ל-0 (Math.max).</li>
+<li>POST <code>/api/admin/adjust-balance</code> (verifyFamily, 11729-11769): ADMIN בקבוצה; childId בקבוצה → 404 "ילד לא נמצא בקבוצה". adminId מה-body מתעלמים.</li>
+<li>לקוח: סכום ≤0 → "נא להזין סכום תקין לביצוע הפעולה"; נשלח תמיד ערך מוחלט (4230).</li></ul></div>
+<div>חישובים</div><div><ul><li>שימוש מחודש בשדות המשפחתיים: <code>allowance_amount</code> = תעריף לשעה (₪), <code>interest_rate</code> = יעד שעות מינימום חודשי, <code>base_salary</code> = משכורת בסיס (7592-7601).</li><li>adjust: <code>actAmount = type==='deduct' ? -amount : amount</code>; <code>users.balance += actAmount</code> (11755-11756). סיבה ברירת מחדל: "בונוס/מענק מיוחד" / "הפחתה תפעולית יזומה".</li></ul></div>
+<div>שלבי עיבוד</div><div>adjust (ללא טרנזקציה): 1) UPDATE users.balance; 2) INSERT transactions (amount חיובי, category='other', type=income/expense); 3) INSERT <code>family_audit_log</code> (action='adjust_balance', performed_by מהטוקן); 4) <code>logActivity</code> 'finance'/'balance_adjust' עם הטקסט "הפרשת דמי כיס: ₪X — סיבה".</div>
+<div>פערים</div><div>טקסט ה-activity ("דמי כיס") והודעת השגיאה ("ילד") משפחתיים גם בעסק.</div>
+</div></section>
+
+<h2 class="grp">נוכחות (GPS) ושכר</h2>
+
+<section class="proc" data-f="timeclock set-location gps radius business location"><h3>הגדרת מיקום העסק לשעון נוכחות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין בטאב timeclock לוחץ להגדרת מיקום (<code>setBusinessLocation</code> business-app.js:3247).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/timeclock/set-location</code> (server.js:12848) — ללא middleware; בודק ש-<code>adminId</code> מה-body הוא ADMIN ב-groupId → אחרת 403 "רק מנהל רשאי להגדיר את מיקום העסק".</li><li>דפדפן ללא geolocation → "הדפדפן או הטאבלט שלך אינם תומכים ב-GPS".</li></ul></div>
+<div>חישובים</div><div>רדיוס = clamp(parseInt(radiusMeters)||150, 20, 2000) מטר — גם בלקוח (3253) וגם בשרת (12854). GPS: enableHighAccuracy, timeout 15000ms, maximumAge 0.</div>
+<div>שלבי עיבוד</div><div>prompt לרדיוס (ברירת מחדל location_radius_m||150) → confirm → getCurrentPosition → UPDATE family_groups SET location_lat, location_lng, location_radius_m → עדכון currentGroup מקומית והודעת "✓ המיקום ננעל בהצלחה".</div>
+<div>פערים</div><div>הממשק מציג כשאין מיקום "לא הוגדר — עובדים יוכלו להחתים מכל מקום" (3315), אך השרת דוחה החתמה ללא מיקום עסק (12933-12935).</div>
+</div></section>
+
+<section class="proc" data-f="timeclock punch in out gps distance haversine time_clock popup shift"><h3>החתמת כניסה/יציאה (Punch)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עובד לוחץ על כפתור העגול <code>btn-punch</code> (<code>handlePunch</code> 3366) בטאב timeclock.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/timeclock/punch</code> (12919-12968) — <b>ללא auth</b>; userId/groupId מה-body.</li>
+<li>אין lat/lng → 400 "לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.".</li>
+<li>קבוצה לא קיימת → 404 "קבוצה לא נמצאה"; אין מיקום עסק → 400 "המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.".</li>
+<li>מרחק &gt; location_radius_m (ברירת מחדל 150) → 403 "אינך נמצא בקרבת העסק. מרחק נוכחי: X מטר. מותר עד Y מטר." (12940).</li></ul></div>
+<div>חישובים</div><div>מרחק Haversine עם R=6371e3 מטר (<code>calculateDistance</code> 4147-4157). דקות = max(0, round((punchOut−punchIn)/60000)) (12949).</div>
+<div>שלבי עיבוד</div><div><ol><li>חיפוש רשומה פתוחה <code>time_clock WHERE user_id AND punch_out IS NULL</code>.</li><li>קיימת → UPDATE punch_out=now, total_minutes, punch_out_lat/lng → <code>{status:'out'}</code>.</li><li>אחרת → INSERT (user_id, group_id, punch_in=CURRENT_TIMESTAMP, punch_in_lat/lng) → חיפוש popup עובד פעיל (<code>store_popups</code> popup_type='employee', trigger_type='shift', לא פג) → <code>{status:'in', triggeredPopup}</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>אין רשומה פתוחה</td><td>פתוח (punch_in)</td><td>עובד</td><td>בטווח הרדיוס</td><td>popup משמרת אחרי 1.5ש'</td></tr>
+<tr><td>פתוח</td><td>סגור (punch_out,total_minutes)</td><td>עובד</td><td>בטווח הרדיוס</td><td>—</td></tr>
+<tr><td>סגור, paid_at NULL</td><td>שולם (paid_at)</td><td>payroll-run</td><td>—</td><td>לא ייכלל בתשלום הבא</td></tr></table></div></div>
+<div>ממשק</div><div>כפתור אדום עם שעון חי (מתעדכן כל שנייה, 3342-3351) כשמוחתם; כחול "כניסה" אחרת. הצלחה → confetti, toast "נרשמה כניסה למשמרת! עבודה נעימה"/"נרשמה יציאה, תודה ולהתראות!", fetchData. שגיאות GPS: code 1/2/3 עם הודעות ייעודיות.</div>
+<div>תופעות לוואי</div><div>Alert engine: <code>timeclock_no_punch_in</code> / <code>timeclock_no_punch_out</code> (ראו מנוע התראות).</div>
+<div>פערים</div><div>לא נבדק שה-user שייך ל-groupId; ניתן להחתים בשם כל משתמש.</div>
+</div></section>
+
+<section class="proc" data-f="timeclock manual punch admin verifybizadminonly"><h3>דיווח נוכחות ידני (מנהל)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין ממלא עובד/תאריך/שעות במודל <code>manual-punch-modal</code> (<code>submitManualPunch</code> 3537).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/timeclock/manual</code> (verifyBiz + verifyBizAdminOnly, server.js:12992): לא ADMIN → 403 "פעולה זו דורשת הרשאת מנהל/ת עסק" (41962); העובד חייב להיות בעסק → 404 "עובד/ת לא נמצא/ה בעסק זה".</li><li>לקוח: כל השדות חובה; diffMins ≤0 → "שעת יציאה חייבת להיות אחרי שעת כניסה".</li></ul></div>
+<div>חישובים</div><div>totalMins מחושב בלקוח: round((out−in)/60000) (3546) ונשמר כפי שנשלח.</div>
+<div>שלבי עיבוד</div><div>INSERT time_clock(user_id, group_id, punch_in, punch_out, total_minutes).</div>
+<div>ממשק</div><div>רשימת עובדים לא כוללת ADMIN (3534).</div>
+</div></section>
+
+<section class="proc" data-f="timeclock report status staff-status employee-stats hours wage summary pdf"><h3>דוח נוכחות, סטטוס החתמה ונתוני עובדים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>fetchTimeclockReport</code> (3575) בטאב נוכחות; <code>checkTimeclockStatus</code> (3306); דשבורד עובד (5570); FamliAI (16216).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET <code>/api/timeclock/report</code> (12970) — ללא auth; userId='all' → כל העסק לפי groupId, אחרת לפי userId; from/to אופציונליים (to כולל עד סוף היום).</li><li>GET <code>/api/timeclock/status?userId</code> (12860) — ללא auth.</li><li>GET <code>/api/biz/staff-status/:groupId</code> (12869), GET <code>/api/biz/employee-stats/:groupId</code> (12883) — ללא auth.</li></ul></div>
+<div>חישובים</div><div><ul><li>לקוח: לכל רשומה סגורה actualMins = max(1, round(ms/60000)); עלות = actualMins/60 × allowance_amount של העובד (התאמה לפי nickname!) (3623-3644). סה"כ שעות ושכר בקוביות tc-summary-hours / tc-summary-wage.</li><li>אזהרה "חסרות X שעות למינימום" כש-interest_rate&gt;0 ושעות &lt; interest_rate (3688).</li><li>employee-stats: hours_this_week = Σtotal_minutes של 7 ימים /60 (עיגול 1), hours_this_month = 30 ימים; tasks_open = status≠'approved'; tasks_completed = 'approved'; currently_clocked_in (12886-12896).</li><li>סינון חודש בצד לקוח בלבד.</li></ul></div>
+<div>ממשק</div><div>אדמין בוחר עובד (ללא ADMIN ברשימה); עובד רואה "המשמרת שלי". ייצוא PDF עם html2pdf (A4, scale 2) (<code>exportTimeclockPDF</code> 4125).</div>
+<div>פערים</div><div>התאמת עובד לפי nickname (3623) — שני עובדים בשם זהה יקבלו תעריף שגוי. כל ה-endpoints פתוחים לכל groupId.</div>
+</div></section>
+
+<section class="proc" data-f="payroll preview run adhoc payment salary paid_at hourly"><h3>תשלום שכר לפי נוכחות (Payroll) ותשלום חד-פעמי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין פותח "תשלום שכר לפי נוכחות" (<code>openPayrollModal</code> 3441), מתקן סכומים ומבצע (<code>submitPayrollRun</code> 3484); או "+ תשלום חד פעמי" (<code>submitAdhocPayment</code> 3518).</div>
+<div>תנאים ואימותים</div><div><ul><li>שלושת ה-endpoints (server.js:11829, 11853, 11874) — <b>ללא auth וללא בדיקת ADMIN</b>.</li><li>payroll-run: items ריק/לא מערך → 400 "אין עובדים לתשלום"; פריט עם amount≤0 מדולג.</li><li>adhoc: amount≤0 → 400 "סכום לא תקין".</li></ul></div>
+<div>חישובים</div><div>לכל עובד פעיל שאינו ADMIN: unpaidHours = Σtotal_minutes (punch_out NOT NULL ו-paid_at NULL)/60; computed = base_salary + unpaidHours × allowance_amount; עיגול 2 ספרות (11836-11845).</div>
+<div>שלבי עיבוד</div><div><ol><li>preview מחזיר employees[].</li><li>run: BEGIN; לכל פריט — <code>users.balance += amount</code> (WHERE group_id); INSERT transactions (category='payroll', type='income', description "תשלום שכר — {note}"); <code>UPDATE time_clock SET paid_at=NOW()</code> לכל הרשומות הסגורות שלא שולמו של העובד; COMMIT (11858-11868).</li><li>adhoc: UPDATE balance + INSERT transactions category='payroll' income, תיאור ברירת מחדל "תשלום חד פעמי".</li></ol></div>
+<div>פערים</div><div><ul><li>BEGIN/COMMIT מבוצעים על <code>pool</code> ולא על client ייעודי — אין טרנזקציה אמיתית (כל query עשוי לרוץ על חיבור אחר). אותה תבנית ב-payday, tasks/update, academy/submit, goals/deposit, task-set-templates.</li><li>paid_at מסומן לכל הרשומות גם אם הסכום תוקן ידנית.</li><li>אין רישום הוצאה מצד העסק (בניגוד ל-payday/tasks).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="payday allowance interest monthly bonus distribute"><h3>חלוקה חודשית (Payday) — מנגנון משפחתי זמין ב-BIZ</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתור "איפוס חודשי ותשלום בונוסים" (<code>triggerPayday</code> 7646).</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/admin/payday</code> (verifyFamilyOrBiz, server.js:11801): ADMIN בלבד → 403 "נדרשת הרשאת מנהל".</div>
+<div>חישובים</div><div>לכל משתמש פעיל שאינו ADMIN: toAdd = allowance_amount + (balance&gt;0 ו-interest_rate&gt;0 ? balance × interest_rate/100 : 0) (11809-11810).</div>
+<div>שלבי עיבוד</div><div>BEGIN (על pool); לכל toAdd&gt;0: balance+=toAdd; INSERT transactions income category 'allowance' "שכר / חלוקת קצבה ותמריצים"; INSERT transactions expense לאדמין הראשון "דמי כיס ל…"; COMMIT; מחזיר totalDistributed.</div>
+<div>פערים</div><div>בעסק allowance_amount הוא תעריף שעתי ו-interest_rate יעד שעות — payday מפרש אותם כקצבה וריבית (%) ⇒ חישוב חסר משמעות עסקית.</div>
+</div></section>
+
+<h2 class="grp">משמרות, משימות ונהלים</h2>
+
+<section class="proc" data-f="shift templates morning evening seed"><h3>תבניות משמרת</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין מנהל תבניות (בוקר/ערב…) במסך המשמרות (<code>renderShiftTemplatesMgr</code> business-app.js:5112, <code>openAddTemplateModal</code> 5133, <code>deleteShiftTemplate</code> 5149).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET <code>/api/shift-templates/:groupId</code> (server.js:13005), POST <code>/api/shift-templates</code> (13021), DELETE <code>/api/shift-templates/:id</code> (13030) — <b>ללא auth</b>.</li><li>POST: חובה groupId, name, start, end → 400 "חסרים שדות". אין אימות פורמט HH:MM.</li><li>המנהל בלבד רואה את מנהל התבניות (ממשק, 5115).</li></ul></div>
+<div>שלבי עיבוד</div><div>GET ראשון לעסק ללא תבניות זורע אוטומטית 2: "בוקר" 08:00–16:00, "ערב" 16:00–23:00 (13010-13015).</div>
+<div>פערים</div><div>DELETE לפי id בלבד ללא בדיקת group.</div>
+</div></section>
+
+<section class="proc" data-f="shifts shift tasks schedule approve overlap week day list"><h3>שיבוץ משמרות (משמרת = task עם כותרת SHIFT|…)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב shifts: אדמין משבץ עובד, עובד מבקש משמרת (<code>openShiftModal</code> 5306, <code>submitShift</code> 5348). אין טבלת משמרות — משמרת נשמרת ב-<code>tasks</code> עם <code>title='SHIFT|YYYY-MM-DD|HH:MM|HH:MM[|templateName]'</code>, reward=0 (5363). זיהוי: <code>isShiftTask</code> (72).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: חובה תאריך, שעות, עובד → "נא למלא תאריך ושעות". תבנית נבחרת דורסת שעות ומוסיפה שם.</li>
+<li>שרת POST <code>/api/tasks</code> (server.js:11890): לא-ADMIN שמקצה לאחר → 403 "רק מנהל/ת יכול/ה להקצות משימה לאדם אחר"; בדיקת חפיפה: משמרות קיימות לאותו עובד ביום עם status IN ('approved','pending') — חפיפה אם <code>newStart &lt; exEnd &amp;&amp; exStart &lt; newEnd</code> (השוואת מחרוזות HH:MM) → 400 "כבר קיימת משמרת חופפת לעובד/ת זה/זו באותו יום" (11898-11914).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>status = 'approved' לאדמין, 'pending' לעובד (5364).</li><li>עריכה (<code>editShiftTask</code> 5332): קודם POST tasks/update status='deleted' לישנה ואז יצירת חדשה (5369-5373).</li><li>אישור: <code>updateTask(id,'approved')</code>; סירוב/מחיקה: <code>deleteTask</code> → status='deleted' (5389).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>approved</td><td>ADMIN</td><td>ללא חפיפה</td><td>—</td></tr>
+<tr><td>—</td><td>pending</td><td>עובד (לעצמו)</td><td>ללא חפיפה</td><td>"הבקשה נשלחה למנהל!"</td></tr>
+<tr><td>pending</td><td>approved</td><td>ADMIN</td><td>—</td><td>reward=0 ⇒ אין תשלום</td></tr>
+<tr><td>pending/approved</td><td>deleted</td><td>ADMIN או בעל המשמרת</td><td>—</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>3 תצוגות: list / day / week (שבוע מתחיל ביום ראשון) (<code>setShiftView</code> 5081, <code>renderShiftDaily</code> 5227, <code>renderShiftWeekly</code> 5262). אדמין רואה הכל, עובד רק את שלו. באדג' "ממתינים" ליום בתצוגת שבוע.</div>
+<div>פערים</div><div><ul><li><b>משמרת שנמחקה (status='deleted') עדיין מוחזרת מ-/api/data ומוצגת כ"משובץ ✓"</b>, כי התצוגה מבחינה רק pending מול כל השאר (5202-5205).</li><li>השרת מקבל status מה-body ללא whitelist — עובד יכול לשלוח status='approved' למשמרת עצמית ולעקוף אישור.</li><li>עריכה = מחיקה+יצירה ללא טרנזקציה; כשל ביצירה מאבד את המשמרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="tasks create bulk edit priority reward deadline recurring assign"><h3>יצירה ועריכה של משימות/פרויקטים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב tasks: אדמין "מטלה חדשה / פרויקט" (<code>openTaskModal(false)</code> 4664, <code>submitTask</code> 4807); עובד "דיווח ביצוע / יוזמה" (<code>openTaskModal(true)</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/api/tasks</code> (verifyFamilyOrBiz, server.js:11890-11929): הקצאה לאחר — ADMIN בלבד.</li>
+<li>POST <code>/api/tasks/bulk</code> (11932): ADMIN בלבד → 403 "רק מנהל/ת יכול/ה להקצות משימות לצוות"; assignees מערך לא ריק → 400 "assignees required".</li>
+<li>PATCH <code>/api/tasks/:id</code> (11956): ADMIN בלבד; משימה בקבוצה → 404; רק status='pending' → 400 "ניתן לערוך רק משימות בסטטוס pending".</li>
+<li>לקוח: כותרת חובה "נא לפרט את תוכן המשימה"; במצב לא-עצמי חובה ≥1 עובד "יש לבחור לפחות עובד אחד".</li></ul></div>
+<div>חישובים</div><div><ul><li>deadline = now + days×24h, רק אם לא חוזרת ו-days קיים (11916); בעריכה days חדש מחושב מעכשיו, אחרת נשמר הקיים.</li><li>reward מוגבל ל-[0, 100000] (11921).</li><li>require_ai_check ברירת מחדל true; priority ברירת מחדל 'medium' (high/medium/low); recurring_days רק אם is_recurring.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>עצמי: POST עם assignedTo=self, status='done' (נשלח לאישור מנהל, 4816).</li><li>עובד יחיד: POST status='pending'; כמה: POST bulk (status 'pending' קבוע).</li><li>INSERT tasks (group_id,title,reward,assigned_to,deadline,status,require_ai_check,is_recurring,recurring_days,created_by,priority).</li><li><code>logActivity</code> 'task'/'task_created' "משימה חדשה: …" (פר-עובד ב-bulk).</li></ol></div>
+<div>ממשק</div><div><code>renderTasks</code> (4988): לא-אדמין רואה רק את שלו; משמרות מסוננות החוצה; באדג'ים: עדיפות 🔴🟡🟢, בונוס/שגרה, דדליין "יעד: N ימ'"/"חריגה!", התקדמות SOP. עריכה רק ל-pending ולא SOP. יצירת משימות AI: POST <code>/api/tasks/ai-generate</code> (ראו AI).</div>
+<div>פערים</div><div><ul><li>status ב-POST /api/tasks אינו מאומת — כל ערך (כולל null מ-<code>_aiCreateTask</code> 57571 שלא שולח status) נשמר.</li><li>עובד יכול ליצור לעצמו משימה עם reward עד 100,000 ב-status 'done' (תלוי באישור מנהל).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="task status update approve done deleted rejected reward payment balance transactions popup"><h3>מחזור חיי משימה ואישור תגמול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>POST <code>/api/tasks/update</code> (verifyFamilyOrBiz, server.js:12023-12078) — מכל פעולת סטטוס בלקוח: "אישור סופי" (<code>submitTaskApproval</code> 4980), מחיקה (<code>deleteTask</code> 5389), השלמת SOP, עדכון התקדמות.</div>
+<div>תנאים ואימותים</div><div><ul><li>משימה בקבוצה → 404 "not found".</li><li>approved — ADMIN בלבד → 403 "רק מנהל/ת יכול/ה לאשר ולשלם על משימה".</li><li>done/completed_self — ADMIN או בעל המשימה → 403 "ניתן לסמן כבוצע רק משימה שהוקצתה לך".</li><li>deleted/rejected — ADMIN או בעל המשימה → 403 "אין הרשאה לבטל משימה זו".</li></ul></div>
+<div>חישובים</div><div>rew = finalReward (clamp 0..100000) אם נשלח, אחרת reward הנוכחי (12042).</div>
+<div>שלבי עיבוד</div><div><ol><li>משימה חוזרת + done → רק <code>last_completed_at=NOW()</code>, activity, החזרה <code>{recurring:true}</code> (12044-12048).</li><li>BEGIN (pool); UPDATE status,reward[,notes].</li><li>approved ו-rew&gt;0: balance של assigned_to += rew; INSERT transactions income 'tasks' "תגמול משימה: …"; INSERT transactions expense לאדמין הראשון (12055-12059). <strong style="color:var(--warn)">[תוקן באימות: ה-INSERT של ה-expense נעשה עם SELECT ... FROM users WHERE group_id=$1 AND role=&#x27;ADMIN&#x27; LIMIT 1, בלי ORDER BY. לכן נבחר אדמין כלשהו (הסדר לא מוגדר), ולא בהכרח &#x27;האדמין הראשון&#x27;. כל הפעולות רצות בתוך BEGIN/COMMIT (שורות 12048, 12060).]</strong></li><li>COMMIT; activity task_done/task_approved.</li><li>done → חיפוש popup עובד (trigger_type='task', trigger_ref=taskId) → <code>triggeredPopup</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>done</td><td>בעל המשימה/ADMIN</td><td>proof תמונה / SOP / ידני</td><td>popup משימה</td></tr>
+<tr><td>pending/done</td><td>approved</td><td>ADMIN</td><td>—</td><td>תשלום rew + 2 תנועות</td></tr>
+<tr><td>pending</td><td>approved</td><td>AI (vision-verify)</td><td>verified</td><td>תשלום reward+בונוס 10%</td></tr>
+<tr><td>כל מצב</td><td>deleted/rejected</td><td>בעל/ADMIN</td><td>—</td><td>—</td></tr>
+<tr><td>pending (חוזרת)</td><td>pending</td><td>בעל</td><td>done</td><td>last_completed_at</td></tr></table></div>ערכים נוספים: <code>completed_self</code> (נבדק בשרת/לקוח, לא נוצר בפועל בממשק), <code>cancelled</code> (מסונן ב-alert/דשבורד, לא נוצר בתחום).</div>
+<div>ממשק</div><div>משימה done: אדמין רואה "אישור סופי" + קישור לתמונה; עובד "בבקרת מנהל". approved: "סגור". אישור פותח מודל לעדכון סכום סופי.</div>
+<div>פערים</div><div><ul><li>אין בדיקת סטטוס קודם: אישור חוזר של משימה approved משלם שוב.</li><li>משימות deleted אינן מסוננות מ-/api/data ומוצגות ברשימה ללא באדג'.</li><li>טרנזקציה על pool (לא אמיתית).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="task proof photo cloudinary vision verify ai qa bonus gemini"><h3>הגשת הוכחת ביצוע — תמונה ו-QA ע"י AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בעל משימה pending לוחץ "תמונה" (<code>clickTaskPhotoProof</code> 4868 → Cloudinary) או "AI" (<code>clickTaskProof</code> 4849 → <code>handleTaskProofUpload</code> 4851).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/tasks/:id/proof</code> (11976): proofImageUrl חובה → 400; ADMIN או בעל → 403 "אין הרשאה לעדכן משימה זו".</li><li>POST <code>/api/tasks/vision-verify</code> (12549): groupId בגוף = של הטוקן; משימה בקבוצה → 404; בעל/ADMIN → 403; status='approved' → 400 "המשימה כבר אושרה"; סוללת AI (<code>handleAITokens</code>) ריקה → <code>{error:'BATTERY_EMPTY'}</code>.</li><li>לקוח: Cloudinary cloud_name/preset מ-<code>/api/public/settings/*</code>; חסר → "הגדרות Cloudinary חסרות — פנה למנהל מערכת".</li></ul></div>
+<div>חישובים</div><div>דחיסה בלקוח: AI 800×800 q0.7; Cloudinary 1000×1000 q0.8. בונוס AI = max(1, round(reward×0.1)) אם reward&gt;0; total = reward+bonus (12581-12586).</div>
+<div>שלבי עיבוד</div><div><ol><li>proof: העלאה ל-Cloudinary folder 'family-flow-tasks' → UPDATE proof_image_url, status='done' → activity.</li><li>vision: Gemini <code>gemini-2.5-flash</code> (JSON mime) עם prompt "AI QA manager" (BUSINESS) / familAI (משפחה) + inlineData תמונה → <code>{verified,message}</code>.</li><li>verified: balance+=total; INSERT transactions income "תגמול משימה (אושר ע"י AI) + בונוס" ו-expense לאדמין; UPDATE status='approved', reward=total; הודעה "+ איזה יופי! קיבלת גם בונוס AI של ₪X!" (12588-12593).</li></ol></div>
+<div>תופעות לוואי</div><div>ניכוי טוקן AI אחד; <code>ai_usage_log</code>.</div>
+<div>פערים</div><div>vision-verify מאשר ומשלם ללא אישור מנהל (מעקף זרימת done→approved).</div>
+</div></section>
+
+<section class="proc" data-f="task comments"><h3>תגובות על משימה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתור 💬 בכרטיס משימה (<code>openTaskComments</code> 4744, <code>addTaskComment</code> 4770).</div>
+<div>תנאים ואימותים</div><div>GET/POST <code>/api/tasks/:id/comments</code> (11994-12021): המשימה חייבת להיות בקבוצת הטוקן → 404; text חובה → 400 "text required"; נחתך ל-1000 תווים.</div>
+<div>שלבי עיבוד</div><div>INSERT task_comments(task_id,user_id,group_id,text) RETURNING + nickname.</div>
+<div>ממשק</div><div>תגובות שלי מודגשות בכחול; ממוינות created_at עולה.</div>
+</div></section>
+
+<section class="proc" data-f="recurring tasks cron dispatch daily copy hebrew days"><h3>Cron פרסום משימות חוזרות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>dispatchRecurringTasks</code> (server.js:6790-6817) — כל 5 דקות + 90 שניות אחרי עלייה.</div>
+<div>תנאים ואימותים</div><div><ul><li>פועל רק כשהשעה (שעון השרת) ≥ 08:00 (6797).</li><li>מקור: tasks עם is_recurring=TRUE ו-status='pending'.</li><li><code>recurring_days</code> חייב להכיל את שם היום בעברית (ראשון…שבת) — בדיקת includes על מחרוזת.</li><li>דילוג אם כבר קיים עותק לא-חוזר עם אותו title+assigned_to שנוצר היום.</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT עותק חד-פעמי: status 'pending', deadline = מחר (now+1 יום), is_recurring=FALSE, recurring_days='' ושאר השדות מהמקור.</div>
+<div>פערים</div><div>תלוי בשעון השרת (לא אזור זמן מוגדר). השוואת "היום" ב-SQL (CURRENT_DATE) לעומת getDay ב-JS עלולה להיות באזורי זמן שונים.</div>
+</div></section>
+
+<section class="proc" data-f="sop task set templates procedure checklist progress requiresphoto"><h3>נהלי עבודה (SOP) ותבניות סטים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין מנהל "תבניות נוהל" (<code>loadTaskSetTemplates</code>/<code>saveTaskSetTemplates</code> business-app.js:30447/30456) ומקצה לעובד (<code>submitAssignTaskSet</code> 30712). העובד מבצע ב-<code>sop-execution-modal</code> (<code>checkSOPProgress</code>/<code>completeSOP</code> 30851/30874).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET/POST <code>/api/task-set-templates/:groupId</code> (server.js:13039-13060) — ללא auth; POST מחליף את כל האוסף (DELETE + INSERT לכל תבנית, data כ-JSON, client_id=t.id).</li><li>הקצאה: חובה עובד → "יש לבחור עובד/ת להקצאה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>משימה נוצרת ב-POST /api/tasks עם <code>title='SOP|'+JSON({title, items, requiresPhoto})</code>, reward, days, status 'pending'.</li><li>בכל סימון פריט: debounce 1000ms → tasks/update status 'pending' עם <code>notes='PROGRESS:checked/total'</code> (30864-30869); אדמין רואה פס התקדמות (פענוח regex ב-5008).</li><li>סיום: אם requiresPhoto → זרימת הוכחה ב-AI (clickTaskProof); אחרת status 'done', notes "הושלם (לא נדרש צילום הוכחה)".</li></ol></div>
+<div>פערים</div><div>הנתונים המבניים של הנוהל נשמרים בתוך עמודת title.</div>
+</div></section>
+
+<section class="proc" data-f="timelog hours billing professional work order minutes hourly rate"><h3>יומן שעות עבודה (Timelog) — עסקים מקצועיים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב timelog (<code>renderTimelogTab</code> business-app.js:55435) ושעות בפקודות עבודה (<code>loadWoTimeLogs</code> 43648).</div>
+<div>תנאים ואימותים</div><div><ul><li>4 endpoints (server.js:28619-28654) — ללא auth. POST: minutes חובה ≥1 → 400 "minutes required".</li></ul></div>
+<div>חישובים</div><div>שווי = minutes/60 × hourly_rate (בלקוח, ייצוא CSV/חשבונית 55630-55659). דוח professional סוכם <code>SUM(minutes)/60</code> (33852).</div>
+<div>שלבי עיבוד</div><div>INSERT time_logs(group_id,user_id,customer_name,wo_id,description,minutes,hourly_rate(0),logged_date); PATCH bill → is_billed=TRUE; DELETE פיזי. GET מחזיר 200 אחרונים.</div>
+</div></section>
+
+<h2 class="grp">כספים — תזרים, בנק, תקציבים, תשקיף, דוחות, קופה</h2>
+
+<section class="proc" data-f="cashflow transactions income expense recurring balance edit delete"><h3>תזרים מזומנים — רישום, עריכה ומחיקת תנועות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב cashflow (<code>renderCashflow</code> business-app.js:6801); "הכנסה"/"הוצאה" (<code>openTransactionModal</code>/<code>submitTransaction</code> 7652/7658); עריכה/מחיקה לאדמין (<code>submitEditTransaction</code>/<code>deleteTransaction</code> 7687/7697).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET <code>/api/transactions</code> (verifyFamilyOrBiz, server.js:11371): groupId = של הטוקן → 403; userId≠'all' מסנן; from/to אופציונליים (to עד סוף היום); ללא טווח — LIMIT (ברירת מחדל 200).</li>
+<li>POST <code>/api/transaction</code> (11387): groupId תואם; userId≠המבקש דורש ADMIN והיעד בקבוצה → 403/400; type ∈ {income,expense} → 400 "סוג תנועה לא תקין"; description נחתך ל-300.</li>
+<li>PUT/DELETE <code>/api/transaction/:id</code> (verifyFamily, 11409/11432): ADMIN בלבד; התנועה בקבוצה → 403/404.</li>
+<li>לקוח: סכום 0 → "נא להזין סכום תקין".</li></ul></div>
+<div>חישובים</div><div><ul><li>יצירה: expense → balance −= amount; income → balance += amount (11402-11403).</li><li>עריכה: diff = new − old; expense → balance −= diff; income → balance += diff (11422-11427).</li><li>מחיקה: היפוך — expense → +amount; income → −amount.</li><li>לקוח: לתאריך שנבחר מוצמדת השעה הנוכחית עם סיומת Z (7669).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT transactions(user_id,group_id,amount,description,category,type,date,is_recurring,end_month,is_manual=TRUE) → UPDATE users.balance → logActivity 'finance'/'transaction'.</div>
+<div>ממשק</div><div>סינון לפי עובד (אדמין) ותקופה בחודשים; סינון תקופה טוען מהשרת עם from (6806-6814). לא-אדמין רואה רק את שלו. תוויות קטגוריה מ-<code>BUDGET_LABELS</code>.</div>
+<div>פערים</div><div>GET /api/transactions לא בודק role — עובד יכול לבקש userId='all' ולראות את כל תנועות העסק (הממשק מסנן רק בצד לקוח).</div>
+</div></section>
+
+<section class="proc" data-f="budget allocation category limit spent month filter"><h3>תקציבים לפי קטגוריה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב budget (<code>fetchBudget</code> 7861); הוספת קטגוריה (<code>submitNewBudgetCat</code> 7939); עדכון יעד (<code>submitBudgetUpdate</code> 7985).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET <code>/api/budget/filter</code> (server.js:11330): groupId תואם; לא-ADMIN — targetUserId נכפה לעצמו (11335).</li><li>POST <code>/api/budget/update</code> (11349): ADMIN בלבד → 403 "רק מנהל/ת יכול/ה לקבוע תקציב"; category חובה → 400 "קטגוריה נדרשת"; משתמש יעד בקבוצה → 400.</li></ul></div>
+<div>חישובים</div><div><ul><li>spent = Σ transactions expense מתחילת החודש הנוכחי (date_trunc month) לקטגוריה; limit = amount_limit; FULL OUTER JOIN (11339-11344). סינון עובד: allocations של העובד או כלליות (target_user_id NULL).</li><li>limit ≥0; category trim ≤50 תווים.</li><li>צבע פס: &gt;80% כתום, &gt;100% אדום (7892).</li></ul></div>
+<div>שלבי עיבוד</div><div>UPSERT budget_allocations(group_id,category,target_user_id) SET amount_limit. targetUserId='all' → NULL.</div>
+<div>ממשק</div><div>קטגוריות allowance/tasks/academy/allocations מקובצות ל"תקציבי יעדים ובונוסים" (אדמין) / "התקציב שלי"; קטגוריות לא-מוכרות נוספות דינמית ל-CATEGORIES.expense עם 🏷️.</div>
+</div></section>
+
+<section class="proc" data-f="forecast projection recurring monthly yearly end_month chart"><h3>תשקיף (Forecast) — חישוב בצד לקוח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב forecast (<code>renderForecast</code> business-app.js:7771); מתג חודשי/שנתי (<code>toggleForecastMode</code> 7757).</div>
+<div>חישובים</div><div><ul>
+<li>startingBalance: אדמין = Σ balance של כל membersCache; אחר = balance שלו (7786-7787).</li>
+<li>תנועה לא-חוזרת נכללת אם date בטווח התקופה.</li>
+<li>תנועה חוזרת: תקפה אם תחילת חודשה ≤ סוף התקופה ו-end_month (YYYY-MM) ≥ תחילת התקופה; חודשי — סכום מלא, תווית "קבוע (חודשי)"; שנתי — amount × מספר החודשים הפעילים בשנה (תחילה ≥ חודש התנועה, ≤ end_month), תיאור "(xN ח')" (7792-7809).</li>
+<li>projectedNetChange = Σ (+הכנסות/−הוצאות) רק לפריטים חוזרים או עתידיים; projectedBalance = startingBalance + projectedNetChange (7821, 7830).</li>
+<li>תקופות: 12 חודשים קדימה, 5 שנים קדימה (7765-7769).</li></ul></div>
+<div>ממשק</div><div>גרף donut (Chart.js) הכנסות מול הוצאות (<code>drawForecastCharts</code> 8010). "רואת העתידות" AI — POST <code>/api/forecast/familai-insight</code> (ראו AI).</div>
+<div>פערים</div><div>מבוסס על allTransactions (200 אחרונות בלבד) — תנועות חוזרות ישנות יותר לא ייכללו.</div>
+</div></section>
+
+<section class="proc" data-f="loans bank advance request approve reject"><h3>בקשות מקדמה/החזר (Loans) — טאב כספים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עובד מגיש (<code>submitLoan</code> 7707); אדמין מאשר/דוחה (<code>approveLoan</code>/<code>rejectLoan</code> 7743/7748). נטען בטאב bank ובכל polling של 30ש'.</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/loans/request</code> (server.js:11463): amount ≥0.01; reason ≤300.</li><li>approve (11473): ADMIN; הלוואה קיימת → 404 "הלוואה לא נמצאה"; אותה קבוצה → 403; status חייב 'pending' → 400 "הלוואה זו כבר טופלה".</li><li>reject (11489): ADMIN, אותה קבוצה — <b>ללא בדיקת status</b>.</li></ul></div>
+<div>שלבי עיבוד</div><div>request: INSERT loans(original_amount=remaining_amount=amt). approve: status='approved' → balance += original_amount → INSERT transactions income 'other' "הלוואה / מקדמה אושרה". reject: status='rejected'.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>כל משתמש</td><td>—</td><td>—</td></tr>
+<tr><td>pending</td><td>approved</td><td>ADMIN</td><td>—</td><td>זיכוי יתרה + תנועה</td></tr>
+<tr><td>כל מצב</td><td>rejected</td><td>ADMIN</td><td>—</td><td>— (אפשר לדחות גם approved)</td></tr></table></div></div>
+<div>פערים</div><div>הלקוח מציג <code>l.amount</code> (7730, 7737) אך הטבלה מחזירה original_amount/remaining_amount ⇒ "₪undefined". remaining_amount לא מעודכן בשום מקום.</div>
+</div></section>
+
+<section class="proc" data-f="goals target deposit savings"><h3>יעדים (Goals) והפקדה ליעד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitGoal</code> / <code>submitDeposit</code> (business-app.js:7649-7650).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/goals</code> (server.js:11504): targetUserId דורש ADMIN ומשתמש בקבוצה; title ≤150; target ≥0.</li><li>POST <code>/api/goals/deposit</code> (11520): amount ≥0.01; יעד של משתמש בקבוצה → 404 "יעד לא נמצא"; יתרה לא מספיקה → 400 "אין יתרה מספיקה".</li></ul></div>
+<div>שלבי עיבוד</div><div>deposit: BEGIN(pool); <code>UPDATE users SET balance=balance−amt WHERE balance ≥ amt</code>; goals.current_amount += amt; INSERT transactions expense 'savings' "הפקדה ליעד: …"; COMMIT.</div>
+<div>ממשק</div><div>אחוז = min(100, round(current/target×100)); כפתור "המלצת AI" → <code>/api/goals/familai-advice</code>.</div>
+</div></section>
+
+<section class="proc" data-f="reports unified period btype kpi revenue sport beauty logistics maintenance professional"><h3>דוחות מאוחדים לפי סוג עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב reports (<code>renderUnifiedReportsTab</code> business-app.js:~2400, fetch ב-2421) עם בורר תקופה.</div>
+<div>תנאים ואימותים</div><div>GET <code>/api/reports/:groupId?period&amp;btype</code> (server.js:33754-33871) — <b>ללא auth</b>; btype נשלח מהלקוח (לא נגזר מה-DB).</div>
+<div>חישובים</div><div><ul>
+<li>תחילת תקופה: today=DATE_TRUNC day; week=CURRENT_DATE−7 ימים; month=DATE_TRUNC month (ברירת מחדל); year=DATE_TRUNC year (33759).</li>
+<li>common: Σincome, Σexpense, COUNT מ-transactions; revenue_by_day — רק 30 ימים אחרונים.</li>
+<li>restaurant/retail/food_production: הזמנות (count, Σtotal_amount, AVG), top 10 פריטים (qty, qty×price_at_order), לפי סטטוס.</li>
+<li>sport: הכנסה לפי סוג מנוי, חברים לפי סטטוס, כניסות ליום, הכנסה חודשית 6 ח', שיעורים 30 יום אחרונים (רשומים/קיבולת), נטישה = expired(end_date)+cancelled(updated_at) לחודש.</li>
+<li>beauty: תורים לפי סטטוס (Σtotal_price), הכנסה לפי מטפלת (segments), top 10 שירותים.</li>
+<li>maintenance_repair: קריאות לפי סטטוס (created_at), הכנסות = Σprice_quote של done לפי updated_at, לפי טכנאי.</li>
+<li>logistics: הזמנות/נמסרו/Σdelivery_fee של delivered, לפי נהג, COD נגבה/ממתין.</li>
+<li>professional: תיקים לפי סטטוס, שעות (time_logs), הכנסה = work_order_payments status='received'.</li>
+<li>services/construction/healthcare/education/events/other: הזמנות כלליות.</li></ul></div>
+<div>פערים</div><div>store_only לא נכלל באף ענף (רק common).</div>
+</div></section>
+
+<section class="proc" data-f="export report csv excel orders customers cashflow pantry staff food-cost logistics sport"><h3>ייצוא דוחות CSV</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתור "הורד דוח" שה-FamliAI מייצר מתגית <code>[ACTION:EXPORT_EXCEL|type]</code> (<code>downloadBizReport</code> business-app.js:16463).</div>
+<div>תנאים ואימותים</div><div>GET <code>/api/biz/export-report</code> (verifyBiz, server.js:16373): groupId חובה → 400; חייב להתאים לטוקן → 403 "אין הרשאה"; type לא מוכר → 400 "סוג דוח לא ידוע".</div>
+<div>חישובים</div><div>types: orders (2000), customers, cashflow (2000), pantry, staff, food-cost (עלות גלם עם המרת יחידות <code>convertFoodCostQtyWithWeight</code> ופחת: effectiveQty = qty/(1−waste%/100), waste ≤95%; + תקורה מ-overhead_details; fcPct = totalCost/price×100), logistics-orders/drivers/revenue/vehicles (5000), sport-members/checkins/revenue/classes (fill% = registrations/capacity). מיפוי סטטוסים לעברית בכל דוח.</div>
+<div>שלבי עיבוד</div><div>בניית CSV עם escaping של מרכאות כפולות; Content-Disposition עם שם עברי מקודד; BOM (U+FEFF) בתחילת הקובץ.</div>
+<div>פערים</div><div><code>downloadBizReport</code> שולח fetch <b>ללא header Authorization</b> (16468) ⇒ verifyBiz מחזיר 401 והמשתמש מקבל תמיד "שגיאה בהפקת דוח".</div>
+</div></section>
+
+<section class="proc" data-f="dashboard metrics sparkline snapshot tasks_open active_employees"><h3>מדדי דשבורד (Sparklines)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בעת רינדור הדשבורד: snapshot יומי שקט (<code>_snapshotDashboardMetric</code> business-app.js:6390) ושליפת 7 ימים (<code>_fetchDashboardMetricHistory</code> 6380).</div>
+<div>תנאים ואימותים</div><div><ul><li>metricKey ∈ {tasks_open, active_employees} (whitelist server.js:41975) → 400 "מדד לא מוכר".</li><li>value מספר שלם ≥0 → 400 "ערך לא תקין".</li><li>days = min(parseInt||7, 30).</li></ul></div>
+<div>שלבי עיבוד</div><div>UPSERT dashboard_metric_history(group_id,metric_key,stat_date=CURRENT_DATE) — הערך האחרון ביום גובר (41984-41989).</div>
+</div></section>
+
+<section class="proc" data-f="cash register open close float expected actual diff cashier"><h3>פתיחת/סגירת קופה (קופאי)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לוח בקרת קופאי (<code>renderCashierDashboard</code> business-app.js:39571): "פתח קופה" / "סגור קופה".</div>
+<div>תנאים ואימותים</div><div><ul><li>GET <code>/api/biz/register/today</code> (verifyBiz, server.js:42012): ה-session האחרון של המשתמש להיום.</li><li>POST <code>/api/biz/register/open</code> (42024): אם קיים session פתוח היום (closed_at NULL) — מוחזר הקיים (אידמפוטנטי); openFloat ברירת מחדל 0.</li><li>POST <code>/api/biz/register/close</code> (42043): sessionId של אותו group+user → אחרת 404 "לא נמצאה קופה פתוחה תואמת".</li></ul></div>
+<div>חישובים</div><div><ul><li>בלקוח: מכירות היום = תנועות income של היום עם amount&gt;0; cashIn = כאלה ללא payment_method או 'cash'; expectedCash = openFloat + cashIn (39588-39597).</li><li>בשרת: <code>diff = actual_cash − expected_cash</code> (42051).</li><li>הודעה: 0 → "הקופה מאוזנת ✅"; &gt;0 → "עודף ₪X 📈"; &lt;0 → "חסר ₪X ⚠️".</li></ul></div>
+<div>מכונת מצבים</div><div>אין session → פתוח (opened_at, open_float) → סגור (closed_at, expected_cash, actual_cash, diff). אחד ליום למשתמש (פתוח).</div>
+<div>פערים</div><div>close לא דורש <code>closed_at IS NULL</code> — ניתן לסגור שוב ולדרוס. אחרי סגירה ניתן לפתוח session חדש באותו יום. expectedCash חושב מנתוני לקוח (200 תנועות).</div>
+</div></section>
+
+<h2 class="grp">התראות, SLA ויומני ביקורת</h2>
+
+<section class="proc" data-f="alert rules crud trigger cooldown channels email in_app"><h3>ניהול חוקי התראה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין בפאנל הפעילות → "ניהול חוקים" (<code>openAlertRulesModal</code> business-app.js:34926, <code>saveNewAlertRule</code> 34995, <code>toggleAlertRule</code> 34959, <code>deleteAlertRule</code> 34964); וגם מ-FamliAI (<code>_aiCreateAlertRule</code> 57593).</div>
+<div>תנאים ואימותים</div><div><ul><li>כל ה-CRUD (server.js:10935-10969) <b>ללא auth</b>; PUT/DELETE לפי id בלבד.</li><li>לקוח: שם חובה → "חסר שם לחוק"; cooldown ברירת מחדל 60.</li><li>trigger_type בממשק (business.html:6489-6498): timeclock_no_punch_in, timeclock_no_punch_out, inventory_low, task_overdue, shopping_pending, balance_low, order_unhandled, quote_not_converted, ticket_open. ה-AI מוסיף new_order.</li></ul></div>
+<div>חישובים</div><div>ברירות מחדל config בלקוח: max_hours=10, min_quantity=1, pending_hours=24 (order_unhandled 2), min_balance=500, pending_days=3. channels: תמיד in_app (+email אם סומן). מיפוי AI (57596-57616): order_timeout_15 → order_unhandled pending_hours 0.25 cooldown 15; new_service_call/new_lead → ticket_open 0.5h; low_stock → inventory_low; new_booking → new_order cooldown 1.</div>
+<div>שלבי עיבוד</div><div>INSERT alert_rules(group_id,name,trigger_type,trigger_config JSON,cooldown_minutes(60),channels JSON). PUT מעדכן כל שדה בנפרד (UPDATE לכל שדה).</div>
+<div>ממשק</div><div>סיכום חוק: תיאור + "cooldown: N דק'" + ערוצים (34839-34854).</div>
+</div></section>
+
+<section class="proc" data-f="alert engine runalertengine checkruletrigger cron cooldown notifications email"><h3>מנוע ההתראות (runAlertEngine)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>Cron: ריצה ראשונה 5 דקות אחרי עלייה ואז כל 5 דקות (server.js:25104).</div>
+<div>תנאים ואימותים</div><div>לכל חוק is_active: אם ההתראה האחרונה עם rule_id זה נוצרה לפני פחות מ-cooldown_minutes (ברירת מחדל 60) — דילוג (25041-25048).</div>
+<div>חישובים</div><div><ul>
+<li><code>timeclock_no_punch_in</code>: משתמשים שאינם ADMIN ללא punch_in מאז חצות (שעון שרת) → הודעה אחת עם כל השמות.</li>
+<li><code>timeclock_no_punch_out</code>: רשומה פתוחה מעל max_hours (10) → הודעה לכל עובד.</li>
+<li><code>inventory_low</code>: <code>pantry.quantity ≤ min_quantity</code> (1) → הודעה מרוכזת "שם(כמות)".</li>
+<li><code>task_overdue</code>: status ∉ (approved,cancelled), deadline &lt; NOW → הודעה לכל משימה.</li>
+<li><code>shopping_pending</code>: shopping_list status='requested' מעל pending_hours (24).</li>
+<li><code>balance_low</code>: Σ(income−expense) של כל transactions בקבוצה &lt; min_balance (500).</li>
+<li><code>order_unhandled</code>: store_orders status='new' מעל pending_hours (2).</li>
+<li><code>quote_not_converted</code>: status='quote' ו-quote_status ∉ (approved,rejected) מעל pending_days (3).</li>
+<li><code>ticket_open</code>: support_tickets status='open' מעל pending_hours (24).</li>
+<li><code>new_order</code>: הזמנות status='new' מ-10 הדקות האחרונות ללא התראה עם reference_key='order_{id}' לאותו חוק → INSERT לכל הזמנה + מייל אם email (25003-25024).</li></ul></div>
+<div>שלבי עיבוד</div><div>לכל הודעה: INSERT alert_notifications(group_id,rule_id,trigger_type,message); אם channels כולל email → <code>sendAlertEmail</code> (4328) ל-family_groups.admin_email (Gmail SMTP 465, נושא "⚡ התראה: {name}").</div>
+<div>תופעות לוואי</div><div>הבאדג' בממשק מתעדכן כל 60 שניות (<code>updateAlertBadge</code> 34888; setInterval 35053).</div>
+<div>פערים</div><div><ul><li>new_order עם cooldown 60 (ברירת מחדל בטופס הידני) ייבדק רק פעם בשעה אך מחפש רק 10 דקות אחורה ⇒ מפספס הזמנות. ה-AI עוקף זאת עם cooldown 1.</li><li>WhatsApp/push אינם ערוץ במנוע זה.</li><li>getTriggerIcon כולל equipment_maintenance שאין לו מימוש.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="alert notifications unread badge read-all manual low_stock reference_key"><h3>התראות בפעמון — קריאה, סימון ויצירה ידנית</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פאנל פעילות → לשונית התראות (<code>switchActivityTab</code> 34905, <code>loadAlertNotifications</code> 34856); יצירה ידנית מהלקוח כשנמצא מלאי מחסן נמוך (<code>renderPantry</code> 8600-8619).</div>
+<div>תנאים ואימותים</div><div><ul><li>כל ה-endpoints (server.js:10971-11016) ללא auth.</li><li>POST <code>/api/alerts/notifications</code>: אם referenceKey קיים כבר לקבוצה → <code>{skipped:true}</code> (dedup). trigger_type ברירת מחדל 'low_stock'.</li></ul></div>
+<div>חישובים</div><div>מלאי נמוך (לקוח): avail = max(0, qty − reserved − qty×buffer%) ; קריטי אם avail ≤ qty × warning% (8600-8604). referenceKey = <code>low_stock_{groupId}_{YYYY-MM-DD}</code> ⇒ התראה אחת ביום. נשלח פעם אחת לסשן (<code>_pantryWarningSent</code>).</div>
+<div>שלבי עיבוד</div><div>GET מחזיר עד limit (50); לחיצה מסמנת is_read; "סמן הכל" לפי groupId; unread-count לבאדג'ים bell-badge ו-alert-tab-badge.</div>
+</div></section>
+
+<section class="proc" data-f="sla configs breach orders quotes max_hours status checkslabreaches"><h3>הגדרות SLA ובדיקת חריגות (checkSLABreaches)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין פותח <code>sla-modal</code> (<code>openSLAModal</code> business-app.js:34722, <code>saveSLAConfigs</code> 34810). Cron: 6 דקות אחרי עלייה ואז כל 5 דקות (server.js:25105).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET/POST/DELETE <code>/api/sla</code> (11019-11045) ללא auth. POST = UPSERT על (group_id,module,status); max_hours ברירת מחדל 24; is_active ≠false.</li><li>לקוח: שורה בלי status או module מדולגת.</li></ul></div>
+<div>חישובים</div><div><ul><li>ברירות מחדל בממשק (<code>SLA_DEFAULTS</code> 34705-34718): orders — new 1ש', processing 3, ready 4, shipped 24; quotes — draft 24, sent 72, waiting_customer 48, frozen 168 (is_active false). קלט שעות min 0.5 step 0.5.</li><li>orders: store_orders בסטטוס = cfg.status ש-COALESCE(status_changed_at, created_at) &lt; NOW − max_hours.</li><li>quotes: status='quote' ו-quote_status=cfg.status (draft כולל NULL).</li><li>cooldown קבוע 60 דקות לפי הודעה אחרונה מסוג sla_breach שמכילה "[module:status]".</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT alert_notifications(trigger_type='sla_breach', message "[module:status] חריגת SLA בשלב "label" (מעל Nש'): שמות") + מייל "⏱️ חריגת SLA: label" אם email.</div>
+<div>פערים</div><div>saveSLAConfigs תמיד שולח isActive:true — לא ניתן לכבות שלב מהממשק (רק למחוק שורה מה-DOM, שלא מוחקת מה-DB). frozen עם is_active:false בברירת מחדל יישמר כפעיל.</div>
+</div></section>
+
+<section class="proc" data-f="audit log logbizaction biz_audit_log global middleware http_ skip"><h3>יומן ביקורת עסקי — logBizAction ו-middleware גלובלי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>תיעוד כל פעולת כתיבה עסקית. (1) middleware גלובלי (server.js:104-144) מאזין ל-<code>res.on('finish')</code>; (2) קריאות ייעודיות ל-<code>logBizAction</code> (4160).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>גלובלי: רק POST/PUT/PATCH/DELETE; רק status 200-399; רק אם <code>req.bizAuth.groupId</code> קיים (verifyBiz / verifyBizOrLegacy / verifyFamilyOrBiz-alias, כולל legacy עם groupId מה-body).</li>
+<li>מדלגים (מתועדים ייעודית): exact — /api/ai/actions, /api/store/orders/status, /api/store/coupons, /api/biz/customer-chats, /api/biz/chat-assistant; patterns — sport freeze, work-orders status, professional-leads/:id, service-calls/:id, beauty appointments/:id, logistics orders/invoices status, customer-chats/:id/message (107-120).</li>
+<li>body מסוכם: עד 12 מפתחות ראשונים, ללא מפתחות שתואמים /password|token|secret|signature/i (130-137).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT biz_audit_log(group_id,user_id,actor_name,action_type,entity_type,entity_id,description,metadata JSON) — fire&amp;forget, שגיאות נבלעות. גלובלי: action_type='HTTP_'+method, entity_type='route', entity_id=path, description "METHOD path".</div>
+<div>חישובים</div><div>action_types ייעודיים: UPDATE_ORDER_STATUS, UPDATE_CATALOG_PRICE, TOGGLE_CATALOG_ITEM, CREATE_COUPON, PANTRY_AUTO_DEDUCT, UPDATE_RECIPE_INGREDIENT, UPDATE_SC_STATUS, UPDATE_CASE_STATUS, UPDATE_LEAD_STATUS, FREEZE_MEMBER, CANCEL_MEMBER, DELETE_MEMBER, UPDATE_APPT_STATUS, UPDATE_DELIVERY_STATUS, UPDATE_INVOICE_STATUS, REPLY_CUSTOMER_CHAT, SA_AI_*.</div>
+<div>ממשק</div><div>אין מסך ייעודי ב-BIZ; הצריכה היא דרך FamliAI (provider <code>audit_log</code>, 16021-16029, עד 150 רשומות, סינון actor_name ILIKE). GET <code>/api/biz/audit-log/:groupId</code> (12903) — ללא auth, limit ≤300, סינון actionType/entityType — ללא צרכן בלקוח.</div>
+<div>פערים</div><div>ב-HTTP_* actor_name=NULL, ולכן חיפוש ה-AI לפי שם עובד לא ימצא אותן. endpoint השליפה חשוף לכל groupId.</div>
+</div></section>
+
+<section class="proc" data-f="activity log feed logactivity family_audit_log"><h3>פיד פעילות (activity_log)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>logActivity(groupId,userId,userName,actionType,actionKey,description)</code> (server.js:4129) נקרא מתנועות, משימות, תיקוני יתרה. נצרך ב-GET <code>/api/activity</code> (24532) לפאנל הפעילות.</div>
+<div>תנאים ואימותים</div><div>GET /api/activity: userId מה-query (ללא טוקן) → קבוצתו נגזרת מה-DB; לא-ADMIN רואה רק את שלו; days ברירת מחדל 30, limit 50; unreadCount = פעולות ב-24 שעות אחרונות.</div>
+<div>שלבי עיבוד</div><div>INSERT activity_log; user_name ברירת מחדל 'מערכת'. אייקונים בלקוח: finance💰 task✅ shopping🛒 pantry📦 business🏪 user👤 (35021).</div>
+<div>פערים</div><div>זהות נקבעת מ-userId ב-query — כל אחד יכול לצפות בפיד של כל משתמש.</div>
+</div></section>
+
+<h2 class="grp">תקשורת — פיד צוות, צ'אטים ותיבת הודעות</h2>
+
+<section class="proc" data-f="team posts feed board announcement branch_manager"><h3>פיד הצוות (Team Posts)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מקטע <code>team-feed-section</code> (<code>renderTeamFeed</code> business-app.js:7529), נטען אחרי fetchMembers.</div>
+<div>תנאים ואימותים</div><div><ul><li>server.js:13063-13086 — ללא auth. POST: groupId ו-message (trim) חובה → 400 "חסרים שדות"; author_name ברירת מחדל 'צוות'.</li><li>לקוח: פרסום רק ל-ADMIN או employee_role_type='branch_manager'; מחיקה רק ל-ADMIN.</li></ul></div>
+<div>שלבי עיבוד</div><div>GET 50 אחרונים; INSERT team_posts(group_id,author_user_id,author_name,message); DELETE לפי id.</div>
+<div>פערים</div><div>הרשאות פרסום/מחיקה בצד לקוח בלבד.</div>
+</div></section>
+
+<section class="proc" data-f="team chat group chat cleanup 3 months"><h3>צ'אט צוות קבוצתי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל צ'אט צוות (<code>fetchTeamChat</code> 31196, <code>submitChatMessage</code> 31355); נמשך שקט גם בכל fetchData (31086-31088).</div>
+<div>תנאים ואימותים</div><div>GET <code>/api/chat/:groupId</code> ו-POST <code>/api/chat</code> (server.js:23309-23343) — ללא auth; הודעה ריקה → 400 "הודעה ריקה".</div>
+<div>שלבי עיבוד</div><div>GET: מוחק הודעות ישנות מ-3 חודשים לקבוצה ואז מחזיר עד 500 (JOIN users — הודעות של משתמשים שנמחקו נעלמות). POST: INSERT team_chat(group_id,user_id,message).</div>
+<div>ממשק</div><div>חיפוש וייצוא TXT (31320); בועה אדומה על הודעות חדשות.</div>
+</div></section>
+
+<section class="proc" data-f="dm direct message 1:1 employees unread poll"><h3>הודעות ישירות בין עובדים (DM)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לשונית DM במודל הצ'אט (<code>loadBizDmList</code> 60556, <code>_loadBizDmMessages</code> 60622, <code>sendBizDmMsg</code> 60663).</div>
+<div>תנאים ואימותים</div><div>verifyBiz (server.js:44048-44127); body ריק → 400 "גוף הודעה ריק". toUserId <b>לא נבדק</b> שהוא בקבוצה.</div>
+<div>חישובים</div><div>רשימה: כל המשתמשים בקבוצה מלבדי + הודעה אחרונה בכל זוג (DISTINCT ON LEAST/GREATEST) + unread = הודעות אליי מהצד השני עם read_at NULL.</div>
+<div>שלבי עיבוד</div><div>פתיחת שיחה מסמנת read_at להודעות שהגיעו אליי; polling כל 5 שניות (60614) עם since.</div>
+</div></section>
+
+<section class="proc" data-f="customer chat storefront open close status unread poll business reply"><h3>צ'אט לקוח ↔ עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח מחובר בחנות פותח שיחה (POST <code>/api/public/customer-chat/open</code> server.js:43851); העסק מנהל בלשונית "לקוחות" במודל הצ'אט (<code>loadCustChatList</code> 60689, <code>openCustChat</code> 60786, <code>sendCustChatMsg</code> 60900, <code>custChatToggleStatus</code> 60914, <code>deleteCustChat</code> 60999).</div>
+<div>תנאים ואימותים</div><div><ul><li>צד לקוח: טוקן storefront (<code>_scGetCustomerByToken</code>) → 401 "נדרשת התחברות"; groupId קיים → 400 "עסק לא נמצא"; גישה רק לשיחה של הלקוח → 403 "אין גישה".</li><li>צד עסק (verifyBiz): השיחה חייבת להיות של group הטוקן → 403 "אין גישה"; body ריק → 400 "הודעה ריקה"; status ∈ {open,closed} → 400 "סטטוס לא תקין".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>open: INSERT customer_chats(group_id,customer_id) ON CONFLICT DO NOTHING (שיחה אחת ללקוח-עסק) ושליפה.</li><li>לקוח שולח: INSERT customer_chat_messages(sender_type='customer'); UPDATE last_message_at, <b>status='open'</b>.</li><li>עסק שולח: sender_type='business', sender_id=userId; last_message_at; <code>logBizAction REPLY_CUSTOMER_CHAT</code>.</li><li>שליפת הודעות מסמנת read_at להודעות הצד השני.</li><li>מחיקה: DELETE הודעות ואז השיחה.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>open</td><td>לקוח</td><td>מחובר</td><td>—</td></tr>
+<tr><td>open</td><td>closed</td><td>עסק</td><td>—</td><td>—</td></tr>
+<tr><td>closed</td><td>open</td><td>עסק / הודעת לקוח</td><td>—</td><td>פתיחה אוטומטית בהודעת לקוח</td></tr></table></div></div>
+<div>ממשק</div><div>polling הודעות בשיחה פתוחה כל 3000ms (POLL_MS 60356); רשימה כל 15000ms (61036); unread כולל בבאדג' <code>cust-chat-unread-badge</code> מחושב בכל fetchData (31095-31112). FamliAI מקבל עד 8 שיחות עם unread ויכול להציע תשובה (<code>[ACTION:REPLY_CUSTOMER_CHAT|id|טקסט]</code>).</div>
+</div></section>
+
+<section class="proc" data-f="inbox messages customer thread reply biz sport"><h3>תיבת הודעות (Inbox) — פניות לקוחות ותגובות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח (חנות/משפחה) שולח פנייה (POST <code>/api/inbox/customer</code> server.js:23210); העסק קורא/עונה (<code>fetchInboxMessages</code> 30901, <code>sendInboxReply</code> 31052, <code>toggleInboxThread</code> 31029); גם במסך ספורט (49233-49289).</div>
+<div>תנאים ואימותים</div><div>כל ה-endpoints (23185-23251) <b>ללא auth</b>. POST customer: groupId ו-content חובה → 400 "חסרים נתונים". reply: content ריק → 400 "תוכן ריק".</div>
+<div>שלבי עיבוד</div><div>customer: INSERT inbox_messages(sender_type='customer', sender_name||'לקוח אנונימי', subject||'פנייה מלקוח WEFLOWZ', direction='inbound'). reply: INSERT sender_type='business', sender_name=שם העסק, subject 'תגובה מהעסק', direction='outbound'. thread: 50 הודעות לפי group+customer_group. PUT read: is_read. DELETE פיזי.</div>
+<div>ממשק</div><div>fetchInboxMessages נקרא אחרי כל fetchData (polling 30ש').</div>
+</div></section>
+
+<section class="proc" data-f="support ticket business sa reply status open in_progress resolved"><h3>קריאות תמיכה מהעסק ל-SA</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"פנייה לתמיכה" (<code>submitSupportTicket</code> 24534), צפייה (<code>fetchMyTickets</code> 24556), תגובה (<code>submitClientTicketReply</code> 24651); בקשת פתיחת מודול נעול-הרשאה.</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/support/ticket</code> (server.js:4349) ללא auth; description ≥5 תווים → 400 "תיאור קצר מדי.".</div>
+<div>שלבי עיבוד</div><div>INSERT support_tickets(status='open', log=[{date,sender,isStaff:false,message}]) → מייל ל-admin_notification_email (ברירת מחדל קשיחה mcgames1978@gmail.com, 4287) "קריאה #id: subject". תגובה (4381): push ללוג; סטטוס = newStatus או staff→'in_progress' / לקוח→'open'; resolved + תגובת לקוח → 'open'. "הקריאות שלי" (5155) מסנן רשומות isInternal מהלוג.</div>
+<div>מכונת מצבים</div><div>open ⇄ in_progress (לפי מי שענה) → resolved (SA) → open (תגובת לקוח). מנוע ההתראות <code>ticket_open</code> סופר קריאות open.</div>
+</div></section>
+
+<h2 class="grp">בינה מלאכותית לעסק (Gemini)</h2>
+
+<section class="proc" data-f="ai tokens battery quota plan premium enterprise standard handleaitokens daily reset"><h3>סוללת AI — מכסת שאילתות יומית (handleAITokens)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>נקרא בתחילת כל endpoint AI עסקי (chat-assistant, tasks/ai-generate, vision-verify, academy ai/tutor, insights, generate-image ועוד).</div>
+<div>תנאים ואימותים</div><div>קבוצה לא קיימת או שגיאה → false; false ⇒ ה-endpoint מחזיר <code>{success:false,error:'BATTERY_EMPTY'}</code> (HTTP 200).</div>
+<div>חישובים</div><div><ul><li>plan = family_groups.plan, אחרת is_premium ? 'enterprise' : 'standard' (server.js:4175).</li><li>enterprise — ללא הגבלה (רק לוג).</li><li>מכסה יומית: premium 50, אחרת 10 (4182). איפוס ל-dailyLimit כש-last_token_reset &lt; CURRENT_DATE; אם ai_tokens&gt;0 → −1 ו-true.</li></ul></div>
+<div>שלבי עיבוד</div><div>UPDATE איפוס → SELECT → UPDATE ai_tokens−1 → INSERT ai_usage_log(group_id, endpoint='general').</div>
+<div>ממשק</div><div><code>updateBatteryUI</code> (business-app.js:3033): Pro "⚡ ∞ (Pro)"; אחרת "⚡ N/10" (כתום ≤3, אדום 0). <code>executeWithAIWarning</code> (3059) — מודל אזהרה לפני שימוש אלא אם Pro או localStorage <code>ofl_hide_ai_warning</code>. BATTERY_EMPTY → מודל ai-battery-modal (מקטע שדרוג רק ל-ADMIN, 3042-3053).</div>
+<div>פערים</div><div><ul><li>GET /api/data מאפס <code>ai_tokens=10</code> בכל יום חדש ללא תלות בתוכנית (10766) — עסק premium שנכנס לפני קריאת AI ראשונה יקבל 10 במקום 50.</li><li>התצוגה מקובעת על "/10".</li><li>בדיקה-ואז-הפחתה אינה אטומית (race).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="famliai chat assistant business ai context need_data actions gemini prompt"><h3>FamliAI — עוזרת עסקית (chat-assistant)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל מקליד שאלה במודל העוזרת (<code>submitGlobalAI</code> business-app.js:16172; גרסאות מותאמות ל-sport 46500 ולוגיסטיקה 54112). גם כלים נקודתיים (ניסוח הצעות מחיר 9873/9927/9973, ניתוח עלויות 24370, אנליטיקה 25301) קוראים לאותו endpoint.</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/biz/chat-assistant</code> (verifyBiz, server.js:16038); סוללה (handleAITokens על groupId <b>מה-body</b>); מפתח Gemini חסר → שגיאה "מפתח AI חסר בשרת".</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח בונה context JSON: סיכום הזמנות (היום/חודש/סטטוסים/10 אחרונות), פקודות עבודה, עובדים (מ-employee-stats), מלאי מחסן (low_stock ≤2), תזרים, food cost, משימות פתוחות, קטלוג (מסעדה), תורים (יופי), לידים, קריאות שירות, קהילות, שיחות לקוח פתוחות, ביקורות, קופונים פעילים, חוקי התראה, חשבוניות (לוגיסטיקה) (16183-16284).</li>
+<li>שרת: business_type מה-context בוחר מקטע הנחיות ייעודי (logistics, maintenance_repair, professional, beauty, retail, construction, sport, restaurant/cafe, אחר=food cost) (16051-16260).</li>
+<li>prompt מערכת (16262-16353) עם כללי תגובה, רשימת תגיות ACTION ו-NEED_DATA; מודל <code>gemini-2.5-flash</code>.</li>
+<li>אם בתשובה <code>[NEED_DATA:provider|params]</code> → <code>fetchBizAdditionalData</code> (15941) וקריאה שנייה למודל עם הנתונים. providers: orders_range (200, מחזיר 60), transactions_range (200, 80), employee_full_history (ILIKE שם; 100 משימות ו-100 החתמות), reviews_all (300), invoices_all (200), forecast_sales, audit_log (150).</li>
+<li>הלקוח מפרסר תגיות <code>[ACTION:…]</code> לכפתורי ביצוע.</li></ol></div>
+<div>חישובים</div><div>forecast_sales (15995-16020): הכנסה שבועית 12 שבועות (ללא cancelled/rejected); רגרסיה לינארית slope/intercept; nextWeekEstimate = max(0, round(intercept + slope×n)); trendPct = slope / הכנסת השבוע האחרון ×100 (עיגול 1).</div>
+<div>מכונת מצבים</div><div>תגיות ACTION ופעולתן בלקוח (16295-16451; מימושים 57339-57680): ADD_TASK/ADD_SHOP → פתיחת מודל ממולא; EXPORT_EXCEL → downloadBizReport; OPEN_TAB → switchTab; CREATE_TABLE_RES; UPDATE_ORDER_STATUS; TOGGLE_CATALOG_ITEM / UPDATE_CATALOG_PRICE → POST /api/ai/actions (confirm לפני); UPDATE_RECIPE_INGREDIENT → /api/food-cost/recipe/:id/ingredient; UPDATE_APPT_STATUS/COMPLETE_APPT/NO_SHOW_APPT/ADD_BEAUTY_CLIENT; UPDATE_LEAD_STATUS/UPDATE_CASE_STATUS/UPDATE_SC_STATUS; CREATE_TASK → POST /api/tasks (assignee לפי nickname.includes, reward 0, requireAiCheck false); CREATE_ALERT_RULE → מיפוי TRIGGER_MAP; REPLY_CUSTOMER_CHAT → POST customer-chats/:id/message; CREATE_COUPON → POST /api/store/coupons; UPDATE_INVOICE_STATUS; ספורט: FREEZE/UNFREEZE/CHECKIN_MEMBER, REGISTER_CLASS; לוגיסטיקה: UPDATE_DELIVERY_STATUS. כל פעולה דורשת לחיצת משתמש.</div>
+<div>פערים</div><div><ul><li><b>דליפת נתונים בין עסקים</b>: fetchBizAdditionalData משתמש ב-groupId מה-body ולא ב-req.bizAuth.groupId — משתמש עסקי יכול לשלוף הזמנות/תנועות/היסטוריית עובדים של כל עסק.</li><li>התשובה מוזרקת כ-HTML ללא escaping (16453-16454) — XSS אפשרי מתוכן המודל/הקונטקסט.</li><li>CREATE_TASK נוצר ללא status (NULL). CREATE_COUPON נשלח בלי Authorization (נשען על legacy).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="ai actions update catalog price toggle catalog item"><h3>ביצוע פעולות AI על קטלוג (/api/ai/actions)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתורי FamliAI "עדכן מחיר"/"הפעל/הסתר מנה" (<code>_aiUpdateCatalogPrice</code>, <code>_aiToggleCatalogItem</code> business-app.js:57339-57370).</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/ai/actions</code> (server.js:15920) — <b>ללא auth</b>; groupId חובה → 400; action לא מוכר → 400 "Unknown action". ה-UPDATE מוגבל ל-group_id שנשלח.</div>
+<div>שלבי עיבוד</div><div>UPDATE_CATALOG_PRICE: price=parseFloat||0. TOGGLE_CATALOG_ITEM: is_available = available===true||'true'. logBizAction עם actor 'FamliAI'. (מוחרג מהיומן הגלובלי.)</div>
+</div></section>
+
+<section class="proc" data-f="ai generate gemini direct newsletter content sport compose callgeminidirect model fallback"><h3>ניסוח טקסט חופשי (/api/ai/generate) ו-callGeminiDirect</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מחולל ניוזלטר (<code>generateNLAI</code> 14371), ניסוח הודעות ספורט (49440, 49484), תוכן אתר מקצועי (55687).</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/ai/generate</code> (server.js:13907) — ללא auth, <b>ללא ניכוי סוללה</b>; חובה context או query → 400 "נתונים חסרים". שגיאה מוחזרת כ-200 עם success:false.</div>
+<div>שלבי עיבוד</div><div>prompt = context + "\n\nבקשה: " + query. <code>callGeminiDirect</code> — ההגדרה ב-6260 גוברת על זו שב-6054 (הכרזת פונקציה מאוחרת): שולף רשימת מודלים מ-Google, מסנן gemini עם generateContent, מסדר flash-lite/flash-8b → flash → אחר, מנסה עד 4 מודלים × 3 ניסיונות; בעומס (high demand/overloaded/RESOURCE_EXHAUSTED/quota/503/429) ממתין attempt×2000ms; שגיאה אחרת — זורק מיד (6270-6335).</div>
+</div></section>
+
+<section class="proc" data-f="ai insights tasks generate budget forecast goals pantry tutor image generation flux pollinations"><h3>כלי AI נקודתיים לעסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתורי AI במסכים השונים; כולם עוטפים ב-<code>executeWithAIWarning</code>.</div>
+<div>תנאים ואימותים</div><div>כולם verifyFamilyOrBiz + handleAITokens + <code>gemini-2.5-flash</code>; הפרומפט בוחר נוסח BUSINESS לפי family_groups.type.</div>
+<div>שלבי עיבוד</div><div><ul>
+<li><code>/api/tasks/ai-generate</code> (server.js:12310): groupId תואם; 3 משימות עם בונוס 50–500 ₪ (עסק) כ-JSON; הלקוח מוסיף "(בסביבת עבודה ארגונית)" לנושא ובחירת תוצאה ממלאת את הטופס (4782-4805).</li>
+<li><code>/api/budget/familai-insight</code> (12460): תנועות החודש → "Executive Summary" 4-5 משפטים, פתיחה "שלום הנהלה…".</li>
+<li><code>/api/forecast/familai-insight</code> (12513): תנועות חוזרות (targetUserId='all' דורש ADMIN) → 2-3 משפטים.</li>
+<li><code>/api/goals/familai-advice</code> (12430): משתמש+יעד בקבוצה → עצה של 2 צעדים.</li>
+<li><code>/api/pantry/familai-insight</code> (12486): מלאי + רכש חודש קודם → סיכום 3-4 משפטים "דוח מלאי ורכש תקופתי:".</li>
+<li><code>/api/academy/tutor</code> (12770): הסבר טעות בבוחן (2-3 משפטים).</li>
+<li><code>/api/ai/generate-image</code> (12346, ללא auth): לבאנר — Gemini מייצר prompt באנגלית (≤30 מילים); ספקים לפי סדר: HF nebius FLUX-schnell → HF together FLUX.1-schnell (HF_TOKEN, timeout 30ש') → Pollinations (45ש', seed אקראי); באנר 1024×576, לוגו 512×512; מוחזר data URI.</li></ul></div>
+<div>תופעות לוואי</div><div>כל קריאה מנכה טוקן; generate-image מנכה גם כשהספקים נכשלים.</div>
+</div></section>
+
+<h2 class="grp">אקדמיה וסקרים לעסק</h2>
+
+<section class="proc" data-f="academy bundles quiz create edit ai generate professional threshold"><h3>יצירת ועריכת הכשרות (Quiz Bundles)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין בטאב academy: ידני (<code>submitManualQuiz</code> business-app.js:29825/30188), AI (<code>generateAIQuiz</code> 29871/30234), עריכה (<code>openEditBundleModal</code> 29983).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST/PUT <code>/api/academy/bundles</code> (server.js:12165/12280), POST <code>/api/academy/ai-generate</code> (12226): ADMIN בלבד → 403 "נדרשת הרשאת מנהל".</li><li>PUT: created_by חייב להיות groupId (לא SYSTEM) → 403 "אין הרשאה".</li><li>GET <code>/api/academy/bundles/:id</code> (12268): created_by = הקבוצה או 'SYSTEM' → אחרת 403.</li></ul></div>
+<div>חישובים</div><div>threshold קבוע 80; reward ≥0; ידני — type ברירת מחדל 'professional', age_group 'כללי'. AI — 5 שאלות, 4 אפשרויות, type 'professional' (עסק)/'financial', reward קבוע 10.0 (12261).</div>
+<div>שלבי עיבוד</div><div>ידני/עריכה בטרנזקציה אמיתית (pool.connect): INSERT/UPDATE quiz_bundles; עריכה מוחקת ומכניסה מחדש את כל quiz_questions(q, options JSON, correct). AI — ללא טרנזקציה, חילוץ JSON בין "{" ל-"}" האחרונים.</div>
+</div></section>
+
+<section class="proc" data-f="academy assign request challenge submit score reward flw kid wallet"><h3>הקצאת הכשרה, אתגר עצמי והגשת בוחן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אדמין מקצה (<code>submitAssignQuiz</code> 6909/29969, <code>submitTrainingTrack</code> 7207/30414); עובד מבקש אתגר (<code>requestChallenge</code> 7267) ומגיש (<code>finishQuiz</code> 7303).</div>
+<div>תנאים ואימותים</div><div><ul><li>assign (server.js:12111): ADMIN; עובד בקבוצה → 404; bundle של הקבוצה/SYSTEM → 404 "לומדה לא נמצאה".</li><li>request-challenge (12084): ללא bundleId — בחירה אקראית מתוך 20 של הקבוצה/SYSTEM שלא הוקצו/הושלמו; אין → <code>{success:false,error:'כל הלומדות כבר הוקצו!'}</code>.</li><li>submit (12126): answers באורך מספר השאלות → אחרת 400 "תשובות לא תקינות".</li></ul></div>
+<div>חישובים</div><div>score = round(נכונות/סה"כ×100); passed = score ≥ threshold (80); status 'completed'/'failed'. תגמול = custom_reward || reward של ה-bundle; deadline = now + days.</div>
+<div>שלבי עיבוד</div><div>assign: INSERT user_assignments(user_id,bundle_id,custom_reward,deadline). submit: UPDATE user_assignments רק אם status='assigned'; עבר ותגמול&gt;0 → UPSERT <code>flw_kid_wallets</code> (balance_flw, lifetime_flw += rew).</div>
+<div>מכונת מצבים</div><div>assigned → completed (score ≥ סף, זיכוי) | failed. הגשה חוזרת אחרי completed/failed לא מעדכנת (אין שורה assigned).</div>
+<div>פערים</div><div>בעסק התגמול נזקף ל-<code>flw_kid_wallets</code> (ארנק ילדים) ולא ליתרת העובד/transactions; גם בממשק מוצג "תגמול: ₪". ה-BEGIN על pool.</div>
+</div></section>
+
+<section class="proc" data-f="surveys create activate close results public submit code max 3"><h3>סקרים (Surveys)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ניהול סקרים ע"י עסק; מילוי ציבורי ב-survey.html (survey-app.js) לפי קוד.</div>
+<div>תנאים ואימותים</div><div><ul><li>כל ה-endpoints (server.js:24758-24898) ללא auth.</li><li>יצירה: groupId+title חובה → 400 "חסרים נתונים"; unique_code 8 תווים A-Z0-9 (24750).</li><li>עדכון: רק status='draft' → 400 "ניתן לערוך רק טיוטות".</li><li>activate: מקסימום 3 סקרים פעילים לקבוצה → 400 "הגעת למקסימום 3 סקרים פעילים".</li><li>ציבורי: סקר לא active → 403 "הסקר אינו פעיל כרגע"/"הסקר אינו פעיל".</li><li>survey-app.js: שאלות required ושדות זיהוי (אם לא anonymous) חובה בצד לקוח; סוגי שאלות: multiple_choice, yes_no, rating, open_text.</li></ul></div>
+<div>מכונת מצבים</div><div>draft → active (≤3 פעילים) → closed (closed_at). מחיקה פיזית בכל מצב.</div>
+<div>שלבי עיבוד</div><div>submit: INSERT survey_responses(respondent_data JSON, answers JSON, comment). results: survey + questions + responses.</div>
+<div>פערים</div><div>אין בממשק BIZ (business-app.js) קריאה ל-/api/surveys — ניהול הסקרים לא מחווט לטאב "תקשורת ועדכונים" (שמכיל בפועל מחולל ניוזלטרים). activate לא בודק שהסקר שייך ל-groupId.</div>
+</div></section>
+
+<h2 class="grp">קמעונאות — מלאי, וריאציות, החזרות וספירות</h2>
+
+<section class="proc" data-f="recordinventorymovement inventory movement reason sale return stock_count manual_adjustment"><h3>רישום תנועת מלאי מרכזי — recordInventoryMovement</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פונקציה פנימית (server.js:7378-7391) שכל שינוי מלאי קמעונאי עובר דרכה: תיקון ידני, וריאציה, החזרה, ספירה.</div>
+<div>תנאים ואימותים</div><div>יציאה שקטה אם חסר groupId, catalogId או changeQty=0. שגיאות נבלעות ל-console.</div>
+<div>שלבי עיבוד</div><div><ol><li>variantId → <code>store_product_variants.stock_quantity += changeQty</code>; אחרת <code>store_catalog.stock_quantity = COALESCE(…,0)+changeQty</code>.</li><li>INSERT <code>store_inventory_movements</code>(group_id,catalog_id,variant_id,change_qty,reason,reference_id,note,created_by_user_id).</li></ol>ללא טרנזקציה.</div>
+<div>מכונת מצבים</div><div>reason בפועל: manual_adjustment, return, stock_count. מתועדים בהערה אך לא נקראים בשום מקום: sale, purchase_receipt, cancelled_order.</div>
+<div>פערים</div><div>מכירות אינן מורידות מלאי דרך הפונקציה; קבלת הזמנת רכש (server.js:28394) מעדכנת stock_quantity ישירות ללא רשומת תנועה.</div>
+</div></section>
+
+<section class="proc" data-f="retail inventory overview low stock out adjust value"><h3>סקירת מלאי ותיקון ידני</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב sales → תת-טאב "מלאי" (<code>initInventoryTab</code> business-app.js:62065), מוצג רק ל-business_type retail/store_only (25576-25581).</div>
+<div>תנאים ואימותים</div><div><ul><li>כל /api/biz/retail/* — verifyBizOrLegacy + requireModule('sales').</li><li>GET <code>/inventory/:groupId</code> (server.js:13384): רק store_catalog עם track_inventory=TRUE; כולל variant_count ו-variants_total_stock (וריאציות פעילות).</li><li>POST <code>/inventory/:catalogId/adjust</code> (13417): changeQty שלם ≠0 → 400 "יש להזין כמות שינוי שונה מאפס"; מוצר בקבוצה → 404 "מוצר לא נמצא".</li><li>GET movements (13400): 200 אחרונות, סינון catalogId אופציונלי.</li></ul></div>
+<div>חישובים</div><div>בלקוח: stock = has_variants ? variants_total_stock : stock_quantity. נמוך: low_stock_threshold מוגדר ו-0 &lt; stock ≤ threshold; אזל: stock ≤0 (62112-62120). שווי מלאי = Σ stock × cost_price (62096-62102). באדג' inventory-lowstock-badge = כמות נמוכים.</div>
+<div>שלבי עיבוד</div><div>adjust → recordInventoryMovement(reason 'manual_adjustment', note).</div>
+<div>ממשק</div><div>פילטרים הכל/נמוך/אזל; כפתורי ספירת מלאי, החזרה חדשה, היסטוריית החזרות, יומן תנועות.</div>
+</div></section>
+
+<section class="proc" data-f="variants product variant sku barcode price override has_variants"><h3>וריאציות מוצר</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"ניהול וריאציות" במוצר (<code>fetchVariants</code> 62232, <code>addVariant</code> 62266, <code>deleteVariant</code> 62286, <code>adjustVariantStock</code> 62297).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/variants/:catalogId</code> (server.js:13443): מוצר בקבוצה → 404.</li><li>PUT <code>/variants/:variantId</code> (13463): COALESCE לשדות; <b>price_override תמיד נדרס</b> (ריק → NULL); isActive רק boolean.</li><li>DELETE (13482) — פיזי; לא נמצא → 404 "וריאציה לא נמצאה".</li><li>adjust וריאציה (13493): delta ≠0.</li></ul></div>
+<div>שלבי עיבוד</div><div>יצירה: INSERT (variant_name, attributes JSON, sku, barcode, price_override, stock_quantity=parseInt||0, image_url) ואז <code>store_catalog.has_variants=TRUE</code>. stock התחלתי לא נרשם כתנועה.</div>
+<div>פערים</div><div>מחיקת הוריאציה האחרונה לא מחזירה has_variants=FALSE.</div>
+</div></section>
+
+<section class="proc" data-f="returns refund store credit restock cash original_payment"><h3>החזרות וזיכויים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"החזרה חדשה" (<code>openReturnModal</code>/<code>submitReturn</code> business-app.js:62349/62389); היסטוריה (<code>openReturnsHistory</code> 62431).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST <code>/api/biz/retail/returns</code> (server.js:13523): items מערך לא ריק → 400 "יש לבחור לפחות פריט אחד להחזרה".</li><li>לקוח: מוצר וכמות חובה; store_credit דורש טלפון → "זיכוי בחנות דורש טלפון לקוח". מוצרים עם וריאציות לא מוצגים בטופס.</li></ul></div>
+<div>חישובים</div><div>totalRefund = Σ unitPrice × qty (13528). refundMethod: store_credit (ברירת מחדל) / cash / original_payment.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT store_returns(status='completed', refund_method, total_refund, reason, restock≠false, completed_at=NOW) — מיידי, אין זרימת אישור.</li><li>לכל פריט INSERT store_return_items; אם restock → recordInventoryMovement(+qty, 'return', reference=return id).</li><li>store_credit + טלפון → <code>store_customers.credit_balance += totalRefund</code> לפי group+phone מנוקה ממקפים/רווחים.</li></ol>ללא טרנזקציה.</div>
+<div>פערים</div><div>החזר כספי (cash/original_payment) לא נרשם ב-transactions/תזרים; לקוח לא קיים בטלפון — הזיכוי נבלע בשקט.</div>
+</div></section>
+
+<section class="proc" data-f="stock count periodic expected counted diff"><h3>ספירת מלאי תקופתית</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"ספירת מלאי" (<code>openStockCountModal</code>, <code>submitStockCount</code> business-app.js:62340).</div>
+<div>תנאים ואימותים</div><div>POST <code>/api/biz/retail/stock-counts</code> (server.js:13557): items לא ריק → 400 "אין פריטים לספירה". לקוח: רק שדות שמולאו; מוצרים עם וריאציות לא מוצגים.</div>
+<div>חישובים</div><div>expected = stock_quantity הנוכחי (וריאציה או מוצר); diff = counted − expected; diff_qty עמודה מחושבת GENERATED (server.js:1329-1337).</div>
+<div>שלבי עיבוד</div><div>INSERT store_stock_counts(status='completed', started_by_user_id, completed_at) → לכל פריט INSERT store_stock_count_items(expected, counted) → diff≠0 → recordInventoryMovement(diff, 'stock_count'). מחזיר diffs; toast "הספירה נשמרה — N פריטים תוקנו". היסטוריה (13594): 50 אחרונות + diff_count.</div>
+<div>מכונת מצבים</div><div>store_stock_counts.status ברירת מחדל 'in_progress' בסכימה אך תמיד נוצר 'completed'.</div>
+</div></section>
+
+<h2 class="grp">Cron jobs נוספים בתחום</h2>
+
+<section class="proc" data-f="retention cron beauty clients overdue visit group_notifications"><h3>Cron שימור לקוחות (Retention)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>runRetentionCron</code> (server.js:32631-32675): ריצה ראשונה 8 דקות אחרי עלייה ואז כל 24 שעות (CRON_INTERVAL_MS).</div>
+<div>תנאים ואימותים</div><div>beauty_client_records עם avg_visit_interval_days&gt;0 ו-last_visit_at, שבהם last_visit_at + interval ≤ NOW, וללא תור עתידי (status scheduled/confirmed עם segment start_time&gt;NOW) לאותו טלפון.</div>
+<div>שלבי עיבוד</div><div>INSERT group_notifications(type='beauty_retention', title "לקוח/ה {שם} לא ביקר/ה זמן מה", body "ממוצע ביקור כל N יום — כדאי ליצור קשר", metadata JSON) ON CONFLICT DO NOTHING; שגיאה פר-לקוח נבלעת.</div>
+<div>פערים</div><div>אין dedup אמיתי — כל יום תיווצר התראה חוזרת לאותו לקוח (אלא אם יש constraint ייחודי — לא נקבע בקוד).</div>
+</div></section>
+
+<section class="proc" data-f="demo businesses reset cron snapshot restore"><h3>Cron איפוס עסקי דמו</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>runDemoBusinessesResetCron</code> (server.js:44909-44919) כל 6 שעות, לכל family_groups עם is_demo_business=TRUE.</div>
+<div>שלבי עיבוד</div><div><code>restoreDemoSnapshot</code> (17925-17960) בטרנזקציה אמיתית: אם אין demo_snapshots — false; מחיקת store_order_items (של הזמנות הקבוצה), store_orders, store_customers, transactions, tasks, pantry; הכנסה מחדש מה-snapshot (INSERT שורה-שורה עם כל העמודות); <code>setval</code> לכל sequence ל-MAX(id); COMMIT / ROLLBACK בשגיאה. טבלאות: <code>DEMO_RESET_TABLES</code> (17890). הלכידה (<code>captureDemoSnapshot</code> 17902) UPSERT ל-demo_snapshots.</div>
+<div>פערים</div><div>טבלאות אחרות (time_clock, alert_notifications, chats וכו') לא מתאפסות.</div>
+</div></section>
+
+<section class="proc" data-f="phase3 kol haam daily weekly monthly cron streak badge achievement article of week month most shared flow reward"><h3>Cron שלב 3 (קול העם) — יומי/שבועי/חודשי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>יומי: <code>runPhase3DailyCron</code> (server.js:44777) כל 24ש' + 60ש' אחרי עלייה; שבועי (44854) כל 7 ימים; חודשי (44888) <b>כל 20 ימים</b> (מתחת ל-INT32_MAX, 44905). שבועי/חודשי ללא ריצה בעלייה.</div>
+<div>חישובים</div><div><ul>
+<li>יומי: peak_score_first_week = max(peak, current_trending_score) לתוכן PUBLISHED_LOCAL/GLOBAL בשבוע הראשון.</li>
+<li>תוכן בגיל 7–8 ימים: GLOBAL ו-peak ≥250 → global_streak+1; ≥3 → badge GLOBAL_LEADER + הישג. אחרת peak ≥50 → local_streak+1; ≥3 ו-badge DEFAULT → LOCAL_LEADER + הישג (44805-44823).</li>
+<li>LEGACY: LOCAL/GLOBAL_LEADER ללא פרסום 60 יום → badge 'LEGACY'.</li>
+<li>שחרור השעיה: is_revoked ו-revoked_until ≤ NOW → איפוס.</li>
+<li>שבועי: ARTICLE_OF_WEEK = peak הגבוה ב-7 ימים; MOST_SHARED_WEEK = מירב שיתופים (content_shares_log) ב-7 ימים אם &gt;0.</li>
+<li>חודשי: ARTICLE_OF_MONTH = peak הגבוה ב-30 ימים.</li></ul></div>
+<div>תופעות לוואי</div><div><code>checkAndAwardAchievements</code> (44753): הישג רגיל — פעם אחת; ARTICLE_OF_WEEK/MONTH/MOST_SHARED — ניתן שוב. flow_reward&gt;0 → <code>awardKolHaamFlow</code> (44722): UPSERT flow_wallets('family', family_group_id) += amount, INSERT flow_transactions (action_key=סיבת התגמול), content_flow_rewards, author_profiles.total_earned_flow.</div>
+<div>פערים</div><div>מחזור 20 יום מול חלון 30 יום — אותו מאמר עשוי לקבל ARTICLE_OF_MONTH (ומטבעות FLW) פעמיים. מכיוון ש-setInterval מתאפס בכל restart, השבועי/חודשי עלולים לא לרוץ לעולם בשרת שמופעל מחדש לעתים קרובות.</div>
+</div></section>

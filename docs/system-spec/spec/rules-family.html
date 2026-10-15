@@ -1,0 +1,739 @@
+<h2 class="grp">הקמה, הרשמה וכניסה (FAMILY)</h2>
+
+<section class="proc" data-f="otp family register verify wizard send-otp verify-otp verified_token"><h3>אימות טלפון ב-OTP בוויזארד הקמת משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משתמש אנונימי בוויזארד <code>family-onboarding.html</code> (מסכים 0–1) מאמת מספר טלפון לפני יצירת סביבה. <code>wizSendOtp</code> / <code>wizResend</code> / <code>wizVerifyOtp</code> (family-onboarding.html:829-893) קוראים ל-<code>POST /api/family/send-otp</code> (server.js:7708) ו-<code>POST /api/family/verify-otp</code> (server.js:7729).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>send-otp: <code>phone</code> חובה — "מספר טלפון חסר" (7711).</li>
+<li>Rate limit: לכל היותר 3 רשומות <code>business_otp</code> עם <code>purpose='family_register'</code> לאותו טלפון בשעה האחרונה, אחרת 429 "שלחת יותר מדי בקשות. נסה שוב בעוד שעה." (7712-7716).</li>
+<li>verify-otp: <code>phone</code>+<code>code</code> חובה (7732); אם אין רשומה פעילה — "לא נמצאה בקשת אימות פעילה" (7734); פג תוקף — מוחק ומחזיר "פג תוקף הקוד. בקש קוד חדש." (7736-7739).</li>
+<li>קוד שגוי: מגדיל <code>attempts</code>; בניסיון ה-3 מוחק ומחזיר "קוד שגוי 3 פעמים. בקש קוד חדש."; אחרת "קוד שגוי. נותרו N ניסיונות." (7740-7745).</li>
+<li>לקוח: קוד חייב להיות 6 ספרות (family-onboarding.html:875); כפתור "שלח שוב" ננעל ל-30 שניות (867).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>send-otp: מוחק OTP קודם של אותו טלפון+purpose (7717), מייצר קוד 6 ספרות אקראי (<code>100000+random*900000</code>), שומר hash (<code>_bizHashOtp</code>) עם תוקף 5 דקות ב-<code>business_otp</code> (7718-7721).</li>
+<li>שולח SMS דרך Twilio; טלפון שמתחיל ב-0 מומר ל-<code>+972</code> (7722-7724).</li>
+<li>verify-otp מוצלח: מוחק את רשומת ה-OTP, מוחק <code>family_verified</code> קודם, יוצר token אקראי 32 bytes hex, שומר hash שלו כ-<code>purpose='family_verified'</code> לתוקף 15 דקות ומחזיר <code>verified_token</code> גולמי (7746-7751).</li>
+</ol></div>
+<div>חישובים</div><div>תוקף קוד: 5 דק' (7720); תוקף verified_token: 15 דק' (7749); מקסימום 3 שליחות/שעה; מקסימום 3 ניסיונות שגויים.</div>
+<div>תופעות לוואי</div><div>SMS (Twilio) עם הטקסט "WEFLOWZ\nקוד האימות שלך: …\nתקף ל-5 דקות" (7722).</div>
+<div>ממשק</div><div>וויזארד 6 שלבים עם נקודות התקדמות (<code>wizRenderDots</code>); אחרי אימות עובר למסך 2 (יצירת סביבה).</div>
+<div>פערים</div><div>האימות אופציונלי בצד השרת: <code>POST /api/groups</code> בודק את ה-token רק אם נשלח (server.js:10071) — יצירה ישירה ללא <code>verified_token</code> עוקפת את אימות הטלפון לחלוטין.</div></div></section>
+
+<section class="proc" data-f="create family group groups handlecreate wizard owner admin solo referral community"><h3>יצירת קבוצה משפחתית (הקמת סביבה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה חדש פותח "בנק משפחתי". שני מסלולי לקוח: <code>wizCreateFamily</code> (family-onboarding.html:897) ו-<code>handleCreate</code> (app.js:748) במסך ההרשמה הישן. שניהם קוראים ל-<code>POST /api/groups</code> (server.js:10064-10220), אותו endpoint משמש גם להקמת עסק (<code>type='BUSINESS'</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>אם נשלח <code>verified_token</code> ו-<code>type='FAMILY'</code>: חייבת להיות רשומת <code>family_verified</code> לטלפון — אחרת "אימות טלפון נדרש. אנא התחל מחדש."; token שגוי/פג — "אימות הטלפון פג תוקף. אנא התחל מחדש." (10071-10085).</li>
+<li>מגבלת 2 סביבות פעילות (<code>is_deleted</code> false/NULL) לאותו <code>admin_email</code> (case-insensitive), אלא אם המייל שווה ל-<code>system_settings.sa_email</code> — "ניתן לפתוח עד 2 סביבות (משפחות או עסקים) תחת אותה כתובת מייל." (10094-10100).</li>
+<li><code>lastName</code> חובה — "שם משפחה הוא שדה חובה"; <code>city</code> חובה — "עיר היא שדה חובה" (10125-10126).</li>
+<li>גיל ≥ 10 (לפי <code>birthYear</code>) מחייב טלפון — "מספר טלפון הוא שדה חובה מגיל 10" (10137-10140).</li>
+<li>ייחודיות טלפון: לסביבת FAMILY, אותו טלפון לא יכול להיות משויך לשום משתמש בקבוצה מסוג FAMILY אחרת (פרט לטלפון בדיקה <code>526626619</code> לפי 9 ספרות אחרונות) — "מספר טלפון זה כבר משויך לסביבה משפחתית אחרת…" (10143-10154).</li>
+<li>לקוח (וויזארד): כל השדות groupName/first/last/city/year/email/password חובה, אישור תקנון, סיסמה ≥ 4 תווים (family-onboarding.html:908-911). לקוח <code>handleCreate</code>: תקנון, טלפון מגיל 10, עיר (app.js:750-760).</li>
+<li>שגיאת unique constraint ממופה ל-"כתובת המייל הזו כבר רשומה במערכת." (10216).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פתיחת טרנזקציה על client ייעודי (<code>BEGIN</code>, 10068).</li>
+<li>הפקת <code>group_code</code> — 6 תווים אקראיים מ-A-Z0-9 (<code>generateGroupCode</code>, server.js:4141; ללא בדיקת התנגשות מפורשת — מסתמך על UNIQUE).</li>
+<li>אם <code>inviteCommunityCode</code> — איתור <code>communities.id</code> לפי code (uppercase) ל-<code>community_id</code> (10106-10109).</li>
+<li>אם <code>referralGroupCode</code> — איתור משפחה פעילה (<code>type='FAMILY' AND account_status='active'</code>) כמפנה; <code>registration_source='referral:CODE'</code>, אחרת <code>req.body.registrationSource||'self'</code> (10112-10120).</li>
+<li>INSERT <code>family_groups</code>: type, name, admin_email (lower), group_code, community_id, family_nickname, last_name (=lastName), city, <code>plan</code> = <code>'standard'</code> לעסק / <code>'solo'</code> למשפחה, <code>account_status='active'</code>, referred_by_group_id (10131-10134).</li>
+<li>INSERT <code>users</code> כ-ADMIN פעיל: nickname = "first last", first_name, last_name, birth_year, bcrypt(password,10), phone, registration_source (10156-10159).</li>
+<li>UPDATE <code>family_groups.owner_user_id</code> (10161-10164).</li>
+<li>INSERT תנועת פתיחה ב-<code>transactions</code>: amount 0, category <code>system</code>, type income, is_manual FALSE, תיאור "הבנק המשפחתי נפתח בהצלחה! 🎉" (או טקסט עסקי) (10166-10170). <code>COMMIT</code>.</li>
+<li>מחיקת רשומת <code>family_verified</code> (10175-10178).</li>
+<li>זיכוי FLW למפנה: <code>awardFlow('family', referredByGroupId, 'referral_join', …)</code> (10184-10186).</li>
+<li>הבשלת קהילה: אם יש community_id וספירת משפחות בקהילה ≥ 30 — <code>communities.status</code> מ-pending ל-active (10186-10191).</li>
+<li>מיילים ברקע: התראה למנהל המערכת + מייל ברוכים הבאים ל-adminEmail הכולל קוד סביבה, שם משתמש וסיסמה בטקסט גלוי (10194-10205).</li>
+<li>ל-FAMILY: יצירת <code>family_sessions</code> (30 יום) והחזרת <code>token</code> (10208-10213).</li>
+</ol></div>
+<div>חישובים</div><div>מגבלה 2 סביבות למייל; סף 30 משפחות להפעלת קהילה (10188); תוקף session 30 יום (server.js:41856).</div>
+<div>מכונת מצבים</div><div>יוצר <code>family_groups.account_status='active'</code>, <code>plan='solo'</code> (משפחה), <code>users.status='active'</code>, <code>role='ADMIN'</code>.</div>
+<div>תופעות לוואי</div><div>2 מיילים (מערכת + משתמש); תנועת פתיחה 0₪; FLW למפנה (<code>referral_join</code>); עדכון סטטוס קהילה.</div>
+<div>ממשק</div><div>וויזארד: לאחר הצלחה שומר <code>ofl_session</code> ו-<code>ofl_family_token</code> ב-localStorage וממשיך למסך 3 (בני משפחה) (family-onboarding.html:929-940). <code>handleCreate</code>: <code>saveSession(user, group)</code> <b>ללא token</b> ואז <code>loadDashboard()</code>; מפנה ל-business.html אם type=BUSINESS (app.js:766-776). מסך 4 בוויזארד ("מה לנהל") ומסך 5 (הזמנות WhatsApp עם קישור <code>family-onboarding.html?code=</code>, הצטרפות לקהילה דרך <code>/api/community/join</code>) הם UI בלבד — בחירות "מה לנהל" לא נשמרות בשרת (family-onboarding.html:1023-1101).</div>
+<div>פערים</div><div><ul>
+<li>החזרות 400 על lastName/city מתבצעות אחרי BEGIN בלי ROLLBACK (10125-10126) — ה-client חוזר ל-pool עם טרנזקציה פתוחה.</li>
+<li><code>phone.replace(...)</code> מחושב לפני בדיקת null (10144) — יצירה ללא טלפון זורקת TypeError → 500.</li>
+<li>הסיסמה נשלחת במייל בטקסט גלוי (10202).</li>
+<li><code>handleCreate</code> לא שומר את ה-token; הלקוח נשען על <code>/api/community/bootstrap-token</code> הלא-מאומת.</li>
+<li>אין בדיקת <code>referred_by</code> מול referral של עצמו.</li>
+</ul></div></div></section>
+
+<section class="proc" data-f="pre-invite invited members wizard placeholder"><h3>יצירת פרופילי "ממתין להרשמה" (pre-invite)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מסך 3 בוויזארד: <code>wizStep3Next</code> (family-onboarding.html:993) שולח את רשימת בני המשפחה (עד 8, לקוח) ל-<code>POST /api/family/pre-invite</code> (server.js:7757).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>groupId</code> ו-<code>members</code> (מערך לא ריק) חובה — "פרמטרים חסרים" (7760-7761); קבוצה חייבת להתקיים — 404 "קבוצה לא נמצאה".</li>
+<li>שם ריק — מדלג; טלפון שכבר קיים בקבוצה — מדלג (7771-7775).</li>
+<li>לקוח: טלפון אופציונלי, regex <code>^[0-9\-\+\s]{7,15}$</code>, מקסימום 8 (family-onboarding.html:977-979).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>hash קבוע לכל הממתינים: <code>bcrypt('__invited__'+groupId)</code> (7764).</li>
+<li>מיפוי תפקיד: "הורה"→<code>MEMBER</code>, "ילד"→<code>CHILD</code>, אחר→MEMBER (7770).</li>
+<li>INSERT <code>users</code> עם <code>status='invited'</code>, nickname=שם, first_name=המילה הראשונה (7776-7780). מחזיר <code>created</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>INSERT → <code>invited</code>; בהצטרפות עם אותו טלפון → <code>pending</code> (ראו "הצטרפות"); אישור מנהל → <code>active</code>.</div>
+<div>ממשק</div><div>הקריאה non-blocking — שגיאה נבלעת והוויזארד ממשיך (1009). הורה מסומן בוויזארד כ-"הורה" אך נוצר כ-MEMBER (לא ADMIN).</div>
+<div>פערים</div><div>Endpoint לא מאומת — כל אחד יכול להזריק משתמשים לכל groupId. סיסמת ה-placeholder צפויה (<code>__invited__&lt;groupId&gt;</code>), ו-<code>/api/admin/approve-user</code> לא בודק status — אישור ממתין "invited" יוצר חשבון פעיל עם סיסמה ידועה.</div></div></section>
+
+<section class="proc" data-f="join group code pending member child invited"><h3>הצטרפות לקבוצה קיימת עם קוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בן משפחה נרשם עם קוד סביבה: <code>handleJoin</code> (app.js:797) → <code>POST /api/join</code> (server.js:10359-10434).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>groupCode, nickname, password, email</code> חובה — "חסרים נתונים חובה" (10362).</li>
+<li>קוד לא קיים (uppercase) — 404 "קוד ארגון/משפחה לא חוקי" (10365).</li>
+<li>תפקיד: רק <code>CHILD</code> אם נשלח CHILD, אחרת <code>MEMBER</code> — לעולם לא ADMIN (10370).</li>
+<li>גיל ≥ 10 מחייב טלפון (10375-10377).</li>
+<li>לקוח: תקנון, טלפון מגיל 10 (app.js:798-800). שים לב: כפתור "הורה" בלקוח שולח <code>role='ADMIN'</code> (app.js:792) — השרת ממיר ל-MEMBER.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>bcrypt(password,10).</li>
+<li>אם קיים משתמש <code>invited</code> באותה קבוצה עם אותו טלפון — UPDATE שלו (nickname, first/last, birth_year, hash, role, <code>status='pending'</code>, email, employee_role_type) (10391-10397).</li>
+<li>אחרת INSERT <code>users</code> עם <code>status='pending'</code> (10399-10402).</li>
+<li>ברקע: <code>sendAlertEmail</code> למנהל הקבוצה + מייל ל-<code>adminNotificationEmail</code> עם קוד הקבוצה (10406-10427).</li></ol></div>
+<div>מכונת מצבים</div><div>invited/none → <code>pending</code> → (approve-user) <code>active</code>.</div>
+<div>תופעות לוואי</div><div>2 מיילים: "WEFLOWZ | בן/בת משפחה חדש/ה הצטרף/ה ל-…".</div>
+<div>ממשק</div><div>לאחר הצלחה: toast "בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה." ומעבר למסך login (app.js:807). nickname בלקוח = "first last" או שדה nickname.</div>
+<div>פערים</div><div>אין בדיקת ייחודיות nickname בקבוצה — אך <code>/api/login</code> מאתר משתמש לפי <code>group_id+nickname</code> (server.js:10659-10662) ולוקח את הראשון; כינויים כפולים חוסמים כניסה בשיטת קוד+כינוי.</div></div></section>
+
+<section class="proc" data-f="login group code nickname password rate limit session token frozen archived"><h3>כניסה עם קוד סביבה + כינוי + סיסמה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>handleLogin</code> (app.js:590) → <code>POST /api/login</code> (server.js:10619-10719). משותף ל-FAMILY ו-BUSINESS.</div>
+<div>תנאים ואימותים</div><div><ul><li>groupCode/nickname/password חובה — "חסרים פרטי התחברות".</li>
+<li>Rate limit בזיכרון לפי <code>ip:</code> וגם <code>code:</code> (10439-10482): 3 כישלונות → נעילה 30ש', 5 → 5 דק', 10 → 30 דק'; חסום → 429 "יותר מדי ניסיונות כניסה. נסה שוב בעוד N שניות." ניקוי entries כל שעתיים (10477-10482).</li>
+<li>קוד לא קיים → 401 גנרי "פרטי ההתחברות שגויים".</li>
+<li><code>account_status='archived'</code> → 403 "חשבון זה הועבר לארכיב…"; <code>frozen</code> → 403 + <code>days_left = max(0, 30 - ימים מאז frozen_at)</code> (10645-10656).</li>
+<li>משתמש לא נמצא / סיסמה שגויה → 401 "כינוי או סיסמה שגויים".</li>
+<li><code>users.status!='active'</code> → 403 "חשבון ממתין לאישור מנהל" (10688).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אימות סיסמה: hash שמתחיל ב-<code>$2</code> → bcrypt.compare; אחרת השוואת plain text, ובהצלחה שדרוג ל-bcrypt (10670-10682).</li>
+<li>איפוס rate limit; שליפת <code>created_by_business_name</code> לחשבונות שנוצרו ע"י עסק.</li>
+<li><code>createFamilySession(group, user, UA[0..100], type)</code> — <code>session_type='biz'</code> אם הקבוצה BUSINESS, אחרת family; החזרת user (כולל password_hash!), group, token.</li></ol></div>
+<div>חישובים</div><div>ספי נעילה 3/5/10; תוקף session 30 יום; days_left = 30−floor((now−frozen_at)/86400000).</div>
+<div>ממשק</div><div>הלקוח שומר session/token ב-localStorage (<code>saveSession</code> app.js:810 — משמיט profile_image/password_hash מהעותק). חשבון frozen מציג <code>showFrozenAccountScreen</code> (app.js:1977).</div>
+<div>פערים</div><div>התגובה מחזירה את כל שורת המשתמש כולל <code>password_hash</code> (10709); Rate limit בזיכרון בלבד (לא שורד restart/מרובה instances).</div></div></section>
+
+<section class="proc" data-f="login phone otp email channel options family login password"><h3>כניסה בטלפון (OTP → בחירת פרופיל → סיסמה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loginPhoneSendOtp</code>/<code>loginPhoneSendOtpByEmail</code>/<code>loginPhoneVerifyOtp</code>/<code>loginPhoneSubmitPassword</code> (app.js:628-740) → <code>/api/family/login/send-otp</code> (10486), <code>/verify-otp</code> (10520), <code>/password</code> (10558).</div>
+<div>תנאים ואימותים</div><div><ul><li>send-otp: phone חובה; ערוץ email מחייב מייל תקין (regex) — "כתובת מייל לא תקינה"; מקסימום 5 שליחות לשעה (<code>purpose='family_login'</code>) (10491-10499).</li>
+<li>verify-otp: אותם כללי תוקף/3 ניסיונות כמו ברישום (10524-10537). מחזיר רשימת פרופילים פעילים עם אותו טלפון בקבוצות FAMILY / member_type biz / BUSINESS שאינן archived/frozen/deleted; אם אין — 404 "לא נמצא חשבון פעיל עם מספר טלפון זה" (10542-10551).</li>
+<li>password: groupId+userId+password חובה; rate limit לפי <code>uid:</code>; archived/frozen → 403; סיסמה שגויה → "סיסמה שגויה"; status לא active → 403.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>OTP 6 ספרות, hash, תוקף 5 דק', נשמר עם <code>channel</code> ('sms'/'email') ו-email.</li>
+<li>שליחה: מייל HTML או SMS Twilio (+972).</li>
+<li>verify מוחק את ה-OTP ומחזיר options (user_id, nickname, role, group_id, group_name).</li>
+<li>password: אימות (bcrypt/legacy upgrade), יצירת session מסוג <b>'family'</b> תמיד (10605), החזרת user/group/token.</li></ol></div>
+<div>פערים</div><div>שלב 3 לא דורש הוכחה שה-OTP אומת — כל מי שיודע group_id+user_id יכול לנסות סיסמה ישירות (מוגבל רק ב-rate limit). שלב 3 יוצר session_type 'family' גם לקבוצת BUSINESS שהוחזרה ב-options.</div></div></section>
+
+<section class="proc" data-f="session token verifyfamily verifyfamilyorbiz bootstrap logout family_sessions"><h3>סשן משפחתי, middleware, bootstrap-token ו-logout</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כל קריאה מאומתת מהלקוח עוברת דרך <code>communityFetch</code> (app.js:846) שמוסיף <code>Authorization: Bearer ofl_family_token</code>. בכל <code>fetchData</code> נקרא <code>ensureFamilyToken</code> (app.js:832).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>verifyFamily</code> (server.js:41876): ללא token → 401 "יש להתחבר תחילה"; hash לא קיים → 401 "פגישה לא תקינה — יש להתחבר מחדש"; פג → מחיקה אסינכרונית + 401 "פגישה פגה…"; מגדיר <code>req.familyAuth={groupId,userId}</code> מה-DB בלבד; לא בודק session_type.</li>
+<li><code>verifyFamilyOrBiz</code> (43089): אותו דבר + <code>req.callerAuth={groupId,userId,type:'business'|'family',role}</code> ו-alias <code>req.bizAuth</code>; role נשלף מ-<code>users</code>.</li>
+<li><code>/api/community/bootstrap-token</code> (10721): נדרשים groupId+userId של משתמש active בקבוצה FAMILY — אחרת 403 "אין הרשאה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>session: token אקראי 32 bytes hex; נשמר <code>sha256</code> ב-<code>family_sessions</code> עם expires_at=+30 יום, device_hint (100 תווים), session_type (41853-41862).</li>
+<li>בכל בקשה: UPDATE <code>last_seen</code> אסינכרוני.</li>
+<li>ensureFamilyToken: אם אין token ויש <code>ofl_session</code> עם group.type FAMILY — קורא ל-bootstrap-token ושומר.</li>
+<li>logout (10740): מוחק את שורת ה-session לפי hash; תמיד success. לקוח: מוחק <code>ofl_session</code>/<code>ofl_family_token</code> ומנווט ל-/ (app.js:851).</li></ol></div>
+<div>פערים</div><div><b>bootstrap-token לא מאומת</b>: כל מי שיודע group_id+user_id (מספרים רציפים) מקבל session תקף ל-30 יום לכל משתמש משפחה פעיל. <code>verifyFamily</code> מקבל גם sessions מסוג biz.</div></div></section>
+
+<section class="proc" data-f="forgot code reset password email admin token"><h3>שחזור קוד סביבה ואיפוס סיסמת מנהל</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitForgotCode</code> (app.js:6164) → <code>POST /api/forgot-code</code> (server.js:10247); קישור מהמייל (<code>/?reset=TOKEN&amp;gid=ID</code>) → <code>submitResetPassword</code> (app.js:6196) → <code>POST /api/reset-password/confirm</code> (10305).</div>
+<div>תנאים ואימותים</div><div><ul><li>forgot: email חובה; אם לא נמצאה קבוצה עם admin_email זה ומשתמש ADMIN — מחזיר success (ללא חשיפה).</li>
+<li>confirm: token+groupId+newPassword באורך ≥ 6 — "פרמטרים חסרים או סיסמה קצרה מדי"; token לא קיים/used — "קישור לא תקין או פג תוקפו"; פג — "פג תוקף הקישור. בקש קישור חדש." (10308-10320).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לוקח את השורה הראשונה מהתוצאה (קבוצה+ADMIN), מוחק resets קודמים לאותו מייל+קבוצה, יוצר token 32 bytes, hash ב-<code>family_password_resets</code> לתוקף שעה (10268-10276).</li>
+<li>מייל עם קוד הסביבה, שם המנהל וכפתור איפוס (<code>BASE_URL</code> או ברירת מחדל family-flow.onrender.com).</li>
+<li>confirm: bcrypt(newPassword, 12) ו-UPDATE <b>לכל המשתמשים עם role='ADMIN' בקבוצה</b> (10323-10326); סימון <code>used=true</code>.</li></ol></div>
+<div>חישובים</div><div>תוקף קישור 60 דק'; bcrypt cost 12 (בשאר המקומות 10).</div>
+<div>פערים</div><div>איפוס משנה את הסיסמה של כל ההורים בקבוצה בבת אחת; אם לאותו מייל יש 2 סביבות — רק הראשונה מטופלת.</div></div></section>
+
+<section class="proc" data-f="solo activate pending_activation status member business created"><h3>הפעלת חשבון SOLO שנוצר ע"י עסק ובדיקת מצב</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חשבון שנוצר ע"י עסק (<code>account_status='pending_activation'</code>) נכנס לראשונה: <code>loadDashboard→finalizeLoad</code> מציג <code>showSoloActivationModal</code> (app.js:1908) → <code>POST /api/solo/activate</code> (server.js:2469). <code>GET /api/solo/status/:groupId</code> (2489) מחזיר סטטוס.</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId, userId, newPassword ≥ 4 — "נתונים חסרים או סיסמה קצרה מדי".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE family_groups → <code>active</code>, <code>solo_temp_password=NULL</code> רק אם pending_activation.</li>
+<li>UPDATE users: bcrypt hash, <code>must_change_password=false</code>.</li>
+<li>UPDATE <code>member_business_links</code> pending → <code>active</code> עבור הקבוצה.</li></ol></div>
+<div>חישובים</div><div>status: <code>days_until_archive = max(0, 30 - ימים מאז frozen_at)</code> כשהחשבון frozen.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending_activation</td><td>active</td><td>בעל החשבון (ללא אימות)</td><td>סיסמה ≥4</td><td>קישורי עסק pending→active</td></tr></table></div></div>
+<div>פערים</div><div>שני ה-endpoints לא מאומתים: <code>/api/solo/activate</code> מאפשר לכל אחד לקבוע סיסמה לכל userId (השתלטות חשבון), ומאשר אוטומטית את קישורי העסק בלי לשאול את המשתמש.</div></div></section>
+
+<section class="proc" data-f="sso storefront login token family session"><h3>כניסת SSO מחנות לקוח (storefront → משפחה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח מחובר בחנות עובר לאפליקציית המשפחה: <code>GET /api/family/sso-login?token=</code> (server.js:43791).</div>
+<div>תנאים ואימותים</div><div><ul><li>token חובה; חייב להיות ב-<code>storefront_sso_tokens</code> עם used=FALSE ו-expires_at&gt;NOW — "טוקן לא תקין או פג".</li>
+<li>חייב <code>family_group_id</code>; קבוצה מסוג BUSINESS נחסמת (403).</li>
+<li>חייב משתמש active בקבוצה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>סימון token כ-used (חד-פעמי).</li>
+<li>בחירת המשתמש: ADMIN קודם, אחר כך id נמוך.</li>
+<li><code>createFamilySession(fgId, user, 'storefront-sso', 'family')</code> והחזרת sessionToken.</li></ol></div>
+<div>פערים</div><div>תמיד נכנס כמנהל המשפחה הראשון, ללא קשר למי שהתחבר בחנות.</div></div></section>
+<h2 class="grp">חברים, תפקידים, הרשאות וניווט</h2>
+
+<section class="proc" data-f="pending users approve invited admin members"><h3>אישור בקשות הצטרפות ממתינות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה רואה "ממתינים לאישור": <code>fetchPendingUsers</code> (app.js:5908, נקרא בטעינה ובכל polling 30ש') → <code>GET /api/admin/pending-users</code> (server.js:11584); <code>approveUser</code> (app.js:5919) → <code>POST /api/admin/approve-user</code> (11597).</div>
+<div>תנאים ואימותים</div><div><ul><li>pending-users: groupId (query) = קבוצת הטוקן, אחרת 403; רק ADMIN — "רק מנהל/ת יכול/ה לצפות בבקשות ממתינות". מחזיר משתמשים בסטטוס <code>pending</code> או <code>invited</code> ממוינים לפי status, nickname.</li>
+<li>approve-user: רק ADMIN — "רק מנהל/ת יכול/ה לאשר בקשות"; המשתמש חייב להיות באותה קבוצה — 403 "משתמש לא שייך לקבוצה זו".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>users.status='active'</code> (11604).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending / invited (לא נבדק)</td><td>active</td><td>ADMIN</td><td>אותה קבוצה</td><td>אין התראה למשתמש</td></tr></table></div></div>
+<div>ממשק</div><div>פאנל <code>admin-panel</code> מוצג רק כשיש ממתינים; תג "ממתין להרשמה" ל-invited ו"ממתין לאישור" ל-pending; toast "אושר כבן משפחה!".</div>
+<div>פערים</div><div>אין endpoint לדחייה (מחיקה רק דרך DELETE /api/users/:id). אישור invited מפעיל משתמש עם סיסמת placeholder צפויה.</div></div></section>
+
+<section class="proc" data-f="change role admin child member permissions auto"><h3>שינוי תפקיד בן משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתור ⇄ ברשימת החברים: <code>changeUserRole</code> (app.js:5986) מחליף ADMIN↔CHILD (MEMBER → ADMIN) → <code>POST /api/admin/change-role</code> (server.js:11609).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>newRole</code> ∈ {ADMIN, CHILD, MEMBER} — "תפקיד לא חוקי".</li><li>רק ADMIN — "רק מנהל רשאי לשנות תפקידים"; יעד באותה קבוצה.</li><li>לקוח: confirm; לא מוצג לעצמך (app.js:5877).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE users SET role + permissions אוטומטיות (11617-11622):
+<ul><li>ADMIN: <code>feed, shop, tasks, budget, members, goals, pantry, loans, academy, cashflow, community</code></li>
+<li>CHILD: <code>feed, shop, tasks, goals, academy, bank, cashflow, community</code></li>
+<li>MEMBER: <code>feed, community</code></li></ul></li></ol></div>
+<div>פערים</div><div>אין הגנה מפני הורדת ההורה האחרון ל-CHILD (קיימת רק במחיקה). רשימות ההרשאות בשרת כוללות מזהים שאינם ב-<code>ALL_TABS</code> (goals, loans) ולא כוללות forecast/recipes/home-maintenance/myorders — לא תואמות ל-<code>ROLE_DEFAULTS</code> בלקוח.</div></div></section>
+
+<section class="proc" data-f="edit member user details nickname email phone password profile delete role-type"><h3>עריכת פרטי משתמש, סיסמה ומחיקה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל עריכת חבר: <code>openEditMemberModal</code>/<code>saveEditMember</code> (app.js:5932/5958) → <code>GET/PUT /api/admin/user-details/:userId</code> (11659/11668). פרופיל אישי: <code>openProfileModal</code>, <code>saveUserPhone</code>, <code>saveUserEmail</code>, <code>submitChangePassword</code> (app.js:5999-6089) → <code>/api/users/:id/phone|email|password</code>. מחיקה: <code>deleteUser</code> (app.js:6090) → <code>DELETE /api/users/:id</code> (11627).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>user-details: רק ADMIN, יעד באותה קבוצה. PUT: nickname לא ריק נחתך ל-100; email lower/NULL; phone/NULL; password רק אם ≥ 4 תווים (bcrypt); role רק אם ∈ {ADMIN,CHILD,MEMBER}; ללא שדות — success ריק.</li>
+<li>לקוח: nickname חובה; סיסמה חדשה ≥ 4 (app.js:5965-5966).</li>
+<li><code>POST /api/users/:id/password</code> (11689): רק המשתמש עצמו; newPassword ≥ 4; סיסמה נוכחית חייבת להתאים (bcrypt או plain) — "סיסמה נוכחית שגויה".</li>
+<li><code>set-first-password</code> (11709): רק עצמו; רק אם <code>must_change_password=true</code>; סיסמה ≥4; אופציונלי id_number (20), email (200, lower), birth_year 1920–2020.</li>
+<li><code>PATCH /api/users/:id/profile</code> (26423) / <code>PUT phone|email</code> (24686/24726): עצמי או ADMIN באותה קבוצה; phone נחתך ל-30.</li>
+<li><code>PATCH /api/users/:id/role-type</code> (26446): ADMIN בלבד, מעדכן employee_role_type.</li>
+<li>DELETE: רק ADMIN, יעד באותה קבוצה; מחיקה עצמית חסומה אם זה ה-ADMIN הפעיל היחיד — "לא ניתן למחוק את המנהל היחיד בקבוצה" (11646-11651).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>PUT user-details: UPDATE דינמי של השדות שנשלחו.</li><li>DELETE: <code>DELETE FROM users</code> — CASCADE על transactions/loans/goals וכו' לפי הסכמה.</li></ol></div>
+<div>ממשק</div><div>המודל מציג את <code>password_hash</code> בשדה סיסמה מוסתר (app.js:5951) — אבל השרת לא מחזיר את השדה, כך שהוא תמיד ריק. כפתורי עריכה/תפקיד/הרשאות/מחיקה רק להורה; מחיקה ושינוי תפקיד לא מוצגים על עצמך.</div>
+<div>פערים</div><div>user-details PUT מאפשר להורה לשנות role ללא הגנת "הורה אחרון". מחיקת משתמש מוחקת את כל התנועות שלו (CASCADE) ומשנה היסטוריה כספית.</div></div></section>
+
+<section class="proc" data-f="permissions tabs community can_order can_post_feed enforcepermissions feature flags"><h3>הרשאות טאבים והרשאות קהילה לבן משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה פותח מגן הרשאות: <code>openPermissionsModal</code>/<code>savePermissions</code> (app.js:10175/10224) → <code>PUT /api/users/:id/permissions</code> (server.js:11555). האכיפה בצד לקוח: <code>enforcePermissions</code> (app.js:9486), <code>checkCommPerm</code> (10262).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: רק ADMIN באותה קבוצה; יעד באותה קבוצה. <code>feed</code> מתווסף תמיד (11569). <code>community</code> אופציונלי; <code>role</code> אופציונלי מעדכן גם role (ללא ולידציה של הערך).</li>
+<li>לקוח: feed מסומן ונעול; 5 הרשאות קהילה: <code>can_order, can_post_feed, can_poll, can_live_game, can_store</code> — ברירת מחדל מותר (<code>!== false</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>users.permissions = {"tabs":[...],"community":{...}}</code>.</li>
+<li>enforcePermissions בלקוח: אם הטאב הנוכחי community — לא נוגע ומחזיר. <code>userTabs</code> = <code>perms.tabs</code> אם אורכו &gt; 1, אחרת <code>ROLE_DEFAULTS[role]</code>; CHILD תמיד מקבל community.</li>
+<li>הסתרה: כל טאב ב-<code>ALL_TABS</code> שאינו ב-userTabs מוסתר (ADMIN רואה הכל).</li>
+<li>נעילת Feature Flags של SA מ-<code>group.features</code>: store→shop, academy, finance→bank, inventory→pantry, crm→myorders, cashflow, budget, forecast, tasks, community, members, foodcost→recipes. טאב נעול מקבל אפור+מנעול ולחיצה פותחת <code>openLockedModuleModal</code> ששולח פניית תמיכה <code>POST /api/support/ticket</code> (app.js:9614). CHILD לא ננעל על טאבים שמותרים לו.</li>
+<li><code>features.ai === false</code> — מסתיר <code>btn-global-ai</code> ומנטרל כל כפתור עם אייקון wand.</li>
+<li>אם הטאב הפעיל מוסתר/נעול → <code>switchTab('feed')</code>. <code>switchTab</code> עטוף כך שלחיצה על טאב נעול פותחת את מודל הנעילה ו-enforcePermissions רץ שוב אחרי 50ms; קריאה ראשונית אחרי 1500ms.</li></ol></div>
+<div>פערים</div><div>האכיפה לקוחית בלבד — ה-endpoints (shopping/transactions/budget וכו') לא בודקים <code>permissions.tabs</code>. ברירת המחדל של העמודה <code>{"tabs":["feed"]}</code> (אורך 1) גורמת לשימוש ב-ROLE_DEFAULTS; הרשאה מותאמת עם טאב אחד בלבד (feed) אינה ניתנת לייצוג.</div></div></section>
+
+<section class="proc" data-f="navigation all_tabs role_defaults family_gnav_groups switchtab tabs dropdown badges"><h3>ניווט משפחתי (ALL_TABS, ROLE_DEFAULTS, FAMILY_GNAV_GROUPS)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מבנה הניווט של סביבת FAMILY (index.html) ופונקציית <code>switchTab</code> (app.js:866).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>ALL_TABS</code> (app.js:9461): feed, tasks, shop, myorders, bank, cashflow, community, academy, members, budget, pantry, recipes, forecast, home-maintenance.</li>
+<li><code>ROLE_DEFAULTS</code> (9478): ADMIN=הכל; MANAGER=[feed,tasks,shop,pantry,academy,recipes,home-maintenance]; SENIOR=[feed,tasks,shop,pantry,academy]; MEMBER=[feed,tasks,shop,academy]; CHILD=[feed,tasks,shop,academy,bank,cashflow,community].</li>
+<li><code>FAMILY_GNAV_GROUPS</code> (9690): home=[shop,myorders,pantry,recipes,home-maintenance]; money=[bank,cashflow,budget,forecast]; family=[tasks,academy,community,members] + כפתור feed נפרד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>switchTab מסתיר את כל <code>content-*</code> (כולל marketplace, kol-haam) ומציג את היעד עם אנימציה; שומר <code>window._currentFamilyTab</code>.</li>
+<li>תופעות לפי טאב: shop — מסתיר FAB ומציג <code>shop-add-fab</code>, <code>renderShopList</code>; pantry/recipes/forecast/cashflow/budget/community/marketplace — רינדור/טעינה; myorders — sub-tab מ-sessionStorage + auto-refresh; home-maintenance — <code>loadHomeMaintenance</code>; members — <code>renderSoloFamilyLinkSection</code>; academy — ADMIN <code>renderLibrary</code>, אחר <code>renderKidGames</code>; bank — CHILD <code>loadChildFlwWallet</code>, ADMIN <code>loadFlwKidParentPanel</code>; kol-haam — overlay.</li>
+<li>Dropdowns: <code>toggleFamilyNavDropdown</code> מעביר את ה-dropdown ל-body במיקום fixed (רוחב 170, שוליים 8px); לחיצה מחוץ סוגרת.</li>
+<li><code>updateFamilyGroupNavVisibility</code>: קבוצה מוסתרת אם כל הטאבים שלה מוסתרים.</li>
+<li>תגי ניווט <code>updateFamilyNavBadges</code> (9773): home — הורה: פריטי קניות בסטטוס <code>pending_approval</code>; ילד: משימות pending שלו. family — הורה: משימות <code>completed</code>/<code>done</code>; ילד: לומדות assigned. מקסימום "9+".</li></ol></div>
+<div>ממשק</div><div>ילד: <code>tab-members</code> מוסתר תמיד (app.js:1846). פריטי dropdown <code>fgdrop-marketplace</code> ו-<code>fgdrop-kol-haam</code> קיימים ב-HTML (index.html:534,563) אך אינם במערכי FAMILY_GNAV_GROUPS.</div>
+<div>פערים</div><div>תג home להורה סופר סטטוס <code>pending_approval</code> שהשרת לעולם לא כותב (השרת משתמש ב-<code>requested</code>) — התג תמיד 0. סטטוס משימה <code>completed</code> לא קיים בשרת. marketplace/kol-haam לא מקבלים הדגשת קבוצה פעילה.</div></div></section>
+
+<section class="proc" data-f="member modules member_modules unlocked_modules locks request-module upgrade solo"><h3>חשבון "חבר" (member) — נעילת מודולים ובקשת פתיחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>קבוצה עם <code>member_type='member'</code> (לרוב נוצרה ע"י עסק או איחוד SOLO) רואה רק feed+myorders; שאר המודולים נעולים עד ש-SA פותח. <code>loadDashboard</code> קורא <code>loadMemberSettings</code> ו-<code>applyMemberLocks</code> (app.js:1857-1860).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>MEMBER_MODULES</code> (app.js:13483) — 17 מפתחות עם icon/name/tagline/desc: bank, cashflow, budget, forecast, tasks, shop, pantry, recipes, community, members, academy, home-maintenance, kids-wallet, kids-mode, supermarket-mode, ai-assistant, expense-tracking.</li>
+<li>תמיד פתוח: טאבים <code>feed, myorders</code>; dropdown <code>myorders</code>.</li>
+<li>הגדרות SA דרך <code>GET /api/settings/member-content</code> (server.js:9994): <code>member_module_settings[key]</code> עם enabled/title/text/img — <code>enabled===false</code> מבטל את חלון השדרוג.</li>
+<li><code>POST /api/member/request-module</code> (31042): groupId+moduleKey חובה; לא מאומת.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>applyMemberLocks</code> (13512): לכל <code>[id^=tab-]</code> שאינו תמיד-פתוח ואינו ב-<code>group.unlocked_modules</code> — opacity 40% + 🔒 ו-onclick ל-<code>showMemberModuleUpgrade</code>; כנ"ל ל-<code>fgdrop-*</code>; רינדור מחדש של אריחים (<code>renderQuickTiles</code> נועל אריחים לא פתוחים).</li>
+<li><code>showMemberModuleUpgrade</code> (13710): bottom-sheet עם תוכן המודול / תוכן SA; כפתור שליחה → <code>_submitModuleRequest</code>.</li>
+<li>שרת: מוסיף <code>{key,name,requested_at}</code> למערך JSONB <code>family_groups.module_requests</code> עם <code>DISTINCT</code>.</li>
+<li>SA פותח דרך <code>/api/sa/groups/:id/modules</code> או <code>/unlock-module</code> (31074/31094) שמנקים בקשות תואמות; <code>/upgrade-member</code> משנה member_type ל-family/member.</li>
+<li><code>fetchData</code> מזהה שינוי ב-unlocked_modules ומריץ applyMemberLocks; זיהוי שדרוג member→family מציג <code>showFamilyUpgradeModal</code> פעם אחת (מפתח localStorage <code>ofl_upgrade_shown_&lt;gid&gt;</code>).</li></ol></div>
+<div>פערים</div><div><ul><li><code>DISTINCT</code> על אובייקט שכולל <code>requested_at</code> לא מונע כפילויות — כל לחיצה מוסיפה בקשה.</li><li><code>applyMemberLocks</code> רק נועל ולא מסיר נעילות; בשדרוג ל-family הקריאה אליו (app.js:2253) אינה משחררת טאבים עד רענון.</li><li>נקודות ה-SA <code>/api/sa/groups/:id/*</code> ללא middleware <code>verifySA</code>.</li></ul></div></div></section>
+
+<section class="proc" data-f="dashboard loaddashboard fetchdata api data polling ai tokens weekly stats best price"><h3>טעינת דשבורד וסנכרון נתונים (/api/data)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loadDashboard</code> (app.js:1796) אחרי כניסה; <code>fetchData</code> (app.js:2232) בטעינה, אחרי כל פעולה, וב-polling. Endpoint: <code>GET /api/data/:userId</code> (server.js:10755).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamilyOrBiz; <code>:userId</code> חייב להיות המשתמש של הטוקן — 403 (10758).</li><li>fetchData מדלג אם הפוקוס בשדה <code>.price-input</code> (מניעת דריסת הקלדה).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>fire-and-forget: <code>users.last_seen=NOW()</code>; איפוס יומי <code>family_groups.ai_tokens=10, last_token_reset=CURRENT_DATE</code> אם התאריך עבר (10766).</li>
+<li>שליפות מקבילות: יתרת מנהלים (SUM income−expense של תנועות משתמשי ADMIN בקבוצה → <code>group.admin_total_balance</code>), 200 משימות אחרונות (מיון priority high→medium→low ואז created_at), מזווה, רשימת קניות, יעדים (user_id או target_user_id = המשתמש), 50 לומדות של הקבוצה/SYSTEM, הקצאות לומדות (של המשתמש, או כל ההקצאות אם ADMIN — ללא סינון קבוצה!), הקצאות משחק פעילות.</li>
+<li>לא-ADMIN: <code>computed_balance</code> = SUM(income−expense) מכל התנועות שלו; <code>weekly_stats={spent, limit: allowance_amount}</code> כאשר spent = סכום הוצאות מתחילת השבוע (יום ראשון).</li>
+<li>אם יש community_id: עסקי קהילה מאושרים → גם <code>community_updates</code> סינתטיים "הטבה חדשה בקהילת …" לפיד.</li>
+<li>Best price לכל פריט ברשימה: המחיר ליחידה הנמוך ביותר ב-<code>shopping_trip_items</code> <b>מכל הקבוצות במערכת</b> לפי שם/שם מנורמל/מילת מפתח ראשונה (&gt;2 תווים) ILIKE; <code>is_local</code> אם הנסיעה של הקבוצה (10822-10843).</li>
+<li>אזהרת PERF בלוג אם &gt; 500ms.</li></ol></div>
+<div>חישובים</div><div>תחילת שבוע: <code>now - now.getDay()</code> ימים (שומר את שעת היום הנוכחית — לא חצות) (10787). ai_tokens יומי = 10.</div>
+<div>תופעות לוואי</div><div>Polling: כל 30ש' <code>fetchData</code>+<code>fetchLoans</code>(+<code>fetchPendingUsers</code> להורה); <code>refreshBellBadge</code> כל 30ש'; <code>startMyOrdersAutoRefresh</code>; באנרים/פרסומות (app.js:1849-1852).</div>
+<div>ממשק</div><div>ADMIN רואה admin-panel, כלי משימות/תקציב/בנק/אקדמיה/סריקת קבלה/תובנות AI; ילד רואה "עשיתי מעשה טוב", כרטיס בנק (דמי כיס/ריבית), חיווי הוצאה שבועית (אדום אם חרג, "שמור על ירוק לקבלת ריבית!"). יתרת הכותרת: ADMIN — admin_total_balance; ילד — computed_balance. בסוף הטעינה: הפעלת SOLO → שינוי סיסמה חובה → welcome/tour → בקשות איחוד (רק plan=solo ו-ADMIN).</div>
+<div>פערים</div><div><ul><li>איפוס ai_tokens ל-10 כאן קודם ל-<code>handleAITokens</code> ומונע ממנויי premium לקבל 50 ביום (ראו "מכסת AI").</li><li>הקצאות לומדות ל-ADMIN מחזירות את כל השורות במערכת (<code>OR $2='ADMIN'</code>, 10779).</li><li>Best price חושף מחירים/חנויות של משפחות אחרות ("חוכמת ההמונים") — מכוון אך ללא אנונימיזציה של store_name.</li><li>תחילת שבוע לא מאופסת לחצות.</li></ul></div></div></section>
+<h2 class="grp">כספים: תנועות, יתרה, תקציב, דמי כיס, הלוואות ויעדים</h2>
+
+<section class="proc" data-f="balance users.balance computed transactions model"><h3>מודל היתרה (users.balance מול סכום תנועות)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עקרון רוחבי לכל תהליכי הכסף המשפחתי.</div>
+<div>חישובים</div><div><ul>
+<li>שני מקורות אמת מקבילים: עמודת <code>users.balance</code> (DECIMAL) שמתעדכנת ידנית בכל endpoint, ו-<code>SUM(CASE type='income' THEN amount ELSE -amount)</code> על <code>transactions</code>.</li>
+<li>תצוגה: ילד — <code>computed_balance</code> מהתנועות (server.js:10790); הורה — סכום תנועות של כל משתמשי ADMIN בקבוצה (10773). רשימת החברים, ריבית ב-payday ותשקיף משתמשים ב-<code>users.balance</code>.</li>
+<li>תבנית "כסף לילד": תנועת income לילד + תנועת expense (is_manual FALSE) על משתמש ADMIN הראשון בקבוצה (<code>LIMIT 1</code>) באותה קטגוריה — משמש ב-payday (11815), אישור משימה (12062), vision-verify (12590), מימוש FLW (35404).</li></ul></div>
+<div>פערים</div><div>endpoints שאינם מעדכנים את <code>users.balance</code>: FamilAI <code>ADD_TRANSACTION</code> (23572), <code>/api/kids/redeem</code> (35395), תנועת checkout. endpoints שמעדכנים balance ללא "צד הורה": loans/approve, adjust-balance, payroll. לכן שני המדדים מתפצלים לאורך זמן. <code>/api/admin/adjust-balance</code> וכו' לא בודקים ש-amount חיובי.</div></div></section>
+
+<section class="proc" data-f="transaction income expense create edit delete recurring cashflow categories"><h3>רישום, עריכה ומחיקה של תנועה (תזרים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל "הכנסה/הוצאה": <code>openTransactionModal</code>/<code>submitTransaction</code> (app.js:5540/5546) → <code>POST /api/transaction</code> (server.js:11387). עריכה/מחיקה מהתזרים להורה: <code>openEditTransactionModal</code>/<code>submitEditTransaction</code>/<code>deleteTransaction</code> (app.js:3539-3562) → <code>PUT/DELETE /api/transaction/:id</code> (11409/11432). רשימה: <code>GET /api/transactions</code> (11371) מ-<code>fetchData</code> ו-<code>fetchCashflowData</code> (app.js:3484).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST: groupId = קבוצת הטוקן; רישום עבור משתמש אחר מותר רק ל-ADMIN ורק למשתמש באותה קבוצה — "משתמש לא נמצא בקבוצה זו"; <code>type</code> ∈ {income, expense} — "סוג תנועה לא תקין"; amount = parseFloat||0 (ללא חסימת שלילי/0 בשרת); description נחתך ל-300.</li>
+<li>לקוח: סכום חובה (≠0); תאריך ברירת מחדל היום; ברירת מחדל תיאור "פעולה".</li>
+<li>PUT/DELETE: verifyFamily, משתמש הטוקן חייב להיות ADMIN — "נדרשת הרשאת מנהל"; התנועה חייבת להיות בקבוצה.</li>
+<li>GET: groupId = קבוצת הטוקן; <code>userId='all'</code> או מזהה; אופציונלי <code>from</code>/<code>to</code> (to כולל עד סוף היום); ללא טווח — <code>LIMIT limit||200</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT transactions (is_manual TRUE, is_recurring, end_month) → UPDATE users.balance ±amount → logActivity('finance','transaction').</li>
+<li>PUT: diff = new − old; UPDATE amount/description/category (type לא משתנה); אם diff≠0 — balance −diff (expense) או +diff (income).</li>
+<li>DELETE: מחיקה והחזרת השפעה ל-balance.</li></ol></div>
+<div>חישובים</div><div>קטגוריות לקוח (app.js:69): income — salary, allowance, bonus, gift, business, other; expense — food, groceries, transport, home, bills, fun, clothes, health, education, vacation, pets, gifts, other. תוויות מערכת נוספות: allocations, allowance, tasks, academy, savings (BUDGET_LABELS, app.js:73).</div>
+<div>תופעות לוואי</div><div>activity_log (<code>finance/transaction</code>) ב-POST בלבד.</div>
+<div>ממשק</div><div><code>renderCashflow</code> (app.js:3510): ילד רואה רק תנועות שלו ומסנן המשתמש מוסתר; הורה — מסנן משתמש + מסנן חודשים אחורה (cutoff לפי <code>setMonth</code>); כפתור עריכה רק להורה. תנועה חוזרת: <code>trans-is-recurring</code> + <code>trans-end-month</code> (YYYY-MM).</div>
+<div>פערים</div><div>PUT/DELETE לא כותבים activity_log/audit; ה-endpoint הכללי מאפשר לכל חבר משפחה (גם ילד) לרשום לעצמו הכנסה בכל סכום שמגדילה את <code>users.balance</code>.</div></div></section>
+
+<section class="proc" data-f="budget allocations categories limit filter monthly spent"><h3>תקציבים וקטגוריות תקציב</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "ניהול תקציב": <code>fetchBudget</code> (app.js:5606) → <code>GET /api/budget/filter</code> (server.js:11330); עדכון יעד/הוספת סעיף: <code>submitBudgetUpdate</code>/<code>submitNewBudgetCat</code> (app.js:5666/5639) → <code>POST /api/budget/update</code> (11349).</div>
+<div>תנאים ואימותים</div><div><ul><li>filter: groupId = קבוצת הטוקן; לא-ADMIN מקבל תמיד את עצמו (targetUserId מאולץ).</li>
+<li>update: רק ADMIN — "רק מנהל/ת יכול/ה לקבוע תקציב"; category חובה (נחתך ל-50); targetUserId='all' → NULL, אחרת חייב להיות בקבוצה — "משתמש לא שייך לקבוצה זו"; limit = max(0, …).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>filter: CTE Allocations (<code>budget_allocations</code> של הקבוצה, ועם יעד — <code>target_user_id=$2 OR NULL</code>) FULL OUTER JOIN Expenses (סכום הוצאות מתחילת החודש הנוכחי, לפי קטגוריה, ועם יעד — רק של המשתמש). מחזיר category, limit (MAX), spent (MAX).</li>
+<li>update: UPSERT על <code>(group_id, category, target_user_id)</code> → amount_limit.</li></ol></div>
+<div>חישובים</div><div>חלון: <code>date &gt;= date_trunc('month', CURRENT_DATE)</code>. לקוח: pct=spent/limit; צבע כתום מעל 80%, אדום מעל 100%; קבוצת "תקציבי ילדים ודמי כיס" מאחדת allowance/tasks/academy/allocations.</div>
+<div>ממשק</div><div>קטגוריות שמגיעות מהשרת ואינן ברשימה נוספות דינמית עם 🏷️. כפתור "עדכון תקציב" לכל שורה (לא ל-allocations). כפתור תקציב גלוי גם לילד (<code>btn-add-budget-cat</code>, app.js:1848) אך השרת דוחה.</div>
+<div>פערים</div><div>UPSERT עם <code>target_user_id NULL</code> — ב-PostgreSQL NULL אינו מתנגש ב-UNIQUE, כך שעדכון "כל המשפחה" יוצר שורות כפולות במקום לעדכן (התוצאה מוצגת דרך MAX).</div></div></section>
+
+<section class="proc" data-f="allowance interest payday bank settings distribute kids"><h3>דמי כיס וריבית — הגדרה וחלוקה (Payday)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה בטאב "הבנק המשפחתי": הגדרות לילד <code>openBankSettings</code>/<code>submitBankSettings</code> (app.js:5529-5530) → <code>POST /api/admin/update-settings</code> (server.js:11786). חלוקה ידנית: <code>triggerPayday</code> (app.js:5534) → <code>POST /api/admin/payday</code> (11801). אין cron — רק ידני.</div>
+<div>תנאים ואימותים</div><div><ul><li>שניהם: רק ADMIN — "נדרשת הרשאת מנהל". update-settings: יעד באותה קבוצה.</li><li>לקוח: confirm "האם לחלק דמי כיס וריבית לכל הילדים כעת?".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>update-settings: <code>allowance_amount=max(0,allowance)</code>, <code>interest_rate=max(0,interest)</code>, ו-<code>base_salary</code> אם נשלח.</li>
+<li>payday: לכל משתמש active בקבוצה שאינו ADMIN (כולל MEMBER): חישוב toAdd; אם &gt;0 — UPDATE balance, INSERT income ('allowance', "שכר / חלוקת קצבה ותמריצים"), INSERT expense על ADMIN הראשון ("דמי כיס ל…"); סיכום totalDistributed.</li></ol></div>
+<div>חישובים</div><div><code>toAdd = allowance_amount + (balance &gt; 0 &amp;&amp; interest_rate &gt; 0 ? balance × interest_rate/100 : 0)</code> (11809-11810) — ריבית על <code>users.balance</code> הנוכחי, ללא עיגול, לכל הפעלה (אין מחזוריות מובנית).</div>
+<div>תופעות לוואי</div><div>2 תנועות לכל ילד; toast "חולקו X ש"ח לקופות הילדים!".</div>
+<div>ממשק</div><div>כרטיס ילד: דמי כיס ₪, ריבית % (app.js:1844). רשימת חשבונות הילדים להורה עם כפתורי 🪙 הפרשה, הרשאות, ⚙ הגדרות, מחיקה (app.js:5899).</div>
+<div>פערים</div><div><ul><li><code>u.nickname</code> לא נשלף ב-SELECT (11805) — תיאור ההוצאה תמיד "דמי כיס לילד".</li><li>BEGIN/COMMIT רצים על <code>pool.query</code> ולא על client ייעודי — אין טרנזקציה אמיתית.</li><li>לחיצה כפולה מחלקת פעמיים; אין רישום מועד חלוקה אחרון.</li></ul></div></div></section>
+
+<section class="proc" data-f="adjust balance manual audit log deduct add allowance"><h3>התאמת יתרה ידנית לילד (הפרשה/הפחתה) ויומן ביקורת</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openAdjustBalanceModal</code>/<code>submitBalanceAdjustment</code> (app.js:5531-5533) → <code>POST /api/admin/adjust-balance</code> (server.js:11729). צפייה: <code>GET /api/admin/audit-log</code> (11771).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamily; ADMIN באותה קבוצה; <code>adminId</code> מה-body מתעלמים. childId באותה קבוצה — 404 "ילד לא נמצא בקבוצה".</li><li>לקוח: סכום &gt; 0 — "נא להזין סכום תקין"; סיבה ברירת מחדל "הפרשת דמי כיס"/"הפחתה".</li><li>audit-log: ADMIN; limit ≤ 100 (ברירת מחדל 20).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>actAmount = ±amount לפי <code>type</code> ('deduct' שלילי).</li><li>UPDATE users.balance += actAmount.</li><li>INSERT transactions (category 'other', type expense/income, amount חיובי).</li><li>INSERT <code>family_audit_log</code> (action 'adjust_balance', performed_by מהטוקן, target, amount, extra_type, reason).</li><li>logActivity('finance','balance_adjust').</li></ol></div>
+<div>פערים</div><div>אין תנועת "צד הורה" (בניגוד ל-payday); אין טרנזקציה.</div></div></section>
+
+<section class="proc" data-f="payroll run preview adhoc timeclock salary hourly business"><h3>הרצת שכר (payroll-run) ותשלום חד-פעמי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שכר מבוסס נוכחות (בעיקר BIZ, נמצא בקוד המשותף): <code>GET /api/timeclock/payroll-preview/:groupId</code> (server.js:11829), <code>POST /api/timeclock/payroll-run</code> (11853), <code>POST /api/timeclock/adhoc-payment</code> (11874). מתועד כ"נפרד לחלוטין מ-payday".</div>
+<div>תנאים ואימותים</div><div><ul><li>run: <code>items</code> מערך לא ריק — "אין עובדים לתשלום"; פריט עם amount ≤ 0 מדולג.</li><li>adhoc: amount &gt; 0 — "סכום לא תקין".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>preview: לכל משתמש active לא-ADMIN: unpaidHours = SUM(time_clock.total_minutes)/60 עם punch_out ולא paid_at.</li>
+<li>run: לכל פריט — balance += amount (רק אם user בקבוצה), INSERT income category 'payroll' ("תשלום שכר — note"), UPDATE time_clock.paid_at=NOW לכל הרשומות הפתוחות של המשתמש.</li>
+<li>adhoc: balance += amt, INSERT income 'payroll' ("תשלום חד פעמי").</li></ol></div>
+<div>חישובים</div><div><code>computed = base_salary + unpaidHours × allowance_amount</code> (allowance_amount משמש כתעריף שעתי), עיגול ל-2 ספרות (11842-11846).</div>
+<div>פערים</div><div>שלושת ה-endpoints ללא middleware אימות כלל (groupId מה-body/URL) — כל אחד יכול להזרים יתרה. תנועת ה-INSERT ב-run לא מוגבלת לקבוצה (רק ה-UPDATE). BEGIN על pool.</div></div></section>
+
+<section class="proc" data-f="loans request approve reject advance remaining"><h3>הלוואות / מקדמות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ילד מבקש: <code>openLoanModal</code>/<code>submitLoan</code> (app.js:5558-5568) → <code>POST /api/loans/request</code> (server.js:11463). הורה: <code>fetchLoans</code> (5570) → <code>GET /api/loans</code> (11456); <code>approveLoan</code>/<code>rejectLoan</code> → <code>/api/loans/approve|reject</code> (11473/11489).</div>
+<div>תנאים ואימותים</div><div><ul><li>request: amount = max(0.01, …); reason עד 300 תווים; user/group מהטוקן.</li><li>approve/reject: ADMIN, הלוואה בקבוצה; approve רק אם <code>status='pending'</code> — "הלוואה זו כבר טופלה".</li><li>לקוח: סכום &gt; 0; confirm לאישור/דחייה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>request: INSERT loans (original_amount=remaining_amount=amt, status ברירת מחדל pending).</li><li>approve: status→approved; balance += original_amount; INSERT income 'other' "הלוואה / מקדמה אושרה".</li><li>reject: status→rejected (ללא בדיקת סטטוס קודם).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>כל משתמש</td><td>—</td><td>—</td></tr>
+<tr><td>pending</td><td>approved</td><td>ADMIN</td><td>status=pending</td><td>+balance, תנועת income</td></tr>
+<tr><td>כל מצב</td><td>rejected</td><td>ADMIN</td><td>אין בדיקה</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>ילד רואה "ממתין לאישור"/"אושר"/"נדחה"; פאנל הורה <code>admin-loans-panel</code> מוצג רק כשיש pending.</div>
+<div>פערים</div><div><ul><li>הלקוח מציג <code>l.amount</code> שאינו קיים בתגובה (העמודה <code>original_amount</code>) → "₪undefined" (app.js:5581, 5590).</li><li>אין מנגנון החזר: <code>remaining_amount</code> לא מתעדכן בשום מקום; reject על הלוואה מאושרת לא מבטל את הזיכוי.</li></ul></div></div></section>
+
+<section class="proc" data-f="goals savings deposit target familai advice"><h3>יעדי חיסכון והפקדה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openGoalModal</code>/<code>submitGoal</code> (app.js:5535/5537) → <code>POST /api/goals</code> (server.js:11504); <code>openDepositModal</code>/<code>submitDeposit</code> (5536/5538) → <code>POST /api/goals/deposit</code> (11520). הצגה מתוך <code>/api/data</code> (goals של user_id/target_user_id).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה: title נחתך ל-150; target=max(0); קביעת יעד עבור משתמש אחר (<code>targetUserId</code>) רק ל-ADMIN ובאותה קבוצה.</li><li>הפקדה: amount=max(0.01); היעד חייב להיות של משתמש בקבוצה; יתרה מספיקה — "אין יתרה מספיקה".</li><li>לקוח: הפקדה &gt; 0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: INSERT goals (user_id = יוצר, target_user_id).</li><li>הפקדה: <code>UPDATE users SET balance=balance-amt WHERE id AND balance&gt;=amt</code> (אטומי), UPDATE goals.current_amount+=amt, INSERT expense 'savings' "הפקדה ליעד: …".</li></ol></div>
+<div>חישובים</div><div>לקוח: pct = min(100, round(current/target×100)), radial progress.</div>
+<div>ממשק</div><div>הורה רואה <code>admin-goals-list</code> עם שם הבעלים; ילד <code>my-goals-list</code>; כפתור "טיפ מ-familAI" לכל יעד.</div>
+<div>פערים</div><div>ההפקדה יורדת מה-balance של המפקיד גם אם היעד שייך לילד אחר; אין משיכה/סגירת יעד; BEGIN על pool.</div></div></section>
+
+<section class="proc" data-f="forecast recurring projection monthly yearly"><h3>תשקיף כלכלי (Forecast)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "תשקיף כלכלי": <code>renderForecast</code> (app.js:5691) — חישוב לקוחי מלא על <code>allTransactions</code> (200 אחרונות) ו-<code>membersCache</code>; תובנת AI: <code>getForecastInsight</code> (5789) → <code>POST /api/forecast/familai-insight</code>.</div>
+<div>חישובים</div><div><ul><li>תקופה: חודשי (12 חודשים קדימה בבורר) או שנתי (5 שנים).</li><li>יתרת פתיחה: הורה — סכום <code>balance</code> של כל החברים; אחר — balance שלו.</li><li>תנועה לא חוזרת נכללת אם תאריכה בטווח; חוזרת: נכללת אם התחילה לפני סוף הטווח ו-end_month אחרי תחילתו; בשנתי מוכפלת במספר החודשים הפעילים (תווית "(xN ח')").</li><li>projectedNetChange = סכום (±) של תנועות חוזרות או עתידיות; projectedBalance = פתיחה + net.</li></ul></div>
+<div>ממשק</div><div>גרף הכנסות/הוצאות (<code>drawForecastCharts</code>), ילד רואה רק את עצמו.</div>
+<div>פערים</div><div>מבוסס על 200 התנועות האחרונות בלבד — תנועות חוזרות ישנות נעלמות מהתשקיף.</div></div></section>
+
+<section class="proc" data-f="familai insight budget pantry forecast goal advice gemini"><h3>תובנות FamilAI (תקציב, מזווה, תשקיף, טיפ ליעד)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתורי AI: <code>getBudgetInsight</code>, <code>getPantryInsight</code>, <code>getForecastInsight</code>, <code>getFamilAIAdvice</code> (app.js:2436-2470, 5789) → <code>/api/budget/familai-insight</code> (12460), <code>/api/pantry/familai-insight</code> (12486), <code>/api/forecast/familai-insight</code> (12513), <code>/api/goals/familai-advice</code> (12430).</div>
+<div>תנאים ואימותים</div><div><ul><li>budget/pantry: groupId = קבוצת הטוקן. forecast: 'all' רק ל-ADMIN; אחר — ADMIN יכול לציין targetUserId, אחרים מקבלים את עצמם. goal: user+goal בקבוצה, אחרת "Data not found".</li><li>כולם: <code>handleAITokens</code> — אם אין טוקנים <code>{success:false,error:'BATTERY_EMPTY'}</code>; אין מפתח → 500 "מפתח AI חסר בשרת".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שליפת נתונים: budget — תנועות החודש; pantry — מלאי + פריטי נסיעות מתחילת החודש הקודם; forecast — תנועות <code>is_recurring</code>; goal — יעד + balance + allowance.</li><li>Gemini <code>gemini-2.5-flash</code>, prompt עברית בגרסת FAMILY ("familAI") או BUSINESS לפי <code>family_groups.type</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>AI: Google Gemini 2.5 Flash — סיכום מנהלים לתקציב (4-5 משפטים), אזהרת מלאי, עצת תזרים 2-3 משפטים, תוכנית 2 צעדים לילד ליעד. ניכוי טוקן ו-ai_usage_log.</div>
+<div>ממשק</div><div><code>executeWithAIWarning</code> + <code>handleAIResponseCheck</code> מציגים מודל "סוללה ריקה" (app.js:1725-1795); תוצאה ב-<code>showFamilAIModal</code>.</div>
+<div>פערים</div><div>שגיאת 429 ממופה ל"מערכת ה-AI עמוסה" (server.js:4225-4230).</div></div></section>
+<h2 class="grp">משימות (Tasks)</h2>
+
+<section class="proc" data-f="task create bulk assign reward deadline priority good deed shift"><h3>יצירת משימה (יחיד, מרובה, "מעשה טוב")</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה: <code>openTaskModal</code>/<code>submitTask</code> (app.js:2597/2664) — assignee אחד → <code>POST /api/tasks</code> (server.js:11890); כמה → <code>POST /api/tasks/bulk</code> (11932). ילד: <code>openGoodDeedModal</code>/<code>submitGoodDeed</code> (app.js:2556/2563) יוצר לעצמו משימה בסטטוס <code>done</code>. אותם endpoints משמשים את BIZ (משמרות <code>SHIFT|…</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST /tasks: הקצאה לאדם אחר מותרת רק ל-ADMIN — "רק מנהל/ת יכול/ה להקצות משימה לאדם אחר" (11894-11896). לא נבדק שה-assignee שייך לקבוצה.</li>
+<li>משמרת: title בפורמט <code>SHIFT|date|start|end|…</code> — חסימת חפיפה מול משמרות approved/pending של אותו עובד באותו יום: <code>newStart &lt; exEnd &amp;&amp; exStart &lt; newEnd</code> (השוואת מחרוזות) — "כבר קיימת משמרת חופפת…" (11898-11915).</li>
+<li>bulk: רק ADMIN; <code>assignees</code> מערך לא ריק.</li>
+<li>לקוח: לפחות assignee אחד, title חובה, ברוטינה לפחות יום אחד (app.js:2672-2674); "מעשה טוב": title חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>deadline = now + days×24h רק אם לא חוזרת ויש days; <code>require_ai_check</code> ברירת מחדל <b>true</b> בשרת אם לא נשלח; recurring_days רק כשחוזרת; priority ברירת מחדל medium; reward = clamp(0..100000).</li>
+<li>INSERT tasks (status מה-body — לקוח שולח 'pending' או 'done'; bulk תמיד 'pending'); created_by = משתמש הטוקן.</li>
+<li>logActivity('task','task_created').</li></ol></div>
+<div>חישובים</div><div>reward ∈ [0, 100000]; deadline בימים.</div>
+<div>ממשק</div><div>מודל: מצב ידני/AI, חד-פעמית/רוטינה (ימי שבוע כ-checkbox ערכים <code>0..6</code>, index.html:2200), עדיפות high/medium/low, מתג "בדיקת AI" (ברירת מחדל דלוק), תגמול "אופציונלי". רשימת assignees = המשתמש + כל החברים.</div>
+<div>פערים</div><div>השרת מקבל <code>status</code> שרירותי מהלקוח (כולל 'approved' — ללא תשלום); assignee מקבוצה אחרת לא נחסם.</div></div></section>
+
+<section class="proc" data-f="task edit patch title reward deadline"><h3>עריכת משימה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>✏️ על משימה pending: <code>openEditFamilyTaskModal</code>/<code>submitEditFamilyTask</code> (app.js:3207/3215) → <code>PATCH /api/tasks/:id</code> (server.js:11956).</div>
+<div>תנאים ואימותים</div><div><ul><li>רק ADMIN — "רק מנהל/ת יכול/ה לערוך משימות"; משימה בקבוצה; רק <code>status='pending'</code> — "ניתן לערוך רק משימות בסטטוס pending".</li><li>לקוח: כותרת חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>deadline חדש = now + days אם נשלח, אחרת הישן; reward clamp; UPDATE title/reward/deadline/priority/updated_at.</li></ol></div></div></section>
+
+<section class="proc" data-f="task lifecycle done proof approve reject reward payment status tasks update"><h3>מחזור חיים של משימה: ביצוע, הוכחה, אישור ותשלום, דחייה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ילד מסמן "סיימתי" עם תמונה: משימה עם <code>require_ai_check</code> → vision-verify (תהליך נפרד); אחרת <code>clickFamilyTaskProofCloudinary</code>→<code>handleFamilyTaskProofCloudinaryUpload</code> (app.js:3240/3244) מעלה ל-Cloudinary (unsigned preset מ-<code>/api/settings/public/*</code>) ואז <code>POST /api/tasks/:id/proof</code> (server.js:11976). הורה: "אשר ושלם" <code>openApproveTaskModal</code>/<code>submitTaskApproval</code> (3088/3090), דחייה <code>rejectFamilyTask</code> (3230) → <code>POST /api/tasks/update</code> (12023). רוטינה: <code>updateTask(id,'done')</code> (3205).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>proof: proofImageUrl חובה; משימה בקבוצה; רק ADMIN או ה-assignee — "אין הרשאה לעדכן משימה זו".</li>
+<li>update: <code>approved</code> רק ADMIN — "רק מנהל/ת יכול/ה לאשר ולשלם על משימה"; <code>done/completed_self</code> — ADMIN או בעל המשימה; <code>deleted/rejected</code> — ADMIN או בעל המשימה (ילד יכול לדחות/למחוק משימה של עצמו).</li>
+<li>finalReward clamp 0..100000, אחרת reward קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>proof: UPDATE proof_image_url, <code>status='done'</code>, updated_at; logActivity task_done "(עם תמונה)".</li>
+<li>update למשימה חוזרת עם done: רק <code>last_completed_at=NOW()</code>, logActivity, מחזיר <code>{recurring:true}</code> — ללא שינוי סטטוס וללא תשלום.</li>
+<li>אחרת: UPDATE status+reward(+notes); אם approved ו-rew&gt;0: balance+=rew ל-assignee, income 'tasks' "תגמול משימה: …", expense 'tasks' על ADMIN הראשון.</li>
+<li>logActivity done/approved; ב-done בודק <code>store_popups</code> (popup_type employee, trigger task, trigger_ref=taskId, פעיל ולא פג) ומחזיר <code>triggeredPopup</code> (שימושי ל-BIZ).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending / done</td><td>יוצר</td><td>done = "מעשה טוב"</td><td>activity</td></tr>
+<tr><td>pending / rejected</td><td>done</td><td>assignee / ADMIN</td><td>proof URL או update</td><td>activity, popup</td></tr>
+<tr><td>כל מצב (לא נבדק)</td><td>approved</td><td>ADMIN</td><td>—</td><td>+balance, 2 תנועות</td></tr>
+<tr><td>כל מצב</td><td>rejected / deleted</td><td>ADMIN / assignee</td><td>—</td><td>—</td></tr>
+<tr><td>pending / rejected</td><td>approved</td><td>AI (vision-verify)</td><td>verified</td><td>reward+10% בונוס</td></tr></table></div>
+סטטוסים בשימוש: <code>pending, done, completed_self, approved, rejected, deleted</code>; הלקוח מתייחס גם ל-<code>completed</code> (app.js:9781, 11801) שלא נכתב ע"י השרת.</div>
+<div>תופעות לוואי</div><div>activity_log; תנועות כסף; העלאת תמונה ל-Cloudinary (ניקוי חודשי של תמונות הוכחה — server.js:7045 ואילך).</div>
+<div>ממשק</div><div><code>renderTasks</code> (app.js:3098): לא-ADMIN רואה רק משימות שלו. pending שלי → "📷 סיימתי"; done → הורה "אשר ושלם" + 💬 + 🖼 הוכחה, ילד "בבדיקה"; approved "✓ בוצע"; rejected → ילד "📷 שלח שוב". תג deadline: "עוד N ימ'" או "פג תוקף!". משימות בסטטוס deleted לא מסוננות ומוצגות ללא כפתורי פעולה.</div>
+<div>פערים</div><div><ul><li>אין בדיקת סטטוס קודם באישור — אישור כפול משלם פעמיים (12055-12059).</li><li>משימות חוזרות לעולם לא משולמות.</li><li>BEGIN/COMMIT על pool.</li><li>משימות deleted ממשיכות להופיע (ללא סינון ב-<code>/api/data</code> ו-renderTasks).</li></ul></div></div></section>
+
+<section class="proc" data-f="vision verify ai task photo gemini bonus"><h3>אימות ביצוע משימה בתמונה ע"י AI (vision-verify)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משימה עם <code>require_ai_check</code>: <code>clickTaskProof</code>/<code>handleTaskProofUpload</code> (app.js:2706/2708) — דחיסה ל-800×800 JPEG 0.7 → <code>POST /api/tasks/vision-verify</code> (server.js:12549).</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId = קבוצת הטוקן; משימה בקבוצה; רק assignee או ADMIN; משימה שכבר approved — "המשימה כבר אושרה".</li><li>handleAITokens; מפתח Gemini.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>Gemini <code>gemini-2.5-flash</code> (JSON mode) עם התמונה ו-prompt "familAI… Be forgiving but honest" → <code>{verified, message}</code>.</li>
+<li>אם verified: total = reward + bonus; balance+=total; income 'tasks' "(אושר ע"י AI) + בונוס"; expense 'tasks' על ADMIN; <code>status='approved'</code>, reward=total.</li></ol></div>
+<div>חישובים</div><div><code>bonus = reward&gt;0 ? max(1, round(reward×0.1)) : 0</code> (12584-12586).</div>
+<div>תופעות לוואי</div><div>AI Gemini (בדיקת ראיה); הודעת שבח עם "קיבלת גם בונוס AI של ₪X".</div>
+<div>ממשק</div><div>מודל familAI "בקרת איכות"; confetti בהצלחה.</div>
+<div>פערים</div><div>אישור ללא הורה — ילד יכול לקבל כסף ישירות; אין טרנזקציה.</div></div></section>
+
+<section class="proc" data-f="task comments chat"><h3>תגובות על משימה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>💬: <code>openFamilyTaskComments</code>/<code>loadFamilyTaskComments</code>/<code>addFamilyTaskComment</code> (app.js:3266-3305) → <code>GET/POST /api/tasks/:id/comments</code> (server.js:11994/12006).</div>
+<div>תנאים ואימותים</div><div><ul><li>משימה בקבוצת הטוקן; text חובה, נחתך ל-1000.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT task_comments (task_id, user_id, group_id, text) והחזרה עם user_name.</li></ol></div>
+<div>ממשק</div><div>בועות צ'אט (שלי בכחול), טעינה מחדש אחרי שליחה; ללא polling.</div>
+<div>פערים</div><div>אין התראה לצד השני.</div></div></section>
+
+<section class="proc" data-f="recurring tasks routine dispatch cron recurring_days last_completed_at"><h3>משימות חוזרות ו-cron הפצת משימות חוזרות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משימה עם <code>is_recurring</code> + <code>recurring_days</code>. Cron <code>dispatchRecurringTasks</code> (server.js:6790-6815) כל 5 דקות + 90ש' אחרי עלייה (6816-6817).</div>
+<div>תנאים ואימותים</div><div><ul><li>רץ רק אם השעה המקומית בשרת ≥ 8 (6796-6797).</li><li>בוחר <code>is_recurring=TRUE AND status='pending'</code>; ממשיך רק אם <code>recurring_days.includes(todayName)</code> כאשר todayName בעברית ('ראשון'..'שבת').</li><li>דילוג אם כבר קיימת היום משימה לא-חוזרת עם אותו group/title/assignee.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT עותק חד-פעמי: status pending, deadline = מחר, אותו reward/require_ai_check/created_by/priority, is_recurring FALSE.</li></ol></div>
+<div>ממשק</div><div>בלקוח המשפחתי הרוטינה מוצגת תמיד עם תג ימים (א..ש) ו"לא היום"; כפתור "✓ סיימתי" רק ביום פעיל; "✓ בוצע היום" אם <code>last_completed_at ≥ חצות</code> (app.js:3108-3140).</div>
+<div>פערים</div><div>הלקוח המשפחתי שומר ימים כספרות <code>"0,1,2"</code> בעוד ה-cron מחפש שמות עבריים — עבור משימות שנוצרו באפליקציית המשפחה ה-cron לעולם לא מפיץ עותקים. השעה תלויה ב-timezone של השרת. <code>includes</code> על מחרוזת (לא split).</div></div></section>
+
+<section class="proc" data-f="ai generate tasks ideas gemini"><h3>רעיונות משימה ב-AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מצב AI במודל המשימה: <code>generateAITasks</code> (app.js:2622) → <code>POST /api/tasks/ai-generate</code> (server.js:12310).</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId = קבוצת הטוקן; handleAITokens. לקוח: חייב לבחור assignee (לגיל) ונושא.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>Gemini 2.5 Flash JSON: 3 מטלות מותאמות גיל עם תגמול 5–50 ₪ (עסק: 50–500) → נרמול למערך.</li></ol></div>
+<div>ממשק</div><div>לחיצה על הצעה ממלאת title/reward וחוזרת למצב ידני.</div>
+<div>פערים</div><div>הלקוח קורא ל-<code>val('task-assignee')</code> בעוד שהמודל החדש משתמש ב-checkboxes (<code>.task-assignee-cb</code>) — ואין אלמנט <code>#task-assignee</code> ב-index.html, ו-<code>openTaskModal</code> קובע <code>task-is-self=false</code> — לכן הפונקציה תמיד נעצרת ב-"קודם כל בחרו למעלה עבור מי המשימה 👆" ויצירת רעיונות AI לא נגישה מהממשק המשפחתי.</div></div></section>
+
+<h2 class="grp">שגרות (Routines) — מנוע מופעים ו-cron</h2>
+
+<section class="proc" data-f="routines cron generate occurrences activate overdue horizon planned open"><h3>Cron שגרות: ייצור מופעים, הפעלה וסימון פיגור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>runRoutinesCron</code> (server.js:7035) כל 15 דקות + 100ש' אחרי עלייה (7040-7041): <code>generateRoutineOccurrences</code> → <code>activateDueRoutineOccurrences</code> → <code>markOverdueRoutineOccurrences</code>. ניקוי יומי <code>cleanupExpiredRoutineRecords</code> (7022, כל 24ש' + 180ש' אחרי עלייה). המודול מוגבל לעסקים <code>business_type ∈ {restaurant, maintenance_repair}</code> (<code>ROUTINES_ALLOWED_BIZ_TYPES</code>, 27210).</div>
+<div>תנאים ואימותים</div><div><ul><li>ייצור: רק <code>is_active</code> ו-<code>frequency_type='fixed'</code> בקבוצות עם סוג עסק מותר (6862-6868).</li><li>עצירה: end_date, max_occurrences, guard 400 איטרציות.</li><li>weekly_days: רק ימים ב-<code>frequency_weekdays</code> (שמות עבריים מופרדים בפסיק); <code>skip_weekends</code> מדלג על שישי/שבת (getDay 5/6).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ייצור: cursor = MAX(scheduled_date)+interval (או start_date אם אין מופעים); לולאה עד horizon; לכל תאריך תקין שאינו קיים — INSERT <code>routine_occurrences</code> (planned, scheduled_time, grace_deadline, assignee) + <code>routine_event_log</code> 'occurrence_created'.</li>
+<li>הפעלה: מופעים planned עם scheduled_date ≤ היום (UTC): output 'task'/'task_calendar' → INSERT tasks (reward 0, deadline = תאריך+שעה או 23:59:59, <code>created_by='שגרות'</code>, 6951-6956); 'task_calendar' → גם INSERT calendar_events (approved, כותרת "שגרה — אתר", כתובת האתר כהערה, ברירת מחדל 09:00); 'work_order_template' → INSERT store_orders (call_type work_order, status open, customer = איש הקשר באתר) + work_order_assignees. UPDATE מופע → <code>open</code> עם linked ids; event 'occurrence_activated'.</li>
+<li>פיגור: מופעים open/in_progress עם grace_deadline &lt; NOW → <code>overdue</code> + event.</li>
+<li>ניקוי: DELETE מופעים completed/completed_with_exception/skipped/cancelled ש-scheduled_date &lt; היום − retention_period_days (ברירת מחדל 365); CASCADE לראיות/סבבים/אירועים.</li></ol></div>
+<div>חישובים</div><div><ul><li>מרווחים (<code>routineAddInterval</code>, 6833): daily +1 יום, weekly +7, biweekly +14, monthly +1 חודש, quarterly +3, semiannual +6, yearly +1 שנה, ברירת מחדל +7; weekly_days מתקדם יום-יום.</li><li>horizon (6848): daily/weekly/weekly_days/biweekly — 60 יום; אחרים — 365.</li><li>grace_deadline = (תאריך+scheduled_time או 23:59:59) + grace_period_minutes (ברירת מחדל 60).</li></ul></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>planned</td><td>cron</td><td>בתוך horizon</td><td>event log</td></tr>
+<tr><td>planned</td><td>open</td><td>cron</td><td>scheduled_date ≤ היום</td><td>task/calendar/work order</td></tr>
+<tr><td>open / in_progress</td><td>overdue</td><td>cron</td><td>grace_deadline חלף</td><td>event log</td></tr>
+<tr><td>open/in_progress/overdue</td><td>completed / completed_with_exception / in_progress</td><td>משתמש</td><td>ראו "ביצוע מופע"</td><td>—</td></tr>
+<tr><td>planned/open/in_progress/overdue</td><td>skipped</td><td>משתמש</td><td>סיבה</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>move_requested → planned / open</td><td>עובד → מנהל</td><td>תאריך+הערה</td><td>—</td></tr>
+<tr><td>planned / open</td><td>cancelled</td><td>מנהל</td><td>השבתת שגרה / סיום חוזה</td><td>—</td></tr></table></div></div>
+<div>פערים</div><div><ul><li><b>tasks.created_by הוא INT REFERENCES users</b>, וההפעלה מכניסה את המחרוזת <code>'שגרות'</code> (6955) — שגיאת SQL; מופעים עם output 'task'/'task_calendar' נכשלים בהפעלה ונשארים planned לנצח (השגיאה נבלעת ב-catch פנימי).</li><li><code>today</code> מחושב ב-UTC (<code>toISOString</code>) בעוד ה-grace משתמש בזמן מקומי.</li></ul></div></div></section>
+
+<section class="proc" data-f="routines crud templates catalog sites facilities items create update deactivate"><h3>ניהול שגרות: תבניות, יצירה, עדכון, השבתה, היררכיית אתרים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ממשק BIZ (business-app.js) — endpoints: templates (27284/27292), CRUD (27327-27425), sites/facilities/items (27428-27499). כולם <code>verifyBiz</code> + <code>verifyRoutinesBizType</code> (27211: "מודול "שגרות" זמין רק לעסקי מסעדנות ותחזוקה/תיקונים").</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId בנתיב = קבוצת הטוקן (פרט ל-GET templates שלא בודק); PUT/DELETE/תת-ישויות בודקים בעלות דרך JOIN לקבוצה.</li><li>CHECK constraints בטבלה: business_type ∈ {restaurant, maintenance_repair}; category ∈ {regulatory, safety, preventive_maintenance, operational, logistics}; obligation_source ∈ {law, standard, contract, insurer, internal_policy}; target_level ∈ {customer, site, facility, item}; output_type ∈ {task, task_calendar, work_order_template}.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קטלוג <code>ROUTINE_TEMPLATE_CATALOG</code> (27238): 19 תבניות מסעדה (טמפרטורות, ניקוי, מטפים, הדברה, מנדפים, מפריד שומן, כשרות certificate_expiry, פילטרים, צ'קליסטים, קופה, מלאי, פודקוסט) ו-17 תבניות תחזוקה (מעלית, חשמל, מתזים, גילוי אש, גנרטור, מאגר מים, מיזוג, משאבות, ביקור חוזה work_order_template, חידוש חוזה/הסמכות).</li>
+<li>apply: INSERT routine לכל key נבחר עם target_level 'site', frequency_type ברירת מחדל fixed, interval ברירת מחדל monthly, evidence ['confirm'], retention 365, template_source=key; event 'routine_created'.</li>
+<li>POST: INSERT עם 42 שדות; ברירות מחדל: category operational, target_level site, output task, frequency fixed/weekly, grace 60, start_date היום, assignee_mode employee, internal_approval_mode click, customer wait 48h, policy 'proceed'.</li>
+<li>PUT: עדכון חלקי (<code>??</code> לערך הקודם); אם interval השתנה — event 'frequency_changed' עם before/after; תמיד 'routine_updated'.</li>
+<li>DELETE: <code>is_active=FALSE</code> + מופעים planned/open → cancelled + event 'routine_deactivated'.</li>
+<li>Sites/facilities/items: INSERT פשוטים (name, address, contact, access_notes, is_internal / facility_type / serial_number, install_date).</li></ol></div>
+<div>פערים</div><div>שינוי frequency לא מוחק מופעים planned שכבר נוצרו לפי התדירות הישנה. frequency_type certificate_expiry מתבניות לא מייצר מופעים כלל (רק fixed).</div></div></section>
+
+<section class="proc" data-f="routine occurrence complete approval rounds internal customer link evidence"><h3>ביצוע מופע שגרה וסבבי אישור (פנימי + לקוח)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עובד מסמן ביצוע: <code>POST /api/routine-occurrences/:id/complete</code> (server.js:27979); מנהל מכריע: <code>…/approval-rounds/:roundId/decide</code> (28041); לקוח מאשר בקישור ציבורי <code>GET/POST /c/rt/:occurrenceId/:token</code> (28087/28132).</div>
+<div>תנאים ואימותים</div><div><ul><li>complete: מופע בקבוצה; רק במצב open/in_progress/overdue — "לא ניתן לסמן ביצוע למופע במצב הנוכחי".</li><li>decide: סבב שייך למופע; <code>internal_status='pending'</code> — "הסבב כבר הוכרע"; דחייה מחייבת reason — "יש לציין סיבת דחייה".</li><li>לקוח: token תואם; אם customer_status ≠ pending — הודעת "כבר טופל"; דחייה בצד הלקוח מחייבת הערה (JS בעמוד).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אם יש note או numericValue — INSERT <code>routine_evidence</code> (numeric_value/note, is_out_of_range=hasException).</li>
+<li>מסלול מהיר (ללא requires_internal_approval וללא 'completion' ב-requires_customer_approval_events): status → completed / completed_with_exception, completed_by=userName.</li>
+<li>מסלול מלא: round_number = MAX+1; INSERT <code>routine_approval_rounds</code> עם internal_status pending/skipped ו-customer_status pending (אם רק לקוח) או not_required; מופע → in_progress; אם לקוח pending — יוצר <code>confirm_token</code> (24 bytes) ומחזיר <code>customerApprovalUrl</code>; <code>_maybeCloseRoutineRound</code>.</li>
+<li>decide approve: internal approved; אם השגרה דורשת אישור לקוח ו-customer_status not_required → פותח שער לקוח (pending + token); _maybeClose. reject: internal rejected + reason, מופע → open (הגשה חוזרת = סבב חדש).</li>
+<li>לקוח approve: customer approved, channel 'link', _maybeClose; reject: customer rejected + סיבה.</li>
+<li><code>_maybeCloseRoutineRound</code>: אם internal ∈ {approved, skipped} ו-customer ∈ {not_required, approved} → מופע completed (או completed_with_exception לפי exception_flag), completed_by=submitted_by.</li></ol></div>
+<div>מכונת מצבים</div><div>internal_status: pending → approved / rejected (או skipped מראש). customer_status: not_required → pending → approved / rejected (CHECK כולל גם expired, replied — לא נכתבים בקוד הנקרא).</div>
+<div>תופעות לוואי</div><div>routine_event_log: occurrence_submitted, customer_approval_requested, internal_approved/rejected, customer_approved/rejected, occurrence_completed(_with_exception). עמוד HTML ציבורי עם כפתורי אישור/דחייה; <code>customer_viewed_at</code> בצפייה ראשונה.</div>
+<div>פערים</div><div>דחיית לקוח משאירה את המופע ב-in_progress ללא מסלול המשך; GET /occurrences, /today, /missed, /detail, /move-requests מצטרפים ל-<code>u.name</code> — עמודה שלא קיימת ב-users (קיימים nickname/first_name) → שגיאת SQL ו-500 (27900, 27918, 27933, 28173, 28308).</div></div></section>
+
+<section class="proc" data-f="routine skip move request decision reassign series"><h3>דילוג, בקשת הזזה והחלפת אחראי במופע</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>/skip</code> (28216), <code>/move-request</code> (28230), <code>/move-decision</code> (28247), <code>/reassign</code> (28279), תור <code>GET /api/routines/:groupId/move-requests</code> (28304), תור אישורים <code>/pending-approvals</code> (28199).</div>
+<div>תנאים ואימותים</div><div><ul><li>skip: מצב planned/open/in_progress/overdue; reason חובה — "יש לציין סיבת דילוג".</li><li>move-request: newDate — "יש לציין תאריך מבוקש"; note — "הזזה מחייבת הערה"; ללא בדיקת מצב.</li><li>move-decision: רק במצב move_requested — "אין בקשת הזזה ממתינה למופע זה".</li><li>reassign: userId — "יש לבחור עובד".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>skip → skipped + skip_reason (לא נספר כפיגור).</li><li>move-request → move_requested + move_requested_date/note.</li><li>approve → scheduled_date=החדש, grace מחושב מחדש (+grace_period_minutes), <code>status='planned'</code>, move_approved_by; reject → open, ניקוי שדות ההזזה.</li><li>reassign scope 'series' → routines.assignee_user_id + כל המופעים planned/open; אחרת רק המופע.</li></ol></div>
+<div>פערים</div><div>אישור הזזה מחזיר ל-planned גם מופע שכבר הופעל — ה-cron יפעיל אותו שוב ויצור משימה/אירוע/פקודת עבודה כפולים. דחייה מעבירה ל-open גם מופע שהיה planned לפני הבקשה.</div></div></section>
+
+<section class="proc" data-f="routine service contracts compliance coverage documents site file retention"><h3>חוזי שירות, מצב ציות, דוח כיסוי ומסמכים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חוזים (maintenance_repair בלבד, <code>verifyRoutinesSpecificBizType</code>): 27502-27558; ציות (restaurant בלבד): 27562; כיסוי: 27600; תיק אתר: 27640; מסמכים: 27720/27738/27757, עמוד ציבורי <code>/c/rt-doc/:id/:token</code> (27778), שליחה <code>/api/routine-documents/:id/send</code> (27864).</div>
+<div>שלבי עיבוד</div><div><ol><li>חוזה: INSERT עם billing_model ברירת מחדל per_visit, coverage labor, availability business_hours, status active. PUT status='ended' (ממצב אחר) → השבתת כל השגרות המקושרות וביטול מופעים planned/open.</li>
+<li>ציות: לכל שגרה פעילה regulatory/safety — התעודה האחרונה (evidence document עם expiry) → status <code>expired</code> (ימים&lt;0), <code>expiring_soon</code> (≤30), <code>valid</code>, <code>none</code>; מיון expired→expiring_soon→none→valid.</li>
+<li>כיסוי: לכל חוזה active — ביקורים שבוצעו ב-12 החודשים האחרונים (completed*), visitsRemaining = max(0, visits_included − done), תעודות שפגות בתוך 30 יום, ביקור הבא.</li>
+<li>מסמכים: INSERT routine_documents (מספר <code>RT-&lt;gid&gt;-&lt;base36 time&gt;</code>, view_token 24 bytes, exposure customer/internal) + event 'document_generated'; URL ציבורי מבוסס APP_URL; עמוד HTML להדפסה (window.print).</li></ol></div>
+<div>חישובים</div><div>expiring_soon ≤ 30 יום; חלון כיסוי = שנה אחורה מהיום.</div></div></section>
+<h2 class="grp">רשימת קניות, מצב סופר ומזווה</h2>
+
+<section class="proc" data-f="shopping add item request child approve update delete clear status requested pending in_cart"><h3>הוספת פריט לרשימה, בקשת ילד ואישור הורה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitShopItem</code>/<code>_doSubmitShopItem</code> (app.js:4511/4525), הדבקת רשימה <code>submitPastedList</code> (5648), העברה ממזווה <code>movePantryToCart</code> (2965) → <code>POST /api/shopping/add</code> (server.js:10863). עדכונים: <code>updateRow</code> (4827), <code>saveEditShopItem</code>, <code>adjustShopQty</code> (5263) → <code>POST /api/shopping/update</code> (10879). מחיקה: <code>deleteItem</code>/<code>deleteSelectedShopItems</code>/<code>clearEntireCart</code> → <code>DELETE /api/shopping/delete/:id</code> (10900) / <code>clear/:groupId</code> (10910).</div>
+<div>תנאים ואימותים</div><div><ul><li>add: itemName חובה — "שם פריט חסר"; נחתך ל-200; note ל-500; quantity=max(0, …||1); estimated_price=max(0); units_per_package=max(1, int||1); unit ברירת מחדל "יח'".</li>
+<li>update: פריט בקבוצה; מעבר מ-<code>requested</code> לכל סטטוס אחר רק ל-ADMIN — "רק הורה יכול לאשר בקשת רכש" (10886-10888); כל שדה מתעדכן בנפרד אם נשלח (שינוי שם מעדכן גם normalized_name).</li>
+<li>delete: בעלות; clear: groupId = קבוצת הטוקן.</li>
+<li>לקוח: פריט שאינו ב-<code>PRODUCT_DB</code> ואינו במפת הקטגוריות → בוחר קטגוריה (<code>cat-picker-modal</code>) לפני ההוספה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>סטטוס התחלתי: ADMIN → <code>pending</code>; אחר → <code>requested</code> (10872).</li><li>INSERT shopping_list (requester_id מהטוקן) + logActivity('shopping','item_added').</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>requested</td><td>לא-ADMIN</td><td>—</td><td>מופיע ב"ממתינים לאישור"</td></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>ADMIN / scan / load-saved / copy / FamilAI</td><td>—</td><td>—</td></tr>
+<tr><td>requested</td><td>pending</td><td>ADMIN</td><td>✓ אישור</td><td>—</td></tr>
+<tr><td>requested</td><td>(מחיקה)</td><td>ADMIN</td><td>✕</td><td>—</td></tr>
+<tr><td>pending</td><td>in_cart</td><td>כל חבר</td><td>סימון checkbox</td><td>—</td></tr>
+<tr><td>in_cart</td><td>pending</td><td>כל חבר</td><td>ביטול / "חסר"</td><td>—</td></tr>
+<tr><td>in_cart (bought)</td><td>(נמחק → מזווה)</td><td>כל חבר</td><td>checkout</td><td>תנועה+מזווה</td></tr></table></div>
+סטטוס <code>pending_approval</code> נבדק בלקוח (app.js:9776, 11807) אך לא קיים; <code>bought</code> נבדק ב-toggleSelectAll (4731) ולא נכתב.</div>
+<div>תופעות לוואי</div><div>activity_log בהוספה.</div>
+<div>ממשק</div><div><code>renderShopList</code> (4747): פריטים requested בקופסה נפרדת (הורה: ✓/✕; ילד: "ממתין להורה"); השאר ממוינים לפי קטגוריה (מפת משתמש → PRODUCT_DB התאמה מלאה/חלקית/מילה ראשונה &gt;2 תווים → "שונות"); פרסומת אחרי הפריט ה-5; שדה מחיר ליחידה, סה"כ שורה, הערה inline, תג "מחיר טוב יותר" אם best_price &lt; מחיר שהוזן ("קנית בעבר"/"חוכמת ההמונים"); מצב מחיקה מרובה; חיפוש. ייצוא WhatsApp של כל הפריטים שאינם requested (5658).</div>
+<div>פערים</div><div>הלקוח מצפה ל-<code>data.alert</code> ("חוכמה") שהשרת לא מחזיר — קוד מת (4533, 4829). אין הגבלה שילד ימחק/יסמן פריטים של אחרים.</div></div></section>
+
+<section class="proc" data-f="category map product category custom"><h3>מפת קטגוריות מוצרים לקבוצה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loadCategoryMap</code> (app.js:4650) בכל fetchData; <code>confirmCategoryPick</code>/<code>confirmCustomCategory</code> (4548/4540) → <code>GET/POST /api/shopping/category-map</code> (server.js:10918/10926).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET: groupId = קבוצת הטוקן. POST: ללא ולידציה של normalizedName/category.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT <code>product_category_map(group_id, normalized_name)</code> → category.</li><li>בלקוח: <code>categoryMapCache</code> מקבל עדיפות על PRODUCT_DB במיון.</li></ol></div></div></section>
+
+<section class="proc" data-f="checkout shopping trip pantry transaction groceries missing"><h3>סיום קנייה (Checkout) — תנועה, מזווה והיסטוריה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"סיים" ברשימה או במצב סופר: <code>openCheckoutSummary</code> (app.js:4862) → <code>submitFinalCheckout</code> (4875) → <code>POST /api/shopping/checkout</code> (server.js:11048).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: לפחות פריט מסומן או "חסר" — "לא סימנת כלום לאישור"; חנות ברירת מחדל "סופר כללי".</li><li>שרת: totalAmount=max(0); אין בדיקת סכום מול הפריטים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>shopping_trips</code> (buyer, store_name, branch_name, total_amount).</li>
+<li>INSERT transactions: expense, category <code>groceries</code>, "רכש מלאי/סופר: חנות", על הקונה.</li>
+<li>לכל פריט שנקנה: unit/upp מהשורה המקורית; INSERT <code>shopping_trip_items</code> עם <code>price_per_unit = price/qty</code> (price הוא סה"כ שורה); מזווה: אם קיים לפי שם מדויק → quantity += qty ועדכון upp/unit, אחרת INSERT; DELETE מהרשימה.</li>
+<li>פריטים חסרים → status 'pending'.</li>
+<li>logActivity('shopping','checkout', "קניה הושלמה ב-… — ₪X").</li></ol></div>
+<div>חישובים</div><div>לקוח: rowTotal = מחיר ליחידה × כמות; total = Σ rowTotal; שרת: price_per_unit = rowTotal / (qty||1).</div>
+<div>תופעות לוואי</div><div>תנועת הוצאה; מלאי מזווה; חוכמת המונים למחירים עתידיים.</div>
+<div>ממשק</div><div>מודל סיכום (נבחרו/חסרים/סה"כ); אחרי הצלחה עם חסרים — מודל "טיוטת חסרים" (<code>createDraftFromMissing</code>, 5514).</div>
+<div>פערים</div><div><ul><li>BEGIN/COMMIT/ROLLBACK על <code>pool.query</code> — לא טרנזקציה.</li><li>התנועה לא מעדכנת <code>users.balance</code>.</li><li>"חסר" במצב סופר (<code>_smMissing</code>) לא מועבר ל-checkout, שקורא את ה-DOM של הרשימה הראשית בלבד.</li><li><code>createDraftFromMissing</code> מוסיף שוב פריטים שהשרת כבר החזיר ל-pending — כפילויות.</li></ul></div></div></section>
+
+<section class="proc" data-f="supermarket mode sm_user live poll banner"><h3>מצב "אני בסופר" (Supermarket Mode)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openSupermarketMode</code>/<code>openSupermarketModeWithAd</code> (app.js:5054/336) → <code>POST /api/shopping/supermarket/start</code> (server.js:12752); <code>closeSupermarketMode</code> (5067) → <code>/end</code> (12763).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: חייב פריט אחד לפחות שאינו requested — "אין פריטים ברשימה להתחיל קניה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>start: UPDATE family_groups sm_user_id, sm_user_name (nickname או "מישהו"), sm_started_at.</li><li>end: איפוס שלושת השדות ל-NULL.</li><li>Polling מהיר כל 4 שניות ל-<code>/api/data</code> (<code>startSmFastPoll</code>, 5075): פריט חדש שאינו מוכר → התראה צפה 4ש' "נוסף לרשימה".</li><li><code>smToggleItem</code> (5172): pending↔in_cart מיידי לשרת; בסימון — מודל מחיר; <code>smUpdatePrice</code> debounce 800ms; <code>smToggleMissing</code> מקומי + status pending; <code>smQuickAdd</code> הוספה מהירה (כמו add).</li></ol></div>
+<div>חישובים</div><div><code>smCalcTotal</code>: Σ(estimated_price × quantity) לפריטי in_cart; "X מתוך Y פריטים נמצאו".</div>
+<div>ממשק</div><div>שאר בני המשפחה רואים באנר "&lt;שם&gt; נמצא עכשיו בסופר" (<code>renderSmBanner</code>, 5121) כאשר sm_user_id ≠ המשתמש. מודול MEMBER: <code>supermarket-mode</code>.</div>
+<div>פערים</div><div>אין timeout ל-sm_user — סגירת אפליקציה בלי "end" משאירה באנר לנצח. שם הפריט בהתראה הצפה לא עובר escape (XSS, 5107).</div></div></section>
+
+<section class="proc" data-f="saved lists shop session list name load replace append"><h3>רשימות קניות שמורות ושם "סשן" משותף</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שם רשימה בראש הטאב: <code>onListNameInput</code> (app.js:5401) debounce 800ms → <code>PATCH /api/shopping/session</code> (server.js:11131). שמירה: <code>manualSaveList</code>/<code>_doSaveList</code> (5438/5440) → <code>POST /api/shopping/save</code> (11122) או <code>PUT /saved/:id</code> (11162). טעינה: <code>loadSavedList</code>/<code>doLoadList</code> (5471/5483) → <code>POST /load-saved</code> (11143). מחיקה <code>DELETE /saved/:id</code> (11179). רשימה <code>GET /saved</code> (11114).</div>
+<div>תנאים ואימותים</div><div><ul><li>save: name ו-items לא ריקים — "Missing name or items"; name נחתך ל-200.</li><li>PUT/DELETE: בעלות; PUT בלי שדות — "אין מה לעדכן".</li><li>load: רשימה בקבוצה — 404 "List not found".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>session: <code>family_groups.shop_session_name</code>/<code>shop_session_list_id</code> — משותף לכל בני הקבוצה (מסונכרן ב-fetchData).</li><li>save: items = פריטים שאינם requested (item_name, quantity, unit, estimated_price, units_per_package) כ-JSON.</li><li>load mode='replace': מחיקת פריטים pending/in_cart ואז INSERT pending; 'append' (ברירת מחדל): INSERT בלבד.</li></ol></div>
+<div>ממשק</div><div>אם יש פריטים — מודל בחירה החלף/הוסף; אחרת replace ישיר.</div>
+<div>פערים</div><div><code>startAutoSave()</code> נקרא אחרי שמירה ראשונה (5463) אך לא מוגדר בשום מקום → ReferenceError נתפס ומציג "שגיאת תקשורת" למרות שהשמירה הצליחה.</div></div></section>
+
+<section class="proc" data-f="shopping history trips copy reimport"><h3>היסטוריית קניות והעתקת קנייה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openHistoryModal</code> (app.js:5528) → <code>GET /api/shopping/history</code> (server.js:11086); <code>copyList</code> (4899) → <code>POST /api/shopping/copy</code> (11095).</div>
+<div>שלבי עיבוד</div><div><ol><li>history: כל ה-trips של הקבוצה (DESC) + פריטים לכל trip (N+1 queries).</li><li>copy: trip בקבוצה (אחרת "קנייה לא נמצאה"); INSERT כל פריט כ-pending עם quantity/unit/upp.</li></ol></div>
+<div>ממשק</div><div>אקורדיון לכל קנייה: חנות (סניף), תאריך, מאשר, סה"כ; "יבא דרישה שוב" עם confirm.</div></div></section>
+
+<section class="proc" data-f="scan receipt ai gemini receipt parse save ai generate shopping list"><h3>סריקת קבלה ויצירת רשימת קניות ב-AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>handleReceiptUpload</code>/<code>showReceiptReviewModal</code>/<code>confirmReceiptItems</code> (app.js:2724-2808) → <code>POST /api/shopping/scan-receipt</code> (server.js:12599) ואז <code>/scan-receipt/save</code> (12730). רשימת AI: <code>openAiShoppingModal</code>/<code>confirmAiShoppingList</code> (4565/4621) → <code>POST /api/shopping/ai-generate-list</code> (12700).</div>
+<div>תנאים ואימותים</div><div><ul><li>scan: handleAITokens; מפתח Gemini. save: items מערך — "missing fields".</li><li>ai-generate-list: handleAITokens; ללא מפתח/שגיאה/timeout 18ש' → רשימת FALLBACK קבועה (6 קטגוריות).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>scan: Gemini <code>gemini-2.0-flash-lite</code> JSON עם prompt מפורט לקבלות ישראליות (שורת הנחה שלילית שייכת לפריט שמעל, התעלמות מברקודים, normalized_name ללא מותג); עד 2 ניסיונות עם המתנה 3ש' (לא ב-429); הסרת code fences; מחזיר items+storeName לתצוגה — לא שומר.</li><li>save: INSERT לרשימה כ-pending עם estimated_price = net_unit_price או unit_price.</li><li>ai list: Gemini flash-lite, 6 קטגוריות × 5–6 פריטים למשפחה של 4.</li></ol></div>
+<div>חישובים</div><div><code>net_unit_price = (unit_price × qty − discount) / qty</code> (בהוראות ל-AI).</div>
+<div>פערים</div><div>שמירת קבלה מוסיפה לרשימת הקניות (לא למזווה/לתנועות) — כלומר מה שכבר נקנה נכנס כדרישה חדשה.</div></div></section>
+
+<section class="proc" data-f="pantry inventory add update use delete bulk units per package"><h3>מזווה: הוספה, עדכון כמות, שימוש, מחיקה וספירה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "ניהול מזווה": <code>submitPantryItem</code> (app.js:2888) → <code>POST /api/pantry/add</code> (server.js:11206); ±: <code>updatePantryQty</code> (2900) → <code>/update</code> (11225) או <code>/delete/:id</code> (11255); "השתמשתי": <code>openPantryUseModal</code>/<code>submitPantryUse</code> (מוגדרות פעמיים — 2905/2947 ו-6096/6138; השנייה גוברת) → <code>/use</code> (11236); "חסר (לקניות)": <code>movePantryToCart</code>. ספירה: <code>/bulk-update</code> (11264). קריאה: <code>GET /api/pantry/:groupId</code> (11193).</div>
+<div>תנאים ואימותים</div><div><ul><li>add: itemName חובה — "שם פריט נדרש"; נחתך ל-100; quantity=max(0, …||1).</li><li>update/delete: בעלות לפי group; quantity=max(0).</li><li>use: חיפוש לפי שם מדויק — "Item not found".</li><li>bulk-update: items מערך — "נתונים חסרים".</li><li>לקוח: הורדה לאפס מבקשת confirm למחיקה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: קיים (שם מדויק) → quantity += ; אחרת INSERT (unit, upp); logActivity('pantry','pantry_add').</li>
+<li>use: <code>deduct = usedUnits&gt;0 &amp;&amp; upp&gt;0 ? usedUnits/upp : usedQuantity</code>; newQty=max(0, qty−deduct); ≤0 → DELETE, אחרת UPDATE.</li>
+<li>bulk-update: UPDATE quantity לכל item עם id; אם sendEmail ול-admin_email קיים ו-SMTP מוגדר — מייל "ספירת מלאי מחסן" עם טבלה ו-PDF מצורף (base64) דרך nodemailer Gmail.</li></ol></div>
+<div>חישובים</div><div>לקוח: כפתורי ± משנים ב-1/upp (חבילה חלקית); תצוגת "N יחידות" = round(qty × upp) כאשר upp&gt;1.</div>
+<div>ממשק</div><div>כרטיס לכל פריט: שם, עודכן, מארז, ±, "השתמשתי" (יחידות בודדות או לפי מארז), "חסר (לקניות)" (מוסיף לרשימה ומוחק מהמזווה). מחיקה מרובה. תובנת familAI למזווה.</div>
+<div>פערים</div><div>movePantryToCart מוחק את פריט המזווה ללא confirm; הוספה מהקלדה מפצלת פריטים שונים רק באותיות רישיות/רווחים. bulk-update משתמש ישירות ב-SMTP_USER/PASS ולא ב-<code>sendSystemEmail</code>.</div></div></section>
+
+<section class="proc" data-f="recipes chef ai pantry generate meal diners"><h3>שף פרטי — מתכון AI מהמזווה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "שף פרטי": <code>renderRecipePantrySelection</code>/<code>generateRecipe</code> (app.js:2489/2507) → <code>POST /api/recipes/generate</code> (server.js:12206).</div>
+<div>תנאים ואימותים</div><div><ul><li>diners = clamp(1..50, ברירת מחדל 4); handleAITokens; מפתח — "מפתח API חסר בשרת".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>Gemini 2.5 Flash: מתכון בעברית ל-N סועדים, סוג ארוחה; עם <code>ignorePantry</code> — רק המרכיבים שהוזנו (500 תווים), אחרת פריטי המזווה שנבחרו (500 תווים) + מצרכי יסוד; פלט Markdown.</li></ol></div>
+<div>ממשק</div><div>בחירת פריטי מזווה (בחר הכל), שדה מרכיבים חופשי, העתקה (<code>copyRecipe</code>). מודול "recipes" ננעל לפי feature <code>foodcost</code>.</div></div></section>
+<h2 class="grp">ילדים: פרופילים, משחקים, קווסטים, ארנק FLW ואקדמיה</h2>
+
+<section class="proc" data-f="kids parent overview profile image weekly report"><h3>סקירת הורה על הילדים, תמונת פרופיל ודוח שבועי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loadKidsOverview</code> (app.js:3582) → <code>GET /api/kids/parent-overview/:groupId</code> (server.js:35075); <code>openKidDetailModal</code> (3718); תמונה <code>uploadKidProfileImage</code> (3881) → <code>POST /api/kids/profile-image/:userId</code> (35196); <code>openWeeklyReport(weeksAgo)</code> (17734) → <code>GET /api/family/weekly-report/:groupId?weeks=</code> (35898).</div>
+<div>תנאים ואימותים</div><div><ul><li>overview: verifyFamily + groupId = קבוצת הטוקן (ללא בדיקת ADMIN; הלקוח טוען רק להורה).</li><li>profile-image: המשתמש בקבוצה; dataUrl חייב להתחיל ב-<code>data:image/</code> — "invalid image"; ללא תמונה — "missing image".</li><li>weekly-report: <b>ללא אימות</b>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>overview: ילדים (<code>role='CHILD'</code>, active) + <code>flw_kid_wallets.balance_flw</code>; פתוחים = kid_quests ללא תוצאה + user_assignments 'assigned'; משחקים active/completed; היסטוריית 50 קווסטים; פירוט קווסטים לילד.</li>
+<li>profile-image: imageUrl (Cloudinary) או שמירת dataUrl לדיסק ב-<code>public/uploads/avatars/avatar_&lt;id&gt;_&lt;ts&gt;.&lt;ext&gt;</code>; UPDATE users.profile_image.</li>
+<li>weekly-report: לכל משתמש active לא-ADMIN — FLW בשבוע (game_sessions + kid_quest_results) מול השבוע הקודם, משחקים (plays/avg/flw), קווסטים, ממוצע לנושא, המלצות.</li></ol></div>
+<div>חישובים</div><div>טווח: end = היום − 7×weeksAgo, start = end − 7 ימים. המלצות (35979-35990): לא שיחק → warn; אין קווסטים → info; הנושא החלש &lt; 60 → warn; החזק ≥ 85 → good; flwDelta &gt; 0 → good; flwDelta &lt; −20 → warn.</div>
+<div>פערים</div><div>weekly-report חושף נתוני ילדים של כל groupId ללא אימות. overview משתמש ב-information_schema בכל קריאה.</div></div></section>
+
+<section class="proc" data-f="kid flw wallet config value ils max daily balance lifetime redeemed"><h3>ארנק FLW לילד והגדרות הורה (שווי ותקרה יומית)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ילד: <code>loadChildFlwWallet</code> (app.js:16277) בטאב bank ובטעינה; הורה: <code>loadFlwKidParentPanel</code> (16355), <code>openFlwKidConfig</code>/<code>saveFlwKidConfig</code> (16426/16434). Endpoints: <code>GET /api/kids/wallet/:userId</code> (35246), <code>GET /api/kids/config/:childId</code> (35352), <code>POST /api/kids/config</code> (35362).</div>
+<div>תנאים ואימותים</div><div><ul><li>wallet: עצמי או משתמש בקבוצה. config GET: ילד בקבוצה. config POST: familyGroupId = קבוצת הטוקן (ללא בדיקת ADMIN וללא בדיקת שהילד בקבוצה).</li><li>לקוח: valueIls &gt; 0 — "ערך לא תקין"; maxDaily ברירת מחדל 50; autoApprove תמיד false.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>wallet: INSERT ארנק ריק אם לא קיים (ON CONFLICT DO NOTHING); מחזיר wallet, 20 game_sessions אחרונים, config (ברירת מחדל <code>{flw_value_ils:0.10, max_daily_flw:50}</code>).</li><li>config POST: UPSERT על child_user_id.</li></ol></div>
+<div>חישובים</div><div>שווי ₪ = balance_flw × flw_value_ils (ברירת מחדל 0.10, DECIMAL(6,4)); תצוגה floor למטבעות.</div>
+<div>ממשק</div><div>ילד: יתרה/נצבר/מומש/שווי, chip בכותרת שפותח מימוש. הורה: כרטיס לכל ילד (יתרה, שווי, נצבר), ⚙ הגדרות, בקשות מימוש ממתינות עם "אשר".</div>
+<div>פערים</div><div>הגדרת <code>auto_approve</code> נשמרת אך לא בשימוש בשום מקום. ילד יכול לשנות לעצמו את שווי המטבע (אין בדיקת ADMIN).</div></div></section>
+
+<section class="proc" data-f="kid redeem request approve flw ils parent"><h3>מימוש FLW של ילד לכסף (בקשה ואישור הורה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ילד: <code>openKidRedeemModal</code>/<code>submitKidRedeem</code> (app.js:16314/16330) → <code>POST /api/kids/redeem-request</code> (server.js:35422). הורה: <code>openApproveKidRedeem</code>/<code>approveKidRedeem</code> (16454/16464) → <code>POST /api/kids/redeem</code> (35377). רשימה: <code>GET /api/kids/redeem-requests</code> (35438).</div>
+<div>תנאים ואימותים</div><div><ul><li>request: רק הילד עצמו; balance_flw ≥ flwAmount — "יתרה לא מספיקה".</li><li>redeem: הילד בקבוצת הטוקן; balance ≥ flwAmount (אין בדיקת ADMIN).</li><li>לקוח: כמות &gt; 0 ו-≤ יתרה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>request: INSERT flw_kid_redeem_requests (pending). לא מקפיא יתרה.</li>
+<li>redeem: ils = (flwAmount × flw_value_ils).toFixed(2); UPDATE ארנק balance−=, redeemed+=; INSERT income 'allowance' "מימוש N FLW = ₪X" לילד; INSERT expense 'allowance' "מימוש FLW לילד" על ADMIN הראשון; אם requestId — סטטוס approved, approved_at.</li></ol></div>
+<div>מכונת מצבים</div><div>pending → approved (הורה). אין דחייה.</div>
+<div>פערים</div><div>ילד יכול לקרוא ישירות ל-<code>/api/kids/redeem</code> ולממש בלי הורה; <code>users.balance</code> לא מתעדכן (רק תנועות); אין בדיקה שה-requestId שייך לילד; ללא טרנזקציה.</div></div></section>
+
+<section class="proc" data-f="games catalog assign game rounds use-round award-flw free play renew level progress"><h3>משחקים: קטלוג, הקצאה, סיבובים וצבירת FLW</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה: <code>openAssignGameModal</code>/<code>submitGameAssignment</code> (app.js:16515/16705) → <code>POST /api/kids/assign-game</code> (server.js:35555); חידוש <code>POST /api/kids/renew-assignment/:id</code> (35697). ילד: <code>renderKidGames</code> (17123), <code>openGame</code> (15954) טוען iframe; הודעת <code>GAME_COMPLETE</code> (postMessage, 16029) → <code>POST /api/kids/use-round</code> (35619) או למשחק חופשי <code>POST /api/kids/award-flw</code> (35294). קטלוג לפי גיל <code>GET /api/kids/games</code> (35219); <code>GET /api/kids/free-play-check</code> (35281); <code>GET /api/kids/assignments/:childId</code> (35599).</div>
+<div>תנאים ואימותים</div><div><ul><li>games: רק עצמי; גיל = שנה − birth_year (ברירת מחדל 8); ≥18 מקבל את כל המשחקים הפעילים, אחרת age_min ≤ גיל ≤ age_max.</li><li>assign: familyGroupId = קבוצת הטוקן; משחק פעיל — "משחק לא נמצא או לא פעיל"; ללא בדיקת ADMIN/שייכות הילד.</li><li>use-round: רק הילד עצמו; הקצאה של הילד — "הקצאה לא נמצאה"; rounds_used ≥ rounds_total — 400 "נגמרו הסיבובים".</li><li>award-flw: רק עצמי; flwEarned חובה.</li><li>free-play-check: מחזיר canPlay=false אם כבר שוחק היום (kid_free_play_log).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>assign: ביטול הקצאות active קודמות לאותו ילד+משחק (→cancelled); INSERT game_assignments (rounds_total ברירת מחדל 3, flw_per_round 10, start_level 1, finance_age, expires_at); INSERT alert_notifications 'game_assigned' "משחק חדש מחכה לך! 🎮".</li>
+<li>use-round: scorePercent=clamp(0..100); levelKey=levelIdx||start_level||1; canonical = round(score/100 × flw_per_round); actual = max(0, canonical − flwEarned שכבר נצבר ברמה); level_progress[level]={flwEarned+actual, bestScore=max}; rounds_used+1; status exhausted אם נגמר; זיכוי ארנק; INSERT game_sessions אם score&gt;0 או actual&gt;0.</li>
+<li>award-flw: today = Σ flw_earned ב-game_sessions היום; actual = min(flwEarned, max_daily − today); ≤0 → "הגעת למקסימום הצבירה היומי! 🌟"; INSERT session, זיכוי ארנק, INSERT kid_free_play_log.</li>
+<li>renew: rounds_used=0, rounds_total=חדש או קיים, level_progress={}, active, assigned_at=NOW.</li></ol></div>
+<div>חישובים</div><div>canAdvance = score ≥ 100; תקרה יומית ברירת מחדל 50 (רק ב-award-flw).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>active</td><td>הורה</td><td>—</td><td>התראה</td></tr>
+<tr><td>active</td><td>cancelled</td><td>הורה</td><td>הקצאה חדשה לאותו משחק</td><td>—</td></tr>
+<tr><td>active</td><td>exhausted</td><td>ילד</td><td>rounds_used = rounds_total</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>active</td><td>הורה</td><td>renew</td><td>איפוס התקדמות</td></tr></table></div>
+<code>completed</code> נקרא ב-overview אך לא נכתב.</div>
+<div>ממשק</div><div>Popup סיום עם אנימציית רובוט ומטבעות (<code>playCoinAnimation</code>, 16140); <code>ROUND_RESULT</code> נשלח חזרה ל-iframe. תצוגת הורה (<code>previewGameAsParent</code>) לא צוברת.</div>
+<div>פערים</div><div>ניקוד ו-flwEarned מגיעים מהלקוח ללא אימות (TODO מפורש 35298, 35623); use-round ללא תקרה יומית; ה-listener של postMessage לא בודק origin; ה-free play מוגבל רק בלקוח.</div></div></section>
+
+<section class="proc" data-f="quests kid quest create submit score flw library share use rate report"><h3>קווסטים (אתגרי שאלות) וספריית קווסטים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה: אשף <code>openQuestWizard</code>/<code>submitQuest</code> (app.js:16746/17028) → <code>POST /api/kids/quests</code> (server.js:35720) ושיתוף אופציונלי <code>POST /api/quest-library/share</code> (3952). ספרייה: <code>openQuestLibrary</code>/<code>useLibQuest</code> (17529/17620) → <code>GET /api/quest-library</code> (3906), <code>/:id/use</code> (3992), <code>/rate</code> (4028), <code>/report</code> (4052). ילד: <code>loadKidAcademy</code> (17145), <code>startQuest</code>/<code>openQuestPlayer</code> (17292/17305) → <code>GET /api/kids/quests/:childId</code> (35769), <code>/questions</code> (35788), <code>POST /submit</code> (35803).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה: familyGroupId = קבוצת הטוקן; רק ADMIN — "רק מנהל/ת יכול/ה ליצור אתגרים"; לפחות שאלה — "נדרשת לפחות שאלה אחת".</li><li>submit: רק הילד עצמו; קווסט קיים.</li><li>share: הקווסט חייב להיות של userId (מה-body). כל endpoints הספרייה ללא אימות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: INSERT kid_quests (flw_reward ברירת מחדל 10, pass_score 70, status active) + kid_quest_questions (type ברירת מחדל multiple_choice, options_json); התראה 'quest_assigned'.</li>
+<li>submit: השוואת תשובות case-insensitive/trim מול correct_answer; INSERT kid_quest_results; status → completed; זיכוי ארנק; התראה 'quest_completed'.</li>
+<li>share: העתקה ל-quest_library (age 6–16, visibility public/community/builtin), עדכון shared_to_library.</li>
+<li>use: העתקה ל-kid_quests של הילד + use_count+1.</li>
+<li>rate: UPSERT דירוג; ממוצע &lt; 2.5 עם ≥ 5 דירוגים → is_hidden. report: ≥ 3 דיווחים → is_hidden.</li></ol></div>
+<div>חישובים</div><div><code>score = round(correct/total×100)</code>; passed = score ≥ pass_score; <code>flwEarned = passed ? flw_reward : round(flw_reward × score/100)</code> (35831).</div>
+<div>מכונת מצבים</div><div>kid_quests: active → completed (בהגשה).</div>
+<div>פערים</div><div>submit לא בודק שהקווסט שייך לילד ולא שהוא עדיין active — הגשה חוזרת מזכה שוב ושוב. ספריית community מסננת <code>community_id=$groupId</code> (מזהה קבוצה מול מזהה קהילה).</div></div></section>
+
+<section class="proc" data-f="academy bundles quiz assign request challenge submit tutor ai generate"><h3>אקדמיה: לומדות, הקצאה, הגשה ומורה AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה: <code>renderAdminAcademy</code>/<code>renderLibrary</code> (app.js:4109/4195), יצירת לומדה ידנית/AI (<code>generateAIQuiz</code>, 2411) → <code>POST /api/academy/bundles</code> (server.js:12165) / <code>/ai-generate</code> (12226), עריכה <code>PUT /bundles/:id</code> (12280), הקצאה <code>submitAssignQuiz</code> (3573) → <code>/assign</code> (12111). ילד: <code>requestChallenge</code> (4387) → <code>/request-challenge</code> (12084); <code>startQuiz</code>/<code>finishQuiz</code> (4449/4480) → <code>GET /bundles/:id</code> (12268), <code>POST /submit</code> (12126); <code>askTutor</code> (2472) → <code>/tutor</code> (12770).</div>
+<div>תנאים ואימותים</div><div><ul><li>bundles POST/PUT/ai-generate/assign: רק ADMIN; PUT רק ללומדה שנוצרה ע"י הקבוצה; GET — של הקבוצה או SYSTEM.</li><li>assign: משתמש בקבוצה, לומדה של הקבוצה/SYSTEM.</li><li>request-challenge: ללא bundleId — הגרלה מ-20 אקראיות שלא הוקצו/הושלמו; אם אין — "כל הלומדות כבר הוקצו!".</li><li>submit: מספר תשובות = מספר שאלות — "תשובות לא תקינות".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>bundles POST: טרנזקציה אמיתית (client), threshold 80, type ברירת מחדל 'professional' (!), age_group 'כללי', created_by = String(groupId).</li>
+<li>ai-generate: Gemini 2.5 Flash JSON, 5 שאלות; type 'financial' (משפחה) / 'professional' (עסק); reward 10; threshold 80.</li>
+<li>assign: INSERT user_assignments (custom_reward או NULL, deadline = now+days).</li>
+<li>submit: score = round(correct/total×100); passed ≥ threshold; UPDATE assignment (רק אם status='assigned') → completed/failed + score; אם עבר: reward = custom_reward || bundle.reward → זיכוי <b>flw_kid_wallets</b> (balance+lifetime).</li>
+<li>tutor: Gemini 2.5 Flash, 2-3 משפטים "היי! כאן familAI...".</li></ol></div>
+<div>מכונת מצבים</div><div>user_assignments: assigned → completed / failed (בהגשה; failed לא ניתן להגשה חוזרת).</div>
+<div>תופעות לוואי</div><div>מטבעות FLW לילד ("🪙 +N FLW לארנק שלך!"); AI Gemini.</div>
+<div>ממשק</div><div>תצוגת הורה (<code>previewBundleAsParent</code>) לא שולחת הגשה. אחרי כישלון — כפתור "מורה AI".</div>
+<div>פערים</div><div>הלקוח מציג "זכית ב-🪙…" לפני תשובת השרת; קטגוריית תקציב 'academy' לא מקבלת תנועות כי התגמול ב-FLW. request-challenge משתמש ב-<code>ON CONFLICT DO NOTHING</code> ללא אינדקס ייחודי — כפילויות אפשריות.</div></div></section>
+
+<h2 class="grp">ארנק FLW משפחתי (מטבעות קהילה)</h2>
+
+<section class="proc" data-f="flw flow wallet family daily login award referral profile complete config"><h3>ארנק FLW משפחתי וצבירה (daily login, פרופיל, הפניה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loadFamilyFlowWallet</code> (app.js:7506, הורה בלבד) → <code>GET /api/flow/wallet/family/:groupId</code> (server.js:21894) ומיד <code>POST /api/flow/daily-login</code> (22090). צבירה כללית ב-<code>awardFlow</code> (21709).</div>
+<div>תנאים ואימותים</div><div><ul><li>wallet/daily-login: groupId = קבוצת הטוקן.</li><li>daily-login: קיימת תנועה 'daily_login' היום → <code>{success:false, reason:'כבר קיבלת Flw היום'}</code>.</li><li>profile_complete: פעם אחת למשפחה, רק כש-street_address וגם city מולאו ב-<code>PUT /api/groups/:id/address</code> (25409).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>awardFlow: קריאת <code>flow_config[key]</code>; personal_amount&gt;0 → UPSERT <code>flow_wallets(entity_type, entity_id)</code> + INSERT flow_transactions; community_amount&gt;0 ו-communityId → אותו דבר לישות 'community'.</li><li>wallet: balance, 20 תנועות, has_redeemed, rate/min_redeem/redeem_quarter.</li></ol></div>
+<div>חישובים</div><div>ערכי ברירת מחדל ב-<code>flow_config</code> (21680-21700, personal/community; referral_join 20/0 ב-36797): join_community 15/5, referral 20/10, promo_redemption 3/2, profile_complete 12/3, review_business 7/3, bundle_purchase 18/7, daily_login 1/0, ambassador_approved 35/15, flow_to_ils_rate 100 (Flw ל-₪10), flow_min_redeem 100, flow_redeem_quarter 0. CHECK <code>balance &gt;= 0</code> ב-DB.</div>
+<div>ממשק</div><div>chip כותרת עם יתרה ואנימציית מטבע בעלייה; תג "FlwN" בטאב החדשות; מודל ארנק (<code>renderFlowWalletContent</code>, 7549).</div>
+<div>פערים</div><div>FLW משפחתי (<code>flow_wallets</code>) נפרד לחלוטין מ-FLW ילד (<code>flw_kid_wallets</code>). מפתח <code>referral_join</code> (20/0) נוסף במיגרציה נפרדת (server.js:36795-36797) ומשמש את זיכוי המפנה בהקמת קבוצה (10185).</div></div></section>
+
+<section class="proc" data-f="flw redeem discount code store deduct validate business earn quarter expiry"><h3>מימוש FLW משפחתי: קוד הנחה, ניכוי בחנות ואימות קוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל "ממש בחנות" (<code>openFlowRedeemToStore</code>, app.js:7732; קריאה ל-<code>/api/flow/redeem</code> ב-7814) → <code>POST /api/flow/redeem</code> (server.js:21950). ניכוי אחרי הזמנה בחנות: <code>POST /api/flow/deduct</code> (22044). אימות קוד FL* בחנות: <code>POST /api/flow/redeem/validate</code> (22025). עסק מסמן שימוש: <code>POST /api/flow/redemptions/:code/use</code> (22119).</div>
+<div>תנאים ואימותים</div><div><ul><li>redeem: familyGroupId/businessGroupId/flowAmount חובה; familyGroupId = קבוצת הטוקן; fa&gt;0; מימוש ראשון חייב ≥ flow_min_redeem — "מינימום N Flw למימוש ראשון"; discountIls ≤ 0 — "מינימום RATE Flw למימוש"; ניכוי אטומי <code>WHERE balance&gt;=fa</code> — "אין מספיק Flw (יש לך X Flw)".</li><li>validate: קוד בסטטוס NULL/pending; לא פג; רק המשפחה שיצרה או העסק המיועד.</li><li>use (עסק): status active ושייך לעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>redeem: קוד <code>'FL'+6 תווים base36</code>; ניכוי; INSERT flow_transactions (−fa, 'redeem', "מימוש הנחה ב… — קוד") ו-flow_redemptions (status active, expires_at); זיכוי עסק <code>floor(fa/3)</code> כ-'customer_redeem'.</li><li>deduct: ניכוי אטומי, תנועה 'store_redeem' עם שם עסק מה-DB ומספר הזמנה, זיכוי עסק floor(fa/3).</li><li>validate/use: UPDATE status='used', used_at.</li></ol></div>
+<div>חישובים</div><div><code>discountIls = floor(fa / rate) × 10</code> (rate ברירת מחדל 100); עסק מקבל <code>floor(fa/3)</code>; תפוגה לפי רבעון 1–4: סוף מרץ/יוני/ספטמבר/דצמבר 23:59:59, ואם עבר — אותו רבעון בשנה הבאה.</div>
+<div>מכונת מצבים</div><div>flow_redemptions: active → used (עסק); pending/NULL → used (validate).</div>
+<div>פערים</div><div>קודים שנוצרים ב-redeem מקבלים status 'active' בעוד validate מחפש רק NULL/'pending' — קוד FL* מהאפליקציה לא יעבוד בשדה הקופון בחנות. הניכוי והתנועות לא בטרנזקציה אחת.</div></div></section>
+<h2 class="grp">ניהול הבית (HM_* / equipment)</h2>
+
+<section class="proc" data-f="home maintenance equipment items warranty category status hm_cat_colors"><h3>ציוד הבית (פריטים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "ניהול הבית" → <code>loadHomeMaintenance</code> (app.js:12219) טוען במקביל ציוד/תחזוקה/תקלות/אנשי קשר ומריץ בדיקת התראות. ציוד: <code>renderHMItems</code>/<code>openHMItemModal</code>/<code>submitHMItem</code>/<code>deleteHMItem</code> (12296-12404) → <code>GET /api/equipment/items/:groupId</code> (server.js:26050), <code>POST /api/equipment/items</code> (26062), <code>DELETE /:id</code> (26081). היסטוריה: <code>openHMHistory</code> (13394) → <code>GET /api/equipment/items/:id/history</code> (26242). אותם endpoints משרתים גם עסקים.</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamilyOrBiz; כל השאילתות משתמשות ב-<code>req.bizAuth.groupId</code> מהטוקן (ה-groupId בנתיב/body מתעלם).</li><li>name חובה — "שם חובה" (שרת) / "שם הציוד חובה" (לקוח).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST עם id → UPDATE (רק בקבוצה), בלי id → INSERT; category ברירת מחדל 'כללי', status 'active'; technician_id.</li><li>history: איחוד רשומות תחזוקה (event_date = completed או scheduled) ותקלות (created_at), מיון יורד.</li></ol></div>
+<div>מכונת מצבים</div><div>equipment_items.status: <code>active</code> (פעיל), <code>inactive</code> (לא פעיל), <code>disposed</code> (הושלך) — <code>HM_STATUS_LABELS</code> (app.js:12211); בחירה חופשית בטופס.</div>
+<div>ממשק</div><div>קטגוריות וצבעים <code>HM_CAT_COLORS</code> (12209): מקרר/הקפאה, תנור/אפייה, מזגן, חשמל, אינסטלציה, רכב, כללי. סינון היסטוריה <code>setHMHistFilter</code>.</div>
+<div>פערים</div><div>מחיקה תמיד success גם אם לא נמצא; CASCADE מוחק תחזוקות ותקלות.</div></div></section>
+
+<section class="proc" data-f="home maintenance periodic repair inspection interval complete schedule next overdue"><h3>תחזוקה מתוזמנת לציוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>renderHMMaintenance</code>/<code>openHMMaintenanceModal</code>/<code>submitHMMaintenance</code>/<code>completeHMMaintenance</code>/<code>deleteHMMaintenance</code> (app.js:12424-12556) → <code>GET /api/equipment/maintenance/:groupId</code> (26088), <code>POST</code> (26099), <code>PUT /:id/complete</code> (26118), <code>DELETE</code> (26138).</div>
+<div>תנאים ואימותים</div><div><ul><li>equipmentId חובה — "ציוד חובה" / "יש לבחור ציוד".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT/UPDATE (maintenance_type ברירת מחדל periodic, description, scheduled_date, cost, technician_name/phone, notes, interval_days).</li><li>complete: status='completed', completed_date=CURRENT_DATE, cost/technician/notes רק אם נשלחו (COALESCE); אם interval_days — INSERT רשומה חדשה (pending) עם scheduled_date = completed_date + interval_days.</li></ol></div>
+<div>חישובים</div><div>לקוח: "overdue" מחושב (לא נשמר) — pending עם scheduled_date &lt; היום. תג הטאב <code>updateHMBadge</code> (12271): תחזוקות לא-completed עם תאריך ≤ היום+7 + תקלות שאינן resolved.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>חבר</td><td>—</td><td>—</td></tr>
+<tr><td>pending</td><td>completed</td><td>חבר</td><td>"✓ בצע"</td><td>יצירת המחזור הבא אם interval_days</td></tr></table></div>
+סוגים: <code>periodic</code> תקופתי, <code>repair</code> תיקון, <code>inspection</code> בדיקה (HM_MTYPE_LABELS 12212).</div>
+<div>ממשק</div><div>סינון all/pending/overdue/completed; "✓ בצע" מבקש עלות ב-prompt (אופציונלי).</div>
+<div>פערים</div><div>complete אפשרי גם לרשומה שכבר completed — יוצר מחזור כפול.</div></div></section>
+
+<section class="proc" data-f="home maintenance faults severity status notes image technician"><h3>תקלות בבית ויומן הערות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>renderHMFaults</code>/<code>openHMFaultModal</code>/<code>submitHMFault</code>/<code>openHMFaultStatusPopup</code>/<code>submitHMFaultStatus</code>/<code>openHMAddNote</code>/<code>submitHMNote</code>/<code>uploadHMFaultImage</code> (app.js:12567-12906) → <code>GET /api/equipment/faults/:groupId</code> (26145), <code>POST</code> (26185), <code>PATCH /:id/status</code> (26205), <code>GET|POST /:id/notes</code> (26160/26171), <code>DELETE</code> (26235).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST: equipmentId+title חובה — "ציוד וכותרת חובה". PATCH: status חובה; תקלה בקבוצה. notes: note חובה, בעלות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST INSERT: severity ברירת מחדל medium, status open, image_url (Cloudinary), technician_id, scheduled_date. עם id — UPDATE מלא כולל resolution_notes/resolved_date.</li><li>PATCH status: resolved_date = הקיים או היום כשהסטטוס resolved, אחרת NULL; INSERT equipment_fault_notes עם status_from/status_to והערה "סטטוס שונה ל"…": …" או "סטטוס שונה מ"…" ל"…"".</li></ol></div>
+<div>מכונת מצבים</div><div>status: <code>open</code> (פתוח) ↔ <code>in_progress</code> (בטיפול) ↔ <code>resolved</code> (טופל) — כל מעבר מותר, נרשם ביומן. severity: low/medium/high/critical.</div>
+<div>ממשק</div><div>סינון לפי סטטוס; טאבים פרטים/הערות לכל תקלה; מונה הערות.</div></div></section>
+
+<section class="proc" data-f="home maintenance contacts technicians link business verified"><h3>אנשי קשר / טכנאים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>renderHMContacts</code>/<code>openHMContactModal</code>/<code>submitHMContact</code>/<code>deleteHMContact</code> (app.js:12908-13392) → <code>GET /api/equipment/technicians/:groupId</code> (25458), <code>POST</code> (25465), <code>DELETE /:id</code> (25484), <code>POST /:id/link-business</code> (25492).</div>
+<div>תנאים ואימותים</div><div><ul><li>name חובה — "שם חובה"; link-business רק לטכנאי של הקבוצה — 404 "לא נמצא".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE: company_name, phone, email, specialty, notes, business_group_id; <code>oneflow_verified = business_group_id IS NOT NULL</code>.</li></ol></div></div></section>
+
+<section class="proc" data-f="home maintenance notifications check alert reminder 7 days service calls"><h3>בדיקת התראות תחזוקה (on-demand)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>checkHMNotifications</code> (app.js:12227) בכל כניסה לטאב → <code>POST /api/equipment/notifications/check/:groupId</code> (server.js:26264). אין cron.</div>
+<div>שלבי עיבוד</div><div><ol><li>תחזוקות pending עם scheduled_date בין היום להיום+7.</li><li>diff 2–7 ימים → התראה "🔧 תחזוקה בעוד N ימים" (מפתח <code>eq_maint_&lt;id&gt;_7d_&lt;date&gt;</code>); diff ≤ 1 → "תחזוקה היום/מחר" (<code>_1d_</code>).</li><li>קריאות שירות מחר (status לא done/cancelled) → "📅 קריאת שירות מחר".</li><li>INSERT ל-<code>alert_notifications</code> רק אם reference_key לא קיים (dedup); מחזיר created.</li></ol></div>
+<div>תופעות לוואי</div><div>התראות in-app; הלקוח מגדיל את <code>fgnav-bell-badge</code>.</div>
+<div>פערים</div><div>שאילתת קריאות השירות כוללת כל קריאה של <b>כל משפחה באותה קהילה</b> (<code>family_group_id IN (… community_id …)</code>, 26299-26306) — כותרות קריאות של משפחות אחרות נכנסות להתראות.</div></div></section>
+
+<h2 class="grp">פיד, פעילות ו-FamilAI</h2>
+
+<section class="proc" data-f="feed unified home feed transactions tasks quizzes community updates family-feed promotions"><h3>הפיד הראשי המאוחד (טאב "ראשי")</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>buildAndRenderFeed</code>/<code>renderUnifiedFeed</code> (app.js:3307/3374) אחרי כל fetchData; בהקשר קהילה <code>GET /api/community/family-feed/:groupId</code> (server.js:18394).</div>
+<div>שלבי עיבוד</div><div><ol><li>פריטים: הודעת פתיחה (group.created_at), כל התנועות (allTransactions), משימות approved בלבד (תאריך = created_at), כל הקצאות האקדמיה (סכום = custom_reward ?? default_reward), community_updates (הטבות קהילה סינתטיות).</li><li>מיון יורד לפי תאריך; מסנן משתמש גלוי רק להורה.</li><li>family-feed (שרת): קהילות המשפחה → מבצעים approved בתוקף (20), באנדלים active, באנרים approved בטווח תאריכים (5).</li></ol></div>
+<div>ממשק</div><div>אריחי גישה מהירה <code>renderQuickTiles</code> (11731): קניות (pending+in_cart), מזווה (מספר פריטים), תקציב→cashflow, קהילה, משימות (pending), ניהול הבית, הזמנות שלי (רוחב כפול), פיד קהילתי. "מה מחכה לך" <code>renderFamilyUrgentItems</code> (11780): הורה — משימות לאישור, קניות pending_approval, משימות באיחור, מזווה ≤ 1, תחזוקה ב-7 ימים, תקלות פתוחות (high/critical = דחוף); ילד — משימות שלי (באיחור = דחוף), לומדות assigned.</div>
+<div>פערים</div><div>"קניות pending_approval" בפריטים הדחופים לעולם לא מתמלא.</div></div></section>
+
+<section class="proc" data-f="activity log bell badge actions panel unread"><h3>יומן פעילות ופעמון</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openActivityPanel</code>/<code>loadActivityFeed</code> (app.js:11658/11679) ו-<code>refreshBellBadge</code> (11713, כל 30ש') → <code>GET /api/activity?userId=&amp;days=&amp;actionType=&amp;limit=</code> (server.js:24532). רשומות נכתבות ב-<code>logActivity</code> (4129).</div>
+<div>שלבי עיבוד</div><div><ol><li>קבוצה נגזרת מ-users לפי userId; ADMIN רואה את כל הקבוצה, אחר רק את עצמו; ברירת מחדל 30 יום / 50 שורות.</li><li>unreadCount = רשומות ב-24 השעות האחרונות.</li></ol></div>
+<div>חישובים</div><div>אייקונים <code>ACTION_ICONS</code>: finance 💰, task ✅, shopping 🛒, pantry 📦, business 🏪, user 👤.</div>
+<div>פערים</div><div>endpoint ללא אימות — userId שרירותי חושף את יומן הפעילות של כל משפחה. "לא נקראו" אינו מצב נקרא אמיתי אלא חלון 24 שעות.</div></div></section>
+
+<section class="proc" data-f="ai tokens battery quota daily limit plan premium enterprise"><h3>מכסת AI יומית ("סוללה")</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כל endpoint AI קורא ל-<code>handleAITokens(groupId)</code> (server.js:4170); תצוגה בלקוח <code>updateBatteryUI</code> (app.js:1715).</div>
+<div>חישובים</div><div>plan = <code>plan || (is_premium ? 'enterprise' : 'standard')</code>; enterprise — ללא הגבלה (רק לוג); premium — 50 ביום; אחר (כולל solo/member) — 10 ביום. איפוס כש-last_token_reset &lt; היום; ניכוי 1 לקריאה; INSERT ai_usage_log.</div>
+<div>ממשק</div><div><code>BATTERY_EMPTY</code> → מודל סוללה ריקה; "שדרוג לפרימיום" מציג "תתווסף בקרוב" (app.js:1735).</div>
+<div>פערים</div><div><code>/api/data</code> מאפס ל-10 קודם (10766) ומעדכן last_token_reset — premium לעולם לא מקבל 50. שגיאה פנימית מחזירה false (נראה כסוללה ריקה).</div></div></section>
+
+<section class="proc" data-f="familai chat assistant confirm action gemini sensitive actions create task grocery adjust balance"><h3>FamilAI — עוזרת צ'אט עם ביצוע פעולות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openFamilaiChatModal</code>/<code>sendFamilaiChatMessage</code> (app.js:11428/11440) → <code>POST /api/family/chat-assistant</code> (server.js:23615); אישור פעולה רגישה <code>confirmFamilaiAction</code> (11407) → <code>POST /api/family/chat-assistant/confirm-action</code> (23683).</div>
+<div>תנאים ואימותים</div><div><ul><li>handleAITokens; מפתח Gemini. confirm: groupId+userId+action_type חובה; רק פעולות מהסט הרגיש — "פעולה לא נתמכת".</li><li>פעולות רגישות (<code>FAMILY_AI_SENSITIVE_ACTIONS</code>, 23529): DELETE_TASK, DELETE_GROCERY_ITEM, ADJUST_BALANCE, JOIN_COMMUNITY.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בניית הקשר בשרת <code>buildFamilyAIContext</code> (23469): חברים (גיל, balance, allowance), מזווה 100, קניות 100, משימות 60, יעדים 30, הלוואות 30, 60 תנועות, קהילות, FLW, 20 חידונים.</li>
+<li>Gemini 2.5 Flash JSON → <code>{answer, action_type, action_data}</code>.</li>
+<li>פעולה רגישה → מוחזרת כ-<code>pending_action</code> לאישור; אחרת <code>executeFamilyAIAction</code> (23532) מיד:
+<ul><li>CREATE_TASK — INSERT tasks pending (assignee לפי nickname ILIKE).</li><li>ADD_GROCERY — INSERT shopping pending.</li><li>COMPLETE_TASK — המשימה האחרונה התואמת שאינה approved → status approved (ללא תשלום).</li><li>UPDATE_PANTRY — קובע כמות (לא מוסיף) או INSERT.</li><li>ADD_TRANSACTION — INSERT תנועה (category ברירת מחדל 'כללי') ללא עדכון balance.</li><li>CREATE_GOAL — INSERT goal.</li><li>DELETE_TASK — מוחק <b>כל</b> המשימות התואמות ILIKE.</li><li>DELETE_GROCERY_ITEM — מוחק כל התואמים.</li><li>ADJUST_BALANCE — balance += amount + תנועה (קטגוריה 'העברה').</li><li>JOIN_COMMUNITY — INSERT family_communities pending.</li></ul></li>
+<li>הודעת הביצוע מצורפת לתשובה.</li></ol></div>
+<div>תופעות לוואי</div><div>AI Gemini 2.5 Flash; שינויי DB לפי הפעולה.</div>
+<div>ממשק</div><div>בועות צ'אט; Markdown <code>**</code> → strong; כרטיס אישור צהוב "אישור, בצע"/"ביטול" לפעולה רגישה; הלקוח שולח <code>context</code> שהשרת מתעלם ממנו, ומטפל ב-<code>action_type==='OPEN_TAB'</code> שהשרת לעולם לא מחזיר.</div>
+<div>פערים</div><div><b>שני ה-endpoints ללא אימות</b> (groupId/userId מה-body) — חשיפת כל נתוני המשפחה וביצוע ADJUST_BALANCE/מחיקות לכל groupId; אין בדיקת תפקיד (ילד יכול לבקש העברת כסף); תשובת ה-AI מוזרקת כ-HTML ללא escape.</div></div></section>
+
+<h2 class="grp">קישורים: איחוד משפחות ושיוך לעסקים</h2>
+
+<section class="proc" data-f="link request family merge solo member respond approve reject frozen"><h3>בקשת איחוד חשבונות SOLO / משפחות (link-request)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חשבון SOLO (plan='solo', ADMIN) בטאב members: <code>renderSoloFamilyLinkSection</code>/<code>_soloLinkSearch</code>/<code>_sendLinkRequest</code> (app.js:2069-2131) → <code>GET /api/solo/search-by-phone</code> (server.js:2998), <code>POST /api/family/link-request</code> (2506). הצד השני בכניסה: <code>checkIncomingLinkRequests</code>/<code>showLinkRequestPopup</code>/<code>_respondLinkRequest</code> (2005-2065) → <code>GET /api/family/link-requests/:groupId</code> (2538), <code>POST /api/family/link-request/:id/respond</code> (2555).</div>
+<div>תנאים ואימותים</div><div><ul><li>search-by-phone: ≥ 9 ספרות; רק SOLO active FAMILY.</li><li>link-request: requesterGroupId, targetPhone, role ∈ {parent, child, partner} חובה — "נתונים חסרים"; requester = קבוצת הטוקן; יעד = חשבון FAMILY active עם הטלפון — "לא נמצא חשבון פעיל עם מספר זה"; לא לעצמך.</li><li>respond: decision (או action) ∈ {approve, reject}; targetGroupId (או respondingGroupId) = קבוצת הטוקן; בקשה pending של היעד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>link-request: UPSERT על (requester, target) → pending, created_at=NOW, responded_at=NULL.</li>
+<li>respond (טרנזקציה על client): status approved/rejected + responded_at.</li>
+<li>approve: אם שניהם SOLO — יצירת קבוצה חדשה (code <code>'MB'+6 ספרות אחרונות של timestamp</code>, type FAMILY, member_type/plan 'member', admin_email+city של המבקש) ושני החשבונות מתמזגים אליה; אחרת הקבוצה שאינה SOLO היא ה"קולטת".</li>
+<li>לכל אורח: מיזוג יתרת FLW ילד (בכוונה), <code>UPDATE users SET group_id=host</code>, flw_kid_wallets.family_group_id, store_orders.family_group_id, transactions.group_id, member_business_links (ללא כפילויות עסק); הקפאת האורח (<code>account_status='frozen'</code>, frozen_at, merged_into_group_id); אם שניהם SOLO — plan/member_type 'member' לקולט.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(UPSERT)</td><td>pending</td><td>ADMIN מבקש</td><td>—</td><td>—</td></tr>
+<tr><td>pending</td><td>approved</td><td>היעד</td><td>—</td><td>מיזוג, הקפאת אורח ל-30 יום (חסימת login)</td></tr>
+<tr><td>pending</td><td>rejected</td><td>היעד</td><td>—</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>Popup "הזמנה לאיחוד משפחות" עם אזהרה "יוקפא ל-30 יום ואז יוארכב"; אחרי אישור — רענון אחרי 2ש'.</div>
+<div>פערים</div><div><ul><li>הלקוח קורא לכל שלושת ה-endpoints עם <code>fetch</code> רגיל <b>ללא Authorization</b> → verifyFamily מחזיר 401 תמיד.</li><li>הלקוח שולח <code>targetGroupId</code> בעוד השרת דורש <code>targetPhone</code>+<code>role</code> → 400.</li><li><code>checkIncomingLinkRequests</code> מסנן <code>req.status==='pending'</code> אך השרת לא מחזיר את העמודה status → ה-popup לעולם לא מוצג.</li><li><code>UPDATE … LIMIT 1</code> (2619-2623) אינו SQL חוקי ב-PostgreSQL — אישור שבו לאורח יש ארנק FLW ילד נכשל ומתגלגל אחורה.</li><li>אין מנגנון ארכוב אוטומטי אחרי 30 יום בקוד הנקרא.</li></ul></div></div></section>
+
+<section class="proc" data-f="member business link create-for-business respond pending active my-businesses my-orders"><h3>שיוך חשבון משפחה/חבר לעסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק יוצר/מקשר לקוח: <code>POST /api/member/create-for-business</code> (server.js:30950). חבר מאשר: <code>POST /api/member/link/:linkId/respond</code> (31016) מתוך הדשבורד (app.js — שני קריאות <code>${API}/member/link/</code>). רשימות: <code>GET /api/member/my-businesses/:groupId</code> (31116), <code>GET /api/member/my-orders/:biz/:member</code> (31135) מ-<code>renderMemberDashboard</code>/<code>_memberLoadOrders</code> (app.js:13759/13924).</div>
+<div>תנאים ואימותים</div><div><ul><li>create: business_group_id, name, phone חובה — "חסרים שדות חובה"; עסק קיים. respond: decision ∈ {approve, reject}. my-orders: רק לקישור active, אחרת <code>{pending:true}</code>.</li><li>כל ה-endpoints ללא אימות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>create: אם הטלפון/קוד מזוהה כחבר קיים (<code>_findMemberByIdentifier</code>) — קישור pending; אחרת יצירת קבוצה חדשה "&lt;שם&gt; - WEFLOWZ" (code <code>'M'+6 ספרות</code>, member_type member, plan solo, <code>pending_activation</code>, created_by_business_group_id) ומשתמש ADMIN active עם סיסמה אקראית 8 תווים, <code>must_change_password=true</code>, permissions feed/members/bank/tasks.</li>
+<li>UPSERT <code>member_business_links</code> (status נשאר active אם כבר active, אחרת pending).</li>
+<li>respond approve → active + is_active; התראה לעסק "שיוך אושר ✅ … ניתן לשלוח הצעת מחיר"; reject → rejected, is_active=false.</li>
+<li>my-orders לפי סוג עסק: sport — מנויים לפי ref/טלפון; maintenance_repair — service_calls לפי family_group/טלפון/שם; restaurant ואחרים — store_orders לפי טלפון/שם.</li></ol></div>
+<div>מכונת מצבים</div><div>member_business_links: pending → active (אישור / הפעלת SOLO) או → rejected.</div>
+<div>פערים</div><div>הסיסמה הזמנית נשמרת ב-<code>password_hash</code> כטקסט גלוי (משודרגת ל-bcrypt בכניסה ראשונה) ו-<code>solo_temp_password</code> נשמר NULL כי ה-INSERT קורה לפני הגרלת הסיסמה (30975-30981). התראת link_approved כותבת לעמודות <code>type, title, reference_id</code> שלא קיימות ב-INSERTים האחרים של alert_notifications (לא נקבע בקוד אם קיימות).</div></div></section>
+
+<section class="proc" data-f="linked businesses business activity beauty client confirm appointment"><h3>עסקים מקושרים לפעילות המשפחה ואישור תור יופי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET /api/family/linked-businesses/:groupId</code> (server.js:31799), <code>GET /api/family/business-activity/:familyGroupId/:bizGroupId</code> (31837), <code>PUT /api/family/:familyGroupId/beauty/appointments/:id/client-confirm</code> (32018) — נקראים מ-<code>loadMyActivities</code>/<code>_renderBizAccordion</code> (app.js:14281/14964).</div>
+<div>תנאים ואימותים</div><div><ul><li>כולם verifyFamily + familyGroupId = קבוצת הטוקן. client-confirm: רק תור בסטטוס <code>pending_client</code> של המשפחה — "לא נמצא או שהסטטוס שונה כבר".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>linked: איחוד beauty_client_records (קדימות) ו-member_business_links פעילים, מיון לפי linked_at.</li><li>activity: לפי business_type — תורים/RFQ/אירועי יומן (beauty), הזמנות, קריאות שירות; חיפוש לפי <b>כל</b> טלפוני בני המשפחה; ציר זמן מאוחד עד 50.</li><li>client-confirm: action 'confirm' → confirmed, אחרת → cancelled.</li></ol></div>
+<div>מכונת מצבים</div><div>beauty_appointments: pending_client → confirmed / cancelled (לקוח).</div></div></section>

@@ -1,0 +1,152 @@
+<h2 class="grp">פולים — קנייה קבוצתית (FlowPool)</h2>
+
+<section class="proc" data-f="pool flowpool create community family expires initiator"><h3>פתיחת פול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה חברה בקהילה פותחת בקשה קבוצתית לשירות/מוצר: <code>app.js:openCreatePoolModal</code>/<code>createFamPool</code> (6443/6454) → <code>POST /api/community/pool</code> (33982).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>initiatorId === req.familyAuth.groupId</code>; חוסם CHILD; communityId, initiatorType, initiatorId, title חובה ("חסרים שדות חובה").</li><li>המשפחה בקהילה (כל סטטוס) → "היוזם אינו חבר בקהילה".</li><li>לקוח: כותרת ותיאור חובה; <code>minFamilies</code> ברירת מחדל 2; <code>maxPrice</code> 0 = "מחיר פתוח".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>expires_at</code> = היום 23:59:59 (שעון שרת) (33993).</li><li>INSERT flow_pools (status DEFAULT 'open_r1').</li><li>אם initiatorType='family' → INSERT flow_pool_members ליוזם.</li><li>הודעת מערכת "פול חדש נפתח: {title}".</li><li><code>awardFlow(family,'pool_create')</code> (3+1).</li></ol></div>
+<div>חישובים</div><div>תוקף ברירת מחדל: עד סוף היום הנוכחי בלבד.</div>
+<div>פערים</div><div><code>initiatorType</code> חופשי (גם 'business' דרך verifyFamily); <code>min_families</code> נשמר אך לא נאכף בשום מקום.</div></div></section>
+
+<section class="proc" data-f="pool status machine open_r1 open_r2 closed expired archived renew restore"><h3>מכונת מצבים של פול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ניהול מחזור חיים של <code>flow_pools.status</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>open_r1</td><td>משפחה</td><td>—</td><td>הודעת מערכת, FLOW</td></tr>
+<tr><td>open_r1</td><td>open_r2</td><td>יוזם או CM</td><td><code>/open-round2</code> (34163), חוסם CHILD</td><td>"הפול נפתח לעסקים מחוץ לקהילה"</td></tr>
+<tr><td>open_r1/open_r2</td><td>expired</td><td>מערכת (lazy)</td><td><code>expires_at ≤ NOW</code> — בעת GET רשימת קהילה (34015), GET פולי עסק (34336), או cleanup SA (34320)</td><td>cleanup מוחק גם את כל ההודעות</td></tr>
+<tr><td>*</td><td>closed</td><td>יוזם או CM</td><td><code>/select-bid</code> עם bidId (34135) או closeOnly</td><td>winner_bid_id; הצעה accepted, אחרות rejected; FLOW לעסק הזוכה</td></tr>
+<tr><td>*</td><td>archived</td><td>יוזם</td><td><code>/archive</code> ללא bizArchive (34181)</td><td>"הפול הועבר לארכיב"</td></tr>
+<tr><td>*</td><td>open_r1</td><td>יוזם</td><td><code>/renew</code> (34206): expires = היום + days (ברירת מחדל 7) ב-23:59:59</td><td>הודעה עם תאריך he-IL</td></tr>
+<tr><td>archived</td><td>open_r1</td><td>יוזם</td><td><code>/restore</code> (34243): expires = NOW + 7 ימים (ללא קיצוץ לשעה)</td><td>"הפול הוחזר לפעילות"</td></tr></table></div>
+סטטוסי הצעה: pending → accepted | rejected (רק ב-select-bid).</div>
+<div>ממשק</div><div>תוויות לקוח (app.js:6413): open_r1 "סיבוב 1 פתוח", open_r2 "סיבוב 2 פתוח", closed "סגור", expired "פג תוקף". כפתור "חדש תוקף (7 ימים)"; סגירה ללא הצעה "לסגור את הפול כבוע מול עסק?".</div>
+<div>פערים</div><div>select-bid מאפשר סגירה של פול שכבר closed/archived ובחירה חוזרת (FLOW לעסק שוב). renew מחזיר ל-open_r1 גם מ-closed. CM (מנהל קהילה) יכול לסגור/לבחור הצעה בכל פול בקהילה.</div></div></section>
+
+<section class="proc" data-f="pool join member remove family flow"><h3>הצטרפות משפחות לפול והסרתן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:joinFamPool</code> (6737) → <code>POST /api/community/pool/:id/join</code> (34065); הסרה ע"י יוזם <code>removePoolMember</code> → <code>/remove-member</code> (34050).</div>
+<div>תנאים ואימותים</div><div><ul><li>join: בעלות; פול open_r1/open_r2 ו-expires_at&gt;NOW ("הפול אינו פעיל"); המשפחה בקהילת הפול.</li><li>remove: initiatorId=המאומת, חוסם CHILD, הפול family ושייך ליוזם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT flow_pool_members ON CONFLICT DO NOTHING; הודעת מערכת "משפחה חדשה הצטרפה לפול"; <code>awardFlow(family,'pool_join')</code> (5+2); מחזיר member_count.</li></ol></div>
+<div>פערים</div><div>הודעה ו-FLOW ניתנים גם כשהמשפחה כבר חברה (אין בדיקת rowCount) — קריאה חוזרת מזכה FLOW שוב.</div></div></section>
+
+<section class="proc" data-f="pool bid business guest round2 price one bid"><h3>הגשת הצעה מעסק לפול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק בטאב פולים: <code>business-app.js:loadBizPools</code> (16980) → <code>submitBizPoolBid</code> (17158) → <code>POST /api/community/pool/:id/bid</code> (34084, <code>verifyBiz</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>businessGroupId=המאומת ("אין הרשאה להגיש הצעה בשם עסק אחר"); <code>price</code> מספר סופי &gt;0 ("מחיר ההצעה אינו תקין").</li><li>פול של משפחה, open_r1/open_r2, לא פג ("הפול אינו פתוח להצעות").</li><li>לא אורח → עסק approved בקהילה ("העסק אינו חבר בקהילה"); אורח (<code>isGuest</code>) → רק ב-open_r2 ("עסק שאינו חבר בקהילה יכול להגיש הצעה רק בסיבוב 2").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE הצעה קודמת של העסק לפול (הצעה אחת לעסק).</li><li>INSERT flow_pool_bids (status pending).</li><li>הודעת מערכת "הצעה חדשה התקבלה".</li></ol></div>
+<div>תופעות לוואי</div><div>צפייה בהצעות (<code>GET /bids?viewerId</code>, 34112): רק יוזם או CM; ממוין מחיר ASC; כולל טלפון העסק (store_settings.phone). בחירה → <code>awardFlow(business,'pool_bid_accepted')</code> (25+10).</div>
+<div>ממשק</div><div>רשימת פולים לעסק (<code>GET /api/biz/pools/:bizGroupId</code> 34332): פתוחים בקהילות שהעסק approved בהן ושלא הוסתרו, + פגי תוקף שהעסק השתתף בהם. הלקוח לא שולח <code>isGuest</code> כלל.</div>
+<div>פערים</div><div>מסלול האורח לא נגיש מה-UI. <code>GET /api/biz/my-pool-bids</code> (34306) בוחר <code>fpb.created_at</code> שאינה קיימת (העמודה היא <code>submitted_at</code>) → שגיאה 500.</div></div></section>
+
+<section class="proc" data-f="pool messages chat archive biz hidden family archive"><h3>צ'אט פול וארכיונים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה ועסק מתכתבים בפול; ארכיון אישי לעסק.</div>
+<div>תנאים ואימותים</div><div><ul><li>GET messages (34263): יוזם; משפחה בקהילה; עסק approved בקהילה או שהגיש הצעה.</li><li>POST message (34286): תוכן לא ריק; senderId/senderType חייבים להתאים למאומת; פול פעיל ולא פג ("הפול לא פעיל"); חיתוך ל-1000 תווים.</li><li>archive (34181, verifyFamilyOrBiz): viewerId=המאומת; <code>bizArchive</code> → INSERT biz_pool_hidden (אישי); אחרת רק היוזם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ארכיון משפחה: <code>GET /api/community/pool/family-archive/:groupId</code> (34376) — פולים שיזמה בסטטוס archived/closed.</li><li>ארכיון עסק: <code>GET /api/biz/pool-archive/:bizGroupId</code> (34393) — מוסתרים + archived שהשתתף בהם.</li></ol></div>
+<div>ממשק</div><div><code>business-app.js:openBizPoolChat</code>/<code>sendBizPoolMsg</code>/<code>archiveBizPool</code> (16917–17043); <code>app.js:sendPoolMessage</code> (6771), <code>loadFamPoolArchive</code> (6651).</div></div></section>
+
+<h2 class="grp">"שוקה" — קמפייני שוק קהילתיים</h2>
+
+<section class="proc" data-f="shuka market campaign create code community manager zone manager community_campaigns"><h3>יצירת קמפיין שוק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM (<code>zone-manager-app.js:zmCreateCommunityCampaign</code> 1671 → <code>POST /api/zone-manager/community-campaigns</code> 19488) או CM מאפליקציית המשפחה (<code>app.js:cmCreateCampaign</code> 8442 → <code>POST /api/community/manager/campaigns</code> 20575).</div>
+<div>תנאים ואימותים</div><div><ul><li>communityId + code חובה. ZM: קהילה באזורו. CM: <code>verifyCommunityManagerAccess</code> + חוסם CHILD.</li><li><code>cleanCode</code> = lowercase, תווים שאינם <code>[a-z0-9-]</code> → '-', כיווץ מקפים, הסרת מקפים בקצוות; ריק → "קוד לא תקין"; כפול → 409 "קוד זה כבר תפוס, בחרו קוד אחר".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כותרת אופציונלית; ברירת מחדל <code>"קמפיין " + שם הקהילה</code>.</li><li>INSERT community_campaigns (created_by_manager_id = ZM id, או NULL ל-CM). ברירות מחדל: status 'active', ordering_enabled TRUE, recurrence 'none', is_open_for_requests TRUE.</li></ol></div>
+<div>ממשק</div><div>קישור ציבורי <code>/campaign/{code}</code>; שיתוף WhatsApp <code>zmShareCampaignWhatsapp</code>/<code>cmShareCampaignWhatsapp</code>.</div></div></section>
+
+<section class="proc" data-f="shuka campaign settings patch status suspended active days hours ordering logo slogan share"><h3>הגדרות קמפיין והשעיה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM <code>PATCH /api/zone-manager/community-campaigns/:id</code> (19516), CM <code>PATCH /api/community/manager/campaigns/:id</code> (20600), SA <code>PATCH /api/sa/shuka/campaigns/:id</code> (19770) ו-<code>POST /api/sa/shuka/campaigns/:id/status</code> (19709).</div>
+<div>תנאים ואימותים</div><div><ul><li>בעלות: <code>verifyCampaignOwnership</code> (19459: קמפיין בקהילה באזור ה-ZM) / <code>verifyCampaignOwnershipFamily</code> (20552: CM של הקהילה).</li><li>SA status: רק <code>active|suspended</code>.</li><li>ZM/CM: <code>status</code> חופשי (COALESCE).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>COALESCE לכל שדה: title, description, banner_image_url, status, logo_url, slogan, hide_title, share_description, ordering_enabled; active_days/active_hours נדרסים אם נשלחו (JSON).</li><li>SA בנוסף: start_at, end_at, is_open_for_requests (ללא description/banner/status).</li></ol></div>
+<div>חישובים</div><div>לקוח: <code>activeDays</code> = null אם 0 או 7 ימים מסומנים; <code>activeHours = {start,end}</code> רק אם שניהם מולאו (zone-manager-app.js:1723).</div>
+<div>מכונת מצבים</div><div>community_campaigns.status: active ↔ suspended (SA), ערך חופשי מ-ZM/CM. רק active נגיש בדף הציבורי ובהזמנה.</div>
+<div>ממשק</div><div><code>zmSaveCampaignSettings</code> (1715), <code>cmSaveCampaignSettings</code> (8485), SA <code>saShukaUpdateSettings</code>/<code>saShukaToggleStatus</code> (sa-app.js:16717/16702).</div>
+<div>פערים</div><div><code>start_at</code>/<code>end_at</code>/<code>recurrence</code> לא נאכפים בהזמנה; משמשים רק לסינון ברדאר. אי אפשר לנקות שדה טקסט (COALESCE).</div></div></section>
+
+<section class="proc" data-f="shuka campaign business add remove request invite respond manager_invite business_request"><h3>שיוך עסקים לקמפיין — הוספה ישירה, בקשות והזמנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל (ZM/CM/SA) מוסיף/מסיר עסק, או זרימת בקשה/הזמנה דרך <code>community_campaign_requests</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>הוספה/הסרה ישירה (ZM 19566, CM 20647): action ∈ add/remove; העסק approved בקהילת הקמפיין ("העסק אינו חלק מקהילה זו"). SA (19795) ללא בדיקת חברות.</li>
+<li>הזמנה (ZM 19935, CM 20790): עסק approved בקהילה; לא כבר בקמפיין ("העסק כבר חלק מהקמפיין"). SA (19865): בודק רק שאין הזמנה ממתינה (409 "כבר קיימת הזמנה ממתינה לעסק זה").</li>
+<li>בקשת עסק (<code>POST /api/biz/market-campaigns/:campaignId/request</code> 20878): קמפיין active; <code>is_open_for_requests !== false</code> ("שוק זה סגור כרגע לבקשות הצטרפות חדשות"); עסק approved בקהילה → אחרת 409 code <code>COMMUNITY_MEMBERSHIP_REQUIRED</code>; לא כבר חבר; אין בקשה ממתינה ("כבר יש בקשה ממתינה לשוק הזה"). אינדקס ייחודי חלקי מונע שתי pending (16561).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: INSERT community_campaign_businesses ON CONFLICT DO NOTHING. remove: DELETE + DELETE כל מוצרי העסק בקמפיין.</li><li>בקשה/הזמנה: INSERT requests (direction <code>business_request</code> / <code>manager_invite</code>, status pending, message).</li><li>תגובה: מנהל (ZM 19908, CM 20764, SA 19847) — approve מוסיף לעסקי הקמפיין; עסק (<code>/api/biz/market-campaigns/requests/:requestId/respond</code> 20912) — רק direction manager_invite שלו.</li><li>עזיבת עסק (20937): DELETE מהקמפיין + מוצריו.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>מנהל / עסק</td><td>לפי direction (ראו פערים)</td><td>INSERT campaign_businesses; responded_at</td></tr>
+<tr><td>pending</td><td>rejected</td><td>מנהל / עסק</td><td>—</td><td>responded_at</td></tr></table></div></div>
+<div>ממשק</div><div>עסק: <code>shukaRequestJoin</code> (business-app.js:61882) "בקשת ההצטרפות נשלחה לאישור מנהל הקהילה"; <code>fetchShukaMine</code>/<code>renderShukaMine</code>/<code>shukaRespondInvite</code>/<code>shukaLeaveMarket</code>. ZM: <code>zmLoadCampaignRequests</code>/<code>zmRespondCampaignRequest</code>/<code>zmInviteCampaignBusiness</code>/<code>zmToggleCampaignBusiness</code> (1878–1928).</div>
+<div>פערים</div><div>נתיבי respond של מנהל לא בודקים direction — מנהל יכול "לאשר" בעצמו הזמנה שהוא שלח (עוקף את העסק). SA invite לא בודק חברות/קיום בקמפיין.</div></div></section>
+
+<section class="proc" data-f="shuka campaign products assign price_override approval pending approved rejected review takedown"><h3>מוצרי קמפיין — הקצאה ע"י העסק ואישור מנהל</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>העסק בוחר מוצרים מהקטלוג שלו וקובע מחיר לשוק: <code>business-app.js:shukaOpenProducts</code>/<code>shukaToggleProduct</code>/<code>shukaSetPrice</code> (61991–62047) → <code>POST /api/biz/market-campaigns/:campaignId/products</code> (20968).</div>
+<div>תנאים ואימותים</div><div><ul><li>העסק חלק מהקמפיין ("העסק עדיין לא חלק מהשוק הזה").</li><li>add: המוצר בקטלוג העסק ("מוצר לא נמצא בקטלוג שלך"); <code>price</code> ריק → NULL (מחיר קטלוג), אחרת מספר ≥0 ("מחיר לא תקין").</li><li>מנהל (ZM 19620, CM 20696, SA 19812): רק <code>action='remove'</code> ("ניתן רק להסיר מוצר קיים - בחירת מוצרים חדשים מתבצעת ע"י העסק עצמו").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: UPSERT community_campaign_products (PK campaign+catalog) עם price_override, <code>approval_status='pending'</code>, submitted_by_user_id, reviewed_at=NULL — כל שינוי מחיר מחזיר ל-pending.</li><li>review (ZM 19658, CM 20732, SA 19822): approve/reject → approval_status + reviewed_at.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>— / *</td><td>pending</td><td>עסק</td><td>add/שינוי מחיר</td><td>—</td></tr>
+<tr><td>pending/*</td><td>approved / rejected</td><td>ZM/CM/SA</td><td>review</td><td>reviewed_at</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>עסק / מנהל</td><td>remove / הסרת העסק</td><td>—</td></tr></table></div>
+רק approved מוצג בחנות הציבורית ומתקבל בהזמנה.</div>
+<div>ממשק</div><div>תור בקרה <code>products-review?status=</code> (19634/20710), ממוין pending קודם. ZM: <code>zmOpenProductsReview</code>/<code>zmRenderProductsReview</code> עם סינון סטטוס/עסק (1971–2045).</div>
+<div>פערים</div><div>הסרת מוצר ע"י מנהל (19628) לפי catalogId בלבד — תקין כי ה-PK כולל catalog. SA review לא מחזיר 404 כשאין שורה.</div></div></section>
+
+<section class="proc" data-f="shuka market radar business discover campaigns filter city interest date"><h3>רדאר שווקים לעסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>business-app.js:fetchShukaRadar</code>/<code>renderShukaRadar</code> (61836/61856) → <code>GET /api/biz/market-radar</code> (20823).</div>
+<div>שלבי עיבוד</div><div><ol><li>קמפיינים active בכל הקהילות; מסננים: city (ILIKE), interest (על <code>communities.interest_tags</code>), search (כותרת/שם קהילה), dateFrom (<code>end_at IS NULL OR end_at ≥</code>), dateTo (<code>start_at IS NULL OR start_at ≤</code>).</li><li>לכל קמפיין: business_count, is_community_member, already_joined, pending_request_status. מיון start_at NULLS LAST, LIMIT 100.</li></ol></div></div></section>
+
+<section class="proc" data-f="shuka public campaign store page og whatsapp community-store order cart single business schedule"><h3>חנות הקמפיין הציבורית והזמנה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח פותח <code>/campaign/:code</code> (15354, מזריק og:title/og:url ו-<code>window.__CAMPAIGN_CODE__</code> לתוך community-store.html) → <code>community-store-app.js:init</code> (63) → <code>GET /api/campaign/:code</code> (15385). הזמנה: <code>csSubmitOrder</code> (667) → <code>POST /api/campaign/:code/order</code> (15450).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>og: כותרת = share_description || slogan || title || שם קהילה; תיאור קבוע "WEFLOWZ עושה לכם סדר"; תמונה <code>/api/public/logo</code>.</li>
+<li>GET: קמפיין לא קיים 404; לא active → 403 "הקמפיין אינו פעיל כרגע". עסקים ומוצרים (approved) מסוננים <code>account_status != 'frozen'</code>.</li>
+<li>הזמנה: טוקן לקוח sc-auth (<code>_scGetCustomerByToken</code>) חובה (401 "יש להתחבר לפני ביצוע הזמנה"); items לא ריק ("העגלה ריקה"); קמפיין active; <code>ordering_enabled===false</code> → 403 marketClosed reason 'disabled'.</li>
+<li>לוח זמנים (15466): ימים <code>active_days</code> (ריק = כל השבוע), שעות <code>active_hours</code> (ברירת מחדל 00:00–23:59, סיום exclusive). סגור → 403 <code>{marketClosed, reason:'schedule', nextOpenText}</code> "השוק סגור כרגע. הפתיחה הקרובה: ...". חישוב לפי שעון השרת.</li>
+<li>עסק אחד בלבד בהזמנה ("ניתן להזמין מוצרים מעסק אחד בלבד בכל הזמנה"); העסק בקמפיין; כל פריט approved בקמפיין ("פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT store_orders: status <code>pending_approval</code>, order_source <code>community_campaign</code>, campaign_id, family_group_id של הלקוח, total = serverTotal.</li><li>UPDATE items JSON; INSERT store_order_items לכל פריט.</li><li>אחרי 100ms: <code>upsertStoreCustomer</code> אצל <b>כל</b> עסקי הקמפיין (הערה שונה לעסק המזמין ולשאר).</li></ol></div>
+<div>חישובים</div><div>מחיר בסיס = <code>COALESCE(price_override, catalog.price)</code>. <code>maxExtra = _maxOptionsExtra(options_text)</code> (15424): סכום כל מחירי האפשרויות בכל הקבוצות (או בתבנית complex: stepPrice + כל אפשרויות השלב). טולרנס: <code>base − (1%·base + 1) ≤ clientPrice ≤ max + (1%·max + 1)</code> (15535). <code>serverTotal = Σ clientPrice × quantity</code>.</div>
+<div>תופעות לוואי</div><div>היסטוריה: <code>GET /api/campaign/:code/my-orders</code> (15575) — עד 30 הזמנות community_campaign של הלקוח (טלפון או family_group_id) אצל עסקי הקמפיין. קאשבק יופעל רק בהשלמת ההזמנה.</div>
+<div>ממשק</div><div><code>community-store-app.js</code>: <code>_isMarketOpen</code> (16) משכפל את הלוגיקה בצד לקוח וחוסם הוספה לסל; עגלה מעסק יחיד ("אפשר להזמין רק מעסק אחד — רוקנו את העגלה..."); כניסה דרך <code>scAuth.requireLogin</code>; בונה פיצה ומוצר מורכב; תוויות סטטוס CS_STATUS_LABELS (pending_approval "ממתין לאישור" וכו'); פאנל פעילות מוחלף להיסטוריה חוצת-עסקים. משלוח לא נשלח מהלקוח (רק notes).</div>
+<div>פערים</div><div>quantity ללא תקרה (ההערה מזכירה 50, לא נאכף) וגם שלילי מתקבל. start_at/end_at לא נאכפים. my-orders לא מסנן לפי campaign_id — מציג הזמנות מקמפיינים אחרים של אותם עסקים. אזור זמן שרת עלול להיות UTC.</div></div></section>
+
+<section class="proc" data-f="shuka sa oversight campaigns table gmv delete"><h3>פיקוח SA על קמפייני שוק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sa-app.js:renderSAShukaPanel</code> (16342), <code>openSAShukaDetail</code> (16454).</div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/sa/shuka/campaigns</code> (19679): מסננים search/status/communityId; מדדים: עסקים, מוצרים approved, מוצרים pending, בקשות pending, הזמנות, GMV = Σ total_amount של הזמנות שאינן 'quote'.</li><li><code>GET /api/sa/shuka/campaigns/:id</code> (19721): קמפיין + עסקי הקהילה (included) + מוצרים + בקשות + עד 100 הזמנות.</li><li>מחיקה <code>DELETE</code> (19881) — CASCADE לעסקים/מוצרים/בקשות; store_orders.campaign_id → NULL.</li></ol></div></div></section>
+
+<h2 class="grp">מנהלי אזור (Zone Manager)</h2>
+
+<section class="proc" data-f="zone manager register login session token reset password forgot email bcrypt"><h3>הרשמה, כניסה, סשן ואיפוס סיסמה של מנהל אזור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>zone-manager.html</code> + <code>zone-manager-app.js</code>: <code>zmRegister</code> (57), <code>zmLogin</code> (38), <code>zmForgotSubmit</code> (77), <code>zmResetSubmit</code> (95).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>register (18760): name/email/password חובה; מייל קיים: pending "בקשת הרשמה כבר קיימת ומחכה לאישור", active "כתובת מייל זו כבר רשומה ופעילה במערכת", אחר "כתובת מייל זו כבר רשומה". לקוח: סיסמה ≥6.</li>
+<li>login (18816): email + status='active'; bcrypt אם ה-hash מתחיל ב-<code>$2</code>, אחרת השוואת טקסט גלוי ושדרוג ל-bcrypt (10 rounds). שגיאה "פרטי גישה שגויים".</li>
+<li>forgot (18777): לא חושף קיום מייל; רק active.</li>
+<li>reset (18804): token+password, סיסמה ≥6 ("טוקן או סיסמה לא תקינים"); טוקן בזיכרון בתוקף שעה ("הקישור לא תקף או שפג תוקפו — בקש קישור חדש").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>register: INSERT zone_managers status 'pending', commission_pct 5, bcrypt.</li><li>login: token <code>ZM_{id}_{timestamp}_{random}</code> נשמר ב-Map <code>zoneManagerSessions</code>; מחזיר manager (id, name, email, commission_pct). לקוח שומר <code>zm_token</code>/<code>zm_manager</code> ב-localStorage.</li><li>forgot: token <code>ZMR_{id}_...</code> ב-Map <code>zmPasswordResets</code> (תוקף 60 דק'), מייל <code>sendSystemEmail</code> "איפוס סיסמה — WEFLOWZ Zone Manager" עם קישור <code>/zone-manager.html?reset=TOKEN</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>zone_managers.status: pending (הרשמה) → active (SA, <code>approveZMRegistration</code> sa-app.js:5307 → PUT status) ↔ inactive (<code>toggleZMStatus</code> 5488). יצירה ע"י SA → active (DEFAULT). דחייה = DELETE.</div>
+<div>תופעות לוואי</div><div><code>verifyZoneManager</code> (6498): אם הטוקן לא ב-Map (אחרי restart) — מפרק <code>ZM_{id}_...</code> ובודק רק שהמנהל active.</div>
+<div>פערים</div><div><b>חמור:</b> כל מחרוזת בצורת <code>ZM_{id}_x</code> מתקבלת כטוקן תקף אחרי restart / עבור טוקן לא מוכר (6509) — התחזות למנהל אזור לפי id. סשנים לא פגים, ומנהל שהושהה (inactive) ממשיך לעבור כל עוד הטוקן ב-cache. טוקני איפוס בזיכרון בלבד.</div></div></section>
+
+<section class="proc" data-f="zone manager sa crud zones assign community transfer settings max zones commission"><h3>ניהול מנהלי אזור ואזורים ע"י SA</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sa-app.js:loadZoneManagers</code> (5255), <code>saveNewZoneManager</code> (5419), <code>saveEditZoneManager</code> (5469), <code>addZoneToManagerUI</code> (5628), <code>assignCommunityToZone</code> (5696), <code>transferCommunityToZone</code> (5768), <code>saveZoneSettings</code> (5373).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה (19251): name/email/password חובה; commission_pct ברירת מחדל 5.</li><li>אזור חדש (19291): <code>COUNT(manager_zones) ≥ zone_max_zones_per_manager (ברירת מחדל 4)</code> → 400 "מנהל יכול להחזיק עד N אזורים".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>עדכון (19263): עדכון חלקי דינמי, סיסמה חדשה ב-bcrypt.</li><li>מחיקה (19283): DELETE zone_managers.</li><li>שיוך קהילה (19303): <code>communities.zone_id = zone_id || NULL</code> (העברה/הסרה).</li><li>הגדרות סף (19312/19323): zone_min_communities=5, zone_max_zones_per_manager=4, zone_manager_commission_pct=5, community_min_families=30, community_min_businesses=15 (ב-system_settings).</li><li>רשימה (19160): מנהלים שאינם pending עם zone_count, community_count, total_commissions, total_paid, month_paid.</li></ol></div>
+<div>פערים</div><div>zone_min_communities, community_min_families, community_min_businesses נשמרים ומוחזרים לדשבורד בלבד — לא נאכפים בשום לוגיקה.</div></div></section>
+
+<section class="proc" data-f="zone manager dashboard commissions payments finance debt"><h3>דשבורד מנהל אזור, עמלות ותשלומים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>zone-manager-app.js:loadDashboard</code> (263) → <code>GET /api/zone-manager/dashboard</code> (18837); <code>loadCommissions</code> (1482) → <code>/commissions</code> (18875, LIMIT 100). SA רושם תשלום <code>POST /api/sa/zone-manager-payments</code> (19232).</div>
+<div>שלבי עיבוד</div><div><ol><li>dashboard: אזורים (community_count, family_count, business_count), קהילות (has_local_manager), סך עמלות וחודשי, סך שולם וחודשי, settings.</li><li>תשלום SA: manager_id+amount חובה; paid_at ברירת מחדל עכשיו; recorded_by.</li><li>סיכום SA (19175): total/month earned מ-zone_manager_commissions, total/month paid; <code>total_debt = max(0, earned − paid)</code>, כנ"ל חודשי.</li></ol></div>
+<div>חישובים</div><div>לקוח: <code>paid% = min(100, round(paid/earned·100))</code> (סה"כ וחודשי). עמלה נוצרת רק ב-<code>triggerCashbackForOrder</code> (ראו קאשבק).</div>
+<div>ממשק</div><div>אם dashboard מחזיר !success → <code>zmLogout</code>. טאבים (<code>zmSwitchTab</code> 294): zones, biz-requests, marketing, leads, inbox, commissions, content, kol-haam. פאנל ממתינים (עסקים, משפחות, הסרות, מוזמנים) מתרענן כל 60 שניות.</div></div></section>
+
+<section class="proc" data-f="zone manager community detail family detail flow"><h3>צפייה בקהילה ובמשפחה ע"י מנהל אזור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openCommunityDetail</code> (1506) → <code>GET /api/zone-manager/community-detail/:id</code> (19398); <code>openZMFamilyDetail</code> (2115) → <code>/family-detail/:groupId</code> (19135).</div>
+<div>שלבי עיבוד</div><div><ol><li>community-detail: קהילה באזורו; משפחות (כל הסטטוסים), עסקים approved, 10 מבצעים approved, ארנק FLOW קהילתי ו-20 תנועות.</li><li>family-detail: המשפחה חברה בקהילה כלשהי באזורו; פרטי קבוצה, משתמשים (nickname, role, email), קהילות, יתרת FLOW משפחתית.</li></ol></div>
+<div>ממשק</div><div>טאבים בתוך כרטיס קהילה <code>switchCDTab</code>/<code>renderCDTab</code> (1541/1546), כולל קמפייני שוקה (<code>zmLoadCommunityCampaigns</code> 1644).</div></div></section>
+
+<section class="proc" data-f="zone manager marketing campaign lead form public token zm_campaigns zm_campaign_leads crm status actions"><h3>קמפייני גיוס (טפסי לידים) ו-CRM לידים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM יוצר דף נחיתה עם טופס: <code>openZMCreateCampaign</code>/<code>saveZMCampaign</code> (830/892) → <code>POST /api/zone-manager/campaigns</code> (19989). ציבור ממלא ב-<code>campaign.html?t=TOKEN</code> → <code>/api/public/campaign/:token</code> (20040) ו-<code>/submit</code> (20052).</div>
+<div>תנאים ואימותים</div><div><ul><li>title חובה ("כותרת הקמפיין חובה").</li><li>ציבורי: קמפיין active לפי token ("קמפיין לא נמצא או לא פעיל").</li><li>פעולת ליד: action_type חובה ("סוג פעולה חובה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: token <code>CAMP_{managerId}_{ts}_{rand6}</code>; fields_config JSON; campaign_type ברירת מחדל 'general'.</li><li>submit: body כולו נשמר כ-data JSON; <code>lead_type</code> = body.lead_type, אחרת לפי campaign_type (business/family) או 'unknown'.</li><li>CRM: <code>PUT /api/zone-manager/leads/:id</code> (status, crm_notes, lead_type); פעולות <code>zm_lead_actions</code> (20104).</li><li>עדכון/מחיקת קמפיין רק לבעלים (WHERE zone_manager_id).</li></ol></div>
+<div>מכונת מצבים</div><div>zm_campaigns.status: active (DEFAULT) / ערך חופשי ב-PUT. zm_campaign_leads.status (תוויות לקוח 1017): <code>new</code> → <code>contacted</code> / <code>interested</code> / <code>not_interested</code> / <code>converted</code> — מעבר חופשי. lead_type: business/family/unknown. action_type מה-UI: call, whatsapp, meeting, email.</div>
+<div>תופעות לוואי</div><div>AI (Gemini): <code>generate-banner</code> (20114) — SVG 1600×900 ללא טקסט, פלטה לפי סוג, fallback <code>gemini-2.0-flash-lite</code>, מוחזר כ-data URI base64; <code>draft-campaign</code> (20149) — JSON {title, subtitle, text_content} לפי הקשר business/family/community_join, fallback <code>gemini-1.5-flash</code> על 503/overloaded; <code>analyze-leads</code> (20197) — עד 50 לידים ללא ai_score, ציון 1–10 + הערה, שמירה ai_score/ai_notes.</div>
+<div>ממשק</div><div><code>loadCampaigns</code> (686), <code>viewCampaignLeads</code> (956), <code>openLeadCRM</code> (1062), <code>saveLeadCRM</code> (1164), <code>analyzeLeads</code> (1205). SA: מונה קמפיינים ולידים (19200/19208).</div>
+<div>פערים</div><div><code>GET/PUT /api/zone-manager/leads/:id</code> ו-actions לא בודקים שהליד שייך לקמפיין של ה-ZM (20068–20111). submit ציבורי ללא rate-limit/ולידציה על שדות fields_config.</div></div></section>
+
+<section class="proc" data-f="zone manager inbox thread message broadcast community manager templates ai suggest reply"><h3>תיבת הודעות מנהל אזור ↔ מנהלי קהילה ותבניות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM: <code>loadInbox</code>/<code>openZMThread</code>/<code>sendZMReply</code>/<code>openZMBroadcast</code>/<code>sendZMNewMessage</code> (1225–1362). CM: <code>app.js:openCommunityManagerInbox</code> (9005) → <code>/api/community/inbox/*</code> (20374–20441).</div>
+<div>תנאים ואימותים</div><div><ul><li>ZM new: communityId, groupId, content חובה. broadcast: content חובה; יעדים רק משפחות is_community_manager בקהילות האזור (מסונן גם כשנשלחו targetGroupIds).</li><li>CM new: בעלות; קהילה עם אזור ("לא נמצא מנהל אזור לקהילה זו").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ZM new/broadcast: INSERT zm_inbox_threads + zm_inbox_messages (sender_type 'manager') + עותק ל-<code>inbox_messages</code> של המשפחה (sender_type 'zone_manager').</li><li>ZM reply: הודעה, last_message_at, עותק "תגובה: {subject}".</li><li>CM new/reply: sender_type 'community' (ללא עותק לשום מקום).</li><li>קריאת שיחה מסמנת is_read להודעות הצד השני.</li><li>AI הצעת תשובה (20223): 6 הודעות אחרונות, Gemini 2.5 flash, "תשובה מקצועית, קצרה וחמה בעברית".</li><li>תבניות (20347–20370): name+content חובה, CRUD פר-מנהל.</li></ol></div>
+<div>פערים</div><div>ZM new לא מאמת ש-groupId/communityId באזורו. thread חדש של ZM לא מעדכן last_message_at (DEFAULT בלבד).</div></div></section>

@@ -1,0 +1,432 @@
+{
+ "classification": {
+  "AUTH-01": "HARDEN",
+  "AUTH-02": "HARDEN",
+  "AUTH-04": "HARDEN",
+  "AUTH-05": "HARDEN",
+  "AUTH-06": "HARDEN",
+  "AUTH-07": "HARDEN",
+  "AUTH-08": "HARDEN",
+  "AUTH-09": "HARDEN",
+  "AUTH-10": "HARDEN",
+  "AUTH-11": "HARDEN",
+  "AUTH-13": "HARDEN",
+  "AUTH-16": "HARDEN",
+  "AUTH-18": "HARDEN",
+  "AUTH-19": "HARDEN",
+  "AUTH-23": "HARDEN",
+  "AUTH-29": "HARDEN",
+  "AUTH-32": "HARDEN",
+  "AUTH-37": "HARDEN",
+  "AUTH-38": "HARDEN",
+  "AUTH-39": "HARDEN",
+  "AUTH-41": "HARDEN",
+  "AUTH-43": "HARDEN",
+  "AUTH-44": "HARDEN",
+  "AUTH-21": "FIX",
+  "AUTH-25": "FIX",
+  "AUTH-26": "FIX",
+  "AUTH-27": "FIX",
+  "AUTH-28": "FIX",
+  "AUTH-42": "FIX",
+  "AUTH-30": "CONSISTENCY",
+  "AUTH-31": "CONSISTENCY",
+  "AUTH-34": "CONSISTENCY",
+  "AUTH-40": "CONSISTENCY",
+  "AUTH-45": "CONSISTENCY",
+  "AUTH-46": "CONSISTENCY",
+  "AUTH-20": "BEHAVIOR",
+  "AUTH-24": "BEHAVIOR",
+  "AUTH-33": "BEHAVIOR",
+  "AUTH-35": "BEHAVIOR",
+  "AUTH-36": "BEHAVIOR",
+  "AUTH-22": "SCOPE"
+ },
+ "revised": {
+  "AUTH-02": "/api/solo/activate מחייב verifyFamily; userId/groupId מהסשן; רק ADMIN של קבוצה ב-pending_activation (אחרת 403). ההפעלה ממשיכה לאשר את member_business_links במצב pending של הקבוצה כמו היום, באותה טרנזקציה. solo/status מחייב verifyFamily וקבוצת הסשן.",
+  "AUTH-07": "כל תגובה עם משתמש עוברת sanitizeUser — רשימה מפורשת הכוללת כל עמודת users לא-סודית שהלקוחות קוראים היום; password_hash, solo_temp_password, pin_hash וטוקנים לעולם לא יוצאים מהשרת.",
+  "AUTH-16": "sa_sessions (sessions principal_type='sa') שומר sha256 של הטוקן; POST /api/sa/logout מבטל; status של sa_users הוא enum {active, blocked} ושינוי ממנו (וכן שינוי סיסמה/מחיקה) מבטל את כל סשני המשתמש; ניקוי יומי; תוקף 12 שעות מתגלגל (לפי AUTH-20/ARC-09, במקום '30 יום ללא שינוי').",
+  "AUTH-28": "כל קריאה מאומתת עוברת דרך apiFetch המוסיף Authorization: Bearer מהמפתח היחיד ומנתק ב-401; הקריאות שקראו את ofl_token/token/family_token (tickets/inbox/chat וכו') מועברות ל-apiFetch — הפיצ'רים נשמרים ומתחילים לעבוד; רק קריאת המפתחות שלא קיימים מוסרת.",
+  "AUTH-30": "enum תפקידים לפי סביבה: FAMILY={ADMIN,MEMBER,CHILD}, BIZ={ADMIN,MANAGER,SENIOR,MEMBER}; employee_role_type מתוך EMPLOYEE_ROLE_TYPES ומורשה לפי licensed_features, אחרת 400 — למעט /api/join שבו ערך לא חוקי נשמר NULL וההצטרפות ממשיכה. מיגרציה: משתמשי FAMILY עם MANAGER/SENIOR → MEMBER עם permissions custom השווה לברירת המחדל של תפקידם הקודם. הרשימות מוגשות מהשרת.",
+  "AUTH-31": "permissions=NULL = ברירת מחדל לתפקיד; change-role מאפס ל-NULL; הרשאה מותאמת {custom:true,tabs} תקפה בכל אורך; ROLE_DEFAULTS אחד בשרת ומוגש ללקוח. מיגרציה משמרת גישה אפקטיבית: FAMILY tabs.length>1→custom, ≤1→NULL; BIZ כל מערך tabs→custom.",
+  "AUTH-33": "nickname ייחודי בקבוצה ללא תלות ברישיות (UNIQUE group_id, LOWER(nickname)); לפני האינדקס מיגרציה מוסיפה סיומת מספרית לכפילויות קיימות (בלי מחיקה) ומודיעה למנהל; join/user-details/pre-invite עם כינוי קיים → 409 'הכינוי כבר תפוס בסביבה'; login לפי LOWER(nickname).",
+  "AUTH-34": "normalizePhone אחת: ספרות בלבד, קידומת 972→0; מספר ישראלי נשמר 0XXXXXXXXX, מספר אחר (9–15 ספרות) נשמר כספרות; מופעלת בכל שמירה והשוואה; מיגרציה מנרמלת users.phone; אינדקס על הטלפון המנורמל.",
+  "AUTH-37": "create-for-business מחייב verifyBiz ו-business_group_id=קבוצת הסשן; סיסמה זמנית (randomBytes, 10 תווים) מוגרלת לפני ה-INSERT, נשמרת רק כ-bcrypt, ומוחזרת פעם אחת בתגובה להצגה ולכפתור 'שלח בוואטסאפ' כמו היום (biz-setup-guide/beauty-guide), עם SMS אופציונלי; solo_temp_password לא נשמר — ב-SA מוצג סטטוס 'סיסמה זמנית הונפקה — טרם הופעלה'.",
+  "AUTH-12": "(הוחל דרך ARC-03) הסרת ה-fallback של verifyBizOrLegacy מתבצעת רק אחרי שכל קוראי הלקוח שולחים Bearer דרך apiFetch (מדד console.warn=0); נתיבים המשרתים דפים ציבוריים עוברים לרשימה הציבורית המוצהרת (ARC-02) עם זיהוי לפי קוד חנות ציבורי; אחר כך בלי טוקן → 401 'נדרש token להתחברות עסקית'.",
+  "ARC-05": "(יישום בדומיין) סשן של קבוצה ב-pending_activation מקבל נתיבי GET לטעינת נתונים, solo/activate, solo/status ו-logout; כל נתיב כתיבה אחר → 403 'יש להשלים הפעלת חשבון'."
+ },
+ "applied_in": {
+  "ARC-01": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "Middleware ‏verifyFamily — אלגוריתם מדויק",
+   "Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)",
+   "Middleware ‏verifySA + טבלת sa_sessions",
+   "סשן לקוח חנות — storefront_sessions"
+  ],
+  "AUTH-27": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "Bootstrap token (השלמת טוקן חסר ללקוח משפחה)",
+   "הרשמת עסק (/api/biz/register)",
+   "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+  ],
+  "AUTH-09": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "שחזור קוד סביבה + איפוס סיסמת מנהל משפחה",
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "הגדרת סיסמה ראשונה (must_change_password)",
+   "הפעלת חשבון SOLO (pending_activation)",
+   "איפוס סיסמת עסק (קישור במייל)",
+   "שחזור סיסמת מנהל אזור"
+  ],
+  "AUTH-20": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "Middleware ‏verifyFamily — אלגוריתם מדויק"
+  ],
+  "AUTH-01": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "Bootstrap token (השלמת טוקן חסר ללקוח משפחה)"
+  ],
+  "AUTH-21": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "השתלטות SA על סביבת לקוח (Impersonation)",
+   "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+  ],
+  "AUTH-43": [
+   "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+   "Middleware ‏verifyFamily — אלגוריתם מדויק",
+   "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+  ],
+  "AUTH-11": [
+   "Middleware ‏verifyFamily — אלגוריתם מדויק",
+   "Middleware ‏verifyFamilyOrBiz"
+  ],
+  "AUTH-10": [
+   "Middleware ‏verifyFamily — אלגוריתם מדויק",
+   "Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)",
+   "Middleware ‏verifyFamilyOrBiz",
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "/api/biz/me — טעינת נתוני עסק מהסשן"
+  ],
+  "ARC-05": [
+   "Middleware ‏verifyFamily — אלגוריתם מדויק",
+   "Middleware ‏verifyFamilyOrBiz",
+   "הפעלת חשבון SOLO (pending_activation)"
+  ],
+  "AUTH-46": [
+   "Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)"
+  ],
+  "ARC-03": [
+   "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)"
+  ],
+  "AUTH-13": [
+   "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)"
+  ],
+  "ARC-17": [
+   "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)"
+  ],
+  "ARC-04": [
+   "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)"
+  ],
+  "ARC-07": [
+   "Middleware ‏verifySA + טבלת sa_sessions",
+   "השתלטות SA על סביבת לקוח (Impersonation)",
+   "כניסת SA בשם משתמש/מייל + סיסמה",
+   "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+   "ניהול צוות SA (RBAC)",
+   "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+  ],
+  "AUTH-16": [
+   "Middleware ‏verifySA + טבלת sa_sessions",
+   "כניסת SA בשם משתמש/מייל + סיסמה",
+   "ניהול צוות SA (RBAC)"
+  ],
+  "AUTH-42": [
+   "Middleware ‏verifySA + טבלת sa_sessions",
+   "Middleware ‏verifyZoneManager + סשנים בזיכרון"
+  ],
+  "ARC-08": [
+   "Middleware ‏verifyZoneManager + סשנים בזיכרון",
+   "הרשמת מנהל אזור ואישור SA",
+   "כניסת מנהל אזור"
+  ],
+  "ARC-24": [
+   "Middleware ‏verifyZoneManager + סשנים בזיכרון",
+   "ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)",
+   "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)"
+  ],
+  "ARC-09": [
+   "סשן לקוח חנות — storefront_sessions",
+   "התנתקות (כל הסביבות)",
+   "תפקידים ושינוי תפקיד (users.role)"
+  ],
+  "AUTH-40": [
+   "ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)"
+  ],
+  "ARC-23": [
+   "ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)"
+  ],
+  "AUTH-19": [
+   "התנתקות (כל הסביבות)"
+  ],
+  "AUTH-07": [
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "SSO מהחנות לאפליקציית המשפחה",
+   "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+  ],
+  "AUTH-18": [
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)"
+  ],
+  "ARC-29": [
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "OTP עסקי (send/verify) ותשתית SMS",
+   "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)",
+   "כניסת SA בשם משתמש/מייל + סיסמה",
+   "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+   "כניסת מנהל אזור",
+   "OTP לקוח חנות (sc-auth send/verify)",
+   "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+  ],
+  "AUTH-23": [
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "הרשמת עסק (/api/biz/register)",
+   "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)",
+   "כניסת SA בשם משתמש/מייל + סיסמה",
+   "ניהול צוות SA (RBAC)",
+   "כניסת מנהל אזור",
+   "הרשמת לקוח חנות (sc-auth/register)"
+  ],
+  "AUTH-33": [
+   "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל"
+  ],
+  "AUTH-06": [
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "OTP עסקי (send/verify) ותשתית SMS",
+   "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)"
+  ],
+  "AUTH-34": [
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "OTP עסקי (send/verify) ותשתית SMS",
+   "הרשמת עסק (/api/biz/register)",
+   "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)",
+   "איפוס סיסמת עסק (קישור במייל)",
+   "OTP לקוח חנות (sc-auth send/verify)"
+  ],
+  "AUTH-39": [
+   "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+   "OTP עסקי (send/verify) ותשתית SMS"
+  ],
+  "AUTH-22": [
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות"
+  ],
+  "AUTH-45": [
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "הרשמת עסק (/api/biz/register)",
+   "הרשמת לקוח חנות (sc-auth/register)"
+  ],
+  "ARC-11": [
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "אישור משתמשים ממתינים (pending-users / approve-user)",
+   "הפעלת חשבון SOLO (pending_activation)",
+   "הרשמת עסק (/api/biz/register)",
+   "הרשמת לקוח חנות (sc-auth/register)"
+  ],
+  "AUTH-24": [
+   "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "הגדרת סיסמה ראשונה (must_change_password)",
+   "הפעלת חשבון SOLO (pending_activation)",
+   "ניהול צוות SA (RBAC)",
+   "הרשמת מנהל אזור ואישור SA"
+  ],
+  "AUTH-08": [
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "אישור משתמשים ממתינים (pending-users / approve-user)"
+  ],
+  "AUTH-35": [
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "אישור משתמשים ממתינים (pending-users / approve-user)"
+  ],
+  "AUTH-30": [
+   "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "תפקידים ושינוי תפקיד (users.role)",
+   "הרשאות טאבים — users.permissions (JSON)",
+   "סיווג תפקיד עובד (employee_role_type)"
+  ],
+  "AUTH-36": [
+   "אישור משתמשים ממתינים (pending-users / approve-user)"
+  ],
+  "AUTH-25": [
+   "שחזור קוד סביבה + איפוס סיסמת מנהל משפחה"
+  ],
+  "AUTH-44": [
+   "שחזור קוד סביבה + איפוס סיסמת מנהל משפחה",
+   "הרשמת עסק (/api/biz/register)",
+   "הרשמת מנהל אזור ואישור SA",
+   "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+  ],
+  "AUTH-28": [
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "הגדרת סיסמה ראשונה (must_change_password)",
+   "סיווג תפקיד עובד (employee_role_type)",
+   "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+  ],
+  "AUTH-29": [
+   "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+   "תפקידים ושינוי תפקיד (users.role)",
+   "הרשאות טאבים — users.permissions (JSON)"
+  ],
+  "AUTH-37": [
+   "הגדרת סיסמה ראשונה (must_change_password)"
+  ],
+  "AUTH-02": [
+   "הפעלת חשבון SOLO (pending_activation)"
+  ],
+  "AUTH-31": [
+   "תפקידים ושינוי תפקיד (users.role)",
+   "הרשאות טאבים — users.permissions (JSON)"
+  ],
+  "ARC-06": [
+   "תפקידים ושינוי תפקיד (users.role)",
+   "הרשאות טאבים — users.permissions (JSON)"
+  ],
+  "AUTH-32": [
+   "הרשאות טאבים — users.permissions (JSON)"
+  ],
+  "ARC-31": [
+   "הרשמת עסק (/api/biz/register)",
+   "OTP לקוח חנות (sc-auth send/verify)",
+   "SSO מהחנות לאפליקציית המשפחה"
+  ],
+  "AUTH-26": [
+   "איפוס סיסמת עסק (קישור במייל)"
+  ],
+  "ARC-32": [
+   "/api/biz/me — טעינת נתוני עסק מהסשן"
+  ],
+  "AUTH-41": [
+   "שחזור סיסמת מנהל אזור"
+  ],
+  "AUTH-04": [
+   "OTP לקוח חנות (sc-auth send/verify)",
+   "הרשמת לקוח חנות (sc-auth/register)"
+  ],
+  "AUTH-38": [
+   "OTP לקוח חנות (sc-auth send/verify)",
+   "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+  ],
+  "AUTH-05": [
+   "SSO מהחנות לאפליקציית המשפחה"
+  ]
+ },
+ "processes": [
+  "סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)",
+  "Middleware ‏verifyFamily — אלגוריתם מדויק",
+  "Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)",
+  "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)",
+  "Middleware ‏verifyFamilyOrBiz",
+  "Middleware ‏verifySA + טבלת sa_sessions",
+  "Middleware ‏verifyZoneManager + סשנים בזיכרון",
+  "סשן לקוח חנות — storefront_sessions",
+  "ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)",
+  "התנתקות (כל הסביבות)",
+  "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+  "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+  "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+  "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+  "אישור משתמשים ממתינים (pending-users / approve-user)",
+  "שחזור קוד סביבה + איפוס סיסמת מנהל משפחה",
+  "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+  "הגדרת סיסמה ראשונה (must_change_password)",
+  "הפעלת חשבון SOLO (pending_activation)",
+  "Bootstrap token (השלמת טוקן חסר ללקוח משפחה)",
+  "תפקידים ושינוי תפקיד (users.role)",
+  "הרשאות טאבים — users.permissions (JSON)",
+  "סיווג תפקיד עובד (employee_role_type)",
+  "OTP עסקי (send/verify) ותשתית SMS",
+  "הרשמת עסק (/api/biz/register)",
+  "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)",
+  "איפוס סיסמת עסק (קישור במייל)",
+  "/api/biz/me — טעינת נתוני עסק מהסשן",
+  "השתלטות SA על סביבת לקוח (Impersonation)",
+  "כניסת SA בשם משתמש/מייל + סיסמה",
+  "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+  "ניהול צוות SA (RBAC)",
+  "הרשמת מנהל אזור ואישור SA",
+  "כניסת מנהל אזור",
+  "שחזור סיסמת מנהל אזור",
+  "OTP לקוח חנות (sc-auth send/verify)",
+  "הרשמת לקוח חנות (sc-auth/register)",
+  "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA",
+  "SSO מהחנות לאפליקציית המשפחה",
+  "מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח"
+ ],
+ "not_applied": {},
+ "merged": {
+  "AUTH-03": {
+   "canonical": "ARC-08",
+   "applied_in": [
+    "Middleware ‏verifyZoneManager + סשנים בזיכרון",
+    "הרשמת מנהל אזור ואישור SA",
+    "כניסת מנהל אזור"
+   ]
+  },
+  "AUTH-12": {
+   "canonical": "ARC-03",
+   "applied_in": [
+    "Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)"
+   ]
+  },
+  "AUTH-14": {
+   "canonical": "ARC-07",
+   "applied_in": [
+    "Middleware ‏verifySA + טבלת sa_sessions",
+    "השתלטות SA על סביבת לקוח (Impersonation)",
+    "כניסת SA בשם משתמש/מייל + סיסמה",
+    "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+    "ניהול צוות SA (RBAC)",
+    "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+   ]
+  },
+  "AUTH-15": {
+   "canonical": "ARC-07",
+   "applied_in": [
+    "Middleware ‏verifySA + טבלת sa_sessions",
+    "השתלטות SA על סביבת לקוח (Impersonation)",
+    "כניסת SA בשם משתמש/מייל + סיסמה",
+    "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+    "ניהול צוות SA (RBAC)",
+    "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+   ]
+  },
+  "AUTH-17": {
+   "canonical": "ARC-29",
+   "applied_in": [
+    "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+    "כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה",
+    "הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות",
+    "OTP עסקי (send/verify) ותשתית SMS",
+    "כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)",
+    "כניסת SA בשם משתמש/מייל + סיסמה",
+    "כניסת SA Master ב-SMS (SUPERADMIN_PHONE)",
+    "כניסת מנהל אזור",
+    "OTP לקוח חנות (sc-auth send/verify)",
+    "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA"
+   ]
+  }
+ }
+}

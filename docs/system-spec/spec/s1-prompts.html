@@ -1,0 +1,1467 @@
+<div class="intro">העמוד מקטלג את <strong>כל</strong> קריאות ה-AI במערכת, כולל הפרומפט המלא בהעתק מילולי מהקוד (placeholders בסגנון <code>${…}</code> נשמרו). המקור: חיפוש ב-<code>server.js</code> אחר <code>getGenAIInstance</code>, <code>getGenAIv2Instance</code>, <code>generateContent</code>, <code>callGeminiDirect</code>, <code>generativelanguage</code>, <code>api.anthropic.com</code>, <code>ANTHROPIC_API_KEY</code>, <code>HF_TOKEN</code>, <code>pixabay</code>, <code>pexels</code>, ומקביל ב-<code>public/*.js</code> ו-<code>*.html</code>. בלוקי הפרומפט נחתכו אוטומטית מטווחי השורות המצוינים, ורק ההזחה המשותפת הוסרה. קבצי גיבוי (<code>server1.js</code>, <code>server030426.js</code>, <code>old/*</code>, <code>services/server (1).js</code>, <code>business-app030426.js</code>, <code>business-appold1.js</code>) לא נטענים ע"י <code>server.js</code> (הדרישה היחידה מ-services היא <code>./services/whatsapp</code>, server.js:3) ולכן לא קוטלגו. לא נמצאו בקוד <code>temperature</code>, <code>maxOutputTokens</code>, <code>topP/topK</code> או <code>safetySettings</code> באף קריאה, כך שכל הקריאות רצות עם ברירות המחדל של הספק.</div>
+<h2 class="grp">טבלת סיכום</h2>
+<section class="proc" data-f="summary table overview all features"><h3>כל פיצ'רי ה-AI</h3><div class="tbl-wrap"><table><thead><tr><th>פיצ'ר</th><th>ספק</th><th>מודל</th><th>Route</th><th>מכסה</th></tr></thead><tbody><tr><td><a href="#ai-sa-legacy-chat">צ&#x27;אט AI ישן לסופר-אדמין</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect (server.js:6260)</td><td><code>POST /api/ai/chat</code></td><td>אין handleAITokens, אין לוג שימוש.</td></tr><tr><td><a href="#ai-sa-flow-ai">FLOW AI — עוזרת סופר-אדמין עם NEED_DATA ו-EXECUTE</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/sa/ai/chat</code></td><td>אין handleAITokens.</td></tr><tr><td><a href="#ai-sa-build-business">בונה עסק AI (קטלוג/פרופיל מלא)</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/sa/ai-build-business</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-brand-prompts">יצירת פרומפטים ללוגו/באנר (FLUX)</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/sa/ai-gen-brand-prompts</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-triage">FamilAI Triage — סיווג קריאת שירות</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/superadmin/tickets/:id/ai-triage</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-dedup">זיהוי כפילות קריאה מול משימות פיתוח</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/sa/dev/check-duplicates</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-ai-generate">מחולל טקסט חופשי לסופר-אדמין (Passthrough)</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/sa/ai-generate</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-qa">מחולל בדיקת QA</a></td><td>Gemini (SDK @google/generative-ai)</td><td><code>gemini-1.5-flash</code> (server.js:24023)</td><td><code>POST /api/sa/ai/generate-qa</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-banner-headline">כותרת AI לבאנר קהילתי</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> (server.js:21559)</td><td><code>POST /api/sa/community/banner-ai/:id</code></td><td>אין.</td></tr><tr><td><a href="#ai-sa-feed-analyze">ניתוח פיד קהילתי (Claude)</a></td><td>Anthropic Messages API (fetch ישיר)</td><td><code>claude-sonnet-4-6</code>, <code>max_tokens:1500</code>, <code>anthropic-version: 2023-06-01</code> (server.js:36928-36932)</td><td><code>POST /api/sa/community/ai-analyze</code></td><td>אין.</td></tr><tr><td><a href="#ai-recipes">שף AI — מתכון</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> (server.js:12215)</td><td><code>POST /api/recipes/generate</code></td><td>handleAITokens(groupId) — endpoint 'general' (server.js:12211).</td></tr><tr><td><a href="#ai-academy-quiz">מחולל לומדה/חידון</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/academy/ai-generate</code></td><td>handleAITokens(groupId).</td></tr><tr><td><a href="#ai-tasks-gen">הצעת משימות AI</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/tasks/ai-generate</code></td><td>handleAITokens(groupId).</td></tr><tr><td><a href="#ai-goal-advice">עצת familAI ליעד חיסכון</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/goals/familai-advice</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-budget-insight">תובנת תקציב חודשית</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/budget/familai-insight</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-pantry-insight">תובנת מזווה/מלאי</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/pantry/familai-insight</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-forecast-insight">תובנת תשקיף</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/forecast/familai-insight</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-tutor">מורה פרטי — הסבר לטעות בחידון</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/academy/tutor</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-shopping-list">רשימת קניות שבועית AI</a></td><td>Gemini (SDK)</td><td><code>gemini-2.0-flash-lite</code> (server.js:12715)</td><td><code>POST /api/shopping/ai-generate-list</code></td><td>handleAITokens (נצרך גם כשמוחזר FALLBACK).</td></tr><tr><td><a href="#ai-family-chat">FamilAI — עוזרת משפחתית עם פעולות</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/family/chat-assistant</code></td><td>handleAITokens(groupId מגוף הבקשה).</td></tr><tr><td><a href="#ai-generate-catalog">אשף קטלוג/מזווה התחלתי</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> (server.js:18316)</td><td><code>POST /api/ai/generate-catalog</code></td><td>handleAITokens(groupId מגוף הבקשה).</td></tr><tr><td><a href="#ai-biz-famliai">FamliAI — עוזרת עסקית (BIZ) עם ACTION ו-NEED_DATA</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> (server.js:16045)</td><td><code>POST /api/biz/chat-assistant</code></td><td>handleAITokens(groupId) — נצרך טוקן אחד גם כשיש סבב NEED_DATA שני.</td></tr><tr><td><a href="#ai-biz-ai-generate">ניסוח טקסט כללי לעסקים (Passthrough)</a></td><td>Gemini (REST)</td><td>דינמי — callGeminiDirect</td><td><code>POST /api/ai/generate</code></td><td>אין.</td></tr><tr><td><a href="#ai-store-desc">תיאור מוצר קצר</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/store/ai-desc</code></td><td>handleAITokens(groupId מגוף הבקשה).</td></tr><tr><td><a href="#ai-store-long-desc">תיאור מוצר מורחב</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/store/ai-long-desc</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-sport-plan">תוכנית אימונים אישית (ספורט)</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/ai/sport/training-plan</code></td><td>handleAITokens(groupId, 'sport/training-plan').</td></tr><tr><td><a href="#ai-parse-pdf">חילוץ מוצרים מ-PDF/תמונה (Vision)</a></td><td>Gemini (SDK) multimodal</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/ai/parse-pdf</code></td><td>handleAITokens(groupId, 'parse-pdf'); BATTERY_EMPTY עם HTTP 429.</td></tr><tr><td><a href="#ai-task-vision">אימות הוכחת ביצוע משימה (Vision)</a></td><td>Gemini (SDK) multimodal</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/tasks/vision-verify</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-receipt-scan">סריקת קבלה (Vision)</a></td><td>Gemini (SDK) multimodal</td><td><code>gemini-2.0-flash-lite</code> (server.js:12608)</td><td><code>POST /api/shopping/scan-receipt</code></td><td>handleAITokens.</td></tr><tr><td><a href="#ai-gen-image">יצירת לוגו/באנר (HF FLUX → Pollinations)</a></td><td>Gemini (בניית פרומפט לבאנר בלבד) + HuggingFace router (nebius/together, FLUX schnell) + Pollinations</td><td><code>gemini-2.5-flash</code>; <code>black-forest-labs/flux-schnell</code> (nebius), <code>black-forest-labs/FLUX.1-schnell</code> (together), Pollinations <code>model=flux</code></td><td><code>POST /api/ai/generate-image</code></td><td>handleAITokens(groupId מגוף הבקשה) — נצרך גם אם הלוגו לא מפעיל Gemini.</td></tr><tr><td><a href="#ai-catalog-image">תמונת מוצר: Pixabay → Pexels → Pollinations</a></td><td>Gemini (תרגום שם) + Pixabay API + Pexels API + Pollinations + Cloudinary</td><td><code>gemini-2.0-flash-lite</code> (server.js:13673)</td><td><code>POST /api/store/catalog/generate-image</code></td><td>אין handleAITokens.</td></tr><tr><td><a href="#ai-sa-pollinations">לוגו/באנר בבונה העסק של SA (Pollinations בצד לקוח)</a></td><td>Pollinations</td><td><code>model=flux</code></td><td>ללא route — כתובת Pollinations נבנית בדפדפן</td><td>אין.</td></tr><tr><td><a href="#ai-zm-banner">באנר SVG לקמפיין</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> → fallback <code>gemini-2.0-flash-lite</code> על כל שגיאה (server.js:20133-20138)</td><td><code>POST /api/zone-manager/ai/generate-banner</code></td><td>אין.</td></tr><tr><td><a href="#ai-zm-draft">ניסוח טקסט קמפיין</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code> → <code>gemini-1.5-flash</code> רק על 503/overloaded/high demand (server.js:20184-20188)</td><td><code>POST /api/zone-manager/ai/draft-campaign</code></td><td>אין.</td></tr><tr><td><a href="#ai-zm-leads">דירוג לידים</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/zone-manager/ai/analyze-leads</code></td><td>אין.</td></tr><tr><td><a href="#ai-zm-reply">הצעת תשובה לשיחה</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/zone-manager/ai/suggest-reply</code></td><td>אין.</td></tr><tr><td><a href="#ai-kh-copilot">AI Copilot לכותבי תוכן</a></td><td>Anthropic Messages API דרך <code>callClaudeKH</code> (server.js:45820)</td><td><code>claude-sonnet-4-6</code>; max_tokens: 1500 (עריכה), 400 (בטיחות), 200 (שער); <code>anthropic-version: 2023-06-01</code></td><td><code>POST /api/kol-haam/content/:id/ai-copilot</code></td><td>מכסה יומית נפרדת: <code>checkAICopilotQuota</code> (server.js:43153) — <code>system_settings.kh_ai_copilot_daily_limit</code> (ברירת מחדל 20) על <code>kh_ai_copilot_usage</code>; חריגה → 429. אחרי ריצה: <code>incrementAICopilotUsage</code> (+1 לכל בקשה, לא לכל קריאת Claude) ולוג audit ל-<code>ai_copilot_usage_log</code> (server.js:45967-45974). לא משתמש ב-handleAITokens.</td></tr><tr><td><a href="#ai-guide-chat">צ&#x27;אט המדריך (guide.html / biz-guide.html)</a></td><td>Gemini (SDK)</td><td><code>gemini-2.5-flash</code></td><td><code>POST /api/guide/chat</code></td><td>אין.</td></tr><tr><td><a href="#ai-setup-guide-chat">עוזר מדריך ההקמה — קריאת Gemini ישירה מהדפדפן</a></td><td>Gemini REST מהלקוח</td><td><code>gemini-2.0-flash-lite</code> (biz-setup-guide.html:8902)</td><td>GET /api/guide-config (server.js:12795) מחזיר את <code>GEMINI_API_KEY</code>; הקריאה ל-Gemini מהדפדפן</td><td>אין (מכסת Google של המפתח).</td></tr></tbody></table></div></section>
+<h2 class="grp">תשתית: לקוחות AI, סוללה ומכסות</h2>
+<section class="proc" data-f="infra sdk client genai lazy api key">
+<h3>לקוחות SDK ומפתחות</h3>
+<div class="tbl-wrap"><table><thead><tr><th>רכיב</th><th>פירוט</th><th>מקור</th></tr></thead><tbody><tr><td>@google/generative-ai</td><td>נטען בעצלתיים: <code>getGenAI()</code> → <code>GoogleGenerativeAI</code>; מופע יחיד <code>getGenAIInstance()</code> עם <code>GEMINI_API_KEY</code>. גרסה ^0.24.1 (package.json:11).</td><td>server.js:40, 222-225</td></tr><tr><td>@google/genai</td><td><code>getGenAIv2Instance()</code> מוגדר אך <b>לא נקרא בשום מקום</b> בקוד (חיפוש מלא). גרסה ^2.8.0 (package.json:10).</td><td>server.js:41, 226</td></tr><tr><td>GEMINI_API_KEY</td><td><code>const apiKey = process.env.GEMINI_API_KEY || ""</code>. נחשף גם ללא אימות ב-GET /api/guide-config.</td><td>server.js:222, 12795-12797</td></tr><tr><td>ANTHROPIC_API_KEY</td><td>שימוש בשני מקומות: <code>callClaudeKH</code> ו-/api/sa/community/ai-analyze.</td><td>server.js:45820-45832, 36928-36930</td></tr><tr><td>HF_TOKEN</td><td>HuggingFace router ליצירת תמונות.</td><td>server.js:12372</td></tr><tr><td>PIXABAY_API_KEY / PEXELS_API_KEY</td><td>חיפוש תמונות סטוק למוצרים.</td><td>server.js:13727, 13754</td></tr></tbody></table></div>
+</section>
+<section class="proc" data-f="callgeminidirect rest auto discovery retry fallback models">
+<h3>callGeminiDirect — הגדרה כפולה (הגרסה המאוחרת גוברת)</h3>
+<p>הפונקציה מוגדרת פעמיים כ-function declaration באותו scope של המודול: server.js:6054 (מודל קבוע <code>gemini-1.5-flash</code>) ו-server.js:6260. לפי כללי hoisting ב-JavaScript, ההגדרה השנייה גוברת על כל הקריאות, כולל קריאות שמופיעות לפני 6054 בקובץ. התנהגות אפקטיבית (server.js:6260-6338):</p><ul><li>בכל קריאה נשלחת קודם בקשת GET לרשימת המודלים (<code>/v1beta/models?key=</code>) (server.js:6267-6273).</li><li>מסנן מודלים שה-name שלהם כולל <code>gemini</code> ותומכים ב-<code>generateContent</code>; סדר עדיפות: flash-lite/flash-8b, אחר כך flash, אחר כך השאר; עד 4 מודלים (server.js:6275-6292).</li><li>לכל מודל עד 3 ניסיונות עם המתנה של attempt×2000ms כשהשגיאה נראית כעומס (high demand, overloaded, RESOURCE_EXHAUSTED, quota, 503, 429). שגיאה אחרת נזרקת מיד (server.js:6264, 6294-6327).</li><li>גוף הבקשה: <code>{contents:[{parts:[{text: prompt}]}]}</code> בלבד, ללא generationConfig (server.js:6301).</li><li>כל שגיאה נעטפת ב-"תקלת תקשורת מול גוגל: …" (server.js:6338).</li></ul>
+<p class="src"><b>הגדרה ראשונה (מוצללת)</b> — <code>server.js:6054–6072</code> (העתק מילולי)</p><pre class="sql">async function callGeminiDirect(prompt) {
+    if (!apiKey) throw new Error(&#x27;Gemini API Key is missing in server environment&#x27;);
+    
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+        method: &#x27;POST&#x27;,
+        headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27; },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0].content) throw new Error(&#x27;AI returned an empty response&#x27;);
+    </pre>
+</section>
+<section class="proc" data-f="battery ai tokens quota plan premium enterprise usage log handleaitokens">
+<h3>סוללת AI — handleAITokens ו-ai_usage_log</h3>
+<div class="tbl-wrap"><table><thead><tr><th>כלל</th><th>פירוט</th><th>מקור</th></tr></thead><tbody><tr><td>עמודות</td><td><code>family_groups.ai_tokens INT DEFAULT 10</code>, <code>last_token_reset DATE</code>, <code>plan VARCHAR(20) DEFAULT 'standard'</code>; is_premium=true מומר ל-plan='enterprise'.</td><td>server.js:810-811, 832-833</td></tr><tr><td>enterprise</td><td>ללא הגבלה; רק INSERT ל-<code>ai_usage_log</code>.</td><td>server.js:4177-4180</td></tr><tr><td>premium / standard</td><td>מכסה יומית 50 / 10. איפוס כש-last_token_reset &lt; היום, ואז הפחתה של 1 לכל קריאה ו-INSERT ללוג.</td><td>server.js:4182-4193</td></tr><tr><td>איפוס נוסף בכניסה</td><td>בכניסת משתמש ובטעינת נתוני SA, ai_tokens מאופס ל-<b>10 קבוע</b> (גם ל-premium) ו-last_token_reset=היום, ולכן האיפוס ל-50 ב-handleAITokens לא מתרחש באותו יום.</td><td>server.js:10766, 9048</td></tr><tr><td>חריגה</td><td>הפונקציה מחזירה false, וה-route מחזיר <code>{success:false, error:'BATTERY_EMPTY'}</code> (בדרך כלל HTTP 200; ב-training-plan וב-parse-pdf HTTP 429). שגיאת DB מחזירה false.</td><td>server.js:4195-4197</td></tr><tr><td>UI</td><td><code>handleAIResponseCheck</code> פותח את <code>ai-battery-modal</code> (קטע שדרוג ל-ADMIN בלבד); המחוון מציג <code>⚡ n/10</code> או <code>∞ (Pro)</code>.</td><td>app.js:1715-1732; business-app.js:3102-3113</td></tr><tr><td>endpoint בלוג</td><td>ברירת מחדל 'general'; רק training-plan ('sport/training-plan') ו-parse-pdf ('parse-pdf') מעבירים שם.</td><td>server.js:4170, 30760, 33878</td></tr><tr><td>דוחות</td><td>GET /api/sa/ai-usage מסכם לפי endpoint ל-BUSINESS בלבד; גם provider ai_usage ב-FLOW AI ומדדי SA.</td><td>server.js:18059-18080, 4847, 9169, 9292</td></tr><tr><td>handleAIError</td><td>429 → "מערכת ה-AI עמוסה…"; GEMINI_API_KEY → 500 "מפתח AI חסר בשרת"; אחר → 500 עם defaultMsg ו-detail.</td><td>server.js:4225-4230</td></tr><tr><td>Kol HaAm</td><td>מכסה נפרדת (kh_ai_copilot_usage, ברירת מחדל 20 ביום).</td><td>server.js:43153-43179</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">סופר-אדמין (SA)</h2>
+<section class="proc" id="ai-sa-legacy-chat" data-f="sa chat legacy ai/chat gemini">
+<h3>צ&#x27;אט AI ישן לסופר-אדמין</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/chat</code> — server.js:4720</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>לא נמצאה קריאה מצד הלקוח (חיפוש ב-public/*.js, *.html)</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect (server.js:6260)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא (body: contents.parts.text בלבד, server.js:6301)</td></tr><tr><td>משתנים מוזרקים</td><td><code>req.body.message</code></td></tr></tbody></table></div>
+<p class="src"><b>systemInstruction + prompt</b> — <code>server.js:4728–4735</code> (העתק מילולי)</p><pre class="sql">        const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת WEFLOWZ.
+בכל בקשה תקבל בלוק נתונים עדכני בפורמט JSON בשם &quot;מידע פנימי בזמן אמת&quot;. הנתונים האלו הם אמת מוחלטת והם משקפים את מסד הנתונים כרגע.
+ההנחיות שלך:
+1. ענה ישירות, קצר ולעניין על סמך הנתונים שסופקו לך. אל תתן תשובות תיאורטיות, אל תחנך את המנהל, ואל תכתוב &quot;אין לי גישה&quot; - כי הגישה סופקה לך בבלוק הנתונים.
+2. נתח את הנתונים הקיימים, תן סיכומים מספריים (כמה פתוחים, כמה סגורים וכו&#x27;) ותן חיזוי קצר אם נדרש.
+3. אם המנהל מבקש לבצע פעולה ממשית (למשל &quot;מחק את קריאה 5&quot; או &quot;הוסף קהילה&quot;), ספק לו את שאילתת ה-SQL המדויקת או פקודת ה-API שעליו להריץ, ללא הסברים מיותרים.`;
+
+        const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט חופשי; מוחזר כ-<code>{success, reply}</code> ללא פענוח (server.js:4739).</td></tr><tr><td>Fallback / שגיאות</td><td>חסר מפתח → 500 "מפתח Gemini אינו מוגדר בשרת." (server.js:4724-4726); חריגה → 500 "תקלת תקשורת מול גוגל: …" (server.js:4742).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין handleAITokens, אין לוג שימוש.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-flow-ai" data-f="sa flow ai need_data execute action suggestions">
+<h3>FLOW AI — עוזרת סופר-אדמין עם NEED_DATA ו-EXECUTE</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/ai/chat</code> — server.js:4980</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:8067 <code>sendSAAIMessage</code> (fetch ב-8106); אישור פעולה רגישה: sa-app.js:7974 <code>confirmSAAIAction</code> → POST /api/sa/ai/confirm-action (server.js:5091)</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>message</code>, <code>context.currentTab</code>, <code>context.extra</code> (server.js:4982); בסבב שני: <code>JSON.stringify(fetchSAAdditionalData(provider))</code> (server.js:4749)</td></tr></tbody></table></div>
+<p class="src"><b>systemPrompt (סבב 1)</b> — <code>server.js:4988–5034</code> (העתק מילולי)</p><pre class="sql">        const systemPrompt = `אתה &quot;FLOW AI&quot; — עוזרת AI מקצועית ורב-יכולת של מנהל-על (Super Admin) במערכת WEFLOWZ.
+הנך יודעת הכל על המערכת ויכולה: לשלוף נתונים אמיתיים, לנתח, לחזות, ולבצע פעולות אמיתיות בפועל - לא רק לדבר עליהן.
+
+## שליפת מידע (NEED_DATA) - לפני שאתה עונה על סמך נתונים
+אם השאלה דורשת נתונים עדכניים (ולא רק הדרכה כללית), הוסף שורה אחת (ורק שורה זו, ללא טקסט אחר):
+[NEED_DATA:provider]
+providers זמינים: tickets, banner_orders (הזמנות פרסום/באנרים), store_orders (הזמנות רכישה בפועל מלקוחות בחנויות/עסקים - זה ה-provider הנכון לכל שאלה כללית על &quot;הזמנות&quot;), billing, communities, businesses, families, wallets, zone_managers, pending_all, users_count, platform_stats (סיכום הזמנות/GMV כלל-מערכתי - מספרים בלבד, לא רשימה), ai_usage (שימוש AI מוביל), dev_tasks (משימות פיתוח פתוחות)
+לאחר שתקבל את הנתונים תתבקש לענות סופית - אז אל תכתוב תשובה מלאה בשלב הזה.
+אם השאלה לא דורשת נתונים (הדרכה כללית, שיחה) - ענה ישירות כרגיל.
+
+## ביצוע פעולות אמיתיות (EXECUTE)
+כשהמנהל מבקש לבצע פעולה בפועל (לא רק לדבר עליה), הוסף בסוף תשובתך:
+[ACTION:EXECUTE|action_type|param1|param2]
+action_types זמינים (רק אלה - אל תמציא אחרים):
+  CLOSE_TICKET|ticket_id — סגירת קריאת שירות
+  MARK_BILLING_PAID|billing_id — סימון חיוב כשולם
+  APPROVE_ZM|zm_id — אישור מנהל אזור חדש
+  REJECT_ZM|zm_id — דחיית בקשת מנהל אזור (הרסני - ידרוש אישור נוסף מהמנהל)
+  APPROVE_BIZ_COMMUNITY|community_id|business_id — אישור חיבור עסק לקהילה
+  REJECT_BIZ_COMMUNITY|community_id|business_id — דחיית חיבור עסק לקהילה (הרסני)
+  APPROVE_COMMUNITY_JOIN|group_id|community_id — אישור הצטרפות משפחה לקהילה
+  REJECT_COMMUNITY_JOIN|group_id|community_id — דחיית הצטרפות משפחה לקהילה (הרסני)
+  APPROVE_PROMO|promo_id — אישור מבצע קהילה
+  REJECT_PROMO|promo_id — דחיית מבצע קהילה (הרסני)
+  APPROVE_MODULE_REQUEST|group_id|module_id — אישור בקשת פתיחת מודול לעסק
+  DENY_MODULE_REQUEST|group_id|module_id — דחיית בקשת מודול (הרסני)
+  REMOVE_BIZ_FROM_COMMUNITY|community_id|business_id — ביצוע הסרת עסק מקהילה (רק כשיש כבר בקשת הסרה ממתינה) (הרסני)
+  DECLINE_REMOVAL_REQUEST|community_id|business_id — דחיית בקשת הסרה - העסק נשאר פעיל
+ה-id-ים נלקחים מהנתונים שקיבלת (NEED_DATA). אל תמציא id שלא ראית.
+
+## ניווט במסכי הממשק
+[ACTION:TAB|tabId] | [ACTION:SUBTAB|tabId|subId] | [ACTION:LEDGER|BUSINESS_ID]
+טאבים: tickets, communities, clients, adslots, billing, flow, settings
+
+## כללי תשובה:
+- ענה בעברית, קצר ולעניין
+- כשתדריך — תן שלבים ממוספרים
+- כשיש נתונים — הצג בטבלה או רשימה מסודרת
+- בסוף כל תשובה (שאינה NEED_DATA) הוסף JSON בין תגיות: &lt;SUGGESTIONS&gt;[&quot;הצעה1&quot;,&quot;הצעה2&quot;,&quot;הצעה3&quot;]&lt;/SUGGESTIONS&gt;
+- ספירות ומספרים — דווח **אך ורק** על בסיס נתונים שקיבלת בפועל. אל תמציא ואל תנחש.
+- אם קיבלת רשימה חלקית (LIMIT) — ציין &quot;מוצגים X מתוך Y שנמצאו&quot;.
+
+## הקשר נוכחי
+${context.currentTab ? `טאב=&quot;${context.currentTab}&quot;${context.extra ? &#x27;, &#x27; + context.extra : &#x27;&#x27;}` : &#x27;ללא&#x27;}
+
+## שאלת המנהל
+${message}`;</pre>
+<p class="src"><b>followupPrompt (סבב 2 — רק אם הוחזר NEED_DATA)</b> — <code>server.js:5042–5042</code> (העתק מילולי)</p><pre class="sql">const followupPrompt = `${systemPrompt}\n\n## נתונים עדכניים שביקשת (${provider})\n${JSON.stringify(additionalData)}\n\nכעת ענה במלואה על שאלת המנהל על סמך הנתונים. אל תוסיף שוב [NEED_DATA:...].`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>תהליך דו-שלבי: regex <code>/\[NEED_DATA:([^\]]+)\]/</code> (server.js:5038) → שליפת provider ושליחה חוזרת. אחר כך:
+<ul><li><code>&lt;SUGGESTIONS&gt;[…]&lt;/SUGGESTIONS&gt;</code> → JSON.parse למערך הצעות (server.js:5048-5052).</li>
+<li>ניווט: <code>/\[ACTION:(TAB|SUBTAB|LEDGER)\|([^\]]+)\]/g</code> → מערך actions (server.js:5056-5063).</li>
+<li>ביצוע: <code>/\[ACTION:EXECUTE\|([^|\]]+)\|?([^\]]*)\]/</code> (server.js:5067). אם action_type ב-<code>SA_AI_SENSITIVE_ACTIONS</code> (server.js:4869: REJECT_ZM, REJECT_BIZ_COMMUNITY, REJECT_COMMUNITY_JOIN, REJECT_PROMO, DENY_MODULE_REQUEST, REMOVE_BIZ_FROM_COMMUNITY) → מוחזר <code>pending_action</code> לאישור; אחרת מבוצע מיד ע"י <code>executeSAAction</code> (server.js:4872) ונרשם ב-logBizAction עם action <code>SA_AI_&lt;type&gt;</code> (server.js:5076).</li>
+<li>כל תגיות <code>[ACTION:…]</code> מוסרות מהטקסט (server.js:5081).</li></ul>
+providers ל-NEED_DATA: tickets, banner_orders, store_orders, billing, communities, businesses, families, wallets, zone_managers, pending_all, users_count, platform_stats, ai_usage, dev_tasks (מוגדרים בפרומפט ובמימוש server.js:4749-4868).</td></tr><tr><td>Fallback / שגיאות</td><td>חסר מפתח → 500 (server.js:4983); חריגה → 500 עם e.message (server.js:5086).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-build-business" data-f="sa ai build business catalog generator maintenance sport flux">
+<h3>בונה עסק AI (קטלוג/פרופיל מלא)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/ai-build-business</code> — server.js:5183</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:15497 <code>aiGenerateBusiness</code> (fetch ב-15516)</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>businessName, businessNameEn, businessType, style, audience, languages (ברירת מחדל ['he']), productCount (ברירת מחדל 20)</code> (server.js:5185); נגזרים: <code>langStr</code>, <code>isSport</code>, <code>isMaintenance</code>.</td></tr></tbody></table></div>
+<p class="src"><b>הגדרת משתנים + פרומפט בשלושה ענפים (maintenance_repair / sport / ברירת מחדל מזון-קמעונאות)</b> — <code>server.js:5185–5420</code> (העתק מילולי)</p><pre class="sql">    const { businessName, businessNameEn, businessType, style, audience, languages = [&#x27;he&#x27;], productCount = 20 } = req.body;
+    const langStr = languages.includes(&#x27;en&#x27;) ? &#x27;Hebrew AND English&#x27; : &#x27;Hebrew only&#x27;;
+
+    const isSport = businessType === &#x27;sport&#x27;;
+    const isMaintenance = businessType === &#x27;maintenance_repair&#x27;;
+
+    const prompt = isMaintenance ? `You are a business content generator for an Israeli home/appliance maintenance &amp; repair company platform.
+Generate a COMPLETE, realistic maintenance &amp; repair business profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+
+MAINTENANCE &amp; REPAIR BUSINESS RULES:
+1. catalog: Generate 5-8 realistic service categories (e.g. מיזוג אוויר, אינסטלציה, חשמל, מוצרי חשמל, נגרות) each with 2-4 &quot;products&quot; that are actually SERVICES or PARTS typical for an Israeli maintenance/repair company. Use realistic Israeli 2024 prices — a service call (קריאת שירות/אבחון) ≈ ₪150-250, small repair ≈ ₪200-450, part replacement ≈ ₪100-600, larger job (e.g. תיקון דוד שמש) ≈ ₪500-1200. options_text should stay empty string &quot;&quot; for services (no size/topping variants).
+2. promotions: 2-3 promotions relevant to a repair business (e.g. &quot;10% הנחה על קריאה ראשונה&quot;, &quot;אחריות 6 חודשים על כל תיקון&quot;).
+3. logo_prompt: SHORT English FLUX prompt for a maintenance/repair company logo icon (wrench, toolbox, or similar).
+4. banner_prompt: SHORT English FLUX prompt for a wide photo of a technician at work / toolbox scene.
+5. settings: since this is a service business (no delivery), set delivery_fee=0, min_order=0, free_delivery_above=0, and realistic open_time/close_time for a repair company (e.g. &quot;08:00&quot;/&quot;18:00&quot;).
+
+Return ONLY valid JSON, no markdown fences:
+{
+  &quot;profile&quot;: {
+    &quot;name&quot;: &quot;שם בעברית&quot;,
+    &quot;name_en&quot;: &quot;English name&quot;,
+    &quot;slogan&quot;: &quot;סלוגן בעברית&quot;,
+    &quot;slogan_en&quot;: &quot;English slogan&quot;,
+    &quot;welcome_message&quot;: &quot;הודעת ברוך הבא בעברית&quot;,
+    &quot;welcome_message_en&quot;: &quot;English welcome&quot;,
+    &quot;accent_color&quot;: &quot;#HEX matching a trustworthy/technical vibe (e.g. steel blue, orange)&quot;
+  },
+  &quot;settings&quot;: {
+    &quot;delivery_fee&quot;: 0,
+    &quot;min_order&quot;: 0,
+    &quot;delivery_eta_min&quot;: 0,
+    &quot;open_time&quot;: &quot;08:00&quot;,
+    &quot;close_time&quot;: &quot;18:00&quot;,
+    &quot;free_delivery_above&quot;: 0
+  },
+  &quot;catalog&quot;: [
+    {
+      &quot;category&quot;: &quot;קטגוריית שירות בעברית&quot;,
+      &quot;category_en&quot;: &quot;English category name&quot;,
+      &quot;products&quot;: [
+        {
+          &quot;name&quot;: &quot;שם השירות/חלק בעברית&quot;,
+          &quot;name_en&quot;: &quot;English service/part name&quot;,
+          &quot;description&quot;: &quot;תיאור קצר ועובדתי בעברית&quot;,
+          &quot;description_en&quot;: &quot;Short factual English description&quot;,
+          &quot;price&quot;: 250,
+          &quot;original_price&quot;: 0,
+          &quot;badge_text&quot;: &quot;&quot;,
+          &quot;options_text&quot;: &quot;&quot;
+        }
+      ]
+    }
+  ],
+  &quot;promotions&quot;: [
+    {
+      &quot;title&quot;: &quot;Hebrew promo title&quot;,
+      &quot;title_en&quot;: &quot;English promo title&quot;,
+      &quot;promo_type&quot;: &quot;percent&quot;,
+      &quot;promo_value&quot;: 10,
+      &quot;min_order&quot;: 0,
+      &quot;show_in_banner&quot;: true
+    }
+  ],
+  &quot;logo_prompt&quot;: &quot;flat minimal icon of a wrench and toolbox, clean solid background matching accent_color, vector style, no text, max 25 words&quot;,
+  &quot;banner_prompt&quot;: &quot;wide photo of a professional technician repairing a home appliance, tools scattered, natural lighting, photorealistic, no text&quot;
+}` : isSport ? `You are a business content generator for an Israeli fitness/sport studio platform.
+Generate a COMPLETE, realistic sport studio profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+
+SPORT BUSINESS RULES:
+1. membership_types: Generate 4-6 realistic membership/subscription options typical for Israeli gyms/studios. Types: &quot;monthly&quot; (חודשי), &quot;yearly&quot; (שנתי), &quot;punch_card&quot; (כרטיסייה), &quot;class_pack&quot; (חבילת שיעורים). Israeli market prices 2024: punch card 10 sessions ≈ ₪350-500, monthly ≈ ₪200-350, yearly ≈ ₪1800-3500.
+2. class_types: Generate 3-5 class types offered (e.g. CrossFit, Yoga, Spinning, Pilates, Boxing). Each has a color and default duration.
+3. store_settings: Generate realistic sport-specific policies in Hebrew.
+4. promotions: 2-3 promotions (e.g. &quot;מנוי ניסיון חינם לשבוע&quot;, &quot;10% הנחה למנוי שנתי&quot;).
+5. logo_prompt: SHORT English FLUX prompt for a sport/fitness logo icon.
+6. banner_prompt: SHORT English FLUX prompt for a wide gym/studio atmosphere photo.
+7. catalog: Generate 5-8 supplementary products sold at the studio (protein shakes, energy drinks, gym accessories, branded merchandise). Use realistic Israeli prices.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  &quot;profile&quot;: {
+    &quot;name&quot;: &quot;שם בעברית&quot;,
+    &quot;name_en&quot;: &quot;English name&quot;,
+    &quot;slogan&quot;: &quot;סלוגן בעברית&quot;,
+    &quot;slogan_en&quot;: &quot;English slogan&quot;,
+    &quot;welcome_message&quot;: &quot;הודעת ברוך הבא בעברית&quot;,
+    &quot;welcome_message_en&quot;: &quot;English welcome&quot;,
+    &quot;accent_color&quot;: &quot;#HEX matching sport vibe (e.g. energetic orange, bold blue)&quot;
+  },
+  &quot;settings&quot;: {
+    &quot;open_time&quot;: &quot;06:00&quot;,
+    &quot;close_time&quot;: &quot;22:00&quot;,
+    &quot;trial_enabled&quot;: true,
+    &quot;cancellation_policy&quot;: &quot;ניתן לבטל מנוי עד 14 ימים לפני תחילתו...&quot;,
+    &quot;freeze_policy&quot;: &quot;ניתן להקפיא מנוי פעם אחת בשנה עד 30 יום...&quot;,
+    &quot;waiver_text&quot;: &quot;הצהרת כשירות גופנית...&quot;,
+    &quot;min_age&quot;: 16,
+    &quot;cancel_notice_days&quot;: 14
+  },
+  &quot;membership_types&quot;: [
+    {
+      &quot;name&quot;: &quot;כרטיסייה 10 כניסות&quot;,
+      &quot;name_en&quot;: &quot;10-Entry Punch Card&quot;,
+      &quot;type&quot;: &quot;punch_card&quot;,
+      &quot;price&quot;: 420,
+      &quot;duration_days&quot;: 180,
+      &quot;sessions&quot;: 10,
+      &quot;color&quot;: &quot;#f97316&quot;,
+      &quot;badge&quot;: &quot;פופולרי&quot;
+    }
+  ],
+  &quot;class_types&quot;: [
+    {
+      &quot;name&quot;: &quot;קרוספיט&quot;,
+      &quot;name_en&quot;: &quot;CrossFit&quot;,
+      &quot;color&quot;: &quot;#ef4444&quot;,
+      &quot;default_duration_min&quot;: 60
+    }
+  ],
+  &quot;catalog&quot;: [
+    {
+      &quot;category&quot;: &quot;תוספי תזונה&quot;,
+      &quot;category_en&quot;: &quot;Supplements&quot;,
+      &quot;products&quot;: [
+        {
+          &quot;name&quot;: &quot;שייק חלבון וניל&quot;,
+          &quot;name_en&quot;: &quot;Vanilla Protein Shake&quot;,
+          &quot;description&quot;: &quot;שייק חלבון עם 25 גרם חלבון&quot;,
+          &quot;description_en&quot;: &quot;Protein shake with 25g protein&quot;,
+          &quot;price&quot;: 22,
+          &quot;original_price&quot;: 0,
+          &quot;badge_text&quot;: &quot;&quot;,
+          &quot;options_text&quot;: &quot;&quot;
+        }
+      ]
+    }
+  ],
+  &quot;promotions&quot;: [
+    {
+      &quot;title&quot;: &quot;שבוע ניסיון חינם&quot;,
+      &quot;promo_type&quot;: &quot;free_trial&quot;,
+      &quot;promo_value&quot;: 7,
+      &quot;min_order&quot;: 0,
+      &quot;show_in_banner&quot;: true
+    }
+  ],
+  &quot;logo_prompt&quot;: &quot;flat minimal icon of a dumbbell, clean solid background matching accent_color, vector style, no text, max 25 words&quot;,
+  &quot;banner_prompt&quot;: &quot;wide modern gym interior, athletes training, motivational atmosphere, natural lighting, photorealistic, no text&quot;
+}` : `You are a business content generator for an Israeli food/retail ordering platform.
+Generate a COMPLETE, realistic business profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Type: ${businessType}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+- Number of products: approximately ${productCount}
+- CRITICAL PRICING RULE: Each product&#x27;s price must reflect its REAL average market price in Israel 2024 — based on what that specific item actually costs, regardless of business type. Examples: chewing gum = ₪5, espresso = ₪9, soft drink = ₪10, slice of pizza = ₪14, sandwich = ₪28, full pizza = ₪52, steak = ₪110, sushi platter = ₪140. Some items may be ₪0 (complimentary/bonus). NEVER assign a uniform price to all products.
+
+IMPORTANT RULES:
+1. options_text: For relevant products (burgers, pizzas, sandwiches, clothing, etc.), include a JSON array of option groups. Format: [{&quot;name&quot;:&quot;גודל&quot;,&quot;required&quot;:true,&quot;max&quot;:1,&quot;options&quot;:[{&quot;name&quot;:&quot;S&quot;,&quot;price&quot;:0},{&quot;name&quot;:&quot;M&quot;,&quot;price&quot;:5},{&quot;name&quot;:&quot;L&quot;,&quot;price&quot;:10}]},{&quot;name&quot;:&quot;תוספות&quot;,&quot;required&quot;:false,&quot;max&quot;:3,&quot;options&quot;:[{&quot;name&quot;:&quot;אבוקדו&quot;,&quot;price&quot;:4},{&quot;name&quot;:&quot;ביצה&quot;,&quot;price&quot;:3}]}]. For simple products (drinks, packaged goods), use empty string &quot;&quot;.
+2. badge_text: Use sparingly and meaningfully — &quot;חדש&quot;, &quot;פופולרי&quot;, &quot;אורגני&quot;, &quot;ביתי&quot;, &quot;מומלץ השף&quot;, &quot;מבצע&quot;, &quot;ללא גלוטן&quot;. Leave &quot;&quot; for most products.
+3. original_price: Set only when there is a discount (original_price &gt; price). Leave 0 for regular-priced items.
+4. Showcase variety: include some very cheap items (₪0-15), mid-range, and premium.
+5. coupons: Generate 1-2 coupon codes (e.g. &quot;WELCOME10&quot;, &quot;SUMMER20&quot;) with discount_pct.
+6. promotions: Generate 2-3 active promotions with realistic Hebrew titles.
+7. logo_prompt: Write a SHORT English FLUX prompt (max 25 words) for a flat minimal icon/logo representing this specific business. Include the accent_color hex. Example: &quot;flat minimal icon of a sushi roll, clean white background, #e63946 accent, vector style, no text&quot;
+8. banner_prompt: Write a SHORT English FLUX prompt (max 35 words) for a wide cover photo representing this business&#x27;s atmosphere. Example: &quot;wide food photography, fresh sushi platter on dark slate, restaurant ambiance, natural lighting, photorealistic, no text&quot;
+9. ENGLISH-FIRST PRODUCT NAMING: For each product, start with the canonical internationally-recognized English food name (the exact term used on English menus worldwide, e.g. &quot;Shakshuka&quot;, &quot;Falafel Wrap&quot;, &quot;Grilled Chicken Breast&quot;, &quot;Mujadara&quot;). This becomes name_en. Then translate naturally into Hebrew for name. This ensures name_en is a precise stock-photo search term, not a literal translation.
+
+Return ONLY valid JSON, no markdown fences, no explanation:
+{
+  &quot;profile&quot;: {
+    &quot;name&quot;: &quot;Hebrew business name&quot;,
+    &quot;name_en&quot;: &quot;English business name&quot;,
+    &quot;slogan&quot;: &quot;Hebrew catchy slogan&quot;,
+    &quot;slogan_en&quot;: &quot;English slogan&quot;,
+    &quot;welcome_message&quot;: &quot;Hebrew warm welcome message&quot;,
+    &quot;welcome_message_en&quot;: &quot;English welcome message&quot;,
+    &quot;accent_color&quot;: &quot;#HEX color matching the business vibe&quot;
+  },
+  &quot;settings&quot;: {
+    &quot;delivery_fee&quot;: 15,
+    &quot;min_order&quot;: 50,
+    &quot;delivery_eta_min&quot;: 35,
+    &quot;open_time&quot;: &quot;09:00&quot;,
+    &quot;close_time&quot;: &quot;23:00&quot;,
+    &quot;free_delivery_above&quot;: 150
+  },
+  &quot;catalog&quot;: [
+    {
+      &quot;category&quot;: &quot;Hebrew category name&quot;,
+      &quot;category_en&quot;: &quot;English category name&quot;,
+      &quot;products&quot;: [
+        {
+          &quot;name&quot;: &quot;Hebrew product name (translated from English canonical name)&quot;,
+          &quot;name_en&quot;: &quot;Canonical English food/product name used worldwide (e.g. Shakshuka, Falafel, Grilled Chicken Breast)&quot;,
+          &quot;description&quot;: &quot;Hebrew description — SHORT, factual, natural. Describe only what&#x27;s genuinely distinctive (size, variety, origin, preparation method). NEVER add obvious/redundant adjectives: tomatoes are not &#x27;red&#x27;, bananas are not &#x27;sweet&#x27;, water is not &#x27;refreshing&#x27;. If nothing is special about the product, write a plain factual sentence. Max 1 sentence.&quot;,
+          &quot;description_en&quot;: &quot;English description — same factual/natural style as Hebrew. No redundant adjectives.&quot;,
+          &quot;price&quot;: 45,
+          &quot;original_price&quot;: 0,
+          &quot;badge_text&quot;: &quot;&quot;,
+          &quot;options_text&quot;: &quot;&quot;
+        }
+      ]
+    }
+  ],
+  &quot;promotions&quot;: [
+    {
+      &quot;title&quot;: &quot;Hebrew promo title&quot;,
+      &quot;title_en&quot;: &quot;English promo title&quot;,
+      &quot;promo_type&quot;: &quot;percent&quot;,
+      &quot;promo_value&quot;: 15,
+      &quot;min_order&quot;: 100,
+      &quot;show_in_banner&quot;: true
+    }
+  ],
+  &quot;coupons&quot;: [
+    {
+      &quot;code&quot;: &quot;WELCOME10&quot;,
+      &quot;discount_pct&quot;: 10,
+      &quot;valid_days&quot;: 90
+    }
+  ],
+  &quot;logo_prompt&quot;: &quot;Short English FLUX prompt (max 25 words) for a LOGO image: minimal flat icon representing the business, solid color background matching accent_color, no text, clean vector style&quot;,
+  &quot;banner_prompt&quot;: &quot;Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic&quot;
+}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON. מנקה גדרות ```json בתחילה/סוף (server.js:5424) ו-JSON.parse; כשל → <code>{success:false, error:'parse_error', raw}</code> (server.js:5427). הצלחה → <code>{success, data, bizType}</code>.</td></tr><tr><td>Fallback / שגיאות</td><td><code>!apiKey</code> → <code>{success:false,error:'AI not configured'}</code> (server.js:5422); חריגה → <code>{success:false,error}</code> (server.js:5430-5431).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-brand-prompts" data-f="sa brand prompts logo banner flux">
+<h3>יצירת פרומפטים ללוגו/באנר (FLUX)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/ai-gen-brand-prompts</code> — server.js:5624</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:16145 <code>renderAIBBranding</code> (fetch ב-16159)</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>businessName, businessNameEn, businessType, slogan, description</code> (server.js:5626)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:5628–5661</code> (העתק מילולי)</p><pre class="sql">    const prompt = `You are an expert at writing image generation prompts for FLUX (photorealistic AI model).
+Generate TWO image prompts for this business:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || &#x27;&#x27;}
+- Type: ${businessType}
+- Slogan: ${slogan || &#x27;&#x27;}
+
+LOGO prompt rules:
+- Describe ONLY a flat minimal icon (NO text, the business name will be added separately)
+- THE MOST ICONIC visual symbol for this type of business:
+  shoes/footwear → a single sneaker side view
+  cafe/coffee → a coffee cup with steam
+  sushi → a nigiri piece
+  burger → a burger stack
+  restaurant → a fork and knife
+  flowers → a single rose
+  spa/beauty → a lotus flower
+  clothing → a folded shirt
+  toys → a toy block or teddy bear
+  market/grocery → a shopping basket with vegetables
+  sport → a dumbbell or ball
+  events → a party balloon
+- Style: &quot;flat minimal icon, [specific symbol], white background, bold simple shape, vivid single accent color fill, clean crisp edges&quot;
+- Max 15 words. NO text, NO letters, NO words in the image.
+
+BANNER prompt rules:
+- ONLY products and environment — absolutely NO people, NO faces, NO humans
+- Use the business name &quot;${businessNameEn || businessName}&quot; and description &quot;${description || &#x27;&#x27;}&quot; to describe the SPECIFIC products of this business
+- Show those specific products in an attractive display setting
+- Style: &quot;wide product photo, [specific products arranged attractively], natural warm lighting, photorealistic, high quality, no text, no logo, no people&quot;
+- Max 30 words total. Be SPECIFIC to this business, not generic.
+
+Return ONLY valid JSON:
+{&quot;logo_prompt&quot;: &quot;...&quot;, &quot;banner_prompt&quot;: &quot;...&quot;}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>ניקוי גדרות ```json ו-JSON.parse (server.js:5662-5663); מחזיר <code>logo_prompt, banner_prompt</code>. התמונה עצמה נוצרת בלקוח דרך Pollinations (ראו קבוצת תמונות).</td></tr><tr><td>Fallback / שגיאות</td><td><code>!getGenAIInstance()</code> → AI not configured (server.js:5627); חריגה/parse → <code>{success:false,error}</code> (server.js:5665).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-triage" data-f="sa ticket triage sentiment priority">
+<h3>FamilAI Triage — סיווג קריאת שירות</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/superadmin/tickets/:id/ai-triage</code> — server.js:6077</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:6920 <code>runFamilAITriage</code></td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>support_tickets.subject, description</code> (server.js:6083)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:6088–6101</code> (העתק מילולי)</p><pre class="sql">const prompt = `
+You are an expert AI Triage Support Agent for a SaaS system called &#x27;WEFLOWZ&#x27;. 
+Read the following support ticket submitted by a user and classify it.
+
+Ticket Subject: &quot;${ticket.subject}&quot;
+Ticket Description: &quot;${ticket.description}&quot;
+
+Analyze the text and return ONLY a valid JSON object with these exact keys:
+{
+    &quot;sentiment&quot;: &quot;angry&quot; or &quot;neutral&quot; or &quot;happy&quot;,
+    &quot;priority&quot;: &quot;low&quot; or &quot;normal&quot; or &quot;high&quot; or &quot;critical&quot;,
+    &quot;ticketType&quot;: &quot;general&quot; or &quot;technical&quot; or &quot;billing&quot;,
+    &quot;reason&quot;: &quot;Short 1-sentence explanation in Hebrew of why you classified it this way&quot;
+}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>מסיר ```json/``` ו-JSON.parse (server.js:6104-6105). כותב <code>priority</code>, <code>ticket_type</code> ושורת audit פנימית ל-<code>log</code> (server.js:6110-6117).</td></tr><tr><td>Fallback / שגיאות</td><td>חריגה → 500 (server.js:6123).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-dedup" data-f="sa dev duplicate tasks">
+<h3>זיהוי כפילות קריאה מול משימות פיתוח</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/dev/check-duplicates</code> — server.js:6188</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:6977 <code>convertTicketToDevTask</code></td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>req.body.description</code>; <code>sa_dev_tasks</code> בסטטוס backlog/in_progress/qa (server.js:6191)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:6196–6200</code> (העתק מילולי)</p><pre class="sql">const prompt = `
+Check if this ticket is a duplicate of active tasks. Respond ONLY with JSON:
+Ticket: &quot;${description}&quot;
+Tasks: ${JSON.stringify(activeTasks)}
+JSON: {&quot;isDuplicate&quot;: bool, &quot;matchedTaskId&quot;: id, &quot;confidence&quot;: 0-100, &quot;explanation&quot;: &quot;Hebrew sentence&quot;}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>ניקוי גדרות ו-JSON.parse; מחזיר <code>{success, ...aiData}</code> (server.js:6203-6206). אם אין משימות פעילות — מחזיר isDuplicate:false בלי AI (server.js:6194).</td></tr><tr><td>Fallback / שגיאות</td><td>500 "שגיאת AI: …" (server.js:6209).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-ai-generate" data-f="sa ai generate release notes branding passthrough">
+<h3>מחולל טקסט חופשי לסופר-אדמין (Passthrough)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/ai-generate</code> — server.js:6345</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA <b>+</b> בדיקה ש-header Authorization קיים (server.js:6347-6348)</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:7077 <code>generateReleaseNotesAI</code>; sa-app.js:16226 <code>aiGenBrandingImg</code> (אופטימיזציית פרומפט FLUX). הפרומפטים מופיעים בקבוצת "צד לקוח".</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>context, query</code> מהלקוח</td></tr></tbody></table></div>
+<p class="src"><b>הרכבת prompt בשרת</b> — <code>server.js:6350–6351</code> (העתק מילולי)</p><pre class="sql">const { context, query } = req.body;
+const prompt = `${context}\n\nבקשה: ${query}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט חופשי → <code>{success, answer}</code>.</td></tr><tr><td>Fallback / שגיאות</td><td><code>{success:false, error:'שגיאה במנוע ה-AI: …'}</code> (server.js:6357).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-qa" data-f="sa qa test generator">
+<h3>מחולל בדיקת QA</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/ai/generate-qa</code> — server.js:24018</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>לא נמצאה קריאה מצד הלקוח</td></tr><tr><td>ספק</td><td>Gemini (SDK @google/generative-ai)</td></tr><tr><td>מודל</td><td><code>gemini-1.5-flash</code> (server.js:24023)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא generationConfig</td></tr><tr><td>משתנים מוזרקים</td><td><code>taskTitle, taskDesc, module</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:24024–24039</code> (העתק מילולי)</p><pre class="sql">const prompt = `
+    You are a Senior QA Engineer for a SaaS platform called WEFLOWZ.
+    Based on the following software development task, generate a single, comprehensive QA test case in Hebrew.
+    Return ONLY a valid JSON object with the following structure (no markdown formatting, no extra text, just raw JSON):
+    {
+        &quot;id&quot;: &quot;Generate a unique 6-character ID starting with AUTO-, e.g., AUTO-102&quot;,
+        &quot;category&quot;: &quot;The most relevant module/category in Hebrew (e.g., &#x27;קופה&#x27;, &#x27;לקוחות&#x27;, &#x27;משפחה&#x27;, &#x27;אקדמיה&#x27;, &#x27;כללי&#x27;)&quot;,
+        &quot;name&quot;: &quot;Test name in Hebrew&quot;,
+        &quot;description&quot;: &quot;Step-by-step description of what to test, and the expected result in Hebrew&quot;,
+        &quot;priority&quot;: &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;
+    }
+
+    Task Title: ${taskTitle}
+    Task Description: ${taskDesc || &#x27;No description provided&#x27;}
+    Suggested Module: ${module || &#x27;General&#x27;}
+`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>הסרת ```json/``` ו-JSON.parse (server.js:24044-24047); לא נשמר ל-DB, מוחזר <code>{success, test}</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>חסר מפתח → <code>{success:false}</code> (server.js:24021).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-banner-headline" data-f="sa community banner headline">
+<h3>כותרת AI לבאנר קהילתי</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/community/banner-ai/:id</code> — server.js:21546</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:9636 <code>generateBannerAI</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> (server.js:21559)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>community_promotions.title, content, discount_pct</code>, שם עסק, שם קהילה (server.js:21549-21557)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:21560–21563</code> (העתק מילולי)</p><pre class="sql">        const prompt = `צור כותרת שיווקית קצרה (עד 10 מילים) בעברית לבאנר פרסומי קהילתי.
+מבצע: ${item.title}. ${item.content || &#x27;&#x27;} ${item.discount_pct &gt; 0 ? `הנחה ${item.discount_pct}%.` : &#x27;&#x27;}
+עסק: ${item.business_name}. קהילה: ${item.community_name}.
+החזר רק את הכותרת עצמה, ללא מרכאות וללא נקודה בסוף.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט; trim והסרת מרכאות ונקודה סופית (server.js:21565); נשמר ל-<code>community_banner_requests.banner_headline</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>חסר מפתח → 500; 404 אם אין בקשה.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-feed-analyze" data-f="sa community feed analyze anthropic claude">
+<h3>ניתוח פיד קהילתי (Claude)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/sa/community/ai-analyze</code> — server.js:36895</td></tr><tr><td>Middleware / הרשאה</td><td>verifySA</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>לא נמצאה קריאה מצד הלקוח</td></tr><tr><td>ספק</td><td>Anthropic Messages API (fetch ישיר)</td></tr><tr><td>מודל</td><td><code>claude-sonnet-4-6</code>, <code>max_tokens:1500</code>, <code>anthropic-version: 2023-06-01</code> (server.js:36928-36932)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא temperature/system</td></tr><tr><td>משתנים מוזרקים</td><td><code>days</code> (ברירת מחדל 7), <code>communityId</code>; <code>analysisData</code> = עד 50 פוסטים, 20 מדווחים, פירוט סוגים (server.js:36920-36926)</td></tr></tbody></table></div>
+<p class="src"><b>בקשת fetch כולל תוכן ההודעה</b> — <code>server.js:36928–36935</code> (העתק מילולי)</p><pre class="sql">const aiResponse = await fetch(&#x27;https://api.anthropic.com/v1/messages&#x27;, {
+  method:&#x27;POST&#x27;,
+  headers:{ &#x27;x-api-key&#x27;: process.env.ANTHROPIC_API_KEY, &#x27;anthropic-version&#x27;:&#x27;2023-06-01&#x27;, &#x27;Content-Type&#x27;:&#x27;application/json&#x27; },
+  body: JSON.stringify({
+    model:&#x27;claude-sonnet-4-6&#x27;, max_tokens:1500,
+    messages:[{ role:&#x27;user&#x27;, content:`אתה מנתח פיד רשת חברתית קהילתית ישראלית. נתח את הנתונים הבאים ותן תובנות בעברית:\n\n${JSON.stringify(analysisData, null, 2)}\n\nתן לי:\n1. **מגמות עיקריות**\n2. **קהילות מובילות**\n3. **דגלים אדומים**\n4. **המלצות לפעולה** — 3 פעולות קונקרטיות\n5. **הזדמנויות**\n\nתשובה מובנית, קצרה וממוקדת בעברית.` }]
+  })
+});</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td><code>aiData.content?.[0]?.text</code>; ברירת מחדל "לא ניתן לנתח כרגע" (server.js:36938).</td></tr><tr><td>Fallback / שגיאות</td><td>אין בדיקת ANTHROPIC_API_KEY לפני השליחה; חריגה → 500.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">משפחה (FAMILY) ומשותף FAMILY/BIZ</h2>
+<section class="proc" id="ai-recipes" data-f="family recipe chef pantry">
+<h3>שף AI — מתכון</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/recipes/generate</code> — server.js:12206</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2518 <code>generateRecipe</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> (server.js:12215)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>mealType, ignorePantry, customIngredients (≤500 תווים), pantryItems (≤500), diners (1-50, ברירת מחדל 4)</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt (נבנה בשרשור)</b> — <code>server.js:12216–12219</code> (העתק מילולי)</p><pre class="sql">let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
+if (ignorePantry) prompt += `The user wants to cook using ONLY these specific ingredients: ${String(customIngredients || &#x27;&#x27;).substring(0, 500)}.\n`;
+else prompt += `The user wants to cook using these specific items they have selected from their pantry: ${String(pantryItems || &#x27;&#x27;).substring(0, 500)}.\nTry to prioritize using these items. You can assume basic staples (salt, pepper, oil, water) are available.\n`;
+prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging! Make sure to output simple Markdown TEXT, do not output JSON.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>Markdown טקסט → <code>{success, recipe}</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>BATTERY_EMPTY; חסר מפתח → 500; handleAIError (server.js:4225).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId) — endpoint 'general' (server.js:12211).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-academy-quiz" data-f="academy quiz generator training">
+<h3>מחולל לומדה/חידון</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/academy/ai-generate</code> — server.js:12226</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz + role ADMIN</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2419 <code>generateAIQuiz</code>; business-app.js:29871, 30234 <code>generateAIQuiz</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &quot;application/json&quot;</code> (server.js:12238)</td></tr><tr><td>משתנים מוזרקים</td><td><code>ageGroup, topic</code>; <code>family_groups.type</code> קובע ענף BUSINESS/FAMILY</td></tr></tbody></table></div>
+<p class="src"><b>prompt (שני ענפים)</b> — <code>server.js:12240–12249</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `Create a professional 5-question multiple-choice training/onboarding quiz in Hebrew about &quot;${topic}&quot; for employees.
+    Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+    { &quot;title&quot;: &quot;A clear title for the training&quot;, &quot;text_content&quot;: &quot;A short professional text before the questions.&quot;, &quot;questions&quot;: [ { &quot;q&quot;: &quot;The question text&quot;, &quot;options&quot;: [&quot;Opt 1&quot;, &quot;Opt 2&quot;, &quot;Opt 3&quot;, &quot;Opt 4&quot;], &quot;correct&quot;: 0 } ] }`;
+} else {
+    prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about &quot;${topic}&quot; for children aged ${ageGroup}.
+    Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+    { &quot;title&quot;: &quot;A catchy title for the quiz&quot;, &quot;text_content&quot;: &quot;A short educational text before the questions. Make it engaging.&quot;, &quot;questions&quot;: [ { &quot;q&quot;: &quot;The question text&quot;, &quot;options&quot;: [&quot;Opt 1&quot;, &quot;Opt 2&quot;, &quot;Opt 3&quot;, &quot;Opt 4&quot;], &quot;correct&quot;: 0 } ] }`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>חיתוך בין <code>{</code> הראשון ל-<code>}</code> האחרון ו-JSON.parse (server.js:12255-12258). נשמר ל-<code>quiz_bundles</code> (type professional/financial, threshold 80, reward 10.0) ו-<code>quiz_questions</code> (server.js:12260-12263).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-tasks-gen" data-f="tasks generator chores">
+<h3>הצעת משימות AI</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/tasks/ai-generate</code> — server.js:12310</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz + groupId==token</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2635, business-app.js:4792 <code>generateAITasks</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &quot;application/json&quot;</code> (server.js:12321)</td></tr><tr><td>משתנים מוזרקים</td><td><code>age, topic</code>; סוג קבוצה</td></tr></tbody></table></div>
+<p class="src"><b>prompt (שני ענפים)</b> — <code>server.js:12323–12330</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are an expert organizational manager. Suggest 3 professional tasks, project milestones, or office duties related to the topic: &quot;${topic}&quot;. For each task, suggest a fair bonus reward in ILS (integer between 50 and 500).
+    Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{&quot;title&quot;: &quot;task 1&quot;, &quot;reward&quot;: 100}, {&quot;title&quot;: &quot;task 2&quot;, &quot;reward&quot;: 200}]`;
+} else {
+    prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: &quot;${topic}&quot;. For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
+    Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{&quot;title&quot;: &quot;task 1&quot;, &quot;reward&quot;: 10}, {&quot;title&quot;: &quot;task 2&quot;, &quot;reward&quot;: 20}]`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON.parse; אם לא מערך — מחפש <code>.tasks</code> או הערך הראשון שהוא מערך (server.js:12335-12340).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-goal-advice" data-f="goals advice savings">
+<h3>עצת familAI ליעד חיסכון</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/goals/familai-advice</code> — server.js:12430</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2440 <code>getFamilAIAdvice</code>; business-app.js:4591 <code>getBusinessAIAdvice</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>users.nickname, birth_year→age, balance, allowance_amount</code>; <code>goals.title, target_amount, current_amount</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt (שני ענפים)</b> — <code>server.js:12448–12453</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are a smart business advisor. The department/employee ${user.nickname} is tracking a budget/goal called &quot;${goal.title}&quot;. Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Write a short, professional, and encouraging message directly to them in Hebrew. Give a practical 2-step plan to achieve this goal efficiently. Keep it under 4 sentences. Use appropriate emojis.`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, a friendly digital character in a family app. A child named ${user.nickname} (age ${age}) is saving money for a goal called &quot;${goal.title}&quot;. Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Wallet balance: ${user.balance} ILS. Weekly allowance: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. Give a practical 2-step plan to reach their goal faster. Keep it under 4 sentences. Introduce yourself as &#x27;familAI&#x27; at the start. Use emojis.`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>advice</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-budget-insight" data-f="budget insight transactions">
+<h3>תובנת תקציב חודשית</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/budget/familai-insight</code> — server.js:12460</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz + groupId==token</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2452, business-app.js:4603 <code>getBudgetInsight</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td>תנועות החודש הנוכחי (amount, category, type, nickname) (server.js:12471)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12474–12479</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are an intelligent business financial analyst. Analyze these operational expenses from this month: ${JSON.stringify(txsRes.rows)}. Write a short &quot;Executive Summary&quot; for the management in Hebrew. Mention where most budget went, point out anomalies, and give one smart tip to optimize costs next month. Format as clear, professional text with emojis. Max 4-5 sentences. Start with &quot;שלום הנהלה, מצורף סיכום ביצועי התקציב:&quot;`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short &quot;Executive Summary&quot; for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with &quot;היי הורים, כאן familAI עם סיכום התקציב שלכם!&quot;`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>insight</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-pantry-insight" data-f="pantry inventory insight">
+<h3>תובנת מזווה/מלאי</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/pantry/familai-insight</code> — server.js:12486</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz + groupId==token</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2464, business-app.js:4615 <code>getPantryInsight</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>pantry</code> + <code>shopping_trip_items</code> מהחודש הקודם (server.js:12497-12498)</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12501–12506</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are a smart office inventory and procurement manager. Here is the current inventory: ${JSON.stringify(pantryRes.rows)}. Here is the procurement history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the operations/office manager. Compare what they have to what they usually order, and warn them if they might run out of a critical item soon. Give one smart procurement tip. Use emojis. Do not use Markdown formatting. Start with &quot;דוח מלאי ורכש תקופתי:&quot;`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, a smart home inventory and grocery manager. Here is the family&#x27;s current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with &quot;היי! כאן familAI מנהלת המזווה שלכם 📦&quot; and use emojis. Do not use Markdown formatting.`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>insight</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-forecast-insight" data-f="forecast insight recurring">
+<h3>תובנת תשקיף</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/forecast/familai-insight</code> — server.js:12513</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:5795, business-app.js:8093 <code>getForecastInsight</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>mode</code> (monthly/yearly), <code>targetUserId</code> ('all' דורש ADMIN); תנועות is_recurring</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12537–12542</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are a corporate financial advisor. Based on these recurring operational transactions expected for the upcoming ${mode === &#x27;monthly&#x27; ? &#x27;month&#x27; : &#x27;year&#x27;}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance the organization&#x27;s cashflow. Use emojis. Do not use Markdown format.`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, a financial advisor. Based on these recurring transactions expected for the upcoming ${mode === &#x27;monthly&#x27; ? &#x27;month&#x27; : &#x27;year&#x27;}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance their cashflow. Use emojis. Do not use Markdown format.`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>insight</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-tutor" data-f="academy tutor explanation">
+<h3>מורה פרטי — הסבר לטעות בחידון</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/academy/tutor</code> — server.js:12770</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2477, business-app.js:4628 <code>askTutor</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>question, wrongAnswer, correctAnswer</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12783–12788</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are a professional corporate trainer. An employee answered a training question incorrectly. Question: &quot;${question}&quot; They answered: &quot;${wrongAnswer}&quot; The correct answer is: &quot;${correctAnswer}&quot;. Explain briefly and professionally in Hebrew (2-3 sentences max) why the correct answer is right. Be constructive.`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, a friendly tutor. A child answered a question incorrectly. Question: &quot;${question}&quot; They answered: &quot;${wrongAnswer}&quot; The correct answer is: &quot;${correctAnswer}&quot;. Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with &quot;היי! כאן familAI...&quot;.`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>explanation</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-shopping-list" data-f="shopping list generator fallback">
+<h3>רשימת קניות שבועית AI</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/shopping/ai-generate-list</code> — server.js:12700</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:4565 <code>openAiShoppingModal</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.0-flash-lite</code> (server.js:12715)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא; timeout 18 שניות (Promise.race, server.js:12718)</td></tr><tr><td>משתנים מוזרקים</td><td>אין קלט משתמש</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12716–12716</code> (העתק מילולי)</p><pre class="sql">const prompt = &#x27;Generate a typical Israeli family weekly shopping list in Hebrew, for 6 categories: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה. 5-6 common items each. Units: vegetables/fruits use \&#x27;ק&quot;ג\&#x27;, liquids use \&#x27;ל\&#x27;, others use \&#x27;יח\\\&#x27;\&#x27;. Quantities realistic for a family of 4. Product names in Hebrew only. Return ONLY valid JSON object (no markdown, no explanation): {&quot;categories&quot;:[{&quot;name&quot;:&quot;ירקות&quot;,&quot;items&quot;:[{&quot;name&quot;:&quot;עגבניות&quot;,&quot;qty&quot;:1,&quot;unit&quot;:&quot;ק\\&quot;ג&quot;}]}]}&#x27;;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>הסרת גדרות, חיתוך {…} ו-JSON.parse (server.js:12720-12722); אם אין categories → FALLBACK.</td></tr><tr><td>Fallback / שגיאות</td><td>כל שגיאה (כולל TIMEOUT או חסר מפתח) → <code>{success:true, categories: FALLBACK}</code> — רשימה קבועה של 6 קטגוריות (server.js:12701-12708, 12726).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens (נצרך גם כשמוחזר FALLBACK).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-family-chat" data-f="family chat assistant actions json">
+<h3>FamilAI — עוזרת משפחתית עם פעולות</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/family/chat-assistant</code> — server.js:23615</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware אימות</b>; groupId/userId מגוף הבקשה</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:11440 <code>sendFamilaiChatMessage</code> (fetch ב-11484); אישור: app.js:11407 <code>confirmFamilaiAction</code> → POST /api/family/chat-assistant/confirm-action (server.js:23683, גם הוא ללא middleware)</td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &quot;application/json&quot;</code> (server.js:23625-23628)</td></tr><tr><td>משתנים מוזרקים</td><td><code>query</code>; <code>buildFamilyAIContext(groupId)</code> (server.js:23469) — חברים, תנועות, מזווה, קניות, יעדים, הלוואות, קהילות, Flow-coin</td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:23630–23661</code> (העתק מילולי)</p><pre class="sql">const prompt = `You are &#x27;FamilAI&#x27;, the highly intelligent, proactive AI assistant for a family using the &#x27;WEFLOWZ&#x27; app.
+You have FULL, deep knowledge of everything happening in this family: every member (including kids - their age, balance, allowance, tasks, quiz scores), all transactions, pantry, shopping list, savings goals, loans, connected communities and Flow-coin balance.
+You can answer detailed questions about specific kids (e.g. &quot;how much does Danny have&quot;, &quot;what tasks does Noa have open&quot;, &quot;how did the kids do on their last quiz&quot;) using the data below.
+You are also highly capable and proactive - you EXECUTE real actions on behalf of the user, not just talk.
+
+Family Data Context (Current State, JSON):
+${JSON.stringify(familyContext)}
+
+User&#x27;s Request: &quot;${query}&quot;
+
+Instructions:
+1. Respond in Hebrew. Be friendly, warm, and highly efficient. Use emojis.
+2. If asked about a specific family member (especially a child), answer precisely from the members/tasks/transactions/goals/quizzes data.
+3. If the user asks for a forecast/analysis/prediction, calculate it smartly using recent_transactions, pantry and tasks.
+4. Be proactive: if relevant, suggest useful actions the user could take.
+5. Output STRICTLY as a valid JSON object matching this schema:
+{
+   &quot;answer&quot;: &quot;Your full text response to the user in Hebrew. Use Markdown bolding (**text**) for emphasis.&quot;,
+   &quot;action_type&quot;: &quot;NONE&quot;, // one of: NONE, CREATE_TASK, ADD_GROCERY, COMPLETE_TASK, UPDATE_PANTRY, ADD_TRANSACTION, CREATE_GOAL, DELETE_TASK, DELETE_GROCERY_ITEM, ADJUST_BALANCE, JOIN_COMMUNITY - ONLY if the user explicitly asked to perform that action!
+   &quot;action_data&quot;: {}
+   // CREATE_TASK: {&quot;title&quot;,&quot;reward&quot;,&quot;assignee_name&quot;}
+   // ADD_GROCERY: {&quot;item&quot;,&quot;qty&quot;}
+   // COMPLETE_TASK: {&quot;title&quot;}
+   // UPDATE_PANTRY: {&quot;item&quot;,&quot;qty&quot;,&quot;unit&quot;}
+   // ADD_TRANSACTION: {&quot;desc&quot;,&quot;amount&quot;,&quot;type&quot;:&quot;income&quot;|&quot;expense&quot;,&quot;category&quot;,&quot;user_name&quot;}
+   // CREATE_GOAL: {&quot;title&quot;,&quot;target_amount&quot;,&quot;target_user_name&quot;}
+   // DELETE_TASK: {&quot;title&quot;}
+   // DELETE_GROCERY_ITEM: {&quot;item&quot;}
+   // ADJUST_BALANCE: {&quot;user_name&quot;,&quot;amount&quot; (negative to deduct),&quot;reason&quot;}
+   // JOIN_COMMUNITY: {&quot;name&quot; or &quot;code&quot;}
+}
+`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON.parse של כל התשובה (server.js:23664) → <code>answer, action_type, action_data</code>. אם action_type ב-<code>FAMILY_AI_SENSITIVE_ACTIONS</code> (DELETE_TASK, DELETE_GROCERY_ITEM, ADJUST_BALANCE, JOIN_COMMUNITY — server.js:23529) → <code>pending_action</code>; אחרת <code>executeFamilyAIAction</code> (server.js:23532) והודעת ביצוע מצורפת לתשובה.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId מגוף הבקשה).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-generate-catalog" data-f="wizard catalog pantry generator">
+<h3>אשף קטלוג/מזווה התחלתי</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/generate-catalog</code> — server.js:18308</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:9321 <code>generateWizardCatalog</code>; business-app.js:20206 <code>_excelCatOpenModal</code>, 20903 <code>generateWizardCatalog</code>, 22016 <code>_generateRepairServices</code>, 22139 <code>_showManualProdRows</code>, 22280 <code>_generateDocTemplate</code>, 22425 <code>_generateBeautyServices</code>, 22580 <code>_generateWizardMenu</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> (server.js:18316)</td></tr><tr><td>פרמטרי יצירה</td><td>במכוון ללא responseMimeType (הערה server.js:18315)</td></tr><tr><td>משתנים מוזרקים</td><td><code>promptText, type (BUSINESS/אחר), groupId</code></td></tr></tbody></table></div>
+<p class="src"><b>sysPrompt (שני ענפים)</b> — <code>server.js:18317–18328</code> (העתק מילולי)</p><pre class="sql">        let sysPrompt = &quot;&quot;;
+
+        if (type === &#x27;BUSINESS&#x27;) {
+            sysPrompt = `You are a business consultant. The user has a business described as &quot;${promptText}&quot;. Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew.
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{&quot;name&quot;: &quot;שם המוצר&quot;, &quot;nameEn&quot;: &quot;canonical 2-4 word English product name, for stock photo search&quot;, &quot;category&quot;: &quot;קטגוריה&quot;, &quot;price&quot;: 15.5, &quot;description&quot;: &quot;תיאור קצר&quot;}]
+Make prices realistic in ILS (Israeli Shekels). The &quot;nameEn&quot; field is required for every item — never leave it empty.`;
+        } else {
+            sysPrompt = `You are a home management expert. The user wants to populate their pantry/shopping list. Family type: &quot;${promptText}&quot;. Generate a realistic starter pantry list with 8-12 common grocery/household items in Hebrew.
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{&quot;name&quot;: &quot;שם הפריט&quot;, &quot;category&quot;: &quot;קטגוריה&quot;, &quot;price&quot;: 0, &quot;description&quot;: &quot;&quot;}]`;
+        }</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>הסרת גדרות, חיתוך בין <code>[</code> ל-<code>]</code>, JSON.parse; מערך ריק → שגיאה (server.js:18331-18337).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId מגוף הבקשה).</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">עסק (BIZ)</h2>
+<section class="proc" id="ai-biz-famliai" data-f="biz chat assistant famliai action need_data beauty sport logistics restaurant">
+<h3>FamliAI — עוזרת עסקית (BIZ) עם ACTION ו-NEED_DATA</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/biz/chat-assistant</code> — server.js:16038</td></tr><tr><td>Middleware / הרשאה</td><td>verifyBiz (groupId נלקח מגוף הבקשה, לא מ-req.bizAuth)</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:16172 <code>submitGlobalAI</code> (בונה systemContext 16172-16286); גרסאות מוחלפות: 46500 (ספורט), 54112 (לוגיסטיקה); גם 9856 <code>generateQuoteAI</code>, 9906 <code>cqGenerateIntroAI</code>, 9960 <code>cqGenerateNotesAI</code>, 24362 <code>analyzeRBCostAI</code>, 25284 <code>getAnalyticsAIInsight</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> (server.js:16045)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>query</code>, <code>context</code> (מחרוזת JSON מהלקוח; <code>business_type</code> נקרא ממנה, server.js:16049), <code>groupId</code>; בסבב 2: <code>fetchBizAdditionalData</code> (server.js:15941)</td></tr></tbody></table></div>
+<p class="src"><b>סקשנים לפי סוג עסק + systemPrompt</b> — <code>server.js:16047–16353</code> (העתק מילולי)</p><pre class="sql">        // Detect business type for specialised guidance
+        let bizType = &#x27;general&#x27;;
+        try { bizType = JSON.parse(context).business_type || &#x27;general&#x27;; } catch(e) {}
+
+        const logisticsSection = bizType === &#x27;logistics&#x27; ? `
+
+## ניתוח עסקי לוגיסטיקה — כללי ברזל:
+- שיעור הצלחה &lt; 85% → התראה קריטית, פרט סיבות וצעדי תיקון מיידיים
+- COD ממתין &gt; 3 ימים → סיכון גבוה, המלץ על פרוצדורת גבייה
+- נהג עם &gt; 3 failed_attempts ביום → בעיה אופרציונלית, בדוק עומסי עבודה
+- רכב עם ביטוח/טסט שפג → עצור שיוך לנהגים, תזכיר חיוני
+- COD לא הופקד &gt; 2 ימים → שלח התראה למנהל
+- SLA &lt; 80% → ניתוח לפי שעה/אזור, המלץ שינוי מסלולים
+- לקוחות חוזרים עם discount_pct=0 → הזדמנות לשיפור נאמנות
+- חשבוניות ב-status=&#x27;pending&#x27; &gt; 7 ימים → גבייה נדרשת
+
+## פעולות מהירות שהעוזרת יכולה להפעיל:
+[ACTION:OPEN_TAB|logistics_orders] — פתח קנבן משלוחים
+[ACTION:OPEN_TAB|logistics_drivers] — פתח ניהול נהגים
+[ACTION:OPEN_TAB|logistics_vehicles] — פתח ניהול צי
+[ACTION:OPEN_TAB|logistics_cod] — פתח גבייה COD
+[ACTION:OPEN_TAB|logistics_rfq] — פתח הצעות מחיר
+[ACTION:OPEN_TAB|logistics_routes] — פתח מסלולי חלוקה
+[ACTION:OPEN_TAB|logistics_customers] — פתח מזמינים ונמענים
+[ACTION:OPEN_TAB|logistics_invoices] — פתח חשבוניות
+[ACTION:EXPORT_EXCEL|logistics-orders] — יצא Excel הזמנות
+[ACTION:EXPORT_EXCEL|logistics-drivers] — יצא Excel ביצועי נהגים
+[ACTION:EXPORT_EXCEL|logistics-revenue] — יצא Excel הכנסות
+[ACTION:EXPORT_EXCEL|logistics-vehicles] — יצא Excel צי רכבים
+
+## עדכון סטטוס משלוח:
+כשמבקשים לעדכן סטטוס הזמנה/משלוח → [ACTION:UPDATE_DELIVERY_STATUS|order_id|status|שם לקוח]
+  (סטטוסים אפשריים: assigned / in_transit / delivered / failed / cancelled)
+  order_id נלקח מ-orders_active[].id (מופיע בקונטקסט)
+  דוגמה: &quot;עדכן הזמנה 123 כנמסרה&quot; → [ACTION:UPDATE_DELIVERY_STATUS|123|delivered|שם הלקוח]
+
+## עדכון סטטוס חשבונית:
+כשמבקשים לסמן חשבונית כשולמה/נשלחה → [ACTION:UPDATE_INVOICE_STATUS|invoice_id|status]
+  (סטטוסים: paid / sent / pending)
+  invoice_id נלקח מ-pending_invoices[].id שבקונטקסט
+  דוגמה: &quot;סמן חשבונית 55 כשולמה&quot; → [ACTION:UPDATE_INVOICE_STATUS|55|paid]
+
+## מה לנתח מהקונטקסט שמתקבל:
+- מה שיעור ההצלחה (delivered/total) וכיצד משפר אותו
+- אלו נהגים מתפקדים הכי טוב/גרוע ולמה
+- איפה ה-COD הכי גבוה ואיך מנהלים אותו
+- אלו אזורים/לקוחות הכי רווחיים
+- חריגים: failed_attempts, הזמנות עדיין פתוחות מאתמול
+- חשבוניות שממתינות לתשלום
+` : &#x27;&#x27;;
+
+        const maintenanceSection = bizType === &#x27;maintenance_repair&#x27; ? `
+
+== ניתוח עסק תיקונים / שירות ==
+• **קריאות פתוחות** (service_calls_open): כמות וסוגים — מעל 20 פתוחות = בדוק קיבולת טכנאים
+• **דחופות**: priority=urgent — כל קריאה דחופה ללא תאריך מתוזמן = בעיה מיידית
+• **waiting_parts**: קריאות בstate=waiting_parts — מעל 3 ימים = בעיה ספקים
+• **ללא תאריך**: קריאות ב-status=new ללא scheduled_at — פיגור שירות
+• **זמן טיפול ממוצע**: ניתוח לפי מספר קריאות ביום vs. קיבולת טכנאים
+
+== תיקונים — פקודות פעולה ==
+כשמבקשים לעדכן סטטוס קריאת שירות → [ACTION:UPDATE_SC_STATUS|sc_id|status|כותרת קריאה]
+  (סטטוסים: scheduled/processing/done/cancelled/waiting_parts)
+  sc_id נלקח מ-service_calls_open[].id
+• לפתוח יומן → [ACTION:OPEN_TAB|calendar]
+• לפתוח לקוחות → [ACTION:OPEN_TAB|customers]
+• לפתוח הזמנות/פקודות עבודה → [ACTION:OPEN_TAB|sales]
+• לפתוח צוות → [ACTION:OPEN_TAB|members]
+• לייצא הזמנות → [ACTION:EXPORT_EXCEL|orders]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : &#x27;&#x27;;
+
+        const professionalSection = bizType === &#x27;professional&#x27; ? `
+
+== ניתוח עסק מקצועי / ייעוץ ==
+• **תיקים פעילים** (work_orders): status=processing/scheduled/pending — ריבוי תיקים פתוחים = בדוק קיבולת
+• **פניות נכנסות** (professional_leads_recent): status=new = דחוף — כל ליד חדש מעל 24 שעות = ירידת המרה
+• **שעות לא מחויבות**: unbilled_hours — מעל 8 שעות = צ&#x27;ק חיוב דחוף
+• **הצעות ממתינות**: pending_quotes — ממתין לאישור לקוח — המלץ follow-up
+• **חיזוי הכנסה**: new_leads × שיעור המרה ממוצע (30%) × ערך עסקה = הכנסה פוטנציאלית
+
+== מומחים — פקודות פעולה ==
+כשמבקשים לעדכן סטטוס פנייה → [ACTION:UPDATE_LEAD_STATUS|lead_id|status|שם]
+  (סטטוסים: contacted/converted/closed)
+  lead_id נלקח מ-professional_leads_recent[].id
+כשמבקשים לעדכן סטטוס תיק/פרויקט → [ACTION:UPDATE_CASE_STATUS|case_id|status|שם לקוח]
+  (סטטוסים: processing/scheduled/completed/cancelled)
+  case_id נלקח מ-work_orders[].id
+• לפתוח פניות → [ACTION:OPEN_TAB|leads]
+• לפתוח תיקים → [ACTION:OPEN_TAB|cases]
+• לפתוח מסמכים/הצעות → [ACTION:OPEN_TAB|documents]
+• לפתוח יומן → [ACTION:OPEN_TAB|calendar]
+• לפתוח שעות עבודה → [ACTION:OPEN_TAB|timelog]
+• לייצא לקוחות → [ACTION:EXPORT_EXCEL|customers]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : &#x27;&#x27;;
+
+        const beautySection = bizType === &#x27;beauty&#x27; ? `
+
+== ניתוח סלון יופי / קוסמטיקה ==
+• **תפוסת היום**: beauty_appointments_today — ספור תורים לפי status (scheduled/confirmed/completed/no_show)
+• **הכנסה יומית**: סכום total_price של תורים completed היום
+• **no_show rate**: no_show / (completed + no_show) × 100 — מטרה: &lt;10%; &gt;15% = בעיה אופרציונלית
+• **מטפלות עמוסות**: קבץ תורים לפי practitioner, מי שמעל 6 תורים ביום = עומס גבוה
+• **ביקוש שירותים**: service הנפוץ ביותר = שקול לפתוח שעה נוספת; נדיר = שקול הסרה
+
+== יופי — פקודות פעולה ==
+כשמבקשים לאשר תור → [ACTION:UPDATE_APPT_STATUS|appt_id|confirmed|שם לקוחה]
+כשמבקשים לבטל תור → [ACTION:UPDATE_APPT_STATUS|appt_id|cancelled|שם לקוחה]
+כשמבקשים לסמן תור שהושלם → [ACTION:COMPLETE_APPT|appt_id|שם לקוחה]
+  appt_id נלקח מ-beauty_appointments_today[].id
+כשמבקשים לסמן &quot;לא הגיע&quot; → [ACTION:NO_SHOW_APPT|appt_id|שם לקוחה]
+  appt_id נלקח מ-beauty_appointments_today[].id
+כשמבקשים להוסיף לקוחה → [ACTION:ADD_BEAUTY_CLIENT|שם|טלפון|הערות]
+  הערות יכולות להיות ריק אם לא צוין
+• לפתוח יומן תורים → [ACTION:OPEN_TAB|beauty_calendar]
+• לפתוח לקוחות → [ACTION:OPEN_TAB|beauty_clients]
+• לפתוח מטפלות → [ACTION:OPEN_TAB|beauty_practitioners]
+• לפתוח שירותים → [ACTION:OPEN_TAB|beauty_services]
+• לפתוח עמלות → [ACTION:OPEN_TAB|beauty_commissions]
+• לפתוח קופה → [ACTION:OPEN_TAB|pos]` : &#x27;&#x27;;
+
+        const retailSection = bizType === &#x27;retail&#x27; ? `
+
+## ניתוח עסק קמעונאי (retail) — כללי ברזל:
+- מוצרים עם is_available=false שנשארו כך מעל שבוע → בדוק אם צריך להחזיר למכירה
+- avg_per_order_month נמוך → המלץ על bundle/מבצע לשורת מוצרים
+- הזמנות ב-status=new מעל 24 שעות → סיכון לביטול, טפל בדחיפות
+- מוצר עם מלאי (pantry) נמוך אבל ביקוש גבוה בהזמנות אחרונות → המלץ הזמנה מספק
+
+## קמעונאות — פקודות פעולה:
+• לעדכן מחיר מוצר → [ACTION:UPDATE_CATALOG_PRICE|catalog_id|מחיר חדש]
+• להפעיל/להשבית מוצר → [ACTION:TOGGLE_CATALOG_ITEM|catalog_id|true/false]
+• ליצור קופון הנחה → [ACTION:CREATE_COUPON|קוד|אחוז|תוקף]
+• לפתוח קופה/מכירות → [ACTION:OPEN_TAB|pos]
+• לפתוח מלאי → [ACTION:OPEN_TAB|pantry]
+• לייצא דוח מכירות → [ACTION:EXPORT_EXCEL|orders]` : &#x27;&#x27;;
+
+        const constructionSection = bizType === &#x27;construction&#x27; ? `
+
+## ניתוח עסק בנייה/קבלנות (construction) — כללי ברזל:
+- פרויקטים (work_orders) ב-status=processing מעל חודש ללא עדכון → בדוק עיכוב
+- הזמנות רכש/ציוד מספקים → עקוב אחרי סטטוס אספקה, עיכוב = סיכון ללוח זמנים
+- תזרים שלילי בפרויקט מסוים → דגל אדום, בדוק חריגה מתקציב
+- עובדים ללא שעות מדווחות היום (staff_clocked_in_now ריק/חסר) → ודא נוכחות באתר
+
+## בנייה/קבלנות — פקודות פעולה:
+• ליצור משימה/מטלה → [ACTION:CREATE_TASK|כותרת|assignee|days]
+• להוסיף לרכש חומרי בנייה → [ACTION:ADD_SHOP|שם הפריט]
+• ליצור התראה (חריגת תקציב/משימה באיחור) → [ACTION:CREATE_ALERT_RULE|שם|trigger_type|cooldown|תיאור]
+• לפתוח פרויקטים → [ACTION:OPEN_TAB|sales]
+• לפתוח צוות → [ACTION:OPEN_TAB|members]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : &#x27;&#x27;;
+
+        const sportSection = bizType === &#x27;sport&#x27; ? `
+
+== ניתוח מועדון ספורט/כושר ==
+• **Retention rate** = active_members / total_members × 100 — מטרה: &gt;75%
+• **חברים בסיכון נטישה** (churn_risk.top_at_risk): כל חבר שלא ביקר 14+ ימים — פנה אליהם בדחיפות
+• **חיזוי הכנסה בסיכון**: expiring_members × ערך מנוי ממוצע = הכנסה שעלולה לאבוד
+• **מגמת הכנסה**: trend_pct — אם שלילי → בחן מה גרם לירידה (עונתיות? תחרות? שירות?)
+• **תפוסת שיעורים**: fill_pct — מתחת ל-50% = שיעור לא כדאי; מעל 90% = פתח כיתה נוספת
+• **חיזוי חידושים**: חברים עם days_left ≤7 ← יש לצלצל היום; ≤14 ← שלח תזכורת
+• **ניתוח קפואים**: frozen_members ← הצע תוכנית החזרה (חודש מתנה, מחיר מוזל)
+• **ממוצע כניסות לחבר**: checkins_week / active_members — מטרה: &gt;2 פעמים בשבוע
+
+== פקודות ACTION לספורט ==
+• לייצא רשימת חברים → [ACTION:EXPORT_EXCEL|sport-members]
+• לייצא היסטוריית כניסות → [ACTION:EXPORT_EXCEL|sport-checkins]
+• לייצא דוח הכנסות → [ACTION:EXPORT_EXCEL|sport-revenue]
+• לייצא לוח שיעורים → [ACTION:EXPORT_EXCEL|sport-classes]
+• לעבור לחברים → [ACTION:OPEN_TAB|sport-members]
+• לעבור ללוח שיעורים → [ACTION:OPEN_TAB|sport-schedule]
+• לעבור להתראות → [ACTION:OPEN_TAB|sport-alerts]
+• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]
+
+== ספורט — פקודות פעולה ==
+כשמבקשים להקפיא מנוי → [ACTION:FREEZE_MEMBER|membership_id|סיבה]
+  membership_id מתוך churn_risk.top_at_risk[].id או renewals.expiring_members[].id
+  דוגמה: [ACTION:FREEZE_MEMBER|42|בקשת חבר]
+כשמבקשים להפשיר מנוי → [ACTION:UNFREEZE_MEMBER|membership_id|שם חבר]
+  membership_id מתוך churn_risk.frozen_members[].id
+כשמבקשים לרשום כניסה ידנית → [ACTION:CHECKIN_MEMBER|membership_id|שם חבר]
+  membership_id מתוך churn_risk.top_at_risk[].id
+כשמבקשים לרשום חבר לשיעור → [ACTION:REGISTER_CLASS|class_id|membership_id|שם חבר]
+  class_id מתוך classes.upcoming_classes[].id` : (bizType === &#x27;restaurant&#x27; || bizType === &#x27;cafe&#x27;) ? `
+
+== מסעדה / בית קפה — ניתוח ==
+• food cost: &lt;28%=מצוין | 28-33%=טוב | 33-40%=גבוה | &gt;40%=בעייתי | ממוצע ישראל: 28-35%
+• הזמנות: status=new מעל 20 דקות → התראה מיידית; avg_per_order_month &lt;70₪ → המלץ upsell/combo
+• השווה ממוצע יומי החודש לחודש הקודם — ציין מגמה ברורה
+
+== מסעדה — פקודות פעולה ==
+כשמבקשים ליצור הזמנת שולחן → [ACTION:CREATE_TABLE_RES|שם לקוח|טלפון|YYYY-MM-DD|HH:MM|מספר סועדים|הערות]
+  דוגמה: [ACTION:CREATE_TABLE_RES|ישראל כהן|0501234567|2026-06-25|19:00|4|יום הולדת]
+  אם לא נאמר תאריך — השתמש בתאריך היום. אם לא נאמרה שעה — השתמש ב-20:00.
+כשמבקשים לעדכן סטטוס הזמנה → [ACTION:UPDATE_ORDER_STATUS|order_id|status]
+  (סטטוסים: processing / completed / cancelled / ready / shipped)
+  order_id נלקח מ-orders_summary.recent_10[].id
+כשמבקשים להפעיל/להשבית מנה → [ACTION:TOGGLE_CATALOG_ITEM|catalog_id|true/false]
+  catalog_id נלקח מרשימת catalog[].id שבקונטקסט
+כשמבקשים לשנות מחיר מנה → [ACTION:UPDATE_CATALOG_PRICE|catalog_id|מחיר חדש]
+כשמבקשים לעדכן/להוסיף מרכיב במתכון של מנה (כמות, יחידה, או אחוז פחת) → [ACTION:UPDATE_RECIPE_INGREDIENT|catalog_id|שם מרכיב|כמות|יחידה|אחוז פחת]
+  catalog_id נלקח מרשימת catalog[].id שבקונטקסט. אחוז פחת אופציונלי - אם לא נאמר, השתמש ב-0.
+  פעולה זו מעדכנת/מוסיפה מרכיב בודד בלבד - שאר המרכיבים במתכון לא נמחקים.
+  דוגמה: &quot;עדכן את כמות העגבניות בהמבורגר ל-80 גרם&quot; → [ACTION:UPDATE_RECIPE_INGREDIENT|17|עגבניות|80|גרם|0]
+• לפתוח הזמנות → [ACTION:OPEN_TAB|pos]
+• לפתוח תפריט/קטלוג → [ACTION:OPEN_TAB|catalog]
+• לפתוח שולחנות/יומן → [ACTION:OPEN_TAB|calendar]
+• לייצא הזמנות → [ACTION:EXPORT_EXCEL|orders]
+• לייצא לקוחות → [ACTION:EXPORT_EXCEL|customers]
+• לייצא food cost → [ACTION:EXPORT_EXCEL|food-cost]` : `
+
+== עקרונות food cost (מסעדות ישראל) ==
+• &lt;28%: מצוין | 28-33%: טוב | 33-40%: גבוה | &gt;40%: בעייתי
+• ממוצע ענף ישראלי: 28-35%`;
+
+        const systemPrompt = `אתה &quot;FamliAI&quot; — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת WEFLOWZ BUSINESS.
+יש לך הכרות מלאה ועדכנית עם כל רחבי העסק: הזמנות, מלאי, תזרים, משימות, קופונים פעילים, התראות מוגדרות,
+שיחות לקוחות, ביקורות, וכן פירוט מלא על כל אחד מהעובדים/בני הצוות - כולל שעות עבודה השבוע/החודש,
+משימות פתוחות/שהושלמו, האם מוחתם/ת כרגע, ויתרה. אתה יכול ואמור לענות במדויק על שאלות לגבי עובד ספציפי
+(&quot;כמה שעות עבד X השבוע&quot;, &quot;כמה משימות השלימה Y&quot;), לא רק על נתונים כלליים.
+אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר, ומבצע פעולות אמיתיות.
+
+== נתוני העסק בזמן אמת ==
+להלן JSON מפורט עם כל נתוני העסק (כולל employees עם פירוט מלא לכל עובד):
+${context}
+
+== שאלת המנהל ==
+&quot;${query}&quot;
+
+== כללי תגובה קבועים ==
+1. ענה תמיד בעברית. קצר, ישיר, מקצועי.
+2. חשב מספרים ישירות מה-JSON — לעולם אל תגיד &quot;אין לי גישה&quot; — הנתונים שלפניך הם מקור האמת.
+3. תן תובנות פרואקטיביות: &quot;שים לב ש...&quot;, &quot;מגמה:&quot;, &quot;המלצה:&quot;.
+4. אם מבקשים ניתוח/דוח — תן סיכום מספרי + רשימה מסודרת.
+5. השתמש ב-**bold** לסכומים ומספרים חשובים.
+6. אם ביצועים ירדו — ציין כמה אחוז ומתי.
+
+== פקודות מיוחדות (ACTION) ==
+אם המשתמש מבקש:
+• להוסיף לרכש → הוסף [ACTION:ADD_SHOP|שם הפריט] בסוף תשובתך
+• לייצא לאקסל/CSV → הוסף [ACTION:EXPORT_EXCEL|orders] או customers/cashflow/pantry/staff/food-cost בסוף
+• לעבור לטאב → הוסף [ACTION:OPEN_TAB|tabId] בסוף (tabIds: pos/sales/customers/pantry/foodcost/cashflow/shifts/members/calendar/deliveries/tasks)
+
+== מענה ללקוח בצ&#x27;אט (לכל סוגי העסקים) ==
+כשמבקשים לענות/להשיב ללקוח בשיחה פתוחה → [ACTION:REPLY_CUSTOMER_CHAT|chat_id|תוכן ההודעה]
+  chat_id נלקח מ-open_customer_chats[].chat_id שבקונטקסט (שיחות עם הודעות שלא נקראו)
+  נסח את ההודעה בעצמך בהתאם לשאלת הלקוח (last_message) ולבקשת המנהל
+  דוגמה: &quot;תענה ללקוח X שההזמנה שלו בדרך&quot; → [ACTION:REPLY_CUSTOMER_CHAT|17|היי! ההזמנה שלך כבר בדרך אליך 🚚]
+
+== יצירת קופון הנחה (לכל סוגי העסקים) ==
+כשמבקשים ליצור קופון/הנחה → [ACTION:CREATE_COUPON|קוד|אחוז הנחה|תוקף]
+  קוד: אותיות/מספרים באנגלית, ללא רווחים (אם לא צוין - הצע קוד קצר וברור)
+  תוקף: תאריך YYYY-MM-DD, או השאר ריק אם לא צוין
+  דוגמה: &quot;תן קופון 10% לכל הלקוחות עד סוף החודש&quot; → [ACTION:CREATE_COUPON|SAVE10|10|2026-06-30]
+
+== יצירת משימה (לכל סוגי העסקים) ==
+כשמבקשים ליצור משימה → [ACTION:CREATE_TASK|כותרת|assignee|days]
+  assignee: &quot;self&quot; = למנהל עצמו, או שם עובד מרשימת הצוות
+  days: מספר ימים לדדליין (ברירת מחדל: 1)
+  דוגמאות:
+  &quot;תזכיר לי לשלם לספק מחר&quot; → [ACTION:CREATE_TASK|תשלום לספק|self|1]
+  &quot;צור משימה לדוד לבצע בדיקת מלאי עד שלשום&quot; → [ACTION:CREATE_TASK|בדיקת מלאי|דוד|3]
+
+== יצירת התראה (לכל סוגי העסקים) ==
+כשמבקשים ליצור התראה/נוטיפיקציה → [ACTION:CREATE_ALERT_RULE|שם|trigger_type|cooldown_minutes|תיאור]
+  trigger_type אפשריים (אלה בלבד — המנוע מכיר אותם):
+  • new_order — על כל הזמנה חדשה שנכנסת (cooldown מומלץ: 1)
+  • order_unhandled — הזמנה שלא טופלה מעל X שעות (הגדרת זמן בcooldown: 60=שעה, 15=רבע שעה, 30=חצי שעה)
+  • inventory_low — פריט מלאי מתחת למינימום (cooldown מומלץ: 120)
+  • task_overdue — משימה שעבר הדדליין (cooldown מומלץ: 60)
+  • balance_low — יתרה נמוכה מסף (cooldown מומלץ: 360)
+  • quote_not_converted — הצעת מחיר שלא הוסבה להזמנה תוך 3 ימים (cooldown מומלץ: 1440)
+  • ticket_open — פנייה/קריאת שירות פתוחה מעל 24 שעות (cooldown מומלץ: 120)
+  • timeclock_no_punch_in — עובד שלא החתים כניסה היום (cooldown מומלץ: 360)
+  • timeclock_no_punch_out — עובד שניקב כניסה ולא יציאה מעל 10 שעות (cooldown מומלץ: 60)
+  • shopping_pending — פריט ברשימת קניות ממתין מעל 24 שעות (cooldown מומלץ: 360)
+  IMPORTANT: אל תמציא trigger_types אחרים — רק אלה למעלה עובדים.
+  cooldown_minutes: כמה דקות מינימום בין בדיקות (לא בין הודעות בודדות)
+  דוגמאות:
+  &quot;צור התראה על כל הזמנה נכנסת&quot; → [ACTION:CREATE_ALERT_RULE|הזמנה חדשה|new_order|1|כל הזמנה שנכנסת]
+  &quot;התראה על הזמנה שלא טופלה רבע שעה&quot; → [ACTION:CREATE_ALERT_RULE|הזמנה לא מטופלת|order_unhandled|15|הזמנה שממתינה מעל 15 דקות]
+  &quot;התראה על מלאי נמוך&quot; → [ACTION:CREATE_ALERT_RULE|מלאי נמוך|inventory_low|120|פריטים מתחת למינימום]
+  &quot;התראה על משימות באיחור&quot; → [ACTION:CREATE_ALERT_RULE|משימה באיחור|task_overdue|60|משימות שעבר הדדליין]
+
+== יכולות ניתוח ==
+• סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
+• food cost: ממוצע (&lt;28%=מצוין, 28-33%=טוב, 33-40%=גבוה, &gt;40%=בעייתי); מנות הכי רווחיות; מנות בעייתיות (מעל 40%)
+• מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
+• תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
+• צוות: כמות עובדים, יתרות תקציב
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}${retailSection}${constructionSection}
+
+== מידע נוסף מעבר לתמונת המצב הנוכחית ==
+הנתונים שלמעלה הם &quot;תמונת מצב&quot; עדכנית אך חלקית (למשל רק 10 הזמנות אחרונות, לא כל ההיסטוריה).
+אם השאלה דורשת מידע שאינו בתמונת המצב (טווח תאריכים היסטורי, כל ההיסטוריה של עובד ספציפי, כל הביקורות, כל החשבוניות) —
+אל תמציא ואל תנחש. במקום זאת, הוסף שורה אחת בתחילת תשובתך (ורק שורה זו, ללא טקסט אחר):
+[NEED_DATA:provider|param1|param2]
+providers זמינים (רק אלה):
+  orders_range|YYYY-MM-DD|YYYY-MM-DD — כל ההזמנות בטווח תאריכים (כמות, הכנסה, פירוט)
+  transactions_range|YYYY-MM-DD|YYYY-MM-DD — כל התנועות הכספיות בטווח תאריכים
+  employee_full_history|שם עובד — כל המשימות (לא רק פתוחות) וכל רישומי הנוכחות של עובד ספציפי
+  reviews_all — כל הביקורות/הדירוגים (לא רק 10 אחרונות)
+  invoices_all — כל החשבוניות (לוגיסטיקה, לא רק ממתינות)
+  forecast_sales — מגמת מכירות שבועית מחושבת (12 שבועות אחרונים) + הערכת שבוע הבא מבוססת קו מגמה אמיתי (רגרסיה לינארית, לא ניחוש) - השתמש בזה בכל פעם שמתבקש חיזוי/תחזית מכירות, במקום להעריך בעצמך
+  audit_log|שם עובד (אופציונלי) — יומן פעולות שבוצעו במערכת (עדכוני סטטוס, מחירים, קופונים, חשבוניות, תגובות ללקוחות) - מכסה כרגע פעולות מרכזיות/רגישות בלבד, לא כל פעולה קיימת
+לאחר שתקבל את הנתונים הנוספים תתבקש לענות סופית על סמך התמונה המלאה - אז אל תכתוב עדיין תשובה מלאה, רק את שורת ה-NEED_DATA.
+אם תמונת המצב הקיימת מספיקה לענות היטב - ענה ישירות כרגיל, בלי NEED_DATA.`;</pre>
+<p class="src"><b>followupPrompt (רק אם NEED_DATA)</b> — <code>server.js:16363–16363</code> (העתק מילולי)</p><pre class="sql">const followupPrompt = `${systemPrompt}\n\n== נתונים נוספים שביקשת (${provider}) ==\n${JSON.stringify(additionalData)}\n\nכעת ענה במלואה על שאלת המנהל, על סמך כל הנתונים (תמונת המצב + הנתונים הנוספים). אל תוסיף שוב [NEED_DATA:...].`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>שרת: regex <code>/\[NEED_DATA:([^|\]]+)\|?([^\]]*)\]/</code> (server.js:16358) → סבב שני; מחזיר <code>{success, answer}</code> כטקסט גולמי (כולל תגיות ACTION).
+לקוח (business-app.js:16295-16450): regex לכל תגית — ADD_TASK, ADD_SHOP, EXPORT_EXCEL, OPEN_TAB, CREATE_TABLE_RES, UPDATE_ORDER_STATUS, TOGGLE_CATALOG_ITEM, UPDATE_CATALOG_PRICE, UPDATE_RECIPE_INGREDIENT, UPDATE_APPT_STATUS, COMPLETE_APPT, NO_SHOW_APPT, ADD_BEAUTY_CLIENT, UPDATE_LEAD_STATUS, UPDATE_CASE_STATUS, UPDATE_SC_STATUS, CREATE_TASK, CREATE_ALERT_RULE, REPLY_CUSTOMER_CHAT, CREATE_COUPON, UPDATE_INVOICE_STATUS. כל תגית מוסרת מהטקסט והופכת לכפתור אישור שמפעיל פונקציה <code>window._ai*</code>; אין ביצוע אוטומטי. גרסת ספורט (46606-46670) מוסיפה FREEZE_MEMBER, UNFREEZE_MEMBER, CHECKIN_MEMBER, REGISTER_CLASS; גרסת לוגיסטיקה (54239-54285) מוסיפה UPDATE_DELIVERY_STATUS. <code>_aiToggleCatalogItem</code>/<code>_aiUpdateCatalogPrice</code> קוראים ל-POST /api/ai/actions (server.js:15920, ללא middleware).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError('שגיאה במערכת העוזרת').</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId) — נצרך טוקן אחד גם כשיש סבב NEED_DATA שני.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-biz-ai-generate" data-f="biz ai generate newsletter sport compose passthrough">
+<h3>ניסוח טקסט כללי לעסקים (Passthrough)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/generate</code> — server.js:13907</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:14351 <code>generateNLAI</code>, 49430 <code>_sportAICompose</code>, 49464 <code>showSportAIInsights</code>, 55682 <code>_profContentAI</code> (משמש aiGenerateHero/About/SuggestExpertise/FillExpertise/WriteExpertiseDesc/WriteArticle)</td></tr><tr><td>ספק</td><td>Gemini (REST)</td></tr><tr><td>מודל</td><td>דינמי — callGeminiDirect</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>context</code>, <code>query</code> מהלקוח</td></tr></tbody></table></div>
+<p class="src"><b>הרכבת prompt</b> — <code>server.js:13909–13911</code> (העתק מילולי)</p><pre class="sql">const { context, query } = req.body;
+if (!context &amp;&amp; !query) return res.status(400).json({ success: false, error: &#x27;נתונים חסרים&#x27; });
+const prompt = context ? `${context}\n\nבקשה: ${query}` : query;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>{success, answer}</code>. הלקוח בספורט קורא <code>d.response || d.answer || d.text</code> (business-app.js:49445).</td></tr><tr><td>Fallback / שגיאות</td><td><code>{success:false,error}</code> (server.js:13915).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-store-desc" data-f="store product description short">
+<h3>תיאור מוצר קצר</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/store/ai-desc</code> — server.js:15884</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:15976 <code>generateStoreProductAI</code>, 28466 <code>_wizGenDesc</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>productName, groupId</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:15892–15892</code> (העתק מילולי)</p><pre class="sql">const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: &quot;${productName}&quot;. השתמש באימוג&#x27;ים ואל תשתמש במרכאות.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>description</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId מגוף הבקשה).</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-store-long-desc" data-f="store product description long">
+<h3>תיאור מוצר מורחב</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/store/ai-long-desc</code> — server.js:15898</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:15988 <code>generateStoreProductLongAI</code>, 28484 <code>_wizGenLongDesc</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>productName, shortDesc, groupId</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:15906–15913</code> (העתק מילולי)</p><pre class="sql">        const shortDescHint = shortDesc ? ` (התיאור הקצר הקיים: &quot;${shortDesc}&quot;)` : &#x27;&#x27;;
+        const prompt = `כתוב תיאור מורחב ומפורט בעברית עבור המוצר/מנה: &quot;${productName}&quot;${shortDescHint}.
+התיאור המורחב מיועד לדף המוצר בחנות/מסעדה ועליו לכלול:
+- תיאור מפורט של המוצר (מרכיבים, טעמים, מרקם, אפשרויות הגשה)
+- יתרונות ונקודות חוזקה
+- טיפ או המלצה לצרכן
+- שפה שיווקית, חמה ומזמינה
+אל תחזור על אותו תוכן שבתיאור הקצר. כתוב 3-5 משפטים. אין להשתמש במרכאות.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>description</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sport-plan" data-f="sport training plan">
+<h3>תוכנית אימונים אישית (ספורט)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/sport/training-plan</code> — server.js:30756</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:49349 <code>_sportAIGeneratePlan</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>memberName, memberPhone, fitnessGoal, currentFitness, availableDays, healthNotes, membershipType, groupId</code>; ספירת <code>sport_checkins</code> לפי טלפון (server.js:30764-30769)</td></tr></tbody></table></div>
+<p class="src"><b>jsonSchema + prompt</b> — <code>server.js:30772–30784</code> (העתק מילולי)</p><pre class="sql">        const jsonSchema = &#x27;{&quot;summary&quot;:&quot;תקציר&quot;,&quot;weeks&quot;:[{&quot;weekNum&quot;:1,&quot;goal&quot;:&quot;מטרה&quot;,&quot;days&quot;:[{&quot;day&quot;:&quot;ראשון&quot;,&quot;focus&quot;:&quot;קבוצת שרירים&quot;,&quot;exercises&quot;:[{&quot;name&quot;:&quot;שם&quot;,&quot;sets&quot;:3,&quot;reps&quot;:&quot;12&quot;,&quot;notes&quot;:&quot;&quot;}],&quot;duration&quot;:45}]}],&quot;nutrition&quot;:[&quot;המלצה&quot;],&quot;safetyNotes&quot;:[&quot;הערה&quot;]}&#x27;;
+        const prompt = `אתה מאמן כושר מקצועי. צור תוכנית אימונים שבועית מפורטת בעברית.
+פרטי המתאמן:
+שם: ${memberName || &#x27;חבר/ה&#x27;}
+מטרה: ${fitnessGoal || &#x27;כושר כללי&#x27;}
+רמה: ${currentFitness || &#x27;מתחיל&#x27;}
+ימי אימון בשבוע: ${availableDays || &#x27;3&#x27;}
+סוג מנוי: ${membershipType || &#x27;רגיל&#x27;}
+כניסות עד כה: ${checkinCount}
+הערות בריאות: ${healthNotes || &#x27;אין&#x27;}
+
+החזר JSON בלבד ללא סימני backtick:
+${jsonSchema}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>הסרת גדרות ו-JSON.parse; כשל → <code>{summary: rawText, weeks:[], nutrition:[], safetyNotes:[]}</code> (server.js:30789-30790).</td></tr><tr><td>Fallback / שגיאות</td><td>חסר מפתח → 500; BATTERY_EMPTY מוחזר עם <b>HTTP 429</b> (server.js:30761).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId, 'sport/training-plan').</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-parse-pdf" data-f="pdf parse products vision invoice pricelist menu">
+<h3>חילוץ מוצרים מ-PDF/תמונה (Vision)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/parse-pdf</code> — server.js:33874</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:57755 <code>scanPdfForProducts</code></td></tr><tr><td>ספק</td><td>Gemini (SDK) multimodal</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא; inlineData (mimeType ברירת מחדל application/pdf)</td></tr><tr><td>משתנים מוזרקים</td><td><code>fileBase64, mimeType, groupId, context</code> (invoice/pricelist/menu)</td></tr></tbody></table></div>
+<p class="src"><b>contextHint + prompt</b> — <code>server.js:33882–33889</code> (העתק מילולי)</p><pre class="sql">        const contextHint = context === &#x27;invoice&#x27; ? &#x27;חשבונית ספק או תעודת משלוח&#x27;
+            : context === &#x27;pricelist&#x27; ? &#x27;מחירון ספק&#x27;
+            : context === &#x27;menu&#x27; ? &#x27;תפריט מסעדה&#x27;
+            : &#x27;מסמך מוצרים&#x27;;
+        const prompt = `זהו ${contextHint}. חלץ את רשימת המוצרים/הפריטים מהמסמך.
+החזר JSON בלבד ללא backtick:
+{&quot;products&quot;:[{&quot;name&quot;:&quot;שם המוצר&quot;,&quot;price&quot;:0,&quot;unit&quot;:&quot;יח&#x27;&quot;,&quot;sku&quot;:&quot;&quot;,&quot;category&quot;:&quot;כללי&quot;,&quot;description&quot;:&quot;&quot;}]}
+כללים: name=שם המוצר, price=מחיר כמספר (0 אם לא ידוע), unit=יחידת מידה, sku=מק&quot;ט/ברקוד אם קיים, category=קטגוריה לפי הגיון, description=תיאור קצר.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>הסרת גדרות ו-JSON.parse; כשל → 422 (server.js:33897).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId, 'parse-pdf'); BATTERY_EMPTY עם HTTP 429.</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">תמונות: יצירה, חיפוש סטוק ו-Vision</h2>
+<section class="proc" id="ai-task-vision" data-f="task proof vision verify bonus">
+<h3>אימות הוכחת ביצוע משימה (Vision)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/tasks/vision-verify</code> — server.js:12549</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz + groupId==token + בעלות משימה או ADMIN</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2715, business-app.js:4858 <code>handleTaskProofUpload</code></td></tr><tr><td>ספק</td><td>Gemini (SDK) multimodal</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &quot;application/json&quot;</code> (server.js:12567)</td></tr><tr><td>משתנים מוזרקים</td><td><code>tasks.title</code> מה-DB (עדיפות על title מהגוף), <code>imageBase64, mimeType</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt (שני ענפים)</b> — <code>server.js:12569–12574</code> (העתק מילולי)</p><pre class="sql">
+let prompt = &quot;&quot;;
+if (gType === &#x27;BUSINESS&#x27;) {
+    prompt = `You are an AI QA manager. An employee claims they completed the task/ticket: &quot;${realTitle}&quot;. Look at the attached image proof. Is the task reasonably completed? Return JSON strictly matching this schema: { &quot;verified&quot;: true/false, &quot;message&quot;: &quot;Short feedback in Hebrew speaking directly to the employee. If verified, acknowledge it professionally. If not, clarify what is missing.&quot; }`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;. A child claims they completed the task: &quot;${realTitle}&quot;. Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { &quot;verified&quot;: true/false, &quot;message&quot;: &quot;Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing.&quot; }`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON.parse (server.js:12578). אם <code>verified</code>: בונוס = max(1, round(reward×10%)) כש-reward&gt;0; עדכון balance, שתי תנועות (income לילד/עובד, expense ל-ADMIN), status=approved (server.js:12579-12594).</td></tr><tr><td>Fallback / שגיאות</td><td>handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-receipt-scan" data-f="receipt scan vision supermarket">
+<h3>סריקת קבלה (Vision)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/shopping/scan-receipt</code> — server.js:12599</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamilyOrBiz</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>app.js:2733, business-app.js:4915 <code>handleReceiptUpload</code>; שמירה: app.js:2792 <code>confirmReceiptItems</code> → /api/shopping/scan-receipt/save</td></tr><tr><td>ספק</td><td>Gemini (SDK) multimodal</td></tr><tr><td>מודל</td><td><code>gemini-2.0-flash-lite</code> (server.js:12608)</td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &quot;application/json&quot;</code></td></tr><tr><td>משתנים מוזרקים</td><td><code>imageBase64, mimeType</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>server.js:12609–12665</code> (העתק מילולי)</p><pre class="sql">        const prompt = `You are &#x27;familAI&#x27;, an expert Israeli supermarket receipt parser.
+
+## HOW ISRAELI RECEIPTS ARE STRUCTURED
+
+Each purchased item appears as a BLOCK of 2-4 lines:
+  LINE 1: Hebrew product name  (e.g. &quot;שמן זית כתית מ&quot;)
+  LINE 2: Barcode number — IGNORE (e.g. &quot;7290117263389&quot;)
+  LINE 3: quantity × unit_price = total  (e.g. &quot;4 יחידה x 29.70    118.80&quot;)
+  LINE 4 (optional): DISCOUNT LINE — starts with a NEGATIVE number (e.g. &quot;-19.80  שמן זית 750 מל רמי לוי ב19.80&quot;)
+           ↑ This line BELONGS to the item above it. The text after the negative amount is a PROMOTIONAL DESCRIPTION, NOT a new product.
+           ↑ Patterns like &quot;13ב2&quot;, &quot;2ב1&quot;, &quot;3ב10&quot; mean &quot;X items for ₪Y&quot; — these are promo codes, NOT product names.
+
+After the discount line (if any), the NEXT product block begins immediately.
+
+## CRITICAL RULES
+
+1. A line starting with a NEGATIVE number (e.g. -19.80, -5.60) is ALWAYS a discount line for the item above it — NEVER a new item.
+2. The text on a discount line (e.g. &quot;שמן קנולה 1 ליטר 13ב2&quot;) is promotional description — do NOT create a new item from it.
+3. Barcode lines (long digit strings like &quot;7290121043366&quot;) — IGNORE completely.
+4. Items like &quot;מארז X קופסאות&quot;, &quot;כוסות&quot;, &quot;שקית&quot; etc. ARE real products — do not skip them.
+5. Extract the STORE NAME from the receipt header.
+
+## EXAMPLE (from actual Rami Levy receipt)
+
+Receipt lines:
+  שמן קנולה הולנ              ← product name
+  7290119673124               ← barcode → IGNORE
+  71.20   8 יחידה x 8.90     ← qty=8, unit_price=8.90, total=71.20
+  -19.20  שמן קנולה 1 ליטר 13ב2  ← discount=-19.20, promo text → add to item above
+  מארז 4 קופסאות               ← NEW product name
+  7290121043366               ← barcode → IGNORE
+  29.90                       ← price (qty=1, no line discount)
+  כוסות נתיה קרה               ← NEW product name
+  8698585273257               ← barcode → IGNORE
+  15.60   4 יחידה x 3.90     ← qty=4, unit_price=3.90
+  -5.60   כוסות               ← discount=-5.60 → add to כוסות item above
+
+Result for these lines:
+  { name: &quot;שמן קנולה הולנ&quot;, qty: 8, unit_price: 8.90, discount: 19.20, net_unit_price: 6.50 }
+  { name: &quot;מארז 4 קופסאות&quot;, qty: 1, unit_price: 29.90, discount: 0, net_unit_price: 29.90 }
+  { name: &quot;כוסות נתיה קרה&quot;, qty: 4, unit_price: 3.90, discount: 5.60, net_unit_price: 2.50 }
+
+## FIELDS TO EXTRACT PER ITEM
+
+- name: Hebrew product name as on receipt
+- normalized_name: generic brand-less name (&quot;שמן זית כתית תנובה&quot; → &quot;שמן זית&quot;, &quot;חלב תנובה 3%&quot; → &quot;חלב 3%&quot;)
+- qty: number of units (default 1)
+- unit: &quot;יח&quot; for pieces, &#x27;ק&quot;ג&#x27; for kg, &quot;ל&quot; for liters, &quot;ג&quot; for grams, &#x27;מ&quot;ל&#x27; for ml
+- unit_price: price per unit BEFORE discount
+- discount: total discount for all units (positive number, 0 if none)
+- net_unit_price: (unit_price × qty − discount) / qty
+
+## IGNORE ENTIRELY
+
+Receipt header, store address, phone, barcodes, order number, total lines, VAT, loyalty club paragraphs, dividers.
+
+Return ONLY valid JSON: { &quot;store_name&quot;: &quot;...&quot;, &quot;items&quot;: [...] }`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>עד 2 ניסיונות (המתנה 3 שניות, ללא ניסיון חוזר על 429) (server.js:12667-12678); הסרת גדרות ו-JSON.parse; מקבל מערך או <code>{store_name, items}</code>. לא נשמר — תצוגה מקדימה בלבד (server.js:12695-12696).</td></tr><tr><td>Fallback / שגיאות</td><td>parse → 500 parse_error; handleAIError.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-gen-image" data-f="image generation logo banner huggingface flux pollinations hf_token">
+<h3>יצירת לוגו/באנר (HF FLUX → Pollinations)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/ai/generate-image</code> — server.js:12346</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:13712, 27200 <code>generateBannerAI</code>; 19907 <code>generateLogoAI</code>; 20023 <code>runBannerAI</code></td></tr><tr><td>ספק</td><td>Gemini (בניית פרומפט לבאנר בלבד) + HuggingFace router (nebius/together, FLUX schnell) + Pollinations</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code>; <code>black-forest-labs/flux-schnell</code> (nebius), <code>black-forest-labs/FLUX.1-schnell</code> (together), Pollinations <code>model=flux</code></td></tr><tr><td>פרמטרי יצירה</td><td>באנר 1024×576, לוגו 512×512; timeout 30s ל-HF, 45s ל-Pollinations (server.js:12373-12415)</td></tr><tr><td>משתנים מוזרקים</td><td><code>groupId, type (banner/logo), prompt</code> (= שם העסק)</td></tr></tbody></table></div>
+<p class="src"><b>פרומפט Gemini לבאנר + פרומפטי ברירת מחדל</b> — <code>server.js:12354–12370</code> (העתק מילולי)</p><pre class="sql">if (type === &#x27;banner&#x27; &amp;&amp; businessName &amp;&amp; getGenAIInstance()) {
+    try {
+        const geminiModel = getGenAIInstance().getGenerativeModel({ model: &#x27;gemini-2.5-flash&#x27; });
+        const geminiResult = await geminiModel.generateContent(
+            `You are a professional image prompt engineer. Based on the business name &quot;${businessName}&quot;, write a short English image generation prompt (max 30 words) for a wide banner background photo. Requirements: realistic photography style, relevant to the business type, vibrant colors, no text, no logos, no people faces. Return ONLY the prompt text.`
+        );
+        finalPrompt = geminiResult.response.text().trim().replace(/^[&quot;&#x27;]|[&quot;&#x27;]$/g, &#x27;&#x27;);
+        console.log(&#x27;Generated banner prompt:&#x27;, finalPrompt);
+    } catch(e) {
+        console.error(&#x27;Gemini prompt gen failed, using default:&#x27;, e.message);
+    }
+}
+if (!finalPrompt) {
+    finalPrompt = type === &#x27;banner&#x27;
+        ? &#x27;professional business store banner background, realistic photography, vibrant colors, no text, no logos, wide panoramic&#x27;
+        : &#x27;professional business logo icon, clean modern design, colorful, high quality&#x27;;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>שרשרת ספקים: nebius → together → Pollinations; מחזיר <code>data:&lt;type&gt;;base64,…</code> (server.js:12424). HF_TOKEN מ-env (server.js:12372); ללא טוקן — מדלג ל-Pollinations.</td></tr><tr><td>Fallback / שגיאות</td><td>כל הספקים נכשלו → <code>{success:false}</code> (server.js:12419-12422).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>handleAITokens(groupId מגוף הבקשה) — נצרך גם אם הלוגו לא מפעיל Gemini.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-catalog-image" data-f="product image pixabay pexels pollinations cloudinary stock">
+<h3>תמונת מוצר: Pixabay → Pexels → Pollinations</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/store/catalog/generate-image</code> — server.js:13658</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>business-app.js:16114 <code>generateProductImage</code>, 28445 <code>_wizGenImage</code>; sa-app.js:15879 <code>aiGenProdImg</code></td></tr><tr><td>ספק</td><td>Gemini (תרגום שם) + Pixabay API + Pexels API + Pollinations + Cloudinary</td></tr><tr><td>מודל</td><td><code>gemini-2.0-flash-lite</code> (server.js:13673)</td></tr><tr><td>פרמטרי יצירה</td><td>Pixabay: image_type=photo, per_page=15, safesearch=true, min_width=400, page=min(attempt,3) (server.js:13733); Pexels: per_page=10, orientation=square (server.js:13757); Pollinations 512×512, 2 ניסיונות, timeout 20s (server.js:13781-13795)</td></tr><tr><td>משתנים מוזרקים</td><td><code>groupId, productName, nameEn, description, category, productType, attempt</code></td></tr></tbody></table></div>
+<p class="src"><b>תרגום שם מוצר (רק כאשר nameEn קצר מ-3)</b> — <code>server.js:13670–13677</code> (העתק מילולי)</p><pre class="sql">        if (searchQuery.length &lt; 3 &amp;&amp; getGenAIInstance()) {
+            // nameEn missing/short — translate from Hebrew product name
+            try {
+                const genModel = getGenAIInstance().getGenerativeModel({ model: &#x27;gemini-2.0-flash-lite&#x27; });
+                const prompt = `Translate this food/product name to the canonical English food industry term used on menus worldwide (2-4 words, no punctuation).
+Product: ${productName}
+Description: ${(description || &#x27;&#x27;).slice(0, 80)}
+Reply with ONLY the English term, nothing else.`;</pre>
+<p class="src"><b>מיפוי שירותים למקצוע</b> — <code>server.js:13690–13700</code> (העתק מילולי)</p><pre class="sql">// AI (Pollinations, לא יציב) חוזר להיות רק מוצא אחרון, אחרי שגם Pixabay וגם Pexels נכשלו.
+if (productType === &#x27;service&#x27;) {
+    const PROFESSION_BY_CATEGORY = [
+        { kw: /אינסטלצי|ברז|סתימ|צנרת|דלוח/i, en: &#x27;plumber repairing pipe&#x27; },
+        { kw: /חשמל/i, en: &#x27;electrician fixing outlet&#x27; },
+        { kw: /מיזוג|מזגן|אוויר/i, en: &#x27;hvac technician repairing air conditioner&#x27; },
+        { kw: /מנעול|צילינדר/i, en: &#x27;locksmith repairing door lock&#x27; },
+        { kw: /מחשב|סלולר|טלפון/i, en: &#x27;technician repairing computer&#x27; },
+    ];
+    const match = PROFESSION_BY_CATEGORY.find(p =&gt; p.kw.test(category || &#x27;&#x27;) || p.kw.test(productName || &#x27;&#x27;) || p.kw.test(nameEn || &#x27;&#x27;));
+    searchQuery = match ? match.en : &#x27;handyman repairing home appliance&#x27;;</pre>
+<p class="src"><b>פרומפט Pollinations</b> — <code>server.js:13775–13780</code> (העתק מילולי)</p><pre class="sql">const aiPrompt = productType === &#x27;service&#x27;
+    ? `a professional technician performing: ${searchQuery}, realistic photo, natural lighting, no text, no logo`
+    : `product photo, ${searchQuery}, white background, professional studio lighting, high quality, sharp focus, no text, no people`;
+const neg = encodeURIComponent(productType === &#x27;service&#x27;
+    ? &#x27;text, logo, watermark, cartoon, blurry, low quality, deformed hands&#x27;
+    : &#x27;people, faces, text, logo, watermark, cartoon, blurry, low quality&#x27;);</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>כתובת תמונה; אם Cloudinary מוגדר ב-system_settings — מועלה ומוחזר secure_url (server.js:13703-13721). <code>source</code>: cloudinary/pixabay/pexels/pollinations.</td></tr><tr><td>Fallback / שגיאות</td><td>כולם נכשלו → <code>{success:false}</code> (server.js:13797).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין handleAITokens.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-sa-pollinations" data-f="sa pollinations logo banner client">
+<h3>לוגו/באנר בבונה העסק של SA (Pollinations בצד לקוח)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td>ללא route — כתובת Pollinations נבנית בדפדפן — sa-app.js:15993, 16000, 16267, 16271</td></tr><tr><td>Middleware / הרשאה</td><td>—</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>sa-app.js:16226 <code>aiGenBrandingImg</code>; יצירת עסק בבונה (sa-app.js:15985-16003)</td></tr><tr><td>ספק</td><td>Pollinations</td></tr><tr><td>מודל</td><td><code>model=flux</code></td></tr><tr><td>פרמטרי יצירה</td><td>לוגו 512×512, באנר 1200×400, negative prompt קבוע</td></tr><tr><td>משתנים מוזרקים</td><td>logo_prompt / banner_prompt (מ-ai-gen-brand-prompts או ממשתמש)</td></tr></tbody></table></div>
+<p class="src"><b>יצירה בעת שמירת העסק</b> — <code>sa-app.js:15989–16001</code> (העתק מילולי)</p><pre class="sql">try {
+  if (logoPrompt) {
+    const seed = Math.floor(Math.random() * 99999);
+    const neg = encodeURIComponent(&#x27;text, letters, words, blurry, low quality&#x27;);
+    logoUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(logoPrompt)}?width=512&amp;height=512&amp;model=flux&amp;nologo=true&amp;seed=${seed}&amp;negative=${neg}`;
+    await fetch(logoUrl).catch(()=&gt;{});
+  }
+  if (bannerPrompt) {
+    await new Promise(r =&gt; setTimeout(r, 2500));
+    const seed2 = Math.floor(Math.random() * 99999);
+    const neg2 = encodeURIComponent(&#x27;text, logo, watermark, cartoon, CGI, blurry&#x27;);
+    bannerUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bannerPrompt)}?width=1200&amp;height=400&amp;model=flux&amp;nologo=true&amp;seed=${seed2}&amp;negative=${neg2}`;
+    await fetch(bannerUrl).catch(()=&gt;{});</pre>
+<p class="src"><b>יצירה ידנית</b> — <code>sa-app.js:16262–16272</code> (העתק מילולי)</p><pre class="sql">if (genBtn) genBtn.textContent = &#x27;⏳ מייצר תמונה...&#x27;;
+const seed = Math.floor(Math.random() * 99999);
+let url;
+if (type === &#x27;banner&#x27;) {
+  const neg = encodeURIComponent(&#x27;people, faces, humans, text, logo, watermark, cartoon, CGI, blurry, illustration&#x27;);
+  url = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?width=1200&amp;height=400&amp;model=flux&amp;nologo=true&amp;seed=${seed}&amp;negative=${neg}`;
+  await fetch(url).catch(() =&gt; {});
+} else {
+  const neg = encodeURIComponent(&#x27;text, letters, words, blurry, 3d render, CGI, low quality, photo, realistic&#x27;);
+  url = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?width=512&amp;height=512&amp;model=flux&amp;nologo=true&amp;seed=${seed}&amp;negative=${neg}`;
+  await fetch(url);</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>ה-URL עצמו משמש כתמונה.</td></tr><tr><td>Fallback / שגיאות</td><td>שגיאות נבלעות (catch ריק / console.warn).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">מנהל אזור (ZONE-MANAGER) וקהילה</h2>
+<section class="proc" id="ai-zm-banner" data-f="zone manager banner svg">
+<h3>באנר SVG לקמפיין</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/zone-manager/ai/generate-banner</code> — server.js:20114</td></tr><tr><td>Middleware / הרשאה</td><td>verifyZoneManager</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>zone-manager-app.js:818 <code>zmAIGenerateBanner</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> → fallback <code>gemini-2.0-flash-lite</code> על כל שגיאה (server.js:20133-20138)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>title</code> (לא בשימוש בפרומפט), <code>campaignType</code> → palette</td></tr></tbody></table></div>
+<p class="src"><b>palette + prompt</b> — <code>server.js:20117–20131</code> (העתק מילולי)</p><pre class="sql">        const { title, campaignType } = req.body;
+        const palette = campaignType === &#x27;business&#x27;
+            ? { c1: &#x27;#1e3a8a&#x27;, c2: &#x27;#2563eb&#x27;, c3: &#x27;#0ea5e9&#x27;, accent: &#x27;#38bdf8&#x27; }
+            : campaignType === &#x27;family&#x27;
+            ? { c1: &#x27;#4f46e5&#x27;, c2: &#x27;#7c3aed&#x27;, c3: &#x27;#db2777&#x27;, accent: &#x27;#f472b6&#x27; }
+            : { c1: &#x27;#064e3b&#x27;, c2: &#x27;#059669&#x27;, c3: &#x27;#10b981&#x27;, accent: &#x27;#34d399&#x27; };
+        const model = getGenAIInstance().getGenerativeModel({ model: &#x27;gemini-2.5-flash&#x27; });
+        const prompt = `Generate a beautiful SVG marketing banner. Output ONLY valid SVG code, nothing else.
+Dimensions: width=&quot;1600&quot; height=&quot;900&quot;. No text, no letters, no numbers.
+Use colors: ${palette.c1}, ${palette.c2}, ${palette.c3}, ${palette.accent}.
+Include: a gradient background (linearGradient from ${palette.c1} to ${palette.c2}),
+8-12 semi-transparent decorative shapes (circles, ellipses, rectangles, polygons) with opacity between 0.08 and 0.35,
+abstract modern geometric design, layered depth effect.
+Start the response with: &lt;svg width=&quot;1600&quot; height=&quot;900&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;
+End with: &lt;/svg&gt;`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>regex <code>/&lt;svg[\s\S]*?&lt;\/svg&gt;/i</code>; Base64 → <code>data:image/svg+xml</code> (server.js:20140-20144).</td></tr><tr><td>Fallback / שגיאות</td><td>500.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-zm-draft" data-f="zone manager campaign draft">
+<h3>ניסוח טקסט קמפיין</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/zone-manager/ai/draft-campaign</code> — server.js:20149</td></tr><tr><td>Middleware / הרשאה</td><td>verifyZoneManager</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>zone-manager-app.js:878 <code>zmAIDraftCampaign</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code> → <code>gemini-1.5-flash</code> רק על 503/overloaded/high demand (server.js:20184-20188)</td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &#x27;application/json&#x27;</code> (server.js:20183)</td></tr><tr><td>משתנים מוזרקים</td><td><code>goal, audience, tone, campaignType, modules</code></td></tr></tbody></table></div>
+<p class="src"><b>typeContexts + prompt</b> — <code>server.js:20156–20180</code> (העתק מילולי)</p><pre class="sql">        const typeContexts = {
+            business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת WEFLOWZ כמערכת ניהול עסקי.
+WEFLOWZ מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
+המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר עסקי.`,
+            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת WEFLOWZ.
+WEFLOWZ מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
+המטרה: גיוס אנשים שישאירו פרטים ונציג ייצור איתם קשר (לא הורדת אפליקציה).`,
+            community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת WEFLOWZ.
+הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי ואירועים.
+המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
+        };
+        const context = typeContexts[campaignType] || typeContexts.family;
+        const modulesLine = (modules &amp;&amp; modules.length)
+            ? `\nמודולים שיש לדגש במיוחד במסר: ${modules.join(&#x27;, &#x27;)}.`
+            : &#x27;&#x27;;
+        const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס.
+הקשר: ${context}${modulesLine}
+${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : &#x27;&#x27;}
+קהל יעד: ${audience || &#x27;לקוחות פוטנציאליים&#x27;}
+טון: ${tone || &#x27;חם, ידידותי, מקצועי ומשכנע&#x27;}
+הפלט יכלול:
+- title: כותרת ראשית מושכת (עד 8 מילים)
+- subtitle: כותרת משנה מסכמת (עד 20 מילים)
+- text_content: גוף הטקסט בלבד (3-4 משפטים) — חשוב: אל תחזור על הכותרת או כותרת המשנה. התחל ישירות בתוכן המרחיב, הפניות לערך, הטבות ספציפיות, וקריאה לפעולה להשארת פרטים (לא הורדת אפליקציה).
+החזר JSON בפורמט: {&quot;title&quot;: &quot;...&quot;, &quot;subtitle&quot;: &quot;...&quot;, &quot;text_content&quot;: &quot;...&quot;}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON.parse → <code>title, subtitle, text_content</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>500.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-zm-leads" data-f="zone manager leads score">
+<h3>דירוג לידים</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/zone-manager/ai/analyze-leads</code> — server.js:20197</td></tr><tr><td>Middleware / הרשאה</td><td>verifyZoneManager + בעלות קמפיין</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>zone-manager-app.js:1209 <code>analyzeLeads</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td><code>responseMimeType: &#x27;application/json&#x27;</code> (server.js:20205)</td></tr><tr><td>משתנים מוזרקים</td><td>עד 50 לידים ללא ai_score (server.js:20203)</td></tr></tbody></table></div>
+<p class="src"><b>leadsText + prompt</b> — <code>server.js:20206–20210</code> (העתק מילולי)</p><pre class="sql">        const leadsText = leadsRes.rows.map((l,i) =&gt; `${i+1}. ${JSON.stringify(l.data)}`).join(&#x27;\n&#x27;);
+        const prompt = `נתח את הלידים הבאים שנכנסו דרך קמפיין לגיוס חברים לקהילה. לכל ליד תן ציון 1-10 (10=חם מאוד) וקצר הערה.
+לידים:
+${leadsText}
+החזר JSON: {&quot;results&quot;: [{&quot;id&quot;: &lt;מספר שורה&gt;, &quot;score&quot;: &lt;1-10&gt;, &quot;notes&quot;: &quot;&lt;הערה קצרה&gt;&quot;}]}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>JSON.parse; <code>results[].id</code> = מספר שורה (1-based) → UPDATE ai_score, ai_notes (server.js:20212-20216).</td></tr><tr><td>Fallback / שגיאות</td><td>500.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-zm-reply" data-f="zone manager inbox suggest reply">
+<h3>הצעת תשובה לשיחה</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/zone-manager/ai/suggest-reply</code> — server.js:20223</td></tr><tr><td>Middleware / הרשאה</td><td>verifyZoneManager + בעלות שיחה</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>zone-manager-app.js:1315 <code>zmAISuggestReply</code></td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td>6 הודעות אחרונות ב-<code>zm_inbox_messages</code></td></tr></tbody></table></div>
+<p class="src"><b>history + prompt</b> — <code>server.js:20231–20232</code> (העתק מילולי)</p><pre class="sql">const history = messages.rows.reverse().map(m =&gt; `${m.sender_type === &#x27;manager&#x27; ? &#x27;מנהל אזור&#x27; : &#x27;מנהל קהילה&#x27;}: ${m.content}`).join(&#x27;\n&#x27;);
+const prompt = `הינך מנהל אזור בפלטפורמת WEFLOWZ. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>suggestion</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>500.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">קול העם (Kol HaAm) — Anthropic Claude</h2>
+<section class="proc" id="ai-kh-copilot" data-f="kol haam copilot claude grammar title summary tags safety cover">
+<h3>AI Copilot לכותבי תוכן</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/kol-haam/content/:id/ai-copilot</code> — server.js:45836</td></tr><tr><td>Middleware / הרשאה</td><td>verifyFamily (groupId מהטוקן, server.js:45839)</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>kol-haam-app.js:2193 <code>KH.runAICopilot</code> (פאנל: 2170 <code>KH.renderAICopilot</code>)</td></tr><tr><td>ספק</td><td>Anthropic Messages API דרך <code>callClaudeKH</code> (server.js:45820)</td></tr><tr><td>מודל</td><td><code>claude-sonnet-4-6</code>; max_tokens: 1500 (עריכה), 400 (בטיחות), 200 (שער); <code>anthropic-version: 2023-06-01</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא system/temperature; הודעת user יחידה</td></tr><tr><td>משתנים מוזרקים</td><td><code>content_items.title, subtitle, content_html</code> (HTML מוסר; 3000 תווים לעריכה, 2000 לבטיחות); <code>actions[]</code></td></tr></tbody></table></div>
+<p class="src"><b>עריכה (grammar/title/subtitle/summary/tags — קריאה אחת)</b> — <code>server.js:45865–45881</code> (העתק מילולי)</p><pre class="sql">            const prompt = `אתה עורך תוכן ישראלי מנוסה. עזור לכותב לשפר את הכתבה הבאה.
+
+כותרת: ${it.title}
+תת-כותרת: ${it.subtitle || &#x27;&#x27;}
+תוכן: ${plainText.slice(0, 3000)}
+
+החזר JSON בלבד (ללא markdown) עם המבנה הבא:
+{
+  &quot;grammar&quot;: {&quot;corrections&quot;: [{&quot;original&quot;: &quot;...&quot;, &quot;suggested&quot;: &quot;...&quot;}], &quot;corrected_full_text&quot;: &quot;טקסט מתוקן...&quot;},
+  &quot;title_suggestions&quot;: [&quot;הצעה 1&quot;, &quot;הצעה 2&quot;, &quot;הצעה 3&quot;],
+  &quot;subtitle_suggestions&quot;: [&quot;הצעה 1&quot;, &quot;הצעה 2&quot;],
+  &quot;summary&quot;: &quot;תקציר 3-5 שורות...&quot;,
+  &quot;tag_suggestions&quot;: [&quot;תגית1&quot;, &quot;תגית2&quot;, &quot;תגית3&quot;, &quot;תגית4&quot;]
+}
+
+פעל רק על הפעולות שנדרשות: ${wantAI.join(&#x27;, &#x27;)}
+השאר שדות לא נדרשים ריקים ([] או &quot;&quot;).`;</pre>
+<p class="src"><b>safety_scan</b> — <code>server.js:45924–45937</code> (העתק מילולי)</p><pre class="sql">            const safetyPrompt = `בדוק את הטקסט הבא לאיתור בעיות:
+
+&quot;${plainText.slice(0, 2000)}&quot;
+
+החזר JSON בלבד:
+{
+  &quot;offensive_language&quot;: false,
+  &quot;defamation_risk&quot;: false,
+  &quot;personal_info_exposed&quot;: false,
+  &quot;copied_content_suspected&quot;: false,
+  &quot;flags&quot;: []
+}
+
+אם יש בעיה, הוסף הסבר קצר לשדה flags כמערך של מחרוזות.`;</pre>
+<p class="src"><b>cover_suggestion</b> — <code>server.js:45959–45959</code> (העתק מילולי)</p><pre class="sql">const coverPrompt = `הצע 3 ביטויי חיפוש בעברית ובאנגלית לתמונת שער מתאימה לכתבה בנושא: &quot;${it.title}&quot;. החזר JSON: {&quot;queries&quot;: [&quot;...&quot;, &quot;...&quot;, &quot;...&quot;]}`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>לכל קריאה: הסרת ```json ו-JSON.parse. כשל בעריכה → <code>ai_parse_error</code>; כשל בבטיחות → אובייקט "נקי"; safety חיובי → INSERT ל-<code>content_reports</code> עם reason <code>SAFETY_AI_FLAG</code> (server.js:45944-45950). duplicate_check — ללא AI (pg_trgm similarity &gt; 0.35, fallback ILIKE).</td></tr><tr><td>Fallback / שגיאות</td><td>חסר ANTHROPIC_API_KEY → throw (server.js:45821) → 500; תשובה ריקה → ''.</td></tr><tr><td>מכסה / סוללה / לוג</td><td>מכסה יומית נפרדת: <code>checkAICopilotQuota</code> (server.js:43153) — <code>system_settings.kh_ai_copilot_daily_limit</code> (ברירת מחדל 20) על <code>kh_ai_copilot_usage</code>; חריגה → 429. אחרי ריצה: <code>incrementAICopilotUsage</code> (+1 לכל בקשה, לא לכל קריאת Claude) ולוג audit ל-<code>ai_copilot_usage_log</code> (server.js:45967-45974). לא משתמש ב-handleAITokens.</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">מדריכים (Guide chat)</h2>
+<section class="proc" id="ai-guide-chat" data-f="guide chat help">
+<h3>צ&#x27;אט המדריך (guide.html / biz-guide.html)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td><code>POST /api/guide/chat</code> — server.js:12799</td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b></td></tr><tr><td>מסך מפעיל (לקוח)</td><td>guide.html:570 <code>sendGuideQuestion</code> (שולח רק <code>question</code>, ללא guideType → תמיד guide.html)</td></tr><tr><td>ספק</td><td>Gemini (SDK)</td></tr><tr><td>מודל</td><td><code>gemini-2.5-flash</code></td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>question, guideType</code>; כל קובץ ה-HTML של המדריך נקרא מהדיסק ומוזרק (server.js:12804-12811)</td></tr></tbody></table></div>
+<p class="src"><b>prompt (BIZ / FAMILY)</b> — <code>server.js:12815–12836</code> (העתק מילולי)</p><pre class="sql">let prompt = &quot;&quot;;
+if (guideType === &#x27;BIZ&#x27;) {
+    prompt = `You are &#x27;FamliAI&#x27;, the professional business AI assistant for the &#x27;WEFLOWZ BIZ&#x27; app. 
+    A user is reading the business user guide and asked a question to understand the system better.
+    Here is the full content of the business guide HTML:
+    ${guideText}
+    
+    User&#x27;s question: &quot;${question}&quot;
+    
+    Answer directly in Hebrew based ONLY on the guide content above. 
+    Be concise (3-4 sentences max), professional yet friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+} else {
+    prompt = `You are &#x27;familAI&#x27;, the friendly AI assistant for the &#x27;WEFLOWZ&#x27; family app. 
+    A user is reading the user guide and asked a question to understand the system better.
+    Here is the full content of the guide HTML:
+    ${guideText}
+    
+    User&#x27;s question: &quot;${question}&quot;
+    
+    Answer directly in Hebrew based ONLY on the guide content above. 
+    Be concise (3-4 sentences max), friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+}</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td>טקסט → <code>answer</code>.</td></tr><tr><td>Fallback / שגיאות</td><td>500 "מצטערת, לא הצלחתי לייצר תשובה כרגע." (server.js:12842).</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין.</td></tr></tbody></table></div>
+</section>
+<section class="proc" id="ai-setup-guide-chat" data-f="biz setup guide client gemini api key exposed">
+<h3>עוזר מדריך ההקמה — קריאת Gemini ישירה מהדפדפן</h3>
+<div class="tbl-wrap"><table><thead><tr><th>שדה</th><th>ערך</th></tr></thead><tbody><tr><td>Route / פונקציה</td><td>GET /api/guide-config (server.js:12795) מחזיר את <code>GEMINI_API_KEY</code>; הקריאה ל-Gemini מהדפדפן — public/biz-setup-guide.html:8818 <code>window.sendGuideMessage</code></td></tr><tr><td>Middleware / הרשאה</td><td><b>ללא middleware</b> על guide-config</td></tr><tr><td>מסך מפעיל (לקוח)</td><td>biz-setup-guide.html:8718 <code>loadGuideConfig</code> + 8818 <code>sendGuideMessage</code></td></tr><tr><td>ספק</td><td>Gemini REST מהלקוח</td></tr><tr><td>מודל</td><td><code>gemini-2.0-flash-lite</code> (biz-setup-guide.html:8902)</td></tr><tr><td>פרמטרי יצירה</td><td>ללא</td></tr><tr><td>משתנים מוזרקים</td><td><code>detectedBiz</code>, היסטוריית שיחה (עד 6 הודעות), <code>context</code> = טקסט סקשן המדריך, <code>msg</code></td></tr></tbody></table></div>
+<p class="src"><b>prompt</b> — <code>biz-setup-guide.html:8840–8894</code> (העתק מילולי)</p><pre class="sql">
+    const prompt = `אתה עוזר תמיכה של מערכת WEFLOWZ BIZ.
+שמך &quot;עוזר WEFLOWZ&quot;.
+המשתמש הוא בעל עסק קטן שלא בהכרח טכנולוגי.
+המטרה: להוביל אותו לפתרון בצורה פשוטה וברורה.
+
+${detectedBiz ? `סוג העסק שזוהה: ${BIZ_NAMES[detectedBiz]}` : &#x27;סוג העסק: לא זוהה עדיין — שאל בשאלה הראשונה&#x27;}
+
+${historyText ? `היסטוריית השיחה:\n${historyText}\n` : &#x27;&#x27;}
+כללי התנהגות מחייבים:
+
+1. זהה סוג עסק מהשיחה — ענה לפי הסקשן הרלוונטי במדריך
+   אם לא ברור — שאל: &quot;איזה סוג עסק יש לך?&quot;
+   אל תשיב לפי הסקשן הגלוי במסך אם המשתמש אמר משהו אחר
+
+2. תמיד תוביל לפתרון — אל תשאיר את המשתמש בלי כיוון
+   ✅ &quot;הנה איך עושים זאת: 1... 2... 3...&quot;
+   ❌ &quot;שאלה זו מחוץ לתחום&quot; — אסור לומר זאת
+
+3. אם לא ברור מה המשתמש צריך — שאל שאלה מנחה אחת בלבד:
+   - &quot;איזה סוג עסק יש לך?&quot; (אם לא ידוע)
+   - &quot;באיזה מסך אתה נמצא כרגע?&quot;
+   - &quot;מה בדיוק אתה מנסה לעשות?&quot;
+
+4. אם השאלה ברורה — ענה מיד ללא שאלות מיותרות
+
+5. כל מונח — בעברית בדיוק כפי שכתוב במדריך:
+   &quot;קופה&quot; לא POS | &quot;לוח הבקרה&quot; לא Dashboard
+   &quot;הוסף&quot; לא Add | &quot;שמור&quot; לא Save
+   &quot;מסך מטבח&quot; לא KDS | &quot;קיצורי דרך מהירים&quot; לא Quick Tiles
+   &quot;מטפלות מאושרות&quot; לא assigned practitioners
+
+6. ענה בעברית בלבד — תמיד
+
+7. צעדים ממוספרים — ברורים וקצרים
+
+8. עד 120 מילה — אל תאריך
+
+9. זכור את כל השיחה — אל תחזור על מידע שנאמר
+   אם שאלת &quot;איזה סוג עסק יש לך?&quot; והמשתמש ענה — אל תשאל שוב לעולם
+
+10. בסוף כל תשובה — הוסף שאלת המשך אחת:
+    &quot;רוצה שאסביר על [נושא קשור]?&quot;
+
+11. אם המשתמש עדיין תקוע — הצע:
+    &quot;אם לא הצלחת, נסה: [נתיב אלטרנטיבי]&quot;
+
+המדריך הרלוונטי:
+---
+${context}
+---
+
+שאלה: ${msg}
+
+ענה עכשיו — תוביל לפתרון.`;</pre>
+<div class="tbl-wrap"><table><thead><tr><th>היבט</th><th>פירוט</th></tr></thead><tbody><tr><td>פורמט פלט ופענוח</td><td><code>data.candidates[0].content.parts[0].text</code> מוצג כטקסט.</td></tr><tr><td>Fallback / שגיאות</td><td>429 → הודעת מכסה (8916-8918); אין תשובה → "שגיאה טכנית זמנית".</td></tr><tr><td>מכסה / סוללה / לוג</td><td>אין (מכסת Google של המפתח).</td></tr></tbody></table></div>
+</section>
+<h2 class="grp">פרומפטים שנבנים בצד הלקוח (Passthrough)</h2>
+<section class="proc" data-f="client prompts passthrough business-app sa-app">
+<h3>פרומפטים שנבנים בדפדפן ונשלחים ל-routes גנריים</h3><p>ה-routes <code>/api/ai/generate</code> ו-<code>/api/sa/ai-generate</code> רק מרכיבים <code>${context}\n\nבקשה: ${query}</code> (או <code>query</code> בלבד), ולכן הפרומפט האמיתי נמצא בצד הלקוח. בקריאות ל-<code>/api/biz/chat-assistant</code> מהמסכים הבאים, ה-query עטוף בכל ה-systemPrompt של FamliAI (server.js:16262), כש-<code>context</code> הוא רק אובייקט <code>{role}</code>.</p>
+<p class="src"><b>generateReleaseNotesAI → /api/sa/ai-generate</b> — <code>sa-app.js:7075–7081</code> (העתק מילולי)</p><pre class="sql">const promptContext = `אתה קופירייטר. כתוב הודעה על עדכון גרסה. כותרת: &quot;${title || &#x27;עדכון מערכת&#x27;}&quot;. טון: ${tone}. ${lengthInstruction} אל תכתוב פתיחה! השתמש ב-&lt;br&gt;, &lt;strong&gt;. נקודות: ${rawPoints}`;
+
+const res = await fetch(`${API}/sa/ai-generate`, {
+    method: &#x27;POST&#x27;,
+    headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27;, &#x27;Authorization&#x27;: typeof saToken !== &#x27;undefined&#x27; ? saToken : &#x27;&#x27; },
+    body: JSON.stringify({ query: &#x27;נסח כעת ללא הקדמות&#x27;, context: promptContext })
+});</pre>
+<p class="src"><b>aiGenBrandingImg (אופטימיזציית FLUX) → /api/sa/ai-generate</b> — <code>sa-app.js:16238–16247</code> (העתק מילולי)</p><pre class="sql">try {
+  const bizName = _aiBuilderData?.profile?.name_en || _aiBuilderData?.profile?.name || &#x27;&#x27;;
+  const accentColor = _aiBuilderData?.profile?.accent_color || &#x27;#4f46e5&#x27;;
+  const systemHint = type === &#x27;logo&#x27;
+    ? `Convert the following description into a precise FLUX image generation prompt for a business LOGO (flat minimal icon, no text, no letters, clean vector style, solid color background). Business: &quot;${bizName}&quot;, accent color: ${accentColor}.`
+    : `Convert the following description into a precise FLUX image generation prompt for a wide business BANNER/COVER PHOTO (photorealistic food/product scene, atmospheric, no text, no people). Business: &quot;${bizName}&quot;.`;
+  const optimizeRes = await fetch(&#x27;/api/sa/ai-generate&#x27;, {
+    method: &#x27;POST&#x27;, headers: {&#x27;Content-Type&#x27;:&#x27;application/json&#x27;,&#x27;Authorization&#x27;:saToken},
+    body: JSON.stringify({
+      context: systemHint + &#x27;\nReply with ONLY the optimized English FLUX prompt (1-2 sentences, max 40 words). No explanation.&#x27;,</pre>
+<p class="src"><b>generateNLAI (ניוזלטר) → /api/ai/generate</b> — <code>business-app.js:14369–14375</code> (העתק מילולי)</p><pre class="sql">const promptCtx = `אתה קופירייטר לעסק &quot;${bizName}&quot;. כתוב ניוזלטר. כותרת: &quot;${title||&#x27;עדכון חדש&#x27;}&quot;. טון: ${tone}. ${lengthInstr} אל תכתוב פתיחה! השתמש ב-&lt;br&gt;, &lt;strong&gt;. נקודות: ${rawPoints}`;
+
+const res = await fetch(`${API}/ai/generate`, {
+    method: &#x27;POST&#x27;,
+    headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27; },
+    body: JSON.stringify({ query: &#x27;נסח כעת ללא הקדמות&#x27;, context: promptCtx })
+});</pre>
+<p class="src"><b>_sportAICompose → /api/ai/generate</b> — <code>business-app.js:49437–49443</code> (העתק מילולי)</p><pre class="sql">const typeLabels = { renewal:&#x27;תזכורת חידוש מנוי&#x27;, promo:&#x27;מבצע מיוחד&#x27;, event:&#x27;הודעה על שיעור/אירוע&#x27;, inactive:&#x27;החזרת חבר לא פעיל&#x27;, welcome:&#x27;ברוכים הבאים&#x27; };
+try {
+    // Use existing AI chat endpoint with a direct prompt
+    const r = await fetch(`${API}/ai/generate`, {
+        method: &#x27;POST&#x27;, headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27; },
+        body: JSON.stringify({ query: `כתוב הודעה קצרה ומשכנעת בעברית לחבר מועדון ספורט. סוג הודעה: ${typeLabels[type]}. פרטים: ${context||&#x27;כללי&#x27;}. ההודעה צריכה להיות עד 3 משפטים, חמה ומזמינה.` })
+    });</pre>
+<p class="src"><b>showSportAIInsights → /api/ai/generate</b> — <code>business-app.js:49483–49495</code> (העתק מילולי)</p><pre class="sql">        const stats = sr.stats || {};
+        const r = await fetch(`${API}/ai/generate`, {
+            method: &#x27;POST&#x27;, headers: {&#x27;Content-Type&#x27;:&#x27;application/json&#x27;},
+            body: JSON.stringify({ query: `אתה יועץ עסקי למועדוני ספורט. נתח את הנתונים הבאים ותן 3–5 תובנות קצרות והמלצות ספציפיות בעברית:
+מנויים פעילים: ${stats.active_members||0}
+פג תוקף בקרוב: ${stats.expiring_soon||0}
+רדומים 30+ יום: ${stats.at_risk||0}
+מוקפאים: ${(ar.frozen||[]).length}
+כניסות היום: ${stats.checkins_today||0}
+הכנסה החודש: ₪${stats.revenue_month||0}
+
+תן תובנות ממוקדות ופעולות מומלצות.` })
+        });</pre>
+<p class="src"><b>aiGenerateHero → /api/ai/generate</b> — <code>business-app.js:55822–55831</code> (העתק מילולי)</p><pre class="sql">    const prompt = `אתה כותב תוכן שיווקי לאתר תדמית של עסק מקצועי בשם &quot;${bizName}&quot;.
+צור את הפלט הבא בפורמט JSON בלבד (ללא קוד markdown, רק JSON נקי):
+{
+  &quot;title_he&quot;: &quot;כותרת ראשית בעברית — קצרה ומשפיעה, עד 6 מילים&quot;,
+  &quot;subtitle_he&quot;: &quot;תת-כותרת בעברית — תיאור מקצועי ומשכנע, 1-2 משפטים&quot;,
+  &quot;title_en&quot;: &quot;Short English headline, up to 6 words&quot;,
+  &quot;subtitle_en&quot;: &quot;English subtitle, 1-2 professional sentences&quot;,
+  &quot;cta_he&quot;: &quot;טקסט כפתור CTA בעברית, עד 4 מילים&quot;,
+  &quot;cta_en&quot;: &quot;CTA button text in English, up to 4 words&quot;
+}`;</pre>
+<p class="src"><b>aiGenerateAbout → /api/ai/generate</b> — <code>business-app.js:55849–55856</code> (העתק מילולי)</p><pre class="sql">    const existingHe = document.getElementById(&#x27;pc-about-he&#x27;)?.value?.trim();
+    const hintPart = existingHe ? `\nהתוכן הנוכחי לשיפור: &quot;${existingHe}&quot;` : &#x27;&#x27;;
+    const prompt = `אתה כותב טקסט &quot;אודות&quot; לאתר תדמית של עסק מקצועי בשם &quot;${bizName}&quot;.${hintPart}
+צור את הפלט הבא בפורמט JSON בלבד (ללא קוד markdown):
+{
+  &quot;about_he&quot;: &quot;טקסט אודות בעברית — 3-4 משפטים מקצועיים, חמים ואמינים, שמתארים את הניסיון, הגישה והערך שהעסק מביא ללקוח&quot;,
+  &quot;about_en&quot;: &quot;About text in English — 3-4 professional, warm and credible sentences&quot;
+}`;</pre>
+<p class="src"><b>aiSuggestExpertise → /api/ai/generate</b> — <code>business-app.js:55870–55877</code> (העתק מילולי)</p><pre class="sql">    const prompt = `אתה עוזר לעסק מקצועי בשם &quot;${bizName}&quot; לכתוב תחומי עיסוק לאתר שלו.
+הצע 5 תחומי עיסוק מקצועיים ורלוונטיים.
+החזר JSON בלבד (ללא markdown):
+[
+  {&quot;icon&quot;: &quot;⚖️&quot;, &quot;title_he&quot;: &quot;שם התחום בעברית&quot;, &quot;title_en&quot;: &quot;Field name in English&quot;, &quot;description_he&quot;: &quot;תיאור קצר 1-2 משפטים&quot;},
+  ...
+]
+השתמש באמוג&#x27;י רלוונטי לכל תחום.`;</pre>
+<p class="src"><b>aiFillExpertise → /api/ai/generate</b> — <code>business-app.js:56001–56009</code> (העתק מילולי)</p><pre class="sql">    const prompt = `אתה עוזר לעסק מקצועי בשם &quot;${bizName}&quot; לתאר תחום עיסוק לאתר שלו.
+${hint}
+${!current ? &#x27;הצע תחום עיסוק מתאים לעסק מקצועי.&#x27; : &#x27;השלם את הפרטים לתחום שנכתב.&#x27;}
+החזר JSON בלבד (ללא markdown):
+{
+  &quot;title_he&quot;: &quot;שם התחום בעברית — קצר ומקצועי&quot;,
+  &quot;title_en&quot;: &quot;Field name in English&quot;,
+  &quot;description_he&quot;: &quot;תיאור 1-2 משפטים המסבירים את השירות&quot;
+}`;</pre>
+<p class="src"><b>aiWriteExpertiseDesc → /api/ai/generate</b> — <code>business-app.js:56079–56085</code> (העתק מילולי)</p><pre class="sql">    const prompt = `אתה כותב תיאור לתחום עיסוק לאתר תדמית של עסק מקצועי בשם &quot;${bizName}&quot;.
+תחום: ${titleHe || titleEn}
+
+המטרה: להסביר ללקוח מה זה התחום הזה, במה הוא עוסק, ומה הוא מקבל מהעסק בתחום זה.
+כתוב 2-3 משפטים שמתחילים בהסבר מהו התחום (לאנשים שלא בהכרח מכירים את המונח המקצועי), ואז מה העסק מציע בו.
+שפה נגישה, ישירה, ומניעה לפעולה.
+החזר JSON בלבד: {&quot;description_he&quot;:&quot;...&quot;,&quot;description_en&quot;:&quot;...&quot;}`;</pre>
+<p class="src"><b>aiWriteArticle → /api/ai/generate</b> — <code>business-app.js:56167–56176</code> (העתק מילולי)</p><pre class="sql">    const prompt = `אתה כותב מאמר מקצועי לאתר תדמית של עסק בשם &quot;${bizName}&quot;.
+נושא המאמר: &quot;${topic}&quot;
+
+כתוב מאמר מקצועי, קצר ומעניין (300-500 מילים) שמבוסס על הנושא.
+החזר JSON בלבד (ללא markdown):
+{
+  &quot;content_he&quot;: &quot;תוכן המאמר בעברית — פסקאות עם רווח שורה בין כל פסקה&quot;,
+  &quot;content_en&quot;: &quot;Article content in English — same structure&quot;,
+  &quot;tags&quot;: &quot;תגיות מפרידות בפסיקים, עד 5&quot;
+}`;</pre>
+<p class="src"><b>generateQuoteAI → /api/biz/chat-assistant (query + context role)</b> — <code>business-app.js:9858–9860</code> (העתק מילולי)</p><pre class="sql">const query = type === &#x27;intro&#x27; 
+    ? `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג&#x27;ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.` 
+    : `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע&quot;מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג&#x27;ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;</pre>
+<p class="src"><b>generateQuoteAI — context</b> — <code>business-app.js:9877–9877</code> (העתק מילולי)</p><pre class="sql">context: JSON.stringify({ role: &quot;מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג&#x27;ים וללא שום טקסט מקדים או מסכם.&quot; }), </pre>
+<p class="src"><b>cqGenerateIntroAI → /api/biz/chat-assistant</b> — <code>business-app.js:9907–9915</code> (העתק מילולי)</p><pre class="sql">const custName = val(&#x27;cq-recipient-name&#x27;) || val(&#x27;cq-customer-name&#x27;) || &#x27;לקוח יקר&#x27;;
+const bizType = BUSINESS_TYPES.find(b =&gt; b.id === (currentGroup?.business_type || &#x27;other&#x27;));
+const bizTypeName = bizType?.name || &#x27;עסק&#x27;;
+const bizCfg = BUSINESS_CONFIG[currentGroup?.business_type] || BUSINESS_CONFIG.other;
+const serviceWord = bizCfg.product || &#x27;שירות&#x27;;
+const orderWord = bizCfg.order || &#x27;הצעה&#x27;;
+const quoteTitle = val(&#x27;cq-title&#x27;) || &#x27;&#x27;;
+const titleCtx = quoteTitle ? ` בנושא: &quot;${quoteTitle}&quot;` : &#x27;&#x27;;
+const query = `כתוב בדיוק 3 משפטים כפתיחה רשמית ומקצועית להצעת מחיר${titleCtx}. שורה ראשונה: פנייה אישית ומכובדת אל &quot;${custName}&quot;. שורה שנייה: הצגת העסק &quot;${currentGroup.name}&quot; (תחום: ${bizTypeName}) ותיאור קצר של עיקר ${serviceWord} שמוצע. שורה שלישית: הבעת תודה על ההזדמנות ו${orderWord}. חובה: ללא אימוג&#x27;ים, ללא כוכביות, ללא מספרים, ללא נקודות מתחת לכותרת, ללא כל מילת פתיחה מצידך. רק 3 שורות טקסט, כל שורה בפני עצמה.`;</pre>
+<p class="src"><b>cqGenerateNotesAI → /api/biz/chat-assistant</b> — <code>business-app.js:9961–9961</code> (העתק מילולי)</p><pre class="sql">const query = `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע&quot;מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג&#x27;ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;</pre>
+<p class="src"><b>analyzeRBCostAI → /api/biz/chat-assistant</b> — <code>business-app.js:24367–24373</code> (העתק מילולי)</p><pre class="sql">const ingredientsData = rbIngredients.map(i =&gt; `${i.ingredient_name}: ${i.quantity} ${i.unit} (₪${i.calculated_cost.toFixed(2)} סה&quot;כ)`).join(&#x27;, &#x27;);
+const overheadData = rbOverheads.map(o =&gt; `${o.name}: ₪${o.cost}`).join(&#x27;, &#x27;) || &#x27;אין&#x27;;
+const promptText = `נתח את עלות המנה הבאה והצע חלופות לחומרי גלם כדי להוריד את ה-Food Cost:\n${ingredientsData}\nהוצאות נלוות: ${overheadData}\nיעד רצוי: ${val(&#x27;rb-target-pct&#x27;)}%`;
+const res = await fetch(`${API}/biz/chat-assistant`, {
+    method: &#x27;POST&#x27;,
+    headers: {&#x27;Content-Type&#x27;: &#x27;application/json&#x27;, Authorization: window._bizToken ? `Bearer ${window._bizToken}` : &#x27;&#x27;},
+    body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: &quot;יועץ קולינרי וכלכלי למסעדות&quot; }), groupId: currentGroup.id })</pre>
+<p class="src"><b>getAnalyticsAIInsight → /api/biz/chat-assistant</b> — <code>business-app.js:25294–25298</code> (העתק מילולי)</p><pre class="sql">const rev = window.analyticsState.totalRevenue || 0;
+const orders = window.analyticsState.totalOrders || 0;
+const top = window.analyticsState.topProductName || &#x27;אין נתונים&#x27;;
+
+const promptText = `נתח את ביצועי העסק ב-${timeFilter === &#x27;custom&#x27; ? &#x27;תקופה האחרונה&#x27; : timeFilter + &#x27; ימים האחרונים&#x27;}. סה&quot;כ הכנסות: ₪${rev.toLocaleString(&#x27;he-IL&#x27;)}, כמות הזמנות: ${orders}. המוצר הנמכר ביותר הוא: ${top}. ספק לי 3 תובנות מעשיות קצרות וקולעות לשיפור הרווחיות, שימור לקוחות או ייעול המלאי. חובה להתייחס לנתונים!`;</pre>
+</section>

@@ -1,0 +1,560 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>לוגיקה · לוגיסטיקה · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>לוגיקה · לוגיסטיקה</h1><span class="meta">33 תהליכים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="cur">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro"><strong>לוגיקה עסקית לבנייה מחדש.</strong> בכל תהליך מתועדים, לפי סדר: מטרה וטריגר, תנאים ואימותים, שלבי עיבוד (כולל סדר הכתיבות ל-DB), חישובים ונוסחאות, מכונת מצבים, תופעות לוואי (התראות, מטבעות, AI, cron), התנהגות הממשק, ולבסוף פערים. רוב התוכן מתאר את ההתנהגות כפי שהיא ממומשת. "פערים" הוא החלק האחרון, ומופיע רק כשנמצא בקוד. כל כלל מגובה במספר שורה (server.js:N או file.js:N). החוזה הטכני של כל נתיב נמצא בעמודי ה-API, והסכמה במילון הנתונים.</div><h2 class="grp">לוגיסטיקה — תשתית, הרשאות ונתונים</h2>
+
+ <section class="proc" data-f="logistics auth verifybizorlegacy requiremodule audit gating module legacy token"><h3>אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל נתיבי <code>/api/logistics/*</code> (פרט ל-<code>/api/logistics/track/:token</code> ו-<code>/api/logistics/track/:token/leave-at-door</code>) עוברים את שרשרת ה-middleware <code>verifyBizOrLegacy</code> → <code>requireModule('logistics')</code> (server.js:32681–33482, 51 שימושים). הטריגר: כל קריאה מסביבת BIZ (business-app.js).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>verifyBizOrLegacy</code> (server.js:43056): אם יש header <code>Authorization</code> (עם או בלי <code>Bearer </code>) — hash של הטוקן נבדק מול <code>family_sessions.token_hash</code>; טוקן לא קיים/פג תוקף → 401 <code>'token לא תקף'</code>; <code>session_type !== 'biz'</code> → 403 <code>'נדרש token מסוג עסקי'</code>; תקין → <code>req.bizAuth = {groupId, userId, fromToken:true}</code> ועדכון <code>last_seen</code> אסינכרוני (server.js:43063–43077).</li>
+<li>בלי header כלל — <b>fallback legacy</b>: <code>req.bizAuth = {groupId: req.body.groupId || req.query.groupId || null, userId:null, fromToken:false}</code> ו-<code>console.warn</code>; הבקשה ממשיכה ללא אימות (server.js:43083–43087).</li>
+<li><code>requireModule('logistics')</code> (server.js:43126): legacy (<code>fromToken=false</code>) או ללא groupId → מעבר ללא בדיקה. אחרת קורא <code>family_groups.managed_modules</code> (cache בזיכרון 60 שניות, <code>_MOD_CACHE_TTL=60000</code>, server.js:43124). מערך ריק/NULL → מעבר ("עסק ותיק"). אם המערך לא כולל את המחרוזת <code>'logistics'</code> → 403 <code>'גישה למודול זה אינה כלולה בחבילה שלך'</code>. שגיאת DB → fail-open.</li>
+<li><b>אין אף בדיקת בעלות</b> בנתיבי הלוגיסטיקה: <code>:groupId</code> בנתיב / <code>group_id</code> בגוף אינם מושווים ל-<code>req.bizAuth.groupId</code>, ונתיבי <code>:id</code> (עדכון/מחיקה) מבצעים <code>WHERE id=$1</code> בלבד ללא סינון group (לדוגמה server.js:32795, 32835, 32873, 33363, 33479).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>middleware גלובלי של יומן ביקורת (server.js:121–144) נרשם ל-<code>res.on('finish')</code> לכל POST/PUT/PATCH/DELETE.</li>
+<li>אם status 2xx–3xx ו-<code>req.bizAuth.groupId</code> קיים ו-path לא בדילוג — <code>logBizAction(groupId, userId, null, 'HTTP_'+method, 'route', path, ...)</code> עם עד 12 שדות גוף, תוך סינון מפתחות <code>password|token|secret|signature</code> (server.js:129–139).</li>
+<li>דילוג מפורש לנתיבים <code>/api/logistics/orders/\d+/status</code> ו-<code>/api/logistics/invoices/\d+/status</code> (server.js:117–118) כי הם רושמים <code>logBizAction</code> ייעודי.</li>
+</ol></div>
+<div>תופעות לוואי</div><div>כתיבה ל-<code>biz_audit_log</code> (server.js:4160–4168), fire-and-forget עם <code>.catch(()=&gt;{})</code>.</div>
+<div>ממשק</div><div>רוב קריאות הלוגיסטיקה ב-business-app.js (v1+v2: הזמנות, נהגים, רכבים, מחירון, COD, RFQ, מסלולים, מעקב, דוחות, נהג) נשלחות ב-<code>fetch</code> <b>ללא</b> header Authorization (למשל business-app.js:52508, 52697, 52780) ואין wrapper גלובלי ל-fetch ב-business.html / business-app.js. רק לקוחות וחשבוניות שולחים <code>Authorization: Bearer ${window._bizToken}</code> (business-app.js:53843, 54005, 54023, 54097, 54103) ו-<code>_aiUpdateInvoiceStatus</code> (business-app.js:57684).</div>
+<div>פערים</div><div><ul>
+<li>בפועל כל נתיבי הלוגיסטיקה נגישים ללא טוקן (legacy) ולכל group/id — IDOR חוצה-דיירים מלא.</li>
+<li>בקשות legacy אינן נרשמות ביומן הביקורת הגנרי (<code>bizAuth.groupId</code> null כי הלקוח לא שולח <code>groupId</code> בגוף/query, אלא <code>group_id</code>).</li>
+<li><code>requireModule</code> בודק את המחרוזת <code>'logistics'</code>, אך מזהי המודולים בקטלוג הלקוח הם מזהי טאבים (<code>logistics_orders</code> וכו', business-app.js:37532). אם <code>managed_modules</code> מכיל מזהי טאבים בלבד — קריאות עם טוקן (לקוחות/חשבוניות) יקבלו 403. התוכן המדויק של <code>managed_modules</code> לעסק לוגיסטיקה לא נקבע בקוד הנבדק.</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="logistics schema tables columns migrations logistics_orders"><h3>מבנה נתונים ומיגרציות (הקשר לכללים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טבלאות נוצרות באתחול השרת ב-<code>CREATE TABLE IF NOT EXISTS</code>, כל פקודה ב-try/catch נפרד (server.js:2261–2462).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>logistics_orders</code>: <code>status</code> ברירת מחדל <code>'new'</code>, <code>package_count</code> 1, <code>cod_amount</code>/<code>delivery_fee</code> 0, <code>cod_collected</code> false (server.js:2299–2328). אין UNIQUE על <code>order_number</code>.</li>
+<li>v2: <code>tracking_token VARCHAR(64) UNIQUE</code>, <code>failed_attempts_count INT DEFAULT 0</code>, <code>failed_attempt_gps</code>, <code>failed_attempt_at</code>, <code>leave_at_door BOOLEAN DEFAULT false</code>, <code>tracking_last_seen</code>, <code>express_surcharge</code>, <code>floor_surcharge</code>, <code>floor_number</code> (server.js:2373–2381). שלושת האחרונים לא נכתבים באף נתיב.</li>
+<li><code>logistics_drivers</code>: <code>status DEFAULT 'active'</code>, <code>is_active</code>, <code>user_id</code> (FK users), + <code>current_lat/lng DECIMAL(10,7)</code>, <code>location_updated_at</code> (server.js:2286–2298, 2382–2384).</li>
+<li><code>logistics_vehicles</code>: <code>type DEFAULT 'van'</code> (server.js:2273–2285).</li>
+<li><code>logistics_cod_sessions</code>: <code>status DEFAULT 'open'</code>, ללא UNIQUE (server.js:2329–2339).</li>
+<li><code>logistics_rfq</code>: <code>photos</code>/<code>messages JSONB DEFAULT '[]'</code>, <code>status DEFAULT 'new'</code>, <code>deposit_paid</code> (server.js:2340–2357).</li>
+<li><code>logistics_routes</code>: <code>status DEFAULT 'planned'</code>, <code>route_date DEFAULT CURRENT_DATE</code>, FK נהג/רכב <code>ON DELETE SET NULL</code>; <code>logistics_route_stops</code>: FK route <code>ON DELETE CASCADE</code>, order <code>ON DELETE SET NULL</code>, <code>status DEFAULT 'pending'</code> (server.js:2386–2405).</li>
+<li><code>logistics_rate_cards</code>: <code>name</code>, <code>rule_type</code> NOT NULL (server.js:2407–2419).</li>
+<li><code>logistics_customers</code>: <code>customer_type DEFAULT 'private'</code>, <code>discount_pct</code>, <code>oneflow_user_id</code> (לא בשימוש) (server.js:2426–2441).</li>
+<li><code>logistics_invoices</code>: <code>invoice_number UNIQUE</code>, <code>status DEFAULT 'pending'</code>, <code>invoice_type DEFAULT 'single'</code>, <code>order_id</code> FK ללא ON DELETE (server.js:2443–2461).</li>
+<li>אינדקסים: <code>(group_id,status)</code>, <code>(driver_id,scheduled_date)</code>, rfq <code>(group_id,status)</code>, tracking partial index, routes <code>(group_id,route_date)</code> (server.js:2369–2371, 2420–2421).</li>
+</ul></div>
+<div>פערים</div><div>אין טרנזקציות בשום תהליך לוגיסטי; אין CHECK על ערכי סטטוס.</div>
+</div></section>
+
+<h2 class="grp">הזמנות משלוח — מחזור חיים</h2>
+
+ <section class="proc" data-f="logistics order create new order_number LOG- kanban"><h3>יצירת הזמנת משלוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל בטאב <code>logistics_orders</code> לוחץ "משלוח חדש" → <code>window._logisticsNewOrder</code> (business-app.js:52732) → "צור משלוח" → <code>_logisticsSaveNewOrder</code> → <code>POST /api/logistics/orders</code> (server.js:32736).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם וכתובת מסירה חובה — טוסט <code>'שם וכתובת מסירה חובה'</code> (business-app.js:52778).</li>
+<li>שרת: <b>אין שום ולידציה</b> (גם לא שם/group_id); אין בדיקה שהנהג שייך לעסק.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>חישוב <code>order_number</code> (server.js:32741).</li>
+<li><code>INSERT logistics_orders</code> עם כל השדות; ערכים ריקים → NULL; <code>package_count||1</code>, <code>cod_amount||0</code>, <code>delivery_fee||0</code> (server.js:32742–32750).</li>
+<li>סטטוס התחלתי: <code>driver_id ? 'assigned' : 'new'</code> (server.js:32750).</li>
+<li>מחזיר את השורה. לא נרשם אירוע ב-<code>logistics_order_events</code>.</li>
+</ol></div>
+<div>חישובים</div><div><code>order_number = 'LOG-' + Date.now().toString().slice(-6)</code> — 6 הספרות האחרונות של epoch במילישניות (server.js:32741); מחזורי כל 1,000 שניות, ללא בדיקת ייחודיות. <code>delivery_fee</code> מוזן ידנית — אין חישוב מאזורי מחיר/כרטיסי תעריף/הנחת לקוח.</div>
+<div>מכונת מצבים</div><div>נוצר ב-<code>new</code> או <code>assigned</code> (אם נבחר נהג).</div>
+<div>תופעות לוואי</div><div>יומן ביקורת גנרי רק אם נשלח טוקן (לא נשלח מהלקוח). אין התראות.</div>
+<div>ממשק</div><div>שדות הטופס (business-app.js:52745–52765): שם לקוח*, טלפון, כתובת מסירה*, כתובת איסוף, תאריך (ברירת מחדל היום), שעה/חלון (טקסט חופשי), COD ₪, דמי משלוח ₪, משקל ק"ג, שיוך נהג, הערות לנהג (<code>delivery_notes</code>). לא נשלחים: <code>customer_email</code>, <code>package_count</code>, <code>pricing_zone_id</code>, <code>internal_notes</code>. אחרי שמירה — רענון קנבן. הצגת הצלחה גם אם השרת החזיר שגיאה (אין בדיקת <code>r.ok</code>).</div>
+<div>פערים</div><div>התנגשויות <code>order_number</code> אפשריות; אין קישור ל-<code>logistics_customers</code>; מחירון לא משפיע על מחיר.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics orders list kanban filter search driver date status"><h3>רשימת הזמנות, קנבן וסינון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>switchTab('logistics_orders')</code> → <code>loadLogisticsOrders</code> (business-app.js:3008, 52504) → <code>GET /api/logistics/orders/:groupId</code> + <code>GET /api/logistics/drivers/:groupId</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>שרת תומך ב-query: <code>status</code> (מתעלם מ-<code>'all'</code>), <code>driver_id</code>, <code>date</code> (מול <code>scheduled_date</code>), <code>search</code> (ILIKE על שם, טלפון, כתובת מסירה, <code>order_number</code>) (server.js:32719–32729).</li>
+<li>מיון <code>created_at DESC</code>, <code>LIMIT 300</code>; join לשם נהג ושם רכב (server.js:32720–32730).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח טוען את כל ההזמנות (ללא פרמטרים) ואת הנהגים.</li><li><code>_renderLogisticsKanban</code> מסנן לפי <code>status</code> לעמודות.</li></ol></div>
+<div>מכונת מצבים</div><div>13 עמודות (business-app.js:52524–52538): <code>new, pending_quote, quote_sent, confirmed, assigned, picked_up, in_transit, arrived, delivered, partial, failed_attempt, returned, cancelled</code>. מצב "פעיל" (ברירת מחדל) מציג רק <code>new…arrived</code> + <code>failed_attempt</code> (business-app.js:52540).</div>
+<div>ממשק</div><div><ul>
+<li>כרטיס: מספר הזמנה או <code>#id</code>, 🔗 אם יש <code>tracking_token</code>, שם, כתובת, חלון זמן, badge COD (✅ אם נגבה, 💵 אחרת), "⚠️ ניסיון N" אם <code>failed_attempts_count&gt;0</code>, "🚪 אישר השארה" אם <code>leave_at_door</code>, שם נהג, קישור Waze (business-app.js:52547–52566).</li>
+<li>סינון נהג — בצד לקוח בלבד, זמני לרינדור (business-app.js:52602–52608).</li>
+<li>כפתור "הצג הכל"/"פעיל בלבד" (<code>_logisticsState.kanbanView</code>).</li>
+<li>אין גרירה (drag&amp;drop) למרות שהטור באונבורדינג מתאר זאת (business-app.js:2151).</li>
+</ul></div>
+<div>פערים</div><div>שדה התאריך בקנבן מעדכן <code>selectedDate</code> וקורא <code>loadLogisticsOrders</code>, אך התאריך לא נשלח לשרת — אין סינון בפועל (business-app.js:52584 מול 52508). מעל 300 הזמנות — הישנות לא מוצגות. <code>search</code>/<code>status</code> בשרת אינם בשימוש בלקוח.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics order status change transition delivered invoice income event audit state machine"><h3>עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/orders/:id/status</code> (server.js:32756). מופעל מ: (א) מודאל פרטי הזמנה — 10 כפתורי סטטוס, <code>_logisticsUpdateStatus</code> (business-app.js:52659, 52704); (ב) ממשק נהג — <code>_driverUpdateStatus</code> (business-app.js:53802); (ג) פעולת AI — <code>_aiUpdateDeliveryStatus</code> (business-app.js:57633).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ההזמנה חייבת להתקיים — אחרת 404 <code>'not found'</code> (server.js:32759–32760).</li>
+<li><b>אין</b> בדיקת ערך הסטטוס, אין כללי מעבר, אין בדיקת group/תפקיד.</li>
+<li>AI: אישור <code>confirm()</code> רק עבור <code>cancelled</code>/<code>failed</code> (business-app.js:57634).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>SELECT status, group_id</code> (סטטוס ישן).</li>
+<li><code>UPDATE logistics_orders SET status, updated_at=NOW()</code>; אם <code>status==='delivered'</code> גם <code>delivered_at=NOW()</code> (server.js:32762–32767).</li>
+<li><code>INSERT logistics_order_events (event_type='status_change', old_status, new_status, actor_name, notes)</code> (server.js:32768).</li>
+<li><code>logBizAction(group_id, null, actor_name||'מערכת', 'UPDATE_DELIVERY_STATUS', 'delivery_order', id, 'משלוח #id עודכן מ-X ל-Y')</code> (server.js:32770).</li>
+<li>תשובה <code>{success:true}</code> נשלחת <b>לפני</b> החשבונית (server.js:32771).</li>
+<li>אם <code>delivered</code>: קריאה מחדש של ההזמנה, <code>INSERT logistics_invoices (..., status 'pending') ON CONFLICT DO NOTHING</code>, ואז <code>logBizIncome</code> (server.js:32773–32787). שגיאות נבלעות.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>invoice_number = 'INV-' + group_id + '-' + Date.now()</code> (server.js:32778).</li>
+<li><code>amount = parseFloat(delivery_fee)||0</code>; <code>vat_amount = Math.round(amount*0.17*100)/100</code> — מע"מ 17% קבוע בקוד; <code>total_amount = amount + vat</code> (server.js:32779–32783).</li>
+<li>הכנסה: <code>logBizIncome(group_id, amount, 'משלוח נמסר — שם (#order_number)')</code> → <code>INSERT transactions (user_id=ADMIN ראשון, category 'sales', type 'income', is_manual FALSE)</code>; מדלג אם amount ≤ 0 (server.js:4201–4211). ההכנסה נרשמת לפני מע"מ.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>
+<p>ערכים בשימוש: שרת — <code>new, assigned, delivered, failed_attempt, cancelled</code> נכתבים ישירות; לקוח — כל 13 הערכים; AI — גם <code>failed</code> ו-<code>pending</code> (לא קנוניים, business-app.js:54266); v1 label מכיר <code>no_answer, rescheduled</code> (business-app.js:52450) ודוחות סופרים <code>no_answer</code> (server.js:33034) — שאינם נכתבים באף מקום.</p>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>new / assigned</td><td>מנהל (POST orders)</td><td>assigned אם נשלח driver_id</td><td>אין אירוע</td></tr>
+<tr><td>כל סטטוס</td><td>כל אחד מ-confirmed, assigned, picked_up, in_transit, arrived, delivered, partial, failed_attempt, returned, cancelled</td><td>מנהל (מודאל, ללא הגבלת תפקיד בלקוח)</td><td>אין</td><td>event status_change + audit; ל-delivered: delivered_at + חשבונית + הכנסה</td></tr>
+<tr><td>assigned</td><td>picked_up</td><td>נהג (Driver companion)</td><td>כפתור "נאסף" מוצג רק ב-assigned</td><td>event + audit</td></tr>
+<tr><td>picked_up</td><td>in_transit</td><td>נהג</td><td>כפתור "בדרך"</td><td>event + audit</td></tr>
+<tr><td>in_transit</td><td>arrived</td><td>נהג</td><td>כפתור "הגעתי"</td><td>event + audit</td></tr>
+<tr><td>arrived</td><td>delivered</td><td>נהג</td><td>כפתור "נמסר ✓"</td><td>חשבונית + הכנסה</td></tr>
+<tr><td>in_transit / arrived</td><td>failed_attempt</td><td>נהג/מנהל (נתיב failed-attempt)</td><td>כפתור מוצג רק בשני הסטטוסים</td><td>מונה +1, event failed_attempt</td></tr>
+<tr><td>כל סטטוס</td><td>assigned</td><td>מנהל (assign)</td><td>אין — גם ללא נהג</td><td>אין event</td></tr>
+<tr><td>כל סטטוס</td><td>delivered</td><td>POD (ללא לקוח)</td><td>אין</td><td>ללא חשבונית/הכנסה/event</td></tr>
+<tr><td>כל סטטוס</td><td>cancelled</td><td>מנהל (DELETE)</td><td>confirm בלקוח</td><td>ללא event</td></tr>
+<tr><td>כל סטטוס</td><td>assigned/in_transit/delivered/failed/cancelled/pending</td><td>AI (כפתור פעולה)</td><td>confirm ל-cancelled/failed</td><td>actor 'AI Assistant'</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>יומן <code>biz_audit_log</code>, אירוע הזמנה, חשבונית <code>logistics_invoices</code>, תנועת הכנסה <code>transactions</code>. <b>אין</b> התראות ללקוח (SMS/Push/WhatsApp) למרות טקסט האונבורדינג (business-app.js:2155).</div>
+<div>ממשק</div><div>אחרי עדכון: טוסט עם תווית הסטטוס, סגירת מודאל, רענון קנבן (business-app.js:52707–52709). בממשק הנהג — רינדור מחדש רק אם התפקיד אינו ADMIN (business-app.js:53812).</div>
+<div>פערים</div><div><ul>
+<li>כל מעבר ל-<code>delivered</code> (גם חוזר) יוצר חשבונית חדשה והכנסה חדשה — <code>ON CONFLICT</code> לא חוסם כי מספר החשבונית ייחודי לפי זמן ואין UNIQUE על <code>order_id</code>.</li>
+<li>החזרה מ-<code>delivered</code> לסטטוס אחר אינה מבטלת חשבונית/הכנסה ואינה מאפסת <code>delivered_at</code>.</li>
+<li>AI עלול לכתוב <code>failed</code>/<code>pending</code> — סטטוסים שאין להם עמודה בקנבן.</li>
+<li>מע"מ 17% קבוע בקוד (לא פרמטר).</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="logistics assign driver vehicle"><h3>שיוך נהג ורכב להזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל פרטי הזמנה → "שייך נהג ורכב" → <code>_logisticsAssign</code> (business-app.js:52693) → <code>PATCH /api/logistics/orders/:id/assign</code> (server.js:32792).</div>
+<div>תנאים ואימותים</div><div><ul><li>אין ולידציה בשרת או בלקוח; <code>driver_id</code> יכול להיות null ("— ללא —").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE logistics_orders SET driver_id, vehicle_id (||null), status='assigned', updated_at=NOW()</code> (server.js:32795).</li></ol></div>
+<div>מכונת מצבים</div><div>כל סטטוס → <code>assigned</code> (גם מ-<code>delivered</code>/<code>cancelled</code>).</div>
+<div>תופעות לוואי</div><div>אין אירוע הזמנה; אין הודעה לנהג.</div>
+<div>ממשק</div><div>select נהגים מתוך <code>_logisticsState.drivers</code>, select רכבים — כל הרכבים כולל לא פעילים (business-app.js:52614, 52651).</div>
+<div>פערים</div><div>"ללא נהג" עדיין מעביר ל-<code>assigned</code>; שיוך משנה סטטוס של הזמנה שכבר נמסרה/בוטלה.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics failed attempt no answer לא ענה gps"><h3>ניסיון מסירה כושל ("לא ענה")</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "📵 לא ענה" במודאל הזמנה (מוצג רק ב-<code>in_transit</code>/<code>arrived</code>, business-app.js:52669) או בכרטיס נהג (business-app.js:53797) → <code>_logisticsFailedAttempt</code> (business-app.js:53683) → <code>POST /api/logistics/orders/:id/failed-attempt</code> (server.js:33264).</div>
+<div>תנאים ואימותים</div><div><ul><li>אין ולידציה; אם ההזמנה לא קיימת — ה-UPDATE לא משפיע וה-INSERT נכשל על <code>cur.rows[0].group_id</code> → 500.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קריאת <code>failed_attempts_count, group_id</code>.</li>
+<li><code>cnt = (failed_attempts_count||0)+1</code>.</li>
+<li><code>UPDATE status='failed_attempt', failed_attempts_count=cnt, failed_attempt_gps, failed_attempt_at=NOW()</code> (server.js:33269–33272).</li>
+<li><code>INSERT logistics_order_events (event_type 'failed_attempt', old_status 'in_transit' קבוע, new_status 'failed_attempt', actor_name||'מערכת', notes)</code> (server.js:33273–33275).</li>
+<li>תשובה <code>{ok:true, attempts:cnt}</code>.</li>
+</ol></div>
+<div>חישובים</div><div>מונה עולה ב-1 בכל קריאה; אין תקרה בשרת. דף המעקב מציג "ניסיון N מתוך 3" — הקבוע 3 קיים רק ב-UI (track.html:176).</div>
+<div>מכונת מצבים</div><div>כל סטטוס → <code>failed_attempt</code>. יציאה ממנו רק דרך עדכון סטטוס ידני.</div>
+<div>תופעות לוואי</div><div>אירוע הזמנה; אין audit ייעודי; אין הודעה ללקוח.</div>
+<div>ממשק</div><div>prompt "הערות לניסיון כושל (אופציונלי)"; הלקוח לא שולח <code>gps</code> לעולם (business-app.js:53688).</div>
+<div>פערים</div><div><code>old_status</code> נרשם תמיד <code>in_transit</code> גם אם היה <code>arrived</code>. אחרי הצלחה הקוד מסיר <code>log-order-detail-modal</code> — מזהה שלא קיים (המודאל הוא <code>log-order-modal</code>), כך שהמודאל נשאר פתוח (business-app.js:53692). גם ההרחבה של <code>_logisticsOrderDetail</code> מחפשת את המזהה השגוי ולכן לעולם לא מזריקה כפתורים (business-app.js:53660–53681).</div>
+</div></section>
+
+ <section class="proc" data-f="logistics pod proof of delivery photo signature barcode"><h3>אישור מסירה (POD)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/orders/:id/pod</code> (server.js:32801). אין קורא בלקוח (לא נמצא שימוש ב-business-app.js).</div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE pod_photo_url, pod_signature_url, pod_barcode, status='delivered', delivered_at=NOW(), updated_at=NOW()</code> (server.js:32804).</li></ol></div>
+<div>מכונת מצבים</div><div>כל סטטוס → <code>delivered</code>.</div>
+<div>פערים</div><div>בניגוד לנתיב הסטטוס — לא נוצרת חשבונית, לא נרשמת הכנסה, אין event ואין audit ייעודי. ממשק צילום/חתימה/ברקוד המתואר באונבורדינג (business-app.js:2152) לא קיים. נתיב מת מבחינת UI.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics cod collect cash credit qr field"><h3>גביית COD בשטח (סימון הזמנה כנגבתה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודאל הזמנה עם <code>cod_amount&gt;0</code> ו-<code>!cod_collected</code> מוצג בלוק "גבייה בשטח" עם 3 כפתורים (business-app.js:52674–52679) → <code>_logisticsCODCollect</code> → <code>PATCH /api/logistics/orders/:id/cod</code> (server.js:32810).</div>
+<div>תנאים ואימותים</div><div><ul><li>אין ולידציה של <code>cod_method</code> או של קיום סכום COD.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE cod_collected=true, cod_method, updated_at=NOW()</code> (server.js:32813).</li></ol></div>
+<div>חישובים</div><div>ערכי <code>cod_method</code> מהלקוח: <code>cash</code>, <code>credit</code>, <code>qr</code>. מפת הייצוא מכירה רק <code>cash/credit/transfer</code> (server.js:16446).</div>
+<div>תופעות לוואי</div><div>אין תנועת קופה/הכנסה, אין event, אין חותמת זמן גבייה (ה-KPI "COD היום" מבוסס על <code>delivered_at</code>, server.js:32693).</div>
+<div>פערים</div><div>אין אפשרות לבטל סימון גבייה. ממשק הנהג אינו מציג כפתורי גבייה (רק badge).</div>
+</div></section>
+
+ <section class="proc" data-f="logistics order edit patch fields"><h3>עריכת פרטי הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/orders/:id</code> (server.js:32819). אין קורא בלקוח.</div>
+<div>תנאים ואימותים</div><div><ul><li>whitelist שדות: <code>customer_name, customer_phone, customer_email, pickup_address, delivery_address, scheduled_date, scheduled_time_window, weight_kg, package_count, cod_amount, delivery_fee, delivery_notes, internal_notes</code> (server.js:32821–32823). שדה <code>undefined</code> מדולג; גוף ריק → <code>{success:true}</code> ללא כתיבה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE דינמי + <code>updated_at=NOW()</code>.</li></ol></div>
+<div>פערים</div><div>שינוי <code>delivery_fee</code> אחרי מסירה אינו מעדכן חשבונית קיימת. אין UI לעריכה.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics order cancel delete soft"><h3>ביטול הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל הזמנה → "ביטול הזמנה" + <code>_uiConfirm('לבטל הזמנה זו?')</code> (business-app.js:52722) → <code>DELETE /api/logistics/orders/:id</code> (server.js:32833).</div>
+<div>שלבי עיבוד</div><div><ol><li>מחיקה רכה: <code>UPDATE status='cancelled', updated_at=NOW()</code> (server.js:32835).</li></ol></div>
+<div>מכונת מצבים</div><div>כל סטטוס → <code>cancelled</code> (גם <code>delivered</code>).</div>
+<div>תופעות לוואי</div><div>אין event, אין ביטול חשבונית/הכנסה קיימת.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics order events timeline history"><h3>ציר אירועי הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/logistics/orders/:id/events</code> (server.js:33281) — כל האירועים של הזמנה, <code>ORDER BY created_at DESC</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא סינון group.</li></ul></div>
+<div>מכונת מצבים</div><div><code>event_type</code>: <code>status_change</code> (server.js:32768), <code>failed_attempt</code> (server.js:33274).</div>
+<div>ממשק</div><div>אין קורא בלקוח (לא נמצא שימוש) — ציר הזמן בדף המעקב הציבורי מחושב מ-<code>FLOW_ORDER</code> סטטי ולא מאירועים.</div>
+</div></section>
+
+<h2 class="grp">נהגים, צי ומסלולים</h2>
+
+ <section class="proc" data-f="logistics drivers crud status active_orders deactivate"><h3>ניהול נהגים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_drivers</code> → <code>loadLogisticsDrivers</code> (business-app.js:52801). CRUD: <code>GET /api/logistics/drivers/:groupId</code> (server.js:32840), <code>POST /api/logistics/drivers</code> (32850), <code>PATCH /api/logistics/drivers/:id</code> (32859), <code>DELETE /api/logistics/drivers/:id</code> (32871).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה — <code>'שם חובה'</code> (business-app.js:52893). שרת: ללא ולידציה.</li>
+<li>PATCH whitelist: <code>name, phone, email, vehicle_id, status, is_active, notes</code> (server.js:32861).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: כל נהגי ה-group (<b>כולל לא פעילים</b>), join לשם וסוג רכב, תת-שאילתה <code>active_orders</code>, מיון לפי שם (server.js:32842–32845).</li>
+<li>POST: <code>INSERT (group_id, name, phone, email, vehicle_id, notes)</code> — <code>user_id</code> לא נקבע לעולם.</li>
+<li>DELETE: רך — <code>is_active=false</code> (server.js:32873).</li>
+</ol></div>
+<div>חישובים</div><div><code>active_orders = COUNT(orders WHERE driver_id=ld.id AND status IN ('assigned','picked_up','in_transit'))</code> (server.js:32843) — לא כולל <code>arrived</code>/<code>failed_attempt</code>.</div>
+<div>מכונת מצבים</div><div><code>logistics_drivers.status</code>: <code>active</code> (ברירת מחדל), <code>on_route</code>, <code>break</code>, <code>offline</code> — נבחר ידנית במודאל (business-app.js:52877); אין שינוי אוטומטי. <code>is_active</code>: true → false ב"הסר".</div>
+<div>ממשק</div><div>כרטיס נהג: אות ראשונה, טלפון, רכב+אייקון, badge סטטוס, "📦 N פעיל", כפתור חיוג ועריכה (business-app.js:52817–52832). מודאל: שם*, טלפון, אימייל, רכב ברירת מחדל, סטטוס, הערות; "הסר" בעריכה.</div>
+<div>פערים</div><div>נהג "מוסר" ממשיך להופיע ברשימה ובבחירות שיוך כי GET לא מסנן <code>is_active</code>. <code>user_id</code> לא נקבע — ייצוא CSV נהגים/הזמנות שולף שם מ-<code>users</code> ולכן ריק (server.js:16432, 16438), וזיהוי נהג בממשק הנהג נשען על השוואת שם בלבד.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics driver location gps lat lng"><h3>עדכון מיקום נהג</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/drivers/:id/location</code> (server.js:33289), body <code>{lat,lng}</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE current_lat, current_lng, location_updated_at=NOW()</code> (server.js:33292).</li></ol></div>
+<div>תופעות לוואי</div><div>המיקום חשוף בנתיב המעקב הציבורי (<code>current_lat, current_lng</code>, server.js:33252).</div>
+<div>פערים</div><div>אין קורא בלקוח — אין שליחת GPS מממשק הנהג; "מפה חיה" מהאונבורדינג (business-app.js:2161) לא קיימת.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics driver companion employee dashboard driver-orders"><h3>ממשק נהג (Driver Companion)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ב-<code>renderDashboard</code>: עסק <code>business_type==='logistics'</code> ותפקיד <code>MEMBER/EMPLOYEE/MANAGER/SENIOR</code> → <code>renderLogisticsDriverDashboard</code> בתוך <code>content-role-dashboard</code>, רענון כל 60 שניות (business-app.js:5721–5745). ADMIN מקבל את דשבורד המנהל.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>זיהוי נהג: <code>drivers.find(d =&gt; d.user_id === currentUser.id || d.name === currentUser.name)</code> (business-app.js:53707). לא נמצא → "לא נמצא פרופיל נהג — פנה למנהל לקישור חשבונך".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /api/logistics/driver-orders/:groupId/:driverId?date=היום</code> (server.js:33298): הזמנות הנהג שבהן <code>scheduled_date=date</code> <b>או</b> <code>status IN ('assigned','picked_up','in_transit','failed_attempt')</code>, מיון <code>scheduled_time_window, id</code>.</li>
+<li>חלוקה: פעיל = <code>in_transit</code> ואז <code>assigned/picked_up</code>; "לא ענה" = <code>failed_attempt</code>; הושלמו = <code>delivered/partial</code> (business-app.js:53732–53735).</li>
+</ol></div>
+<div>חישובים</div><div>כותרת: סה"כ, נמסרו, "COD גבייה" = Σ <code>cod_amount</code> שטרם נגבה (business-app.js:53736).</div>
+<div>מכונת מצבים</div><div>כפתור יחיד לפי סטטוס: <code>assigned→picked_up</code> "נאסף", <code>picked_up→in_transit</code> "בדרך", <code>in_transit→arrived</code> "הגעתי", <code>arrived→delivered</code> "נמסר ✓"; 📵 ב-<code>in_transit/arrived</code> (business-app.js:53793–53797). actor_name = <code>currentUser.name||'נהג'</code>.</div>
+<div>ממשק</div><div>כרטיס: שם, מספר, סטטוס, כתובת, חלון, badge COD, חיוג, ניווט Waze.</div>
+<div>פערים</div><div>הזמנה ב-<code>arrived</code> מתאריך אחר לא תופיע (חסרה ברשימת הסטטוסים בשרת). <code>_patchRenderDashboard</code> מוגדר ולא מחובר — קוד מת (business-app.js:53819–53835). אין סינון שהנהג רואה רק את שלו בשרת — כל משתמש יכול לבקש כל driverId.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics vehicles fleet insurance inspection alert 14 days"><h3>ניהול צי רכבים והתראות ביטוח/טסט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_vehicles</code> → <code>loadLogisticsVehicles</code> (business-app.js:52915). CRUD: server.js:32878–32911.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם רכב חובה — <code>'שם רכב חובה'</code> (business-app.js:53011).</li>
+<li>POST: <code>type||'van'</code> (server.js:32889). PATCH whitelist: <code>name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, is_active, notes</code>.</li>
+<li>DELETE רך: <code>is_active=false</code> (server.js:32908).</li>
+</ul></div>
+<div>חישובים</div><div>התראה: שרת — <code>is_active AND (insurance_expires_at&lt;=CURRENT_DATE+14 OR inspection_expires_at&lt;=CURRENT_DATE+14)</code> (server.js:32697); לקוח — אותו חלון של 14 יום (<code>14*86400000</code>, business-app.js:52929) מסמן בכרטיס "⚠️ בקרוב" (כולל תאריכים שכבר עברו).</div>
+<div>מכונת מצבים</div><div><code>type</code>: <code>motorcycle, van, truck, bicycle, electric</code> (business-app.js:52989). <code>is_active</code> true→false.</div>
+<div>ממשק</div><div>GET מחזיר את כל הרכבים; הלקוח מציג רק <code>is_active</code> (business-app.js:52931). מונה ברשימה = רכבים פעילים.</div>
+<div>פערים</div><div>אין חסימת שיוך רכב עם ביטוח/טסט שפג (מוזכר רק בהנחיות AI, server.js:16058). בחירת רכב בשיוך הזמנה כוללת רכבים לא פעילים.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics routes stops planned active completed route_date eta"><h3>מסלולי חלוקה ועצירות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_routes</code> → <code>loadLogisticsRoutes</code> (business-app.js:53354). נתיבים: GET מסלולים לתאריך (server.js:33312), GET עצירות (33330), POST מסלול (33343), POST עצירה (33352), PATCH סטטוס (33361), DELETE (33368).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם מסלול חובה — <code>'נדרש שם מסלול'</code>; עצירה — מזהה הזמנה חובה <code>'נדרש מזהה הזמנה'</code> (business-app.js:53434, 53510).</li>
+<li>שרת: ללא ולידציה; לא נבדק שההזמנה שייכת לעסק או שאינה במסלול אחר.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET מסלולים: <code>route_date = date||היום (UTC ISO)</code>, join נהג/רכב, <code>stop_count=COUNT(stops)</code>, מיון <code>created_at DESC</code> (server.js:33315–33325).</li>
+<li>POST מסלול: <code>INSERT (group_id, driver_id, vehicle_id, route_date, name, notes)</code>.</li>
+<li>POST עצירה: <code>INSERT (route_id, order_id, stop_order||0, eta)</code>.</li>
+<li>GET עצירות: join להזמנה (שם, כתובת, <code>order_status</code>, COD, חבילות, טלפון), מיון <code>stop_order</code>.</li>
+<li>DELETE: מחיקה קשה; עצירות נמחקות ב-CASCADE.</li>
+</ol></div>
+<div>חישובים</div><div><code>stop_order</code> בלקוח = מספר האלמנטים עם class <code>border-b</code> במודאל + 1 (business-app.js:53513). <code>order_id = parseInt(קלט)</code> — קלט כמו "LOG-123456" ייתן NaN → null.</div>
+<div>מכונת מצבים</div><div><code>logistics_routes.status</code>: <code>planned</code> → "הפעל" → <code>active</code> → "סיים" → <code>completed</code> (business-app.js:53397–53398); שרת מקבל כל ערך. <code>logistics_route_stops.status</code>: <code>pending</code> בלבד — לא מתעדכן.</div>
+<div>תופעות לוואי</div><div>אין השפעה על סטטוס ההזמנות או הנהג.</div>
+<div>ממשק</div><div>כרטיס מסלול: שם, badge, נהג, רכב, "📍 N עצירות", פרטים/הפעל/סיים/מחק (confirm). מודאל עצירות עם הוספה (מזהה + ETA טקסט).</div>
+<div>פערים</div><div>שדה התאריך שומר <code>window._logisticsRoutesDate</code> שלא נקרא — תמיד נטען היום (business-app.js:53358, 53381). אין אופטימיזציית מסלול ("חשב מסלול" בעזרה, business-app.js:36113 — לא קיים).</div>
+</div></section>
+
+<h2 class="grp">תמחור</h2>
+
+ <section class="proc" data-f="logistics pricing zones base price per km kg min fee"><h3>אזורי מחיר (מחירון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_pricing</code> → <code>loadLogisticsPricing</code> (business-app.js:53028). CRUD: server.js:32913–32946.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם אזור חובה — <code>'שם אזור חובה'</code> (business-app.js:53108). ערכים מספריים <code>parseFloat||0</code>.</li>
+<li>POST: ברירות מחדל 0 ל-<code>base_price, price_per_km, price_per_kg, min_fee</code> (server.js:32924). PATCH whitelist כולל <code>is_active</code>.</li>
+<li>DELETE: <b>מחיקה קשה</b> (server.js:32943), confirm מסוג danger בלקוח.</li>
+</ul></div>
+<div>חישובים</div><div>לא קיימת נוסחת חישוב מחיר בקוד — השדות נשמרים ומוצגים בלבד. <code>pricing_zone_id</code> בהזמנה נשמר אם נשלח, אך הלקוח אינו שולח.</div>
+<div>ממשק</div><div>טבלה: אזור, בסיס ₪, ₪/ק"מ, ₪/ק"ג, מינימום; מוצגים רק <code>is_active</code>, המונה סופר את כולם (business-app.js:53041, 53053).</div>
+<div>פערים</div><div>"המחיר מחושב אוטומטית עם יצירת הזמנה" (עזרה, business-app.js:36082) — לא מומש.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics rate cards surcharge rules"><h3>כרטיסי תעריף (חוקי תוספות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נתיבים בלבד: GET (פעילים, server.js:33384), POST (33391), PATCH (33401), DELETE רך (33412). אין UI בלקוח.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST: <code>surcharge_amount||0</code>, <code>surcharge_pct||0</code>; <code>name</code>, <code>rule_type</code> NOT NULL ברמת DB.</li>
+<li>PATCH whitelist: <code>name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes, is_active</code>.</li>
+</ul></div>
+<div>חישובים</div><div>אין יישום של החוקים בשום חישוב; ערכי <code>rule_type</code> לא נקבעו בקוד.</div>
+<div>פערים</div><div>PATCH עם גוף ריק מייצר <code>SET  WHERE</code> → שגיאת SQL 500 (אין בדיקת <code>sets.length</code>, server.js:33405–33407). העמודות <code>express_surcharge/floor_surcharge</code> בהזמנה לא נכתבות.</div>
+</div></section>
+
+<h2 class="grp">גבייה (COD)</h2>
+
+ <section class="proc" data-f="logistics cod daily summary driver close day session deposit"><h3>סיכום COD יומי לפי נהג וסגירת יום</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_cod</code> → <code>loadLogisticsCOD</code> (business-app.js:53125) → <code>GET /api/logistics/cod/:groupId?date=היום</code> (server.js:32948). "סגור יום" → <code>_logisticsCloseCOD</code> (business-app.js:53170) → <code>POST /api/logistics/cod/close</code> (server.js:32965).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>date</code> ברירת מחדל: היום לפי UTC (<code>toISOString().split('T')[0]</code>) — גם בלקוח וגם בשרת.</li>
+<li>סגירה: אין ולידציה; prompt "סכום שהופקד ₪" (ביטול → יציאה).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: לכל נהג פעיל, LEFT JOIN הזמנות עם <code>scheduled_date=date</code>.</li>
+<li>Close: חישוב <code>total_collected = Σ cod_amount WHERE driver_id AND scheduled_date=date AND cod_collected</code> (ללא סינון group), ואז <code>INSERT logistics_cod_sessions (..., status 'closed') ON CONFLICT DO NOTHING</code> (server.js:32968–32971).</li>
+</ol></div>
+<div>חישובים</div><div>(server.js:32953–32956)<ul>
+<li><code>total_orders</code> = מספר הזמנות עם <code>cod_amount&gt;0</code>.</li>
+<li><code>total_due</code> = Σ <code>cod_amount</code> (&gt;0).</li>
+<li><code>total_collected</code> = Σ <code>cod_amount</code> כאשר <code>cod_collected</code>.</li>
+<li><code>pending_deposit</code> = Σ <code>cod_amount</code> כאשר &gt;0, לא נגבה, <code>status='delivered'</code>.</li>
+<li>סיכום עליון בלקוח: Σ collected, Σ pending (business-app.js:53140–53141).</li>
+</ul></div>
+<div>מכונת מצבים</div><div><code>logistics_cod_sessions.status</code>: נוצר ישירות כ-<code>closed</code>; <code>open</code> (ברירת מחדל DB) לא בשימוש.</div>
+<div>תופעות לוואי</div><div>שורת session בלבד — אין הפרש/התראה על אי-התאמה, אין תנועה כספית.</div>
+<div>ממשק</div><div>כרטיס לכל נהג: "לגבות", "נגבה", "להפקדה" (כתום אם &gt;0). אין בחירת תאריך ואין תצוגת sessions שנסגרו.</div>
+<div>פערים</div><div>"להפקדה" מחושב כ-COD שנמסר ו<b>לא</b> נגבה — כלומר חוב של הלקוח, לא כסף שבידי הנהג. <code>ON CONFLICT</code> חסר משמעות (אין UNIQUE) — סגירות חוזרות יוצרות כפילויות. הסינון לפי <code>scheduled_date</code> ולא לפי יום המסירה.</div>
+</div></section>
+
+<h2 class="grp">הצעות מחיר (RFQ)</h2>
+
+ <section class="proc" data-f="logistics rfq quote request messages deposit status"><h3>בקשות הצעת מחיר (RFQ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_rfq</code> → <code>loadLogisticsRFQ</code> (business-app.js:53181). נתיבים: GET (server.js:32976), POST (32988), PATCH message (32997), PATCH quote (33009), PATCH status (33018).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה <code>'שם חובה'</code> (business-app.js:53304); הצעת מחיר — ערך לא ריק (business-app.js:53266).</li>
+<li>GET: סינון <code>status</code> אופציונלי (מתעלם מ-<code>all</code>), <code>LIMIT 100</code>, <code>created_at DESC</code>.</li>
+<li>message: 404 <code>'not found'</code> אם אין RFQ (server.js:33001).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>יצירה: <code>INSERT (group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date)</code>.</li>
+<li>הודעה: קריאת <code>messages</code>, push <code>{from, text, at: ISO}</code>, כתיבת כל המערך מחדש (read-modify-write) (server.js:33000–33004).</li>
+<li>הצעה: <code>UPDATE quote_amount, deposit_amount||0, status='quoted'</code> (server.js:33012).</li>
+<li>סטטוס: <code>UPDATE status</code> לכל ערך.</li>
+</ol></div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>new</td><td>מנהל</td><td>—</td><td>—</td></tr>
+<tr><td>כל</td><td>quoted</td><td>מנהל ("קבע מחיר")</td><td>סכום לא ריק</td><td>quote_amount, deposit_amount</td></tr>
+<tr><td>כל</td><td>new / quoted / accepted / completed / rejected</td><td>מנהל (select במודאל)</td><td>אין</td><td>אין</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>אין: לא נשלחת הודעה ללקוח, אין המרה להזמנה ב-<code>accepted</code>, <code>deposit_paid</code> ו-<code>photos</code> לא נכתבים לעולם.</div>
+<div>ממשק</div><div>צ'אט: הודעות <code>from==='biz'</code> מיושרות לימין-אפור, אחרות כתום; הלקוח שולח תמיד <code>from:'biz'</code> (business-app.js:53261). פתיחת פרטים טוענת מחדש את כל הרשימה ומחפשת את ה-id (business-app.js:53220). טקסטים מוזרקים ל-HTML ללא escape.</div>
+<div>פערים</div><div>אין ערוץ ללקוח הקצה לשלוח הודעות/תמונות ל-RFQ (נתיב מוגן BIZ בלבד); בקשת "הצעת מחיר" מהחנות הציבורית אינה יוצרת RFQ. מצב Kanban <code>pending_quote/quote_sent</code> בהזמנות מנותק מ-RFQ.</div>
+</div></section>
+
+<h2 class="grp">מעקב ציבורי</h2>
+
+ <section class="proc" data-f="logistics tracking token create link copy"><h3>יצירת לינק מעקב</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל הזמנה "🔗 צור לינק מעקב" או טאב <code>logistics_tracking</code> → <code>_logisticsCreateTracking</code> (business-app.js:53564) → <code>POST /api/logistics/orders/:id/tracking-token</code> (server.js:33227).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אם להזמנה כבר יש <code>tracking_token</code> → מוחזר הקיים (אידמפוטנטי).</li>
+<li>אחרת <code>crypto.randomBytes(24).toString('hex')</code> (48 תווי hex) ו-<code>UPDATE tracking_token</code> (server.js:33232–33233).</li>
+</ol></div>
+<div>ממשק</div><div>טאב מעקב: כל ההזמנות (המונה "פעילים" = לא delivered/cancelled/returned), נתיב <code>/track/&lt;token&gt;</code>, העתקה ל-clipboard של <code>location.origin + '/track/' + token</code> (fallback: טוסט עם ה-URL), פתיחה בלשונית (business-app.js:53533–53578).</div>
+<div>פערים</div><div>הלינק לא נשלח ללקוח אוטומטית למרות הטקסט "יישלח ללקוח" (business-app.js:53543). אחרי יצירה ממודאל ההזמנה נטען רק טאב המעקב — המודאל לא מתעדכן. אין תפוגה לטוקן (למרות טקסט "פג תוקפו" ב-track.html:39).</div>
+</div></section>
+
+ <section class="proc" data-f="logistics public track page token leave at door polling"><h3>דף מעקב ציבורי ואישור "השארה בדלת"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח קצה פותח <code>/track/:token</code> → השרת מגיש <code>public/track.html</code> (server.js:33239). הדף קורא <code>GET /api/logistics/track/:token</code> (server.js:33243) ומרענן כל 30 שניות (track.html:207).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>ללא אימות. token לא קיים → 404 <code>'לא נמצא'</code> (server.js:33256).</li>
+<li>leave-at-door: ללא בדיקת קיום/סטטוס — מחזיר <code>{ok:true}</code> גם לטוקן שגוי (server.js:33376–33381).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT: <code>id, order_number, status, customer_name, pickup_address, delivery_address, scheduled_date, scheduled_time_window, delivered_at, failed_attempts_count, leave_at_door, tracking_last_seen, driver_name, driver_phone, current_lat, current_lng</code> (server.js:33246–33252).</li>
+<li><code>UPDATE tracking_last_seen=NOW()</code> בכל צפייה (server.js:33258).</li>
+<li>אישור דלת: <code>UPDATE leave_at_door=true, updated_at=NOW()</code>.</li>
+</ol></div>
+<div>מכונת מצבים</div><div>הדף ממפה את כל 13 הסטטוסים לתווית/אייקון/צבע (track.html:109–123). ציר הזמן מבוסס <code>FLOW_ORDER = new, confirmed, assigned, picked_up, in_transit, arrived, delivered</code>: כל שלב עד האינדקס הנוכחי מסומן ✓, הנוכחי ● (track.html:125, 180–195). סטטוס מחוץ לרשימה → כל השלבים ריקים.</div>
+<div>תופעות לוואי</div><div>אישור דלת מוצג במנהל (כרטיס קנבן "🚪 אישר השארה", business-app.js:52552) — ללא event/התראה לנהג.</div>
+<div>ממשק</div><div>כתובת מסירה; חלון זמן (תאריך he-IL | חלון) או הסתרה; שליח + טלפון או הסתרה; אזהרת "לא הצלחנו להגיע" + "ניסיון N מתוך 3" + כפתור "✅ אשר השארה בדלת" רק כש-<code>status==='failed_attempt'</code> ו-<code>failed_attempts_count&gt;0</code> (track.html:174–177). אחרי אישור: alert תודה.</div>
+<div>פערים</div><div>חשיפת טלפון ומיקום GPS של הנהג ושם הלקוח לכל בעל הטוקן (המיקום אף לא מוצג בדף). <code>leave_at_door</code> לעולם לא מתאפס.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics storefront track shipment number search"><h3>חיפוש משלוח מחלון החנות הציבורית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>storefront-logistics.html</code> → <code>trackShipment()</code> (storefront-logistics.html:796) → <code>GET /api/logistics/track/&lt;קלט המשתמש&gt;</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>קלט ריק → פוקוס. 404/שגיאה → "מספר המעקב … לא נמצא". אחרת <code>renderTrackResult</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>מפת סטטוסים בחלון: <code>transit, delivered, pending, failed, picked_up</code> (storefront-logistics.html:826–832); אחרים — התווית הגולמית.</div>
+<div>פערים</div><div>השרת מחפש לפי <code>tracking_token</code> בלבד — מספר הזמנה (<code>LOG-xxxxxx</code>) תמיד יחזיר "לא נמצא". מפת הסטטוסים לא תואמת לערכי המערכת (<code>in_transit</code>, <code>failed_attempt</code>). השדות <code>destination</code>, <code>eta</code>, <code>timeline/events</code> שהחלון מצפה להם לא מוחזרים. חיפוש מוצלח (טוקן) מעדכן <code>tracking_last_seen</code>.</div>
+</div></section>
+
+<h2 class="grp">לקוחות וחשבוניות</h2>
+
+ <section class="proc" data-f="logistics customers b2b private discount store leads upsert"><h3>לקוחות לוגיסטיקה (מזמינים ונמענים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_customers</code> → <code>loadLogisticsCustomers</code> (business-app.js:53839) עם Bearer. CRUD: GET פעילים (server.js:33420), POST (33427), PATCH (33437), DELETE רך (33449). בנוסף — יצירה אוטומטית מלידים של החנות (server.js:28776–28789).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה <code>'שם הוא שדה חובה'</code>; טלפון/אימייל חובה לפי <code>window._customerRequiredFields</code> — <code>'טלפון הוא שדה חובה לפי הגדרות העסק'</code>, <code>'אימייל הוא שדה חובה לפי הגדרות העסק'</code> (business-app.js:53985–53991). <code>discount_pct</code> input 0–100 צעד 0.5 (HTML בלבד).</li>
+<li>שרת POST: <code>customer_type||'private'</code>, <code>discount_pct||0</code>. PATCH whitelist: <code>name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes</code>, + <code>updated_at</code>. אין ולידציית טווח.</li>
+<li>ליד מחנות: רק אם <code>family_groups.business_type==='logistics'</code> ויש <code>name</code>; טלפון מנורמל בהסרת <code>-</code> ורווחים; קיים לקוח עם אותו group+phone → לא נוצר; ללא טלפון → תמיד נוצר (server.js:28779–28788).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ליד: <code>INSERT logistics_customers (group_id, name, phone, email, default_address = pickup_address||address, notes = notesParts.join(' | '))</code>; שגיאות נבלעות.</li>
+<li>מחיקה: <code>is_active=false</code>.</li>
+</ol></div>
+<div>מכונת מצבים</div><div><code>customer_type</code>: <code>private, business, subscription, monthly_billing</code> (business-app.js:53853). <code>is_active</code> true→false.</div>
+<div>חישובים</div><div><code>discount_pct</code> אינו מיושם בשום חישוב מחיר/חשבונית.</div>
+<div>ממשק</div><div>כרטיס: אות, שם, טלפון·אימייל, כתובת, badge סוג, "%X הנחה", הוראות מסירה, עריכה/התקשר/מחק (confirm danger). פאנל "הגדרות שדות חובה" (<code>_buildCustFieldSettingsPanel</code>). שמירה: שגיאה → <code>_uiAlert('שגיאה: …')</code>. <code>window._logisticsCustomersCache</code> משמש בחיפוש WEFLOWZ (business-app.js:48901) אך לא מוזן באף מקום.</div>
+<div>פערים</div><div>אין קישור בין לקוח להזמנות (הזמנה שומרת שם/טלפון חופשי). <code>oneflow_user_id</code> לא בשימוש.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics invoices vat 17 numbering pending sent paid"><h3>חשבוניות לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נוצרות אוטומטית במעבר הזמנה ל-<code>delivered</code> (ראו "עדכון סטטוס"). טאב <code>logistics_invoices</code> → <code>loadLogisticsInvoices</code> (business-app.js:54019). נתיבים: GET (server.js:33457), PATCH status (33467), DELETE (33477). פעולת AI <code>_aiUpdateInvoiceStatus</code> (business-app.js:57681).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>GET: join ל-<code>order_number, delivery_address</code>, <code>created_at DESC</code>, <code>LIMIT 200</code>.</li>
+<li>PATCH status: כל ערך; אין ולידציית מעבר.</li>
+<li>אין נתיב ליצירה ידנית.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>PATCH: <code>UPDATE status</code>; אם <code>paid</code> → <code>paid_at=NOW()</code>; אם <code>sent</code> → <code>sent_at=NOW()</code> (server.js:33470–33471).</li>
+<li><code>logBizAction(bizAuth.groupId, bizAuth.userId, 'מערכת', 'UPDATE_INVOICE_STATUS', 'invoice', id, 'חשבונית #id עודכנה לסטטוס X')</code> (server.js:33472).</li>
+<li>DELETE: מחיקה קשה.</li>
+</ol></div>
+<div>חישובים</div><div>מספור: <code>INV-{group_id}-{Date.now()}</code>; <code>amount=delivery_fee</code>; <code>vat=round2(amount×0.17)</code>; <code>total=amount+vat</code> (server.js:32778–32783). בלקוח: "גבוי" = Σ <code>total_amount</code> של <code>paid</code>; "ממתינות" = מספר <code>pending</code> (business-app.js:54035–54036).</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>pending</td><td>מערכת</td><td>הזמנה סומנה delivered דרך /status</td><td>הכנסה ב-transactions (ללא מע"מ)</td></tr>
+<tr><td>pending</td><td>sent</td><td>מנהל "סמן כנשלח"</td><td>—</td><td>sent_at, audit</td></tr>
+<tr><td>pending / sent</td><td>paid</td><td>מנהל "סמן כשולם" / AI</td><td>—</td><td>paid_at, audit</td></tr>
+<tr><td>כל</td><td>(נמחק)</td><td>מנהל</td><td>confirm danger</td><td>DELETE קשה</td></tr>
+</tbody></table></div>
+<code>cancelled</code> מוגדר בתוויות (business-app.js:54033) אך אין פעולה שמגיעה אליו.</div>
+<div>תופעות לוואי</div><div>audit; הקשר AI: כלי <code>invoices_all</code> (server.js:15987–15993) ו-<code>pending_invoices</code> בהקשר (business-app.js:16220–16283). אין שליחת מייל בפועל.</div>
+<div>פערים</div><div>תשלום חשבונית לא יוצר תנועה כספית (ההכנסה נרשמה כבר במסירה). אין שדה מע"מ מוגדר-עסק; עסק פטור עדיין מקבל 17%. חשבוניות כפולות במסירה חוזרת.</div>
+</div></section>
+
+<h2 class="grp">דשבורד, דוחות, ייצוא ו-AI</h2>
+
+ <section class="proc" data-f="logistics admin dashboard kpi revenue cod pending vehicle alerts refresh"><h3>דשבורד מנהל לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN בעסק לוגיסטיקה → <code>renderLogisticsAdminDashboard</code> (business-app.js:5691–5718, 52463) → <code>GET /api/logistics/dashboard/:groupId</code> (server.js:32681). רענון כל 30 שניות כל עוד הדשבורד גלוי.</div>
+<div>חישובים</div><div>(server.js:32685–32697, מתוך <code>logistics_orders</code> של ה-group)<ul>
+<li><code>new_orders</code> = status ∈ {new, pending_quote, quote_sent}.</li>
+<li><code>assigned_orders</code> = {confirmed, assigned}.</li>
+<li><code>in_transit</code> = {picked_up, in_transit, arrived}.</li>
+<li><code>delivered_today</code> = delivered ו-<code>DATE(delivered_at)=CURRENT_DATE</code>.</li>
+<li><code>no_answer</code> = failed_attempt.</li>
+<li><code>revenue_today</code> / <code>revenue_month</code> = Σ <code>delivery_fee</code> של delivered היום / בחודש (<code>DATE_TRUNC('month')</code>).</li>
+<li><code>cod_today</code> = Σ <code>cod_amount</code> שנגבה ונמסר היום.</li>
+<li><code>cod_pending</code> = Σ <code>cod_amount</code> &gt;0, לא נגבה, delivered.</li>
+<li><code>active_drivers</code> = נהגים <code>is_active</code>.</li>
+<li><code>vehicle_alerts</code> = רכבים פעילים עם ביטוח/טסט ≤ היום+14.</li>
+</ul></div>
+<div>ממשק</div><div>6 KPI (חדשים, נמסרו היום, בדרך, לא ענו – אדום אם &gt;0, הכנסה היום → cashflow, COD ממתין → logistics_cod); באנר התראות ל-no_answer ו-vehicle_alerts; פעולות מהירות (קנבן, נהגים, צי, מחירון, COD, הצעות, דוחות→cashflow, צוות) (business-app.js:52471–52500). שגיאה → אפסים.</div>
+<div>פערים</div><div><code>assigned_orders</code>, <code>revenue_month</code>, <code>cod_today</code>, <code>active_drivers</code> מחושבים ולא מוצגים.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics reports period week month by driver cod avg hours"><h3>דוחות לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_reports</code> → <code>loadLogisticsReports</code> → <code>GET /api/logistics/reports/:groupId?period=month</code> (business-app.js:53581–53586; server.js:33026). בנוסף, דוח כללי <code>GET /api/reports/:groupId</code> כולל סעיף לוגיסטיקה (server.js:33754, 33839–33846) המוצג ב-business-app.js:2643–2666.</div>
+<div>חישובים</div><div><ul>
+<li><code>period</code>: <code>month</code> → <code>DATE_TRUNC('month', NOW())</code>; כל ערך אחר → <code>CURRENT_DATE - 7 days</code> (server.js:33030). הסינון לפי <code>created_at</code>.</li>
+<li><code>delivery</code>: <code>total, delivered, no_answer</code> (status='no_answer'), <code>cancelled, revenue</code> (Σ fee של delivered), <code>avg_hours</code> = ממוצע <code>(delivered_at−created_at)/3600</code> (server.js:33032–33038).</li>
+<li><code>by_driver</code>: נהגים פעילים — <code>name, total, delivered, revenue</code>, מיון delivered DESC.</li>
+<li><code>cod</code>: <code>collected</code>, <code>pending</code>.</li>
+<li>דוח כללי: periods <code>today/week/month/year</code> (server.js:33759), שדות <code>total_orders, delivered_orders, total_revenue</code>, <code>by_driver.driver_name/total_orders/delivered_orders/revenue</code>.</li>
+</ul></div>
+<div>ממשק</div><div>KPIs: סה"כ, נמסרו (%), הכנסה, COD שנגבה; טבלת נהגים עם אחוז הצלחה <code>round(a/b×100)</code>; התראת COD ממתין (business-app.js:53598–53656).</div>
+<div>פערים</div><div><ul>
+<li>הלקוח קורא <code>d.total_orders / delivered_orders / total_revenue</code> ו-<code>driver_name / total_orders / delivered_orders</code>, אך <code>/api/logistics/reports</code> מחזיר <code>total / delivered / revenue</code> ו-<code>name / total / delivered</code> — הטאב מציג אפסים ו"ללא נהג" (business-app.js:53613–53640 מול server.js:33032–33046).</li>
+<li>בורר תקופה שומר <code>window._logisticsReportPeriod</code> שלא נקרא — תמיד <code>month</code>; <code>today</code> לא נתמך בשרת.</li>
+<li><code>no_answer</code> נספר לפי סטטוס שלא קיים (המערכת משתמשת ב-<code>failed_attempt</code>) — תמיד 0. <code>avg_hours</code> לא מוצג.</li>
+</ul></div>
+</div></section>
+
+ <section class="proc" data-f="logistics export csv excel orders drivers revenue vehicles"><h3>ייצוא CSV לוגיסטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/biz/export-report?type=…</code> (verifyBiz, server.js:16373), מופעל מכפתור "הורד דוח" שנוצר מתג AI <code>[ACTION:EXPORT_EXCEL|logistics-*]</code> → <code>window.downloadBizReport</code> (business-app.js:54239–54244).</div>
+<div>חישובים</div><div><ul>
+<li><code>logistics-orders</code>: עד 5000, מפת סטטוס עברית ל-13 ערכים, שם נהג מ-<code>users</code> דרך <code>ld.user_id</code> (server.js:16431–16436).</li>
+<li><code>logistics-drivers</code>: מפת סטטוס <code>active/on_route/break/offline</code> (server.js:16437–16442).</li>
+<li><code>logistics-revenue</code>: status ∈ {delivered, partial}, עד 5000, מפת <code>cod_method</code> cash/credit/transfer (server.js:16443–16448).</li>
+<li><code>logistics-vehicles</code>: מפת סוג רכב (server.js:16449–16454).</li>
+<li>שם קובץ: <code>&lt;שם&gt;_לוגיסטיקה_YYYY-MM-DD.csv</code>.</li>
+</ul></div>
+<div>פערים</div><div>שם נהג ריק (user_id לא נקבע); <code>qr</code> מוצג גולמי.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics ai assistant gemini chat context actions update delivery status"><h3>עוזר AI לוגיסטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>override של <code>window.submitGlobalAI</code> לעסקי לוגיסטיקה (business-app.js:54110–54294) → <code>POST /api/biz/chat-assistant</code> (verifyBiz, server.js:16038).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>במקביל: dashboard, orders (<code>?limit=200</code> — מתעלמים בשרת), cod (היום), customers, invoices.</li>
+<li>בניית <code>logisticsContext</code>: KPIs, ספירה לפי סטטוס, ביצועים, <code>orders_active</code> (עד 20), הכנסות חודש/קודם ומגמה, סיכום COD, נהגים עם הכי הרבה <code>failed_attempt</code> (טופ 5), לקוחות, חשבוניות, משימות פתוחות.</li>
+<li>שרת: Gemini <code>gemini-2.5-flash</code> (server.js:16045) עם סעיף "כללי ברזל" ללוגיסטיקה ותגי פעולה (server.js:16051–16080).</li>
+<li>פענוח תגים בלקוח: <code>EXPORT_EXCEL</code>, <code>ADD_TASK</code>, <code>OPEN_TAB</code>, <code>UPDATE_DELIVERY_STATUS|id|status|name</code>, <code>CREATE_TASK</code>, <code>CREATE_ALERT_RULE</code>.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>successRate = round(delivered+partial / לא-מבוטלות × 100)</code> (business-app.js:54154–54155).</li>
+<li><code>trend_pct = ((month−prev)/prev×100).toFixed(1)</code> או null (business-app.js:54199).</li>
+<li>ספי ההנחיה ל-AI (server.js:16053–16061): הצלחה &lt;85% קריטי; COD ממתין &gt;3 ימים; נהג &gt;3 failed ביום; ביטוח/טסט שפג; COD לא הופקד &gt;2 ימים; SLA &lt;80%; חשבונית pending &gt;7 ימים.</li>
+</ul></div>
+<div>תופעות לוואי</div><div>צריכת מכסת AI לפי נתיב chat-assistant (מחוץ לתחום זה). פעולת סטטוס → <code>PATCH /status</code> עם actor <code>'AI Assistant'</code>.</div>
+<div>פערים</div><div>סיכום COD מחפש <code>cod.orders</code> אך השרת מחזיר <code>{date, drivers}</code> — תמיד 0 (business-app.js:54166). AI מורשה לכתוב סטטוסים לא קנוניים (<code>failed</code>, <code>pending</code>).</div>
+</div></section>
+
+<h2 class="grp">חנות ציבורית ושילוב WEFLOWZ</h2>
+
+ <section class="proc" data-f="storefront logistics shipment request lead login urgent plans coverage"><h3>חנות ציבורית לוגיסטית — בקשת משלוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מבקר ב-<code>storefront-logistics.html</code> (נבחר כשה-template הוא <code>logistics</code>, server.js:23386) ממלא טופס ושולח → <code>submitShipment</code> (storefront-logistics.html:745) → <code>POST /api/store/leads/:groupId</code> (server.js:28759).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חובה להיות מחובר כלקוח (<code>scAuth._customer</code>), אחרת <code>requireLogin</code> עם הודעה "🔒 כדי לשלוח בקשת משלוח יש להתחבר או להירשם." והמשך אוטומטי אחרי התחברות (storefront-logistics.html:747–751).</li>
+<li>שרת: groupId לא מספרי או <code>'general'</code> → <code>{success:true}</code> ללא שמירה; חסרים גם שם וגם טלפון → 400 <code>'חסרים פרטים'</code> (server.js:28762–28764).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>payload: <code>type:'shipment_request', name, phone, pickup_address, delivery_address, package_description, weight, urgent, source:'storefront-logistics', timestamp</code>.</li>
+<li>שרת בונה notes: "מקור", "תיאור", "איסוף", "מסירה", "דחוף" וכו' (server.js:28765–28774) → <code>upsertStoreCustomer</code>.</li>
+<li>אם business_type לוגיסטיקה → יצירת <code>logistics_customers</code> (ראו "לקוחות").</li>
+</ol></div>
+<div>חישובים</div><div>תוכניות מחיר מ-<code>/api/store/products/:gid</code>; ברירת מחדל: "שליחות בודדת" ₪29/משלוח, "חבילה חודשית" ₪649/חודש, "דחופה" וגם "עסקי" — "צרו קשר" (storefront-logistics.html:726–731). סטטיסטיקות ברירת מחדל: 200+, 50+, "90 דק׳". כיסוי ברירת מחדל: 8 ערי אקספרס ו-9 רגילות (storefront-logistics.html:669–670).</div>
+<div>ממשק</div><div>כפתור דחוף toggle; WhatsApp ל-<code>972</code>+מספר ללא 0 מוביל; מבצעים (עד 4) וביקורות (עד 6).</div>
+<div>פערים</div><div>לא נוצרת <code>logistics_orders</code> ולא <code>logistics_rfq</code> — הבקשה נשמרת רק כהערות לקוח. <code>weight</code> ו-<code>type</code> מתעלמים בשרת. ביקורות/מבצעים מוזרקים ללא escape (storefront-logistics.html:894–909).</div>
+</div></section>
+
+ <section class="proc" data-f="weflowz family business activity logistics orders lookup"><h3>פעילות לוגיסטית בכרטיס עסק במשפחה (WEFLOWZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/family/business-activity/:familyGroupId/:bizGroupId</code> (verifyFamily, server.js:31837) — עבור עסק לוגיסטיקה מחזיר <code>activity.logisticsOrders</code> (server.js:31959–31965).</div>
+<div>תנאים ואימותים</div><div><ul><li>familyGroupId חייב להתאים ל-<code>req.familyAuth.groupId</code> אחרת 403 <code>'אין הרשאה'</code> (server.js:31841).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT עד 20 הזמנות לפי טלפוני בני המשפחה או <code>sender_group_id</code>.</li></ol></div>
+<div>פערים</div><div>השאילתה משתמשת בעמודות <code>business_group_id</code> ו-<code>sender_group_id</code> שאינן קיימות ב-<code>logistics_orders</code> (העמודה היא <code>group_id</code>); השגיאה נבלעת ב-<code>.catch(()=&gt;({rows:[]}))</code> — התוצאה תמיד ריקה.</div>
+</div></section>
+
+ <section class="proc" data-f="logistics navigation tabs modules business type onboarding guide help"><h3>ניווט, מודולים והדרכה בצד הלקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>סוג עסק <code>logistics</code> ב-<code>BUSINESS_TYPES</code> עם modules: <code>feed, logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, logistics_rfq, logistics_routes, logistics_tracking, logistics_reports, logistics_customers, logistics_invoices, members, timeclock, cashflow, tasks, biz-ads, reports</code> (business-app.js:37532).</div>
+<div>שלבי עיבוד</div><div><ol><li><code>switchTab</code> ממפה כל טאב לפונקציית טעינה (business-app.js:3008–3018).</li><li>שמות טאבים ב-<code>ALL_TABS</code> (business-app.js:3870–3880).</li></ol></div>
+<div>ממשק</div><div>טור אונבורדינג לפי תפקיד ADMIN/MANAGER/EMPLOYEE (business-app.js:2149+); מדריך <code>logistics-guide.html</code> (business-app.js:2205); כרטיסי עזרה לכל טאב (business-app.js:36042–36162); מונחים: לקוח = "לקוח B2B", תור = "חלון מסירה" (business-app.js:37551); תפקידי תוסף רלוונטיים: field_tech ₪29, delivery ₪19, warehouse ₪19, shift_manager ₪29, branch_manager ₪39 (business-app.js:37569–37577); שירות עצמי: <code>ss_storefront, ss_rfq, ss_message</code> (business-app.js:41826–41830).</div>
+<div>פערים</div><div>טקסטי האונבורדינג והעזרה מתארים יכולות שלא מומשו: גרירה בקנבן, POD עם צילום/חתימה, מפה חיה, SMS/Push ללקוח, אופטימיזציית מסלול, חישוב מחיר אוטומטי, יצירת חשבונית ידנית, שליחת חשבונית במייל.</div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

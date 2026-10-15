@@ -1,0 +1,267 @@
+{
+"BUSINESS_ADMIN_MAPPING.md": {
+"total": 1,
+"missing": []
+},
+"CLAUDE.md": {
+"total": 0,
+"missing": []
+},
+"FAMILY_TABLE_RESERVATION_SPEC.md": {
+"total": 14,
+"missing": [
+"_highlightSelectedTime"
+]
+},
+"FAMILY_UX_CHANGES.md": {
+"total": 8,
+"missing": [
+"_highlightSelectedTime"
+]
+},
+"IMPLEMENTATION_PLAN.md": {
+"total": 0,
+"missing": []
+},
+"README.md": {
+"total": 0,
+"missing": []
+},
+"README_RENDER.md": {
+"total": 0,
+"missing": []
+},
+"RESTAURANT_PROCESSES.md": {
+"total": 0,
+"missing": []
+},
+"SMS_SERVICE_SETUP.md": {
+"total": 7,
+"missing": []
+},
+"SPECIFICATION.md": {
+"total": 0,
+"missing": []
+},
+"SYSTEM_SPEC.md": {
+"total": 32,
+"missing": []
+},
+"docs/BIZ_ENV_SPEC.md": {
+"total": 258,
+"missing": [
+"handleBizLogin",
+"bizSendOTP",
+"bizVerifyOTP",
+"renderFLWSection",
+"renderGoalsSection",
+"renderMemberBizDashboard",
+"renderXDashboard",
+"addToCart",
+"renderCart",
+"removeFromCart",
+"clearCart",
+"applyCartPromotion",
+"submitPOSOrder",
+"renderKDSPanel",
+"updateKDSItem",
+"updateOrderStatus",
+"loadStoreQuotes",
+"renderQuoteCard",
+"approveQuote",
+"openAddProductModal",
+"submitProduct",
+"toggleProductAvailability",
+"uploadProductImage",
+"loadStorePromotions",
+"openAddPromotionModal",
+"renderCustomerCard",
+"openCustomerProfile",
+"addCustomerNote",
+"tagCustomer",
+"openBizMessageModal",
+"loadCalendarData",
+"openCalendarEventModal",
+"loadCalendarServices",
+"addCalendarService",
+"toggleServiceAvailability",
+"loadCalendarRequests",
+"approveCalendarRequest",
+"declineCalendarRequest",
+"deleteShift",
+"copyShiftWeek",
+"exportShiftsCSV",
+"renderTimeclockReport",
+"loadSuppliers",
+"loadSupplierCatalog",
+"addToB2BCart",
+"submitB2BOrder",
+"submitEquipmentMaintenance",
+"submitEquipmentFault",
+"editTransaction",
+"exportTransactionsCSV",
+"loadBizFlowWallet",
+"verifyTask",
+"rejectTask",
+"uploadTaskProof",
+"connectBizToCommunity",
+"submitBizCommunityPost",
+"openSurveysTab",
+"loadSurveyRecipients",
+"sendMassSMS",
+"sendBulkWhatsApp",
+"sendTeamUpdate",
+"openInviteMemberModal",
+"submitEditMember",
+"deleteMember",
+"fetchDeliveries",
+"openDeliveryMap",
+"assignDelivery",
+"updateDeliveryStatus",
+"fetchSalesReport",
+"fetchEmployeesReport",
+"fetchFinanceReport",
+"fetchInventoryReport",
+"fetchClientsReport",
+"openBeautyBookingModal",
+"submitBeautyBooking",
+"cancelBeautyBooking",
+"sendBeautyReminder",
+"openBeautyClientCard",
+"submitBeautyClientNotes",
+"addBeautyClientAllergy",
+"uploadBeautyClientPhoto",
+"useBeautyProduct",
+"orderBeautyProduct",
+"addBeautyService",
+"editBeautyService",
+"addBeautySubscription",
+"redeemSubscriptionVisit",
+"cancelSubscription",
+"setCommissionRate",
+"approveMonthlyPayout",
+"respondToRfq",
+"addPractitioner",
+"setPractitionerSchedule",
+"markKDSItemReady",
+"createMenuTemplate",
+"publishMenuTemplate",
+"createCase",
+"updateCaseStatus",
+"addCaseNote",
+"attachDocumentToCase",
+"convertLeadToCase",
+"assignLead",
+"logHours",
+"generateInvoiceFromTimelog",
+"uploadDocument",
+"shareDocument",
+"loadContentPageData",
+"saveContentSection",
+"publishContentPage",
+"fetchSportMembers",
+"openMemberModal",
+"submitSportMember",
+"renewMembership",
+"freezeMembership",
+"loadServiceCalls",
+"renderServiceCallCard",
+"openServiceCallModal",
+"assignTechnician",
+"submitRoutine",
+"completeRoutineItem",
+"lowStockAlert",
+"autoReorderAlert",
+"purchaseAdSlot",
+"editAdCreative",
+"pauseAd",
+"resumeAd",
+"openBizProfileSection",
+"openBizTypeSection",
+"openPaymentSection",
+"openStoreSettingsSection",
+"openNotificationsSection",
+"openIntegrationsSection",
+"openMyPlanSection",
+"openPWASection",
+"updateBizType",
+"getAIForecast",
+"getAIBudgetInsight",
+"askBizTutor",
+"analyzeProductCost",
+"openAIBatteryModal"
+]
+},
+"docs/FAMILY_ENV_SPEC.md": {
+"total": 270,
+"missing": [
+"saveCurrentList"
+]
+},
+"docs/SA_ENV_SPEC.md": {
+"total": 90,
+"missing": []
+},
+"docs/WEFLOWZ-family-capabilities-customer-v1.md": {
+"total": 0,
+"missing": []
+},
+"docs/WEFLOWZ-retail-capabilities-customer-v1.md": {
+"total": 0,
+"missing": []
+},
+"docs/WEFLOWZ-retail-modules-customer-v1.md": {
+"total": 0,
+"missing": []
+},
+"docs/WEFLOWZ-shuka-customer-doc.md": {
+"total": 0,
+"missing": []
+},
+"docs/ZM_ENV_SPEC.md": {
+"total": 60,
+"missing": []
+},
+"docs/retail-module-map-internal.md": {
+"total": 1,
+"missing": []
+},
+"docs/security-audit-report-2026-10.md": {
+"total": 1,
+"missing": []
+},
+"docs/spec-biz-environment.md": {
+"total": 23,
+"missing": []
+},
+"docs/spec-family-environment.md": {
+"total": 57,
+"missing": []
+},
+"docs/spec-qa-book.md": {
+"total": 0,
+"missing": []
+},
+"docs/spec-retail-store.md": {
+"total": 9,
+"missing": []
+},
+"docs/spec-shuka-feature.md": {
+"total": 9,
+"missing": []
+},
+"docs/spec-super-admin.md": {
+"total": 9,
+"missing": []
+},
+"docs/spec-zone-community.md": {
+"total": 10,
+"missing": [
+"randomUUID"
+]
+},
+"docs/test-checklist-shuka.md": {
+"total": 0,
+"missing": []
+}
+}

@@ -1,0 +1,751 @@
+[
+{
+"id": "LOG-01",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "security",
+"severity": "critical",
+"title": "כל נתיבי /api/logistics נגישים ללא טוקן (fallback legacy)",
+"as_is": "verifyBizOrLegacy מעביר בקשה ללא header Authorization כ-legacy עם groupId מה-body/query ו-userId=null (server.js:43083-43087), ו-requireModule מדלג על legacy (server.js:43126). כמעט כל קריאות הלוגיסטיקה בלקוח נשלחות ללא Authorization (business-app.js:52508, 52697, 52780); רק לקוחות/חשבוניות שולחים Bearer (business-app.js:53843).",
+"proposal": "כל 51 נתיבי /api/logistics/* (פרט ל-track/:token ו-leave-at-door) דורשים verifyBiz עם טוקן biz תקף; בקשה ללא טוקן → 401. הלקוח שולח Authorization: Bearer בכל fetch דרך wrapper אחד (bizFetch). אין fallback legacy.",
+"alternatives": [],
+"refs": [
+"server.js:43056",
+"server.js:43083",
+"server.js:43126",
+"business-app.js:52508",
+"business-app.js:53843",
+"rules-logistics.html#אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics",
+"s1-rbac.html#BIZ — לוגיסטיקה"
+],
+"dup_of": "ARC-03"
+},
+{
+"id": "LOG-02",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "security",
+"severity": "critical",
+"title": "IDOR חוצה-דיירים: groupId מה-URL/גוף ו-:id ללא סינון group",
+"as_is": "ה-handlers משתמשים ב-:groupId מהנתיב / group_id מהגוף ולא ב-req.bizAuth.groupId (server.js:32736-32740), ועדכונים/מחיקות לפי :id מבצעים WHERE id=$1 בלבד (server.js:32795, 32835, 32873, 33363, 33479). גם עם טוקן תקף ניתן לקרוא ולכתוב נתוני עסק אחר.",
+"proposal": "group_id נגזר תמיד מהסשן (req.bizAuth.groupId); פרמטר groupId בנתיב שאינו תואם → 403. כל UPDATE/DELETE/GET לפי :id כולל AND group_id=$session; אין התאמה → 404. מזהים מקושרים בגוף (driver_id, vehicle_id, order_id בעצירה, pricing_zone_id) נבדקים כשייכים לאותו group → אחרת 400.",
+"alternatives": [],
+"refs": [
+"server.js:32736",
+"server.js:32795",
+"server.js:32835",
+"server.js:32873",
+"server.js:33363",
+"server.js:33479",
+"rules-logistics.html#אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics"
+]
+},
+{
+"id": "LOG-03",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "architecture",
+"severity": "high",
+"title": "מזהה מודול לא אחיד: requireModule('logistics') מול מזהי טאבים logistics_*",
+"as_is": "השרת בודק managed_modules מכיל 'logistics' (server.js:43126), בעוד קטלוג הלקוח מגדיר מזהי טאבים logistics_orders וכו' (business-app.js:37532) ו-BIZ_TYPE_MODULES של SA לא כולל אף מודול logistics_*; חבילת logistics_all לא כוללת logistics_rfq. requireModule עושה fail-open במערך ריק ובשגיאת DB.",
+"proposal": "מקור אמת יחיד לקטלוג מודולים (שרת), שממנו נגזרים גם BUSINESS_TYPES וגם BIZ_TYPE_MODULES. כל נתיב לוגיסטי ממופה למזהה הטאב שלו (למשל /orders → logistics_orders, /cod → logistics_cod) ו-requireModule בודק אותו; שגיאת DB → 503 (fail-closed). logistics_rfq נכלל בחבילת logistics_all.",
+"alternatives": [
+"requireModule בודק מפתח-על 'logistics' אחד, ו-managed_modules מקבל אותו אוטומטית כשאחד מטאבי logistics_* רכוש."
+],
+"refs": [
+"server.js:43120-43150",
+"business-app.js:37532",
+"s1-bizmatrix.html#BUSINESS_TYPES (לקוח עסקי) מול BIZ_TYPE_MODULES (SA)",
+"s1-bizmatrix.html#חבילת לוגיסטיקה / הפצה",
+"rules-logistics.html#אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics"
+]
+},
+{
+"id": "LOG-04",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "security",
+"severity": "medium",
+"title": "יומן ביקורת חסר לבקשות לוגיסטיות ולפעולות קריטיות",
+"as_is": "ה-middleware הגנרי רושם רק כש-req.bizAuth.groupId קיים (server.js:121-144); בבקשות legacy ה-groupId null ולכן אין רישום. פעולות כמו failed-attempt, assign, cod, pod, cancel אינן רושמות logBizAction ייעודי.",
+"proposal": "כל פעולת כתיבה לוגיסטית נרשמת ב-biz_audit_log עם group_id ו-user_id מהסשן (אחרי סגירת legacy, ראו LOG-01). פעולות כספיות/סטטוס (status, assign, failed-attempt, pod, cod, cod/close, cancel, invoice status/delete) נרשמות עם action ייעודי ו-old/new value.",
+"alternatives": [],
+"refs": [
+"server.js:121-144",
+"server.js:117-118",
+"server.js:4160-4168",
+"rules-logistics.html#אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics"
+]
+},
+{
+"id": "LOG-05",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "data-integrity",
+"severity": "high",
+"title": "מספר הזמנה LOG-xxxxxx עלול להתנגש ואין UNIQUE",
+"as_is": "order_number = 'LOG-' + 6 הספרות האחרונות של Date.now() (server.js:32741) — מחזורי כל 1,000 שניות, ללא בדיקת ייחודיות ואין UNIQUE בסכמה (server.js:2299-2328).",
+"proposal": "מספור רץ לכל עסק (sequence או MAX+1 בטרנזקציה) בפורמט LOG-{6 ספרות מרופדות}, עם UNIQUE(group_id, order_number). הלקוח לעולם לא קובע את המספר.",
+"alternatives": [],
+"refs": [
+"server.js:32741",
+"server.js:2299-2328",
+"rules-logistics.html#יצירת הזמנת משלוח"
+]
+},
+{
+"id": "LOG-06",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "data-integrity",
+"severity": "high",
+"title": "רשימת סטטוסים קנונית ומטריצת מעברים להזמנת משלוח",
+"as_is": "השרת מקבל כל ערך status ללא כללי מעבר (server.js:32756-32767). הלקוח מכיר 13 סטטוסים (business-app.js:52524-52538), ה-AI כותב גם failed/pending (business-app.js:54266), תוויות v1 ודוחות מכירים no_answer/rescheduled שלא נכתבים (business-app.js:52450, server.js:33034), והחנות הציבורית ממפה transit/pending/failed (storefront-logistics.html:826-832). assign/pod/cancel/failed-attempt מעבירים מכל סטטוס.",
+"proposal": "סטטוסים קנוניים: new, pending_quote, quote_sent, confirmed, assigned, picked_up, in_transit, arrived, delivered, partial, failed_attempt, returned, cancelled (CHECK ב-DB). מעברים מותרים: new/confirmed→assigned; assigned→picked_up→in_transit→arrived→delivered|partial; in_transit|arrived→failed_attempt; failed_attempt→assigned|in_transit|returned; כל סטטוס שאינו delivered/partial/returned→cancelled. מעבר לא חוקי → 400. ADMIN בלבד רשאי לבצע 'override' (נרשם ב-audit). כל המסכים (קנבן, נהג, מעקב, חנות, דוחות, AI) משתמשים באותה רשימה.",
+"alternatives": [
+"ללא מטריצת מעברים — רק ולידציה שהערך שייך לרשימה הקנונית."
+],
+"refs": [
+"server.js:32756",
+"business-app.js:52524-52538",
+"business-app.js:54266",
+"business-app.js:52450",
+"server.js:33034",
+"storefront-logistics.html:826",
+"rules-logistics.html#עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)"
+]
+},
+{
+"id": "LOG-07",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "money",
+"severity": "critical",
+"title": "מסירה חוזרת יוצרת חשבונית והכנסה כפולות; חזרה מ-delivered לא מבטלת",
+"as_is": "בכל מעבר ל-delivered נוצרת חשבונית חדשה (invoice_number לפי Date.now(), ON CONFLICT לא חוסם כי אין UNIQUE על order_id) ותנועת הכנסה חדשה (server.js:32773-32787). החזרה מ-delivered או ביטול אינם מבטלים חשבונית/הכנסה ואינם מאפסים delivered_at (server.js:32835). התשובה נשלחת לפני החשבונית ושגיאות נבלעות.",
+"proposal": "UNIQUE(order_id) לחשבונית מסוג single; חשבונית והכנסה נוצרות רק במעבר הראשון ל-delivered/partial, באותה טרנזקציה עם עדכון הסטטוס (כשל → rollback ו-500). יציאה מ-delivered מותרת ל-ADMIN בלבד ומבטלת את החשבונית (status=cancelled) ורושמת תנועת הכנסה הפוכה, ומאפסת delivered_at.",
+"alternatives": [],
+"refs": [
+"server.js:32762-32787",
+"server.js:32835",
+"server.js:4201-4211",
+"rules-logistics.html#עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)",
+"rules-logistics.html#ביטול הזמנה"
+]
+},
+{
+"id": "LOG-08",
+"domain": "לוגיסטיקה",
+"area": "חשבוניות",
+"category": "money",
+"severity": "high",
+"title": "מע\"מ 17% קבוע בקוד, ללא הגדרת עסק פטור",
+"as_is": "vat_amount = round2(amount × 0.17) קבוע (server.js:32779-32783); אין שדה מע\"מ ברמת עסק ועוסק פטור מקבל מע\"מ. השיעור 17% אינו השיעור הנוכחי בישראל (18% מ-2025).",
+"proposal": "שיעור מע\"מ נקרא מהגדרה מערכתית אחת (system_settings.vat_rate, ברירת מחדל 18) עם override לעסק: vat_mode ∈ {licensed, exempt}. עוסק פטור → vat_amount=0. השיעור נשמר על החשבונית בעת יצירתה (vat_rate) כדי שחשבוניות עבר לא ישתנו.",
+"alternatives": [],
+"refs": [
+"server.js:32779-32783",
+"rules-logistics.html#חשבוניות לוגיסטיקה"
+],
+"dup_of": "ARC-21"
+},
+{
+"id": "LOG-09",
+"domain": "לוגיסטיקה",
+"area": "תמחור",
+"category": "money",
+"severity": "high",
+"title": "מחירון, כרטיסי תעריף והנחת לקוח לא משפיעים על מחיר המשלוח",
+"as_is": "delivery_fee מוזן ידנית; אזורי מחיר וכרטיסי תעריף נשמרים ומוצגים בלבד (server.js:32913-32946, 33384-33412), pricing_zone_id לא נשלח מהלקוח, express_surcharge/floor_surcharge/floor_number לא נכתבים (server.js:2373-2381), ו-discount_pct של לקוח לא מיושם — למרות טקסט העזרה \"המחיר מחושב אוטומטית\" (business-app.js:36082).",
+"proposal": "ביצירת הזמנה עם pricing_zone_id השרת מחשב הצעת מחיר: fee = max(min_fee, base_price + price_per_km×km + price_per_kg×weight_kg) + Σ תוספות כרטיסי תעריף פעילים שתנאיהם מתקיימים (סכום קבוע + אחוז), פחות discount_pct של הלקוח. המחיר המחושב מוצג בטופס וניתן לדריסה ידנית (נשמר price_overridden=true).",
+"alternatives": [
+"לא לממש חישוב — להסיר את טקסט העזרה, את טבלת כרטיסי התעריף ואת העמודות express/floor."
+],
+"refs": [
+"server.js:32913-32946",
+"server.js:33384-33412",
+"server.js:2373-2381",
+"business-app.js:36082",
+"rules-logistics.html#אזורי מחיר (מחירון)",
+"rules-logistics.html#כרטיסי תעריף (חוקי תוספות)"
+]
+},
+{
+"id": "LOG-10",
+"domain": "לוגיסטיקה",
+"area": "תמחור",
+"category": "functional",
+"severity": "low",
+"title": "כרטיסי תעריף: אין UI ו-PATCH עם גוף ריק מחזיר 500",
+"as_is": "נתיבי rate-cards קיימים ללא ממשק בלקוח (server.js:33384-33412); PATCH ללא שדות בונה 'SET  WHERE' ונכשל ב-SQL (server.js:33405-33407).",
+"proposal": "PATCH ללא שדות לעדכון → 400 'אין שדות לעדכון' (כמו בשאר הנתיבים). אם מאושר LOG-09 — טאב/מקטע ניהול כרטיסי תעריף בתוך logistics_pricing עם rule_type מתוך רשימה סגורה (express, floor, weight_over, zone, time_window).",
+"alternatives": [],
+"refs": [
+"server.js:33405-33407",
+"rules-logistics.html#כרטיסי תעריף (חוקי תוספות)"
+]
+},
+{
+"id": "LOG-11",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "medium",
+"title": "יצירת הזמנה: אין ולידציה בשרת ואין אירוע יצירה",
+"as_is": "השרת לא בודק שדות חובה ולא שהנהג שייך לעסק (server.js:32736-32750); לא נרשם אירוע ב-logistics_order_events. הלקוח מציג הצלחה גם כשהשרת החזיר שגיאה (אין בדיקת r.ok) ואינו שולח customer_email, package_count, internal_notes.",
+"proposal": "השרת מחייב customer_name ו-delivery_address (400 עם הודעה ברורה), מאמת driver_id/vehicle_id של העסק, ורושם event_type='created'. הלקוח בודק r.ok ומציג את שגיאת השרת; הטופס כולל את כל שדות הסכמה הרלוונטיים (אימייל, מספר חבילות, הערות פנימיות, אזור מחיר, לקוח).",
+"alternatives": [],
+"refs": [
+"server.js:32736-32750",
+"business-app.js:52745-52780",
+"rules-logistics.html#יצירת הזמנת משלוח"
+]
+},
+{
+"id": "LOG-12",
+"domain": "לוגיסטיקה",
+"area": "לקוחות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "הזמנה אינה מקושרת ללקוח לוגיסטיקה",
+"as_is": "הזמנה שומרת שם/טלפון חופשי ללא customer_id; logistics_customers משמש רק לרשימה, discount_pct ו-default_address לא מנוצלים, ו-oneflow_user_id לא בשימוש (server.js:2426-2441).",
+"proposal": "logistics_orders.customer_id (FK אופציונלי ל-logistics_customers). בחירת לקוח בטופס ממלאת שם/טלפון/כתובת/הוראות מסירה ומפעילה את ההנחה (LOG-09); הזמנה עם טלפון שאינו קיים יוצרת לקוח חדש אוטומטית (dedupe לפי group+טלפון מנורמל). oneflow_user_id מוסר.",
+"alternatives": [],
+"refs": [
+"server.js:2426-2441",
+"rules-logistics.html#לקוחות לוגיסטיקה (מזמינים ונמענים)",
+"s1-erd.html#מושגים מפוצלים / כפולים — המלצת איחוד לבנייה מחדש"
+]
+},
+{
+"id": "LOG-13",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "medium",
+"title": "קנבן: סינון תאריך לא עובד, LIMIT 300 וללא גרירה",
+"as_is": "שדה התאריך מעדכן selectedDate אך loadLogisticsOrders לא שולח אותו לשרת (business-app.js:52584 מול 52508); השרת מחזיר עד 300 הזמנות (server.js:32720-32730); search/status בשרת אינם בשימוש; גרירה מתוארת באונבורדינג (business-app.js:2151) ולא קיימת.",
+"proposal": "הלקוח שולח date/status/driver_id/search לשרת; ברירת מחדל: הזמנות פעילות + הזמנות שנוצרו/תוזמנו ב-7 הימים האחרונים, עם עימוד (limit 100 + offset). גרירה בין עמודות מותרת רק למעברים שבמטריצה (LOG-06) ומבצעת PATCH /status.",
+"alternatives": [
+"לא לממש גרירה — להסיר מטקסט האונבורדינג."
+],
+"refs": [
+"business-app.js:52584",
+"business-app.js:52508",
+"server.js:32719-32730",
+"business-app.js:2151",
+"rules-logistics.html#רשימת הזמנות, קנבן וסינון"
+]
+},
+{
+"id": "LOG-14",
+"domain": "לוגיסטיקה",
+"area": "נהגים ושיוך",
+"category": "functional",
+"severity": "medium",
+"title": "שיוך נהג: 'ללא נהג' מעביר ל-assigned ושיוך משנה הזמנות שנמסרו/בוטלו",
+"as_is": "PATCH /assign מעדכן status='assigned' תמיד, גם עם driver_id=null וגם מ-delivered/cancelled (server.js:32795); בחירת רכב כוללת רכבים לא פעילים (business-app.js:52651) ואין חסימת רכב עם ביטוח/טסט שפג; אין אירוע ואין הודעה לנהג.",
+"proposal": "שיוך מותר רק מ-new/confirmed/assigned/failed_attempt. driver_id חובה כדי לעבור ל-assigned; הסרת נהג מחזירה ל-confirmed (או new). רכב חייב להיות is_active ובתוקף ביטוח וטסט (insurance/inspection_expires_at ≥ היום) → אחרת 400 'לרכב פג ביטוח/טסט'. נרשם event_type='assigned' עם שם הנהג.",
+"alternatives": [],
+"refs": [
+"server.js:32792-32795",
+"business-app.js:52614",
+"business-app.js:52651",
+"server.js:16058",
+"rules-logistics.html#שיוך נהג ורכב להזמנה",
+"rules-logistics.html#ניהול צי רכבים והתראות ביטוח/טסט"
+]
+},
+{
+"id": "LOG-15",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "medium",
+"title": "ניסיון מסירה כושל: old_status קבוע, ללא תקרה, ובאג מודאל",
+"as_is": "old_status נרשם תמיד 'in_transit' גם מ-arrived; הזמנה לא קיימת → 500; המונה ללא תקרה בשרת בעוד דף המעקב מציג 'ניסיון N מתוך 3' (track.html:176); הלקוח מחפש log-order-detail-modal במקום log-order-modal ולכן המודאל לא נסגר וכפתורי ההרחבה לא מוזרקים (business-app.js:53660-53692); GPS לא נשלח.",
+"proposal": "failed-attempt מותר רק מ-in_transit/arrived (אחרת 400), הזמנה לא קיימת → 404, old_status = הסטטוס בפועל. MAX_DELIVERY_ATTEMPTS=3 (הגדרת עסק): בניסיון השלישי ההזמנה עוברת ל-returned ונרשם אירוע. הלקוח סוגר את המודאל הנכון ושולח GPS אם הנהג אישר מיקום.",
+"alternatives": [
+"ללא מעבר אוטומטי ל-returned — רק התראה למנהל בניסיון השלישי."
+],
+"refs": [
+"server.js:33264-33275",
+"track.html:176",
+"business-app.js:53660-53692",
+"rules-logistics.html#ניסיון מסירה כושל (\"לא ענה\")"
+]
+},
+{
+"id": "LOG-16",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "medium",
+"title": "נתיב POD מת שעוקף חשבונית, הכנסה ואירוע",
+"as_is": "PATCH /orders/:id/pod מעביר ל-delivered מכל סטטוס בלי חשבונית, הכנסה, event או audit (server.js:32801-32804), ואין לו קורא בלקוח; ממשק צילום/חתימה/ברקוד מתואר באונבורדינג (business-app.js:2152) ולא קיים.",
+"proposal": "POD הוא חלק ממעבר ל-delivered: בממשק הנהג הכפתור 'נמסר ✓' פותח צילום/חתימה (אופציונלי לפי הגדרת עסק pod_required), והשרת שומר את קבצי ה-POD ומבצע את אותה לוגיקת delivered (חשבונית, הכנסה, event) — נתיב אחד.",
+"alternatives": [
+"למחוק את נתיב ה-POD ואת העמודות pod_* ולהסיר את התיאור מהאונבורדינג."
+],
+"refs": [
+"server.js:32801-32804",
+"business-app.js:2152",
+"rules-logistics.html#אישור מסירה (POD)"
+]
+},
+{
+"id": "LOG-17",
+"domain": "לוגיסטיקה",
+"area": "גבייה COD",
+"category": "money",
+"severity": "medium",
+"title": "סימון גביית COD: אין ביטול, אין חותמת זמן ואין גבייה בממשק הנהג",
+"as_is": "PATCH /cod מסמן cod_collected=true ו-cod_method בלי ולידציה של סכום/שיטה (server.js:32810-32813); אין ביטול, אין cod_collected_at (ה-KPI 'COD היום' מבוסס delivered_at, server.js:32693); הלקוח שולח qr שמפת הייצוא אינה מכירה (server.js:16446); ממשק הנהג מציג רק badge.",
+"proposal": "גבייה מותרת רק כש-cod_amount>0; cod_method ∈ {cash, credit, transfer, qr}; נשמרים cod_collected_at ו-cod_collected_by (user מהסשן). ביטול סימון — ADMIN בלבד ורק אם יום ה-COD של הנהג טרם נסגר. ממשק הנהג מציג כפתורי גבייה בשלב arrived, ומסירה של הזמנת COD מחייבת סימון גבייה.",
+"alternatives": [],
+"refs": [
+"server.js:32810-32813",
+"server.js:32693",
+"server.js:16446",
+"business-app.js:52674-52679",
+"rules-logistics.html#גביית COD בשטח (סימון הזמנה כנגבתה)"
+]
+},
+{
+"id": "LOG-18",
+"domain": "לוגיסטיקה",
+"area": "גבייה COD",
+"category": "money",
+"severity": "high",
+"title": "סגירת יום COD: כפילויות, חישוב 'להפקדה' שגוי ותאריך לפי scheduled_date",
+"as_is": "INSERT ... ON CONFLICT DO NOTHING ללא UNIQUE — סגירות חוזרות יוצרות כפילויות; total_collected מחושב ללא סינון group (server.js:32965-32971); 'להפקדה' = COD שנמסר ולא נגבה (חוב לקוח, לא כסף אצל הנהג) (server.js:32953-32956); הסינון לפי scheduled_date ותאריך UTC; אין רישום הפרש בין הסכום שהופקד לצפוי.",
+"proposal": "UNIQUE(group_id, driver_id, cod_date); cod_date לפי יום הגבייה (cod_collected_at) באזור Asia/Jerusalem. בטאב: expected_cash = Σ COD שנגבה ע\"י הנהג באותו יום; uncollected = COD של הזמנות שנמסרו ולא נגבו (מוצג בנפרד כחוב). סגירה שומרת deposited_amount ו-variance = deposited − expected; variance≠0 מסומן ומייצר התראה למנהל. פתיחה מחדש — ADMIN בלבד.",
+"alternatives": [],
+"refs": [
+"server.js:32948-32971",
+"business-app.js:53125-53170",
+"rules-logistics.html#סיכום COD יומי לפי נהג וסגירת יום"
+]
+},
+{
+"id": "LOG-19",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "חישובי 'היום' לפי UTC/שעון שרת במקום Asia/Jerusalem",
+"as_is": "תאריך ברירת מחדל ל-COD ולמסלולים הוא toISOString().split('T')[0] (UTC) בלקוח ובשרת; driver-orders, דשבורד (CURRENT_DATE) ודוחות מחושבים לפי שעון השרת (server.js:32685-32697, 33315).",
+"proposal": "כל חישוב 'היום/חודש' בלוגיסטיקה (דשבורד, COD, מסלולים, הזמנות נהג, דוחות) מבוצע באזור Asia/Jerusalem (בשרת: (NOW() AT TIME ZONE 'Asia/Jerusalem')::date; בלקוח: תאריך מקומי). בדיקה: הזמנה שנמסרה ב-01:30 שעון ישראל נספרת באותו יום.",
+"alternatives": [],
+"refs": [
+"server.js:32685-32697",
+"server.js:33315",
+"business-app.js:53125",
+"rules-logistics.html#סיכום COD יומי לפי נהג וסגירת יום",
+"rules-logistics.html#מסלולי חלוקה ועצירות"
+]
+},
+{
+"id": "LOG-20",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "low",
+"title": "ביטול הזמנה מותר מכל סטטוס וללא אירוע",
+"as_is": "DELETE /orders/:id מעדכן status='cancelled' גם מ-delivered (server.js:32833-32835), ללא event וללא ביטול חשבונית.",
+"proposal": "ביטול מותר רק לפני delivered/partial/returned (אחרת 400 'לא ניתן לבטל משלוח שנמסר'); נדרשת סיבת ביטול (טקסט) שנשמרת באירוע event_type='cancelled'. ביטול הזמנה שנמסרה מתבצע רק כ-override של ADMIN לפי LOG-06.",
+"alternatives": [],
+"refs": [
+"server.js:32833-32835",
+"business-app.js:52722",
+"rules-logistics.html#ביטול הזמנה"
+]
+},
+{
+"id": "LOG-21",
+"domain": "לוגיסטיקה",
+"area": "הזמנות",
+"category": "functional",
+"severity": "low",
+"title": "ציר אירועי הזמנה לא בשימוש ואינו מלא",
+"as_is": "GET /orders/:id/events קיים ללא קורא בלקוח (server.js:33281); רק status_change ו-failed_attempt נרשמים; ציר הזמן בדף המעקב מחושב מ-FLOW_ORDER סטטי (track.html:125).",
+"proposal": "כל שינוי בהזמנה (יצירה, שיוך, סטטוס, ניסיון כושל, גבייה, ביטול, אישור דלת) נרשם ב-logistics_order_events. מודאל הזמנה מציג את הציר; דף המעקב הציבורי מציג רק אירועי סטטוס עם זמן (בלי שם עובד/הערות פנימיות).",
+"alternatives": [],
+"refs": [
+"server.js:33281",
+"track.html:125",
+"rules-logistics.html#ציר אירועי הזמנה"
+]
+},
+{
+"id": "LOG-22",
+"domain": "לוגיסטיקה",
+"area": "נהגים ושיוך",
+"category": "data-integrity",
+"severity": "medium",
+"title": "נהג לא מקושר למשתמש; זיהוי לפי שם ונהג מוסר עדיין מוצג",
+"as_is": "POST drivers לא קובע user_id לעולם (server.js:32850); ממשק הנהג מזהה לפי user_id או שם זהה (business-app.js:53707); ייצוא CSV שולף שם מ-users דרך user_id ולכן ריק (server.js:16432, 16438); GET מחזיר גם is_active=false ולכן נהג שהוסר מופיע בבחירות; active_orders לא כולל arrived/failed_attempt (server.js:32843).",
+"proposal": "יצירת נהג מחייבת קישור למשתמש צוות קיים (user_id, ייחודי לכל group) או הזמנת משתמש חדש. זיהוי בממשק הנהג לפי user_id בלבד. GET מחזיר פעילים כברירת מחדל (?include_inactive=1 לניהול). active_orders כולל assigned, picked_up, in_transit, arrived, failed_attempt. CSV משתמש ב-ld.name.",
+"alternatives": [],
+"refs": [
+"server.js:32840-32873",
+"business-app.js:53707",
+"server.js:16432",
+"server.js:16438",
+"rules-logistics.html#ניהול נהגים",
+"rules-logistics.html#ייצוא CSV לוגיסטי"
+]
+},
+{
+"id": "LOG-23",
+"domain": "לוגיסטיקה",
+"area": "ממשק נהג",
+"category": "security",
+"severity": "high",
+"title": "נהג/עובד יכול לצפות ולעדכן הזמנות של כל נהג",
+"as_is": "GET /driver-orders/:groupId/:driverId מחזיר הזמנות לכל driverId מבוקש ללא בדיקת משתמש (server.js:33298); עובד יכול לעדכן כל הזמנה דרך /status. הזמנה ב-arrived מתאריך אחר לא מוחזרת (חסרה ברשימת הסטטוסים).",
+"proposal": "לתפקידים שאינם ADMIN/מנהל משמרת: driverId נגזר מהסשן (logistics_drivers.user_id=req.bizAuth.userId) ופרמטר אחר → 403; נהג רשאי לעדכן סטטוס רק להזמנות המשויכות אליו ורק במעברי הנהג (assigned→picked_up→in_transit→arrived→delivered/failed_attempt). רשימת הנהג כוללת גם arrived.",
+"alternatives": [],
+"refs": [
+"server.js:33298-33310",
+"business-app.js:5721-5745",
+"business-app.js:53793-53797",
+"rules-logistics.html#ממשק נהג (Driver Companion)"
+]
+},
+{
+"id": "LOG-24",
+"domain": "לוגיסטיקה",
+"area": "ממשק נהג",
+"category": "scope",
+"severity": "low",
+"title": "מיקום נהג חי / 'מפה חיה' לא ממומש אך נחשף ציבורית",
+"as_is": "PATCH /drivers/:id/location קיים ללא קורא בלקוח (server.js:33289); אין שליחת GPS ואין מפה, למרות האונבורדינג והמדריך (business-app.js:2161); current_lat/lng מוחזרים בנתיב המעקב הציבורי (server.js:33252).",
+"proposal": "החלטה: ממשק הנהג שולח מיקום כל 60 שניות רק בזמן שיש לו הזמנה ב-picked_up/in_transit/arrived ובהסכמת הנהג; דשבורד המנהל מציג מפה עם מיקום אחרון (≤10 דק'). בדף המעקב מוצג מיקום רק כשההזמנה in_transit/arrived.",
+"alternatives": [
+"לא לממש: למחוק את נתיב המיקום והעמודות, ולהסיר 'מפה חיה' מהמדריך ומהאונבורדינג."
+],
+"refs": [
+"server.js:33289-33292",
+"server.js:33252",
+"business-app.js:2161",
+"rules-logistics.html#עדכון מיקום נהג",
+"s1-docsvscode.html#logistics-guide — מפה חיה של נהגים, Dispatcher Drag & Drop"
+]
+},
+{
+"id": "LOG-25",
+"domain": "לוגיסטיקה",
+"area": "צי רכבים",
+"category": "ux",
+"severity": "low",
+"title": "התראת ביטוח/טסט לא מבחינה בין 'פג' ל'בקרוב'",
+"as_is": "השרת והלקוח מסמנים רכב אם התאריך ≤ היום+14 (server.js:32697, business-app.js:52929) — תאריך שכבר עבר מסומן '⚠️ בקרוב'.",
+"proposal": "שתי רמות: expired (תאריך < היום) — אדום 'פג תוקף' וחוסם שיוך (LOG-14); expiring (0–14 ימים) — כתום 'פג בעוד N ימים'. ה-KPI vehicle_alerts מפריד בין השניים.",
+"alternatives": [],
+"refs": [
+"server.js:32697",
+"business-app.js:52929",
+"rules-logistics.html#ניהול צי רכבים והתראות ביטוח/טסט"
+]
+},
+{
+"id": "LOG-26",
+"domain": "לוגיסטיקה",
+"area": "מסלולים",
+"category": "functional",
+"severity": "medium",
+"title": "מסלולי חלוקה: תאריך מתעלם, עצירה לפי id מספרי וללא השפעה על הזמנות",
+"as_is": "בורר התאריך שומר window._logisticsRoutesDate שלא נקרא — תמיד היום (business-app.js:53358, 53381); עצירה נוספת לפי parseInt של קלט (LOG-123456 → null) ו-stop_order לפי ספירת DOM (business-app.js:53513); השרת לא בודק שההזמנה שייכת לעסק או אינה במסלול אחר; סטטוס עצירה לא מתעדכן; הפעלת/סיום מסלול לא משפיעים על הזמנות/נהג; 'חשב מסלול' בעזרה לא קיים.",
+"proposal": "הלקוח שולח את התאריך הנבחר. הוספת עצירה מתוך רשימת הזמנות פתוחות של העסק (בחירה, לא הקלדה), הזמנה יכולה להיות בעצירה פעילה אחת בלבד (400 אחרת), stop_order מחושב בשרת (MAX+1). הפעלת מסלול משייכת את נהג/רכב המסלול לכל הזמנות העצירות (assigned); עדכון הזמנה ל-delivered/failed_attempt מעדכן את סטטוס העצירה (done/failed); מסלול completed רק כשאין עצירות pending.",
+"alternatives": [
+"להשאיר מסלולים כרשימה תכנונית בלבד (ללא סנכרון סטטוסים) ולתקן רק את התאריך ובחירת ההזמנה."
+],
+"refs": [
+"business-app.js:53358",
+"business-app.js:53381",
+"business-app.js:53513",
+"server.js:33312-33368",
+"business-app.js:36113",
+"rules-logistics.html#מסלולי חלוקה ועצירות"
+]
+},
+{
+"id": "LOG-27",
+"domain": "לוגיסטיקה",
+"area": "הצעות מחיר RFQ",
+"category": "functional",
+"severity": "medium",
+"title": "RFQ מנותק: אין המרה להזמנה, אין ערוץ ללקוח ושדות מתים",
+"as_is": "PATCH status מקבל כל ערך; accepted לא יוצר הזמנה; deposit_paid ו-photos לא נכתבים; הודעות נשלחות תמיד from:'biz' (business-app.js:53261) ואין ערוץ ללקוח הקצה; עמודות pending_quote/quote_sent בקנבן מנותקות מ-RFQ; הודעה נכתבת ב-read-modify-write (server.js:33000-33004).",
+"proposal": "מכונת מצבים: new → quoted → accepted|rejected; accepted → completed. במעבר ל-accepted נוצרת logistics_orders בסטטוס confirmed עם rfq_id, הכתובות, התאריך ו-delivery_fee=quote_amount. 'קבע מחיר' שולח ללקוח קישור ציבורי (טוקן) לצפייה, אישור/דחייה והודעות (from:'customer'). הודעות נשמרות כ-append אטומי (jsonb ||).",
+"alternatives": [
+"לבטל את טאב RFQ ולהשתמש בסטטוסי pending_quote/quote_sent של ההזמנה עצמה."
+],
+"refs": [
+"server.js:32976-33025",
+"business-app.js:53181-53304",
+"rules-logistics.html#בקשות הצעת מחיר (RFQ)"
+]
+},
+{
+"id": "LOG-28",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "security",
+"severity": "medium",
+"title": "XSS: טקסטים חופשיים מוזרקים ל-HTML ללא escape",
+"as_is": "טקסטי RFQ (שם, תיאור, הודעות) מוזרקים ל-innerHTML ללא escape (business-app.js:53220-53261); ביקורות ומבצעים בחנות הלוגיסטית מוזרקים ללא escape (storefront-logistics.html:894-909).",
+"proposal": "כל ערך שמקורו בקלט משתמש מוצג דרך escapeHtml (או textContent) בכל מסכי הלוגיסטיקה והחנות. בדיקה: שם לקוח '<img src=x onerror=alert(1)>' מוצג כטקסט.",
+"alternatives": [],
+"refs": [
+"business-app.js:53220",
+"business-app.js:53261",
+"storefront-logistics.html:894-909",
+"rules-logistics.html#בקשות הצעת מחיר (RFQ)",
+"rules-logistics.html#חנות ציבורית לוגיסטית — בקשת משלוח"
+]
+},
+{
+"id": "LOG-29",
+"domain": "לוגיסטיקה",
+"area": "מעקב ציבורי",
+"category": "security",
+"severity": "high",
+"title": "דף מעקב ציבורי חושף טלפון ו-GPS של הנהג; טוקן ללא תפוגה; leave-at-door ללא בדיקה",
+"as_is": "GET /track/:token מחזיר customer_name, driver_phone, current_lat/lng (המיקום אף לא מוצג) (server.js:33246-33252); לטוקן אין תפוגה למרות טקסט 'פג תוקפו' (track.html:39); leave-at-door מחזיר ok גם לטוקן שגוי ומעדכן מכל סטטוס, ולעולם לא מתאפס (server.js:33376-33381); אין rate limit.",
+"proposal": "התשובה הציבורית כוללת רק: order_number, status, כתובת מסירה, חלון זמן, שם פרטי של הנהג, failed_attempts_count, leave_at_door, ואירועי סטטוס. טלפון נהג — רק בסטטוס in_transit/arrived; מיקום — לפי LOG-24. הטוקן פג 7 ימים אחרי delivered/cancelled/returned (410). leave-at-door: טוקן לא קיים → 404; מותר רק ב-failed_attempt; נרשם אירוע ונשלחת התראה לנהג; מתאפס כשההזמנה חוזרת ל-assigned/in_transit. Rate limit: 60 בקשות/דקה ל-IP.",
+"alternatives": [],
+"refs": [
+"server.js:33239-33258",
+"server.js:33376-33381",
+"track.html:39",
+"track.html:174-177",
+"rules-logistics.html#דף מעקב ציבורי ואישור \"השארה בדלת\""
+]
+},
+{
+"id": "LOG-30",
+"domain": "לוגיסטיקה",
+"area": "מעקב ציבורי",
+"category": "functional",
+"severity": "medium",
+"title": "לינק מעקב לא נשלח ללקוח למרות הטקסט 'יישלח ללקוח'",
+"as_is": "POST /tracking-token רק מייצר טוקן (server.js:33227-33233); הטקסט בטאב אומר שהלינק יישלח ללקוח (business-app.js:53543) אך אין שליחה; אחרי יצירה ממודאל ההזמנה המודאל לא מתעדכן.",
+"proposal": "טוקן מעקב נוצר אוטומטית ביצירת הזמנה. במעבר ל-assigned (או בלחיצה 'שלח לינק') נשלח ללקוח SMS/WhatsApp עם הקישור, אם יש customer_phone והעסק הפעיל 'שליחת לינק מעקב' (ברירת מחדל: פעיל). המודאל מתרענן אחרי יצירה.",
+"alternatives": [
+"לא לשלוח אוטומטית — לשנות את הטקסט ל'העתק ושלח ללקוח' ולהוסיף כפתור wa.me."
+],
+"refs": [
+"server.js:33227-33233",
+"business-app.js:53543",
+"business-app.js:53564",
+"rules-logistics.html#יצירת לינק מעקב"
+]
+},
+{
+"id": "LOG-31",
+"domain": "לוגיסטיקה",
+"area": "מעקב ציבורי",
+"category": "functional",
+"severity": "medium",
+"title": "חיפוש משלוח בחנות הציבורית לא עובד לפי מספר הזמנה",
+"as_is": "storefront-logistics.html:796 שולח את קלט המשתמש ל-/track/:token — השרת מחפש לפי tracking_token בלבד, ולכן LOG-xxxxxx תמיד 'לא נמצא'; מפת הסטטוסים בחלון (transit, pending, failed) לא תואמת את ערכי המערכת; השדות destination/eta/timeline לא מוחזרים.",
+"proposal": "נתיב ציבורי GET /api/logistics/track-lookup/:groupId?order_number=&phone_last4= — התאמה של מספר הזמנה + 4 ספרות אחרונות של טלפון הלקוח מחזירה את אותו מבנה ציבורי של LOG-29 (או מפנה ל-/track/:token). החלון משתמש בתוויות הקנוניות. Rate limit: 10 ניסיונות/10 דקות ל-IP.",
+"alternatives": [],
+"refs": [
+"storefront-logistics.html:796-832",
+"server.js:33243",
+"rules-logistics.html#חיפוש משלוח מחלון החנות הציבורית"
+]
+},
+{
+"id": "LOG-32",
+"domain": "לוגיסטיקה",
+"area": "חנות ציבורית",
+"category": "functional",
+"severity": "high",
+"title": "בקשת משלוח מהחנות הציבורית לא יוצרת הזמנה או RFQ",
+"as_is": "submitShipment שולח ל-/api/store/leads (server.js:28759) שבונה הערות ושומר לקוח בלבד (upsertStoreCustomer + logistics_customers); לא נוצרת logistics_orders או logistics_rfq; weight ו-type נזנחים; groupId 'general' → success בלי שמירה.",
+"proposal": "בקשת משלוח מהחנות (לקוח מחובר sc-auth) יוצרת logistics_rfq בסטטוס new עם client_name/phone, כתובות, תיאור, משקל, דחיפות ו-customer_id, ומייצרת התראה לעסק. בקשה עם תוכנית מחיר קבועה (למשל 'שליחות בודדת') יוצרת ישירות logistics_orders בסטטוס new עם delivery_fee מהתוכנית.",
+"alternatives": [
+"כל בקשה יוצרת logistics_orders בסטטוס pending_quote (ללא RFQ)."
+],
+"refs": [
+"storefront-logistics.html:745-751",
+"server.js:28759-28789",
+"rules-logistics.html#חנות ציבורית לוגיסטית — בקשת משלוח"
+]
+},
+{
+"id": "LOG-33",
+"domain": "לוגיסטיקה",
+"area": "לקוחות",
+"category": "data-integrity",
+"severity": "low",
+"title": "יצירת לקוח מליד בלי טלפון יוצרת כפילויות; cache חיפוש לא מוזן",
+"as_is": "ליד מחנות ללא טלפון יוצר תמיד לקוח חדש (server.js:28779-28788); אין ולידציית טווח ל-discount_pct בשרת; window._logisticsCustomersCache משמש בחיפוש WEFLOWZ (business-app.js:48901) ולא מוזן.",
+"proposal": "dedupe לפי group + טלפון מנורמל, ואם אין טלפון — לפי email (lowercase); בלי שניהם לא נוצר לקוח. discount_pct בשרת: 0–100 (400 אחרת). loadLogisticsCustomers מזין את ה-cache.",
+"alternatives": [],
+"refs": [
+"server.js:28776-28789",
+"server.js:33427-33449",
+"business-app.js:48901",
+"rules-logistics.html#לקוחות לוגיסטיקה (מזמינים ונמענים)"
+]
+},
+{
+"id": "LOG-34",
+"domain": "לוגיסטיקה",
+"area": "חשבוניות",
+"category": "money",
+"severity": "medium",
+"title": "מחזור חיי חשבונית: אין יצירה ידנית, מחיקה קשה ו-cancelled לא נגיש",
+"as_is": "אין נתיב ליצירה ידנית/מרוכזת; PATCH status מקבל כל ערך (server.js:33467-33471); DELETE הוא מחיקה קשה (server.js:33477-33479); cancelled מוגדר בתוויות (business-app.js:54033) ואין פעולה אליו; אין שליחת מייל למרות העזרה.",
+"proposal": "סטטוסים: pending → sent → paid; pending|sent → cancelled. אין מחיקה קשה — 'מחק' הופך ל-cancelled (ומייצר תנועה הפוכה אם ההכנסה כבר נרשמה). נתיב יצירה ידנית: חשבונית מרוכזת (invoice_type='monthly') ללקוח monthly_billing על כל ההזמנות שנמסרו בחודש ולא חויבו. 'שלח' שולח מייל ללקוח עם PDF ומסמן sent.",
+"alternatives": [],
+"refs": [
+"server.js:33457-33479",
+"business-app.js:54019-54036",
+"business-app.js:54033",
+"rules-logistics.html#חשבוניות לוגיסטיקה"
+]
+},
+{
+"id": "LOG-35",
+"domain": "לוגיסטיקה",
+"area": "חשבוניות",
+"category": "money",
+"severity": "medium",
+"title": "רישום הכנסה במסירה לפני מע\"מ ולא בתשלום",
+"as_is": "logBizIncome נרשם במסירה עם amount לפני מע\"מ (server.js:32787, 4201-4211); תשלום החשבונית לא יוצר תנועה; חשבונית שבוטלה לא מקזזת. אין הגדרה ברורה מתי הכנסה מוכרת.",
+"proposal": "הכנסה ב-transactions נרשמת כשהחשבונית מסומנת paid, בסכום total_amount (כולל מע\"מ) עם הפניה ל-invoice_id; ביטול חשבונית ששולמה רושם תנועה הפוכה. הדשבורד מציג 'הכנסה היום' לפי delivery_fee של משלוחים שנמסרו (תפעולי) בנפרד מתזרים.",
+"alternatives": [
+"להשאיר רישום במסירה (בסיס מצטבר) אך בסכום נטו מוגדר ועם קיזוז בביטול — בלי תנועה נוספת בתשלום."
+],
+"refs": [
+"server.js:32773-32787",
+"server.js:4201-4211",
+"server.js:33467-33472",
+"rules-logistics.html#חשבוניות לוגיסטיקה"
+]
+},
+{
+"id": "LOG-36",
+"domain": "לוגיסטיקה",
+"area": "דשבורד ודוחות",
+"category": "functional",
+"severity": "high",
+"title": "טאב דוחות מציג אפסים: שמות שדות לא תואמים, בורר תקופה לא עובד",
+"as_is": "הלקוח קורא total_orders/delivered_orders/total_revenue ו-driver_name, בעוד /api/logistics/reports מחזיר total/delivered/revenue ו-name (business-app.js:53613-53640 מול server.js:33032-33046); window._logisticsReportPeriod לא נקרא — תמיד month, ו-today לא נתמך; no_answer נספר לפי status='no_answer' שלא קיים (server.js:33034); avg_hours לא מוצג.",
+"proposal": "חוזה תגובה אחד לדוח הלוגיסטי (וגם לסעיף הלוגיסטי ב-/api/reports): total_orders, delivered_orders, failed_attempt_orders, cancelled_orders, revenue, avg_delivery_hours, by_driver[{driver_name,total_orders,delivered_orders,revenue}]. period ∈ {today, week, month, year} נשלח מהלקוח. failed_attempt נספר לפי failed_attempts_count>0. כל המדדים מוצגים.",
+"alternatives": [],
+"refs": [
+"business-app.js:53581-53656",
+"server.js:33026-33046",
+"server.js:33754",
+"rules-logistics.html#דוחות לוגיסטיקה"
+]
+},
+{
+"id": "LOG-37",
+"domain": "לוגיסטיקה",
+"area": "דשבורד ודוחות",
+"category": "ux",
+"severity": "low",
+"title": "KPIs מחושבים בשרת ולא מוצגים בדשבורד",
+"as_is": "assigned_orders, revenue_month, cod_today, active_drivers מחושבים ב-/dashboard (server.js:32685-32697) ולא מוצגים; שגיאה מציגה אפסים בלי הודעה (business-app.js:52471-52500).",
+"proposal": "הדשבורד מציג גם 'ממתינים לאיסוף' (assigned_orders), 'הכנסה החודש', 'COD נגבה היום' ו'נהגים פעילים'; שגיאת טעינה מציגה הודעת שגיאה במקום אפסים. מדד שלא מוצג — מוסר מהשרת.",
+"alternatives": [],
+"refs": [
+"server.js:32681-32697",
+"business-app.js:52463-52500",
+"rules-logistics.html#דשבורד מנהל לוגיסטיקה"
+]
+},
+{
+"id": "LOG-38",
+"domain": "לוגיסטיקה",
+"area": "AI",
+"category": "functional",
+"severity": "medium",
+"title": "עוזר AI לוגיסטי: סיכום COD תמיד 0 ופעולות סטטוס לא קנוניות",
+"as_is": "הקשר ה-AI מחפש cod.orders בעוד השרת מחזיר {date, drivers} (business-app.js:54166); ?limit=200 מתעלם בשרת; תג UPDATE_DELIVERY_STATUS מאפשר failed/pending (business-app.js:54266) עם confirm רק ל-cancelled/failed.",
+"proposal": "ההקשר נבנה מהשדות האמיתיים (Σ drivers[].total_due/total_collected). פעולות AI עוברות באותו נתיב ובאותן בדיקות (סשן, מטריצת מעברים LOG-06); תגי סטטוס מוגבלים לרשימה הקנונית, וכל פעולת שינוי סטטוס מחייבת אישור המשתמש.",
+"alternatives": [],
+"refs": [
+"business-app.js:54110-54294",
+"business-app.js:54166",
+"business-app.js:54266",
+"server.js:16051-16080",
+"rules-logistics.html#עוזר AI לוגיסטי"
+]
+},
+{
+"id": "LOG-39",
+"domain": "לוגיסטיקה",
+"area": "שילוב WEFLOWZ",
+"category": "functional",
+"severity": "medium",
+"title": "פעילות לוגיסטית בכרטיס עסק במשפחה תמיד ריקה",
+"as_is": "השאילתה ב-/api/family/business-activity משתמשת בעמודות business_group_id ו-sender_group_id שאינן קיימות ב-logistics_orders; השגיאה נבלעת ב-.catch ומוחזרת רשימה ריקה (server.js:31959-31965).",
+"proposal": "השאילתה: logistics_orders WHERE group_id=:bizGroupId AND regexp_replace(customer_phone,'\\D','','g') IN (טלפוני בני המשפחה המנורמלים) OR customer_id מקושר למשפחה; עד 20 אחרונות; מחזירה order_number, status, scheduled_date ולינק מעקב.",
+"alternatives": [],
+"refs": [
+"server.js:31837-31841",
+"server.js:31959-31965",
+"rules-logistics.html#פעילות לוגיסטית בכרטיס עסק במשפחה (WEFLOWZ)"
+]
+},
+{
+"id": "LOG-40",
+"domain": "לוגיסטיקה",
+"area": "הדרכה ותיעוד",
+"category": "docs",
+"severity": "medium",
+"title": "אונבורדינג, עזרה ומדריך מתארים יכולות שלא מומשו",
+"as_is": "טקסטי האונבורדינג/העזרה ו-logistics-guide.html מתארים גרירה בקנבן, POD עם צילום/חתימה, מפה חיה, SMS/Push ללקוח, אופטימיזציית מסלול, חישוב מחיר אוטומטי, חשבונית ידנית ושליחת חשבונית במייל (business-app.js:2149-2161, 36042-36162) — אף אחד לא קיים; כיסוי המדריך 30%.",
+"proposal": "כל טקסט עזרה/מדריך מתאר רק התנהגות קיימת. לכל יכולת ברשימה ההחלטה נקבעת בפריט הייעודי (LOG-13, 16, 24, 30, 26, 09, 34); עד למימוש — הטקסט מוסר. logistics-guide.html מתעדכן באותו קומיט עם כל שינוי בפיצ'ר.",
+"alternatives": [],
+"refs": [
+"business-app.js:2149-2161",
+"business-app.js:36042-36162",
+"business-app.js:2205",
+"s1-docsvscode.html#logistics-guide — מפה חיה של נהגים, Dispatcher Drag & Drop",
+"rules-logistics.html#ניווט, מודולים והדרכה בצד הלקוח"
+]
+},
+{
+"id": "LOG-41",
+"domain": "לוגיסטיקה",
+"area": "תשתית והרשאות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "אין טרנזקציות ואין CHECK על סטטוסים בטבלאות הלוגיסטיקה",
+"as_is": "כל תהליך לוגיסטי מבצע כמה שאילתות נפרדות ללא BEGIN/COMMIT (למשל status+event+invoice+income, server.js:32756-32787); עמודות status ב-orders/routes/stops/rfq/invoices/cod_sessions ללא CHECK; logistics_invoices.order_id ללא ON DELETE (server.js:2443-2461).",
+"proposal": "תהליכים מרובי-כתיבה (שינוי סטטוס+אירוע+חשבונית+הכנסה, סגירת COD, המרת RFQ להזמנה, הפעלת מסלול) מבוצעים בטרנזקציה אחת. לכל עמודת סטטוס CHECK עם הערכים הקנוניים. FK חשבונית→הזמנה ON DELETE RESTRICT (אין מחיקה קשה של הזמנות).",
+"alternatives": [],
+"refs": [
+"server.js:2261-2462",
+"server.js:32756-32787",
+"server.js:2443-2461",
+"rules-logistics.html#מבנה נתונים ומיגרציות (הקשר לכללים)"
+]
+},
+{
+"id": "LOG-42",
+"domain": "לוגיסטיקה",
+"area": "ייצוא",
+"category": "functional",
+"severity": "low",
+"title": "ייצוא CSV: שם נהג ריק ושיטת qr לא מתורגמת",
+"as_is": "logistics-orders/drivers שולפים שם נהג מ-users דרך ld.user_id שלא נקבע (server.js:16431-16442); מפת cod_method לא כוללת qr (server.js:16446).",
+"proposal": "שם הנהג נלקח מ-logistics_drivers.name; מפת שיטות תשלום כוללת cash=מזומן, credit=אשראי, transfer=העברה, qr=QR/ביט; מפת הסטטוסים נגזרת מהרשימה הקנונית.",
+"alternatives": [],
+"refs": [
+"server.js:16373",
+"server.js:16431-16454",
+"rules-logistics.html#ייצוא CSV לוגיסטי"
+]
+}
+]

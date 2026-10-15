@@ -1,0 +1,17 @@
+[
+ {"id":1,"verdict":"CORRECT","evidence_lines":"server.js:43462-43479","correction":""},
+ {"id":2,"verdict":"CORRECT","evidence_lines":"public/sa-app.js:418-427","correction":""},
+ {"id":3,"verdict":"CORRECT","evidence_lines":"public/zone-manager-app.js:118-125","correction":""},
+ {"id":4,"verdict":"CORRECT","evidence_lines":"server.js:41882-41893","correction":""},
+ {"id":5,"verdict":"CORRECT","evidence_lines":"public/business-app.js:2390; public/common.js:364","correction":""},
+ {"id":6,"verdict":"CORRECT","evidence_lines":"public/app.js:9461-9476","correction":""},
+ {"id":7,"verdict":"CORRECT","evidence_lines":"server.js:11709-11726","correction":""},
+ {"id":8,"verdict":"CORRECT","evidence_lines":"server.js:10740-10749; public/app.js:851-863","correction":""},
+ {"id":9,"verdict":"CORRECT","evidence_lines":"server.js:10687-10689","correction":""},
+ {"id":10,"verdict":"CORRECT","evidence_lines":"server.js:10405-10427","correction":""},
+ {"id":11,"verdict":"CORRECT","evidence_lines":"server.js:12346-12425","correction":""},
+ {"id":12,"verdict":"CORRECT","evidence_lines":"server.js:16048-16260","correction":""},
+ {"id":13,"verdict":"PARTIAL","evidence_lines":"server.js:12048-12059","correction":"ה-INSERT של ה-expense נעשה עם SELECT ... FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1, בלי ORDER BY. לכן נבחר אדמין כלשהו (הסדר לא מוגדר), ולא בהכרח 'האדמין הראשון'. כל הפעולות רצות בתוך BEGIN/COMMIT (שורות 12048, 12060)."},
+ {"id":14,"verdict":"CORRECT","evidence_lines":"server.js:5918-5933","correction":""},
+ {"id":15,"verdict":"CORRECT","evidence_lines":"public/business-app.js:4283-4286, 627; server.js:11609-11612","correction":""}
+]

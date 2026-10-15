@@ -1,0 +1,320 @@
+{
+ "classification": {
+  "STR-02": "HARDEN",
+  "STR-03": "HARDEN",
+  "STR-04": "HARDEN",
+  "STR-05": "HARDEN",
+  "STR-06": "HARDEN",
+  "STR-07": "HARDEN",
+  "STR-08": "FIX",
+  "STR-09": "BEHAVIOR",
+  "STR-10": "BEHAVIOR",
+  "STR-11": "BEHAVIOR",
+  "STR-12": "HARDEN",
+  "STR-13": "FIX",
+  "STR-14": "BEHAVIOR",
+  "STR-15": "SCOPE",
+  "STR-16": "FIX",
+  "STR-17": "BEHAVIOR",
+  "STR-18": "FIX",
+  "STR-19": "FIX",
+  "STR-20": "FIX",
+  "STR-21": "FIX",
+  "STR-22": "BEHAVIOR",
+  "STR-23": "CONSISTENCY",
+  "STR-25": "HARDEN",
+  "STR-26": "FIX",
+  "STR-28": "CONSISTENCY",
+  "STR-29": "SCOPE",
+  "STR-30": "HARDEN",
+  "STR-31": "FIX",
+  "STR-32": "FIX",
+  "STR-33": "FIX",
+  "STR-34": "CONSISTENCY",
+  "STR-35": "FIX",
+  "STR-36": "HARDEN",
+  "STR-37": "CONSISTENCY",
+  "STR-38": "CONSISTENCY",
+  "STR-39": "CONSISTENCY",
+  "STR-40": "CONSISTENCY",
+  "STR-41": "FIX",
+  "STR-42": "BEHAVIOR",
+  "STR-44": "FIX",
+  "STR-45": "FIX",
+  "STR-46": "FIX",
+  "STR-47": "CONSISTENCY",
+  "STR-48": "SCOPE",
+  "STR-49": "CONSISTENCY",
+  "STR-50": "CONSISTENCY"
+ },
+ "revised": {
+  "STR-02": "requireModule חל על כל סוגי הסשן ונכשל סגור (503). מיגרציה חד-פעמית יוצרת לכל עסק קיים זכאויות לכל מה שנגיש לו היום (מודולי סוג העסק בלקוח + managed_modules), כך שאף עסק לא מאבד מודול. רק עסק חדש מקבל את ברירות המחדל של סוג העסק.",
+  "STR-03": "כל נתיבי הניהול דורשים verifyBiz, עם groupId מהסשן ו-WHERE group_id. הרשימה הלבנה הציבורית מורחבת כך שלא תשבור אף חזית: storefront/alias, item-image, ביקורות, /api/public/*, GET promotions/:groupId, coupons/validate, banner-promos, products, public/alias, POST orders (ערוץ חזית), בקשת הצעה מהחזית (sc-auth), target-date ללקוח sc-auth שההזמנה שלו, leads, service-request, קמפיין, צ'אט ו-/c/q. חריג: ויזארד FAMILY שומר slogan/logo לקבוצה שלו בלבד.",
+  "STR-05": "כל נתיבי החיפוש והלקוחות דורשים verifyBiz. בלקוחות העסק החיפוש נשאר מלא. משתמשי WEFLOWZ מחוץ לעסק נמצאים לפי טלפון מלא או כינוי מדויק, ומוחזרים עם שם תצוגה, טלפון ממוסך ו-family_group_id לשיוך ולשליחה. id_number ושנת לידה לא מוחזרים לעולם.",
+  "STR-06": "נדרשים verifyBiz ו-ADMIN או הרשאת טאב שיווק/לקוחות. קהל community מותר רק בקהילה שבה העסק מאושר. הכתיבה בטרנזקציה אמיתית, ו-matched אמיתי. אין מגבלת 24 שעות (רק ARC-29).",
+  "STR-10": "הקופון מאומת ומוחל בשרת, ונרשם ב-store_coupon_redemptions(order_id UNIQUE). השדות max_uses, max_uses_per_customer ו-min_order_amount אופציונליים, וברירת המחדל של כולם NULL (ללא הגבלה), כדי שקופונים קיימים לא ישתנו. market בודק דרך coupons/validate.",
+  "STR-14": "השרת מחשב משלוח ומינימום ומתעלם מערך הלקוח: איסוף 0, free_delivery_above, אזור מעגל ואחריו אזור בשם, מחוץ לאזורים 400, ובלי אזורים store_settings.delivery_fee. מיגרציה קובעת delivery_fee=30 לעסקי classic שבהם הערך 0 או NULL, כדי לשמור את הסכום שנגבה בפועל היום.",
+  "STR-15": "אזורים בשמות לא מוסרים. הם מאוחדים עם מעגלי הרדיוס בטבלת service_areas (type named|radius, ARC-19) ומופעלים בפועל: התאמה לפי עיר, עם min_order, לעסק בלי מיקום או לכתובת שלא גואוקדה. מעגלים גוברים כשיש מיקום.",
+  "STR-17": "enum סגור (delivered מתורגם ל-completed) עם טבלת מעברים רחבה שמכסה כל כפתור קיים: אישור למטבח, השלמה ישירה, ביטול מכל מצב פעיל, החזרה אחורה, פתיחה מחדש של הזמנה שהושלמה ע\"י ADMIN בלי חזרה על תופעות לוואי, ושחזור של הזמנה מבוטלת שלא הושלמה. completeOrder() אחד בכל המסלולים, כולל אישור הלקוח.",
+  "STR-28": "enum סגור {draft, sent, waiting_customer, waiting_business, customer_approved, approved, cancelled, frozen}. כל מצב שאינו approved יכול לעבור ל-draft, sent, waiting_customer (כולל שליחה חוזרת), frozen או cancelled. frozen חוזר ל-draft/sent. waiting_customer עובר ל-customer_approved, cancelled או waiting_business. waiting_business חוזר ל-waiting_customer. approved סופי. הצעה חדשה נוצרת כ-draft.",
+  "STR-29": "מסלול אישור אחד עם ההתנהגות הנוכחית של to-work-order לכל סוגי העסקים (processing, work_order, timeline, יומן), ואליו נוספות תופעות הלוואי של /approve (upsert לקוח, business_id מ-metadata). created_at לא נדרס. /approve מוסר כמימוש כפול בלי קורא.",
+  "STR-36": "generate-image ו-upload דורשים סשן BIZ או SA, עם rate limit לפי ARC-29. יצירת תמונה לא צורכת את סוללת ה-AI (כמו היום). כשל מחזיר 404 success:false. ההעלאה לפי ARC-26 (png/jpg/webp/gif, עד 8MB).",
+  "STR-37": "הגדרה אחת של submitPromotion, והטופס הישן ב-business.html מוסר. fixed_price נשמר כסוג נתמך במנוע ובטופס הנוכחי (\"מחיר קבוע\"), ו-discount_fixed מסומן \"הנחה בסכום קבוע\". ולידציה בשרת (title, טווחים, end≥start). store_retail_promotions נמחקת. target_ids כ-JSON array פעם אחת.",
+  "STR-40": "handler אחד לביקורות. /api/store/reviews ו-/api/store/public-reviews נשארים aliases לאותו handler. התשובה כוללת {rating,text,display_name,date} וגם את השדות הישנים עד שכל החזיתות יעודכנו. avg ו-total מחושבים על כל ההזמנות המדורגות.",
+  "STR-42": "ההזמנה יוצרת או מעדכנת רק את לקוח העסק. קישור active נוצר רק ללקוח מחובר (sc-auth/FAMILY). טלפון שתואם משתמש קיים בלי התחברות מקבל קישור pending. לא נוצר חשבון FAMILY או shopper אוטומטית. ההיסטוריה נשמרת כי \"ההזמנות שלי\" מתאים גם לפי טלפון.",
+  "STR-48": "הנתיב send-quote נשמר ולא מוסר, אבל מאובטח: verifyBiz, businessGroupId מהסשן, והלקוח חייב להיות שייך לעסק (404 אחרת). מסומן כ-API בלי ממשק (backlog).",
+  "STR-49": "רשימת המודולים לסוג עסק מוגדרת פעם אחת בשרת (ARC-18). store_only מקבל את האיחוד של מה שמוצג היום: budget, cashflow, customers, pantry, pos, reports, sales, shop. restaurant שומר את kds."
+ },
+ "applied_in": {
+  "STR-02": [
+   "אימות והרשאות בנתיבי /api/store/*"
+  ],
+  "STR-03": [
+   "אימות והרשאות בנתיבי /api/store/*",
+   "עדכון / זמינות / מחיקה / סידור מוצר",
+   "תבניות תוספות (Modifier Presets) וויזארד תבניות",
+   "מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)",
+   "שמירת הגדרות חנות (POST /api/store/settings)",
+   "תוכן תדמית (Branding Sections)",
+   "גלריית עסק",
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)",
+   "פופאפים לחנות ולעובדים",
+   "תזמון הזמנה ומוכנות פריטים (KDS)",
+   "יצירה ועריכה של הצעת מחיר",
+   "סיכום עמלות פלטפורמה לעסק"
+  ],
+  "STR-04": [
+   "יצירת הזמנה (POST /api/store/orders)",
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "תזמון הזמנה ומוכנות פריטים (KDS)",
+   "טאב שליחויות (Deliveries)"
+  ],
+  "STR-05": [
+   "ניהול לקוחות חנות (store_customers)",
+   "חיפוש וזיהוי לקוחות WEFLOWZ"
+  ],
+  "STR-06": [
+   "ניוזלטר והודעות WEFLOWZ ללקוחות"
+  ],
+  "STR-07": [
+   "מבצעי חנות (Promotions)"
+  ],
+  "STR-08": [
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-09": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "מבצעי חנות (Promotions)",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-10": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "קופוני חנות",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-11": [
+   "טעינת חנות ציבורית (GET /api/storefront/:code)",
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-12": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-13": [
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-14": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-15": [
+   "טעינת חנות ציבורית (GET /api/storefront/:code)",
+   "אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)"
+  ],
+  "STR-16": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+   "יצירת הזמנה (POST /api/store/orders)",
+   "טאב שליחויות (Deliveries)"
+  ],
+  "STR-17": [
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "אישור קבלה ודירוג ע\"י הלקוח, ורשימת \"ההזמנות שלי\"",
+   "טאב שליחויות (Deliveries)"
+  ],
+  "STR-18": [
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)"
+  ],
+  "STR-19": [
+   "מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)",
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "מכירה בקופה (טאב POS ב-business-app.js)"
+  ],
+  "STR-20": [
+   "מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)",
+   "מכירה בקופה (טאב POS ב-business-app.js)",
+   "ניהול לקוחות חנות (store_customers)"
+  ],
+  "STR-21": [
+   "מכירה בקופה (טאב POS ב-business-app.js)"
+  ],
+  "STR-22": [
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "מכירה בקופה (טאב POS ב-business-app.js)"
+  ],
+  "STR-23": [
+   "מכירה בקופה (טאב POS ב-business-app.js)",
+   "ניהול לקוחות חנות (store_customers)"
+  ],
+  "STR-25": [
+   "מצב קיוסק (הזמנה עצמית)"
+  ],
+  "STR-26": [
+   "אימות והרשאות בנתיבי /api/store/*",
+   "מחזור חיי הצעת מחיר ושליחה ללקוח"
+  ],
+  "STR-28": [
+   "יצירה ועריכה של הצעת מחיר",
+   "מחזור חיי הצעת מחיר ושליחה ללקוח",
+   "רשימת הצעות בצד המשפחה (GET /api/store/quotes/family/:familyGroupId)"
+  ],
+  "STR-29": [
+   "מחזור חיי הצעת מחיר ושליחה ללקוח"
+  ],
+  "STR-30": [
+   "קישור אישור קבלת הצעה (GET /c/q/:id/:token)"
+  ],
+  "STR-31": [
+   "עגלה וקופה בחזית הקלאסית (storefront.html)",
+   "יצירת הזמנה (POST /api/store/orders)",
+   "יצירה ועריכה של הצעת מחיר"
+  ],
+  "STR-32": [
+   "שמירת הגדרות חנות (POST /api/store/settings)"
+  ],
+  "STR-33": [
+   "עדכון / זמינות / מחיקה / סידור מוצר",
+   "מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)"
+  ],
+  "STR-34": [
+   "יצירת מוצר בקטלוג (POST /api/store/catalog)",
+   "ייבוא קטלוג בכמות (POST /api/store/catalog/bulk-import)"
+  ],
+  "STR-35": [
+   "תבניות תוספות (Modifier Presets) וויזארד תבניות"
+  ],
+  "STR-36": [
+   "תמונת מוצר אוטומטית (POST /api/store/catalog/generate-image) והעלאת תמונה"
+  ],
+  "STR-37": [
+   "מבצעי חנות (Promotions)"
+  ],
+  "STR-38": [
+   "תבניות תוספות (Modifier Presets) וויזארד תבניות",
+   "שמירת הגדרות חנות (POST /api/store/settings)",
+   "הגשת חזית לפי כתובת קצרה (GET /:alias) והזרקת og",
+   "טעינת חנות ציבורית (GET /api/storefront/:code)"
+  ],
+  "STR-39": [
+   "שמירת הגדרות חנות (POST /api/store/settings)",
+   "תוכן תדמית (Branding Sections)",
+   "טעינת חנות ציבורית (GET /api/storefront/:code)",
+   "יצירת הזמנה (POST /api/store/orders)"
+  ],
+  "STR-40": [
+   "ביקורות ציבוריות"
+  ],
+  "STR-41": [
+   "פופאפים לחנות ולעובדים"
+  ],
+  "STR-42": [
+   "יצירת הזמנה (POST /api/store/orders)",
+   "אישור קבלה ודירוג ע\"י הלקוח, ורשימת \"ההזמנות שלי\"",
+   "ניהול לקוחות חנות (store_customers)",
+   "בקשת שירות וליד מהחזית",
+   "עמוד קמפיין קהילתי ציבורי והזמנה (community-store.html)"
+  ],
+  "STR-44": [
+   "מרקטפלייס משפחתי (marketplace.html)"
+  ],
+  "STR-45": [
+   "עמוד קמפיין קהילתי ציבורי והזמנה (community-store.html)"
+  ],
+  "STR-46": [
+   "יצירת הזמנה (POST /api/store/orders)",
+   "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "התראת וואטסאפ ללקוח על הזמנה"
+  ],
+  "STR-47": [
+   "צ'אט לקוח-עסק מהחזית (storefront-chat.js)",
+   "אישור קבלה ודירוג ע\"י הלקוח, ורשימת \"ההזמנות שלי\""
+  ],
+  "STR-48": [
+   "שליחת הצעה כהודעת קריאת שירות (POST /api/store/customers/:id/send-quote)"
+  ],
+  "STR-49": [
+   "אימות והרשאות בנתיבי /api/store/*",
+   "תצורת מודולים לפי סוג עסק בחזית (storefront-btype.js)"
+  ],
+  "STR-50": [
+   "אישור קבלה ודירוג ע\"י הלקוח, ורשימת \"ההזמנות שלי\"",
+   "מכירה בקופה (טאב POS ב-business-app.js)"
+  ]
+ },
+ "processes": [
+  "אימות והרשאות בנתיבי /api/store/*",
+  "יצירת מוצר בקטלוג (POST /api/store/catalog)",
+  "עדכון / זמינות / מחיקה / סידור מוצר",
+  "ייבוא קטלוג בכמות (POST /api/store/catalog/bulk-import)",
+  "תבניות תוספות (Modifier Presets) וויזארד תבניות",
+  "תיאור מוצר ב-AI (קצר / מורחב)",
+  "תמונת מוצר אוטומטית (POST /api/store/catalog/generate-image) והעלאת תמונה",
+  "מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)",
+  "שמירת הגדרות חנות (POST /api/store/settings)",
+  "תוכן תדמית (Branding Sections)",
+  "הגשת חזית לפי כתובת קצרה (GET /:alias) והזרקת og",
+  "גלריית עסק",
+  "טעינת חנות ציבורית (GET /api/storefront/:code)",
+  "תצורת מודולים לפי סוג עסק בחזית (storefront-btype.js)",
+  "עגלה וקופה בחזית הקלאסית (storefront.html)",
+  "עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה",
+  "קופוני חנות",
+  "מבצעי חנות (Promotions)",
+  "אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)",
+  "ביקורות ציבוריות",
+  "פופאפים לחנות ולעובדים",
+  "צ'אט לקוח-עסק מהחזית (storefront-chat.js)",
+  "יצירת הזמנה (POST /api/store/orders)",
+  "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+  "תזמון הזמנה ומוכנות פריטים (KDS)",
+  "אישור קבלה ודירוג ע\"י הלקוח, ורשימת \"ההזמנות שלי\"",
+  "התראת וואטסאפ ללקוח על הזמנה",
+  "מכירה בקופה (טאב POS ב-business-app.js)",
+  "טאב שליחויות (Deliveries)",
+  "מצב קיוסק (הזמנה עצמית)",
+  "יצירה ועריכה של הצעת מחיר",
+  "מחזור חיי הצעת מחיר ושליחה ללקוח",
+  "קישור אישור קבלת הצעה (GET /c/q/:id/:token)",
+  "רשימת הצעות בצד המשפחה (GET /api/store/quotes/family/:familyGroupId)",
+  "ניהול לקוחות חנות (store_customers)",
+  "חיפוש וזיהוי לקוחות WEFLOWZ",
+  "בקשת שירות וליד מהחזית",
+  "ניוזלטר והודעות WEFLOWZ ללקוחות",
+  "סיכום עמלות פלטפורמה לעסק",
+  "עמוד קמפיין קהילתי ציבורי והזמנה (community-store.html)",
+  "תצוגה מקדימה לשיתוף קמפיין קהילתי (GET /campaign/:code)",
+  "לינק קמפיין מנהל אזור (/c/camp/:token + campaign.html)",
+  "מרקטפלייס משפחתי (marketplace.html)",
+  "הגשת תמונות בינאריות ל-og (לוגו פלטפורמה / לוגו חנות / באנר קמפיין)",
+  "שליחת הצעה כהודעת קריאת שירות (POST /api/store/customers/:id/send-quote)"
+ ],
+ "not_applied": {}
+}

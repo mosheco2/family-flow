@@ -1,0 +1,10108 @@
+{
+"BUSINESS_ADMIN_MAPPING.md": [],
+"CLAUDE.md": [],
+"FAMILY_TABLE_RESERVATION_SPEC.md": [
+[
+" /api/public/restaurants/:groupId/availability/:date",
+[
+"GET",
+"/api/public/restaurants/:groupId/availability/:date",
+33488,
+"path-only"
+]
+],
+[
+"GET /api/public/restaurants/:groupId/availability/:date",
+[
+"GET",
+"/api/public/restaurants/:groupId/availability/:date",
+33488,
+"exact"
+]
+],
+[
+"POST /api/calendar/events",
+[
+"POST",
+"/api/calendar/events",
+22891,
+"exact"
+]
+],
+[
+"GET /api/family/business-activity/:familyGroupId/:bizGroupId",
+[
+"GET",
+"/api/family/business-activity/:familyGroupId/:bizGroupId",
+31837,
+"exact"
+]
+]
+],
+"FAMILY_UX_CHANGES.md": [
+[
+"GET /api/public/restaurants/{bizId}/availability/2026-06-18",
+[
+"GET",
+"/api/public/restaurants/:groupId/availability/:date",
+33488,
+"exact"
+]
+],
+[
+" /api/calendar/events",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"path-only"
+]
+]
+],
+"IMPLEMENTATION_PLAN.md": [],
+"README.md": [],
+"README_RENDER.md": [],
+"RESTAURANT_PROCESSES.md": [],
+"SMS_SERVICE_SETUP.md": [],
+"SPECIFICATION.md": [],
+"SYSTEM_SPEC.md": [
+[
+" /api/family/",
+null
+],
+[
+" /api/kids/",
+null
+],
+[
+" /api/academy/",
+null
+],
+[
+" /api/biz/",
+null
+],
+[
+" /api/store/",
+null
+],
+[
+" /api/calendar/",
+null
+],
+[
+" /api/sa/",
+null
+],
+[
+" /api/superadmin/",
+null
+],
+[
+" /api/kol-haam/zm/",
+null
+],
+[
+" /api/zm/",
+null
+],
+[
+" /api/transactions/",
+[
+"GET",
+"/api/transactions",
+11371,
+"path-only"
+]
+],
+[
+" /api/tasks/",
+[
+"POST",
+"/api/tasks",
+11890,
+"path-only"
+]
+],
+[
+" /api/shopping/",
+null
+],
+[
+" /api/pantry/",
+null
+],
+[
+" /api/community/",
+null
+],
+[
+" /api/flow/",
+null
+],
+[
+" /api/kol-haam/",
+null
+],
+[
+" /api/ai/",
+null
+],
+[
+"POST /api/kids/award-flw",
+[
+"POST",
+"/api/kids/award-flw",
+35294,
+"exact"
+]
+],
+[
+" /api/sa/users/merge",
+[
+"POST",
+"/api/sa/users/merge",
+2773,
+"path-only"
+]
+],
+[
+" /api/sa/groups/merge-duplicate",
+[
+"POST",
+"/api/sa/groups/merge-duplicate",
+2660,
+"path-only"
+]
+],
+[
+" /api/kol-haam/zm/pending",
+[
+"GET",
+"/api/kol-haam/zm/pending",
+40039,
+"path-only"
+]
+],
+[
+"POST /api/ai/budget-insight",
+null
+],
+[
+"POST /api/ai/pantry-insight",
+null
+],
+[
+"POST /api/ai/generate-tasks",
+null
+],
+[
+"POST /api/ai/recipe",
+null
+],
+[
+"POST /api/ai/quiz",
+null
+],
+[
+"POST /api/ai/advice",
+null
+],
+[
+"POST /api/ai/tutor",
+null
+],
+[
+"POST /api/ai/business-advice",
+null
+],
+[
+"POST /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"exact"
+]
+],
+[
+"POST /api/flow/spend",
+null
+],
+[
+"POST /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"exact"
+]
+],
+[
+"POST /api/sa/create-business",
+null
+]
+],
+"docs/BIZ_ENV_SPEC.md": [
+[
+"POST /api/auth/login",
+null
+],
+[
+"POST /api/auth/send-otp",
+null
+],
+[
+"POST /api/auth/verify-otp",
+null
+],
+[
+"GET /api/biz/sso-login",
+null
+],
+[
+"GET /api/biz/pricing-catalog",
+[
+"GET",
+"/api/biz/pricing-catalog",
+5903,
+"exact"
+]
+],
+[
+"POST /api/biz/module-request",
+[
+"POST",
+"/api/biz/module-request",
+5918,
+"exact"
+]
+],
+[
+"GET /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"exact"
+]
+],
+[
+"GET /api/store/catalog/:groupId",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"exact"
+]
+],
+[
+"POST /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"exact"
+]
+],
+[
+"GET /api/store/kds/:groupId",
+null
+],
+[
+"PATCH /api/store/kds/:id",
+null
+],
+[
+"GET /api/store/orders/:groupId",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"exact"
+]
+],
+[
+"PUT /api/store/orders/:id/status",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"path-only"
+]
+],
+[
+"GET /api/store/quotes/:groupId",
+[
+"GET",
+"/api/store/quotes/:groupId",
+14156,
+"exact"
+]
+],
+[
+"POST /api/store/quotes",
+[
+"POST",
+"/api/store/quotes",
+14099,
+"exact"
+]
+],
+[
+"POST /api/store/quotes/:id/send",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+"PUT /api/store/quotes/:id/approve",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+"POST /api/store/products",
+null
+],
+[
+"PATCH /api/store/products/:id/availability",
+null
+],
+[
+"GET /api/store/promotions/:groupId",
+[
+"GET",
+"/api/store/promotions/:groupId",
+17060,
+"exact"
+]
+],
+[
+"POST /api/store/promotions",
+[
+"POST",
+"/api/store/promotions",
+17067,
+"exact"
+]
+],
+[
+"GET /api/store/customers/:groupId",
+[
+"GET",
+"/api/store/customers/:groupId",
+15158,
+"exact"
+]
+],
+[
+"GET /api/store/customers/:id",
+[
+"GET",
+"/api/store/customers/:groupId",
+15158,
+"exact"
+]
+],
+[
+"POST /api/store/customers/:id/notes",
+null
+],
+[
+"POST /api/store/customers/:id/tags",
+null
+],
+[
+"GET /api/calendar/events/:groupId",
+[
+"DELETE",
+"/api/calendar/events/:id",
+23175,
+"path-only"
+]
+],
+[
+"POST /api/calendar/events",
+[
+"POST",
+"/api/calendar/events",
+22891,
+"exact"
+]
+],
+[
+"GET /api/calendar/services/:groupId",
+[
+"DELETE",
+"/api/calendar/services/:id",
+22885,
+"path-only"
+]
+],
+[
+"POST /api/calendar/services",
+[
+"POST",
+"/api/calendar/services",
+22869,
+"exact"
+]
+],
+[
+"PATCH /api/calendar/services/:id/toggle",
+null
+],
+[
+"GET /api/calendar/requests/:groupId",
+null
+],
+[
+"POST /api/calendar/requests/:id/approve",
+null
+],
+[
+"POST /api/calendar/requests/:id/decline",
+null
+],
+[
+"GET /api/shifts/:groupId",
+null
+],
+[
+"POST /api/shifts",
+null
+],
+[
+"DELETE /api/shifts/:id",
+null
+],
+[
+"POST /api/shifts/copy-week",
+null
+],
+[
+"GET /api/shifts/export",
+null
+],
+[
+"GET /api/timeclock/status/:userId",
+null
+],
+[
+"POST /api/timeclock/punch-in",
+null
+],
+[
+"POST /api/timeclock/punch-out",
+null
+],
+[
+"GET /api/timeclock/report/:groupId",
+null
+],
+[
+"GET /api/timeclock/export",
+null
+],
+[
+"GET /api/b2b/suppliers/:groupId",
+null
+],
+[
+"POST /api/b2b/suppliers",
+null
+],
+[
+"GET /api/b2b/catalog/:supplierId",
+[
+"GET",
+"/api/b2b/catalog/:groupId",
+17303,
+"exact"
+]
+],
+[
+"POST /api/b2b/orders",
+[
+"POST",
+"/api/b2b/orders",
+18196,
+"exact"
+]
+],
+[
+"POST /api/pantry/add",
+[
+"POST",
+"/api/pantry/add",
+11206,
+"exact"
+]
+],
+[
+"POST /api/pantry/update",
+[
+"POST",
+"/api/pantry/update",
+11225,
+"exact"
+]
+],
+[
+"POST /api/pantry/use",
+[
+"POST",
+"/api/pantry/use",
+11236,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete-multiple",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+"GET /api/equipment/items/:groupId",
+[
+"GET",
+"/api/equipment/items/:groupId",
+26050,
+"exact"
+]
+],
+[
+"GET /api/equipment/maintenance/:groupId",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"exact"
+]
+],
+[
+"GET /api/equipment/faults/:groupId",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"exact"
+]
+],
+[
+"POST /api/equipment/items",
+[
+"POST",
+"/api/equipment/items",
+26062,
+"exact"
+]
+],
+[
+"POST /api/equipment/maintenance",
+[
+"POST",
+"/api/equipment/maintenance",
+26099,
+"exact"
+]
+],
+[
+"POST /api/equipment/faults",
+[
+"POST",
+"/api/equipment/faults",
+26185,
+"exact"
+]
+],
+[
+"POST /api/transactions/add",
+null
+],
+[
+"PUT /api/transactions/update/:id",
+null
+],
+[
+"DELETE /api/transactions/delete/:id",
+null
+],
+[
+"GET /api/transactions/export",
+null
+],
+[
+"POST /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"exact"
+]
+],
+[
+"POST /api/loans/approve/:id",
+null
+],
+[
+"GET /api/loans/:groupId",
+[
+"POST",
+"/api/loans/request",
+11463,
+"path-only"
+]
+],
+[
+"GET /api/biz/flow-wallet/:groupId",
+null
+],
+[
+"GET /api/biz/commissions/summary/:groupId",
+null
+],
+[
+"GET /api/transactions/cashflow",
+null
+],
+[
+"GET /api/budget",
+null
+],
+[
+"POST /api/tasks/add",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+"POST /api/tasks/verify/:id",
+[
+"POST",
+"/api/tasks/:id/proof",
+11976,
+"exact"
+]
+],
+[
+"POST /api/tasks/reject/:id",
+[
+"POST",
+"/api/tasks/:id/proof",
+11976,
+"exact"
+]
+],
+[
+"POST /api/tasks/:id/comments",
+[
+"POST",
+"/api/tasks/:id/comments",
+12006,
+"exact"
+]
+],
+[
+"POST /api/tasks/upload-proof",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+"POST /api/ai/generate-tasks",
+null
+],
+[
+"POST /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"exact"
+]
+],
+[
+"POST /api/academy/assign-game",
+null
+],
+[
+"GET /api/community/my-communities/:groupId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"POST /api/community/biz-connect",
+null
+],
+[
+"POST /api/community/posts",
+[
+"POST",
+"/api/community/posts",
+36068,
+"exact"
+]
+],
+[
+"GET /api/biz/survey-recipients/:groupId",
+null
+],
+[
+"POST /api/biz/sms-blast",
+null
+],
+[
+"POST /api/biz/team-update",
+null
+],
+[
+"GET /api/members/:groupId",
+[
+"GET",
+"/api/members/:groupId",
+25443,
+"exact"
+]
+],
+[
+"PUT /api/admin/update-member",
+null
+],
+[
+"DELETE /api/admin/delete-member/:userId",
+null
+],
+[
+"GET /api/deliveries/:groupId",
+null
+],
+[
+"POST /api/deliveries/assign",
+null
+],
+[
+"PUT /api/deliveries/:id/status",
+null
+],
+[
+"GET /api/reports/sales",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"GET /api/reports/employees",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"GET /api/reports/finance",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"GET /api/reports/inventory",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"GET /api/reports/clients",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"GET /api/beauty/calendar/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/bookings",
+null
+],
+[
+"DELETE /api/beauty/bookings/:id",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"path-only"
+]
+],
+[
+"POST /api/beauty/bookings/:id/remind",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"GET /api/beauty/clients/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/clients/:id/notes",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"POST /api/beauty/clients/:id/allergy",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"GET /api/beauty/inventory/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/inventory/use",
+null
+],
+[
+"GET /api/beauty/services/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/services",
+null
+],
+[
+"PUT /api/beauty/services/:id",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"path-only"
+]
+],
+[
+"GET /api/beauty/subscriptions/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/subscriptions",
+null
+],
+[
+"POST /api/beauty/subscriptions/:id/redeem",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"DELETE /api/beauty/subscriptions/:id",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"path-only"
+]
+],
+[
+"GET /api/beauty/commissions/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/commissions/rates",
+null
+],
+[
+"POST /api/beauty/commissions/payout",
+null
+],
+[
+"GET /api/beauty/rfq/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/rfq/:id/respond",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"GET /api/beauty/practitioners/:groupId",
+[
+"GET",
+"/api/beauty/:bizId/slots",
+31212,
+"exact"
+]
+],
+[
+"POST /api/beauty/practitioners",
+null
+],
+[
+"POST /api/beauty/practitioners/:id/schedule",
+[
+"PATCH",
+"/api/beauty/:bizId/practitioners/:id",
+31321,
+"path-only"
+]
+],
+[
+"GET /api/menu-templates/:groupId",
+[
+"GET",
+"/api/menu-templates/:id",
+42084,
+"exact"
+]
+],
+[
+"POST /api/menu-templates",
+[
+"POST",
+"/api/menu-templates",
+42138,
+"exact"
+]
+],
+[
+"POST /api/menu-templates/:id/publish",
+null
+],
+[
+"GET /api/professional/cases/:groupId",
+null
+],
+[
+"POST /api/professional/cases",
+null
+],
+[
+"PUT /api/professional/cases/:id",
+null
+],
+[
+"POST /api/professional/cases/:id/notes",
+null
+],
+[
+"POST /api/professional/cases/:id/attach",
+null
+],
+[
+"GET /api/professional/leads/:groupId",
+null
+],
+[
+"POST /api/professional/leads/:id/convert",
+null
+],
+[
+"POST /api/professional/leads/:id/assign",
+null
+],
+[
+"GET /api/professional/timelog/:groupId",
+null
+],
+[
+"POST /api/professional/timelog",
+null
+],
+[
+"POST /api/professional/timelog/invoice",
+null
+],
+[
+"GET /api/professional/documents/:groupId",
+null
+],
+[
+"POST /api/professional/documents",
+null
+],
+[
+"POST /api/professional/documents/:id/share",
+null
+],
+[
+"GET /api/professional/content/:groupId",
+null
+],
+[
+"PUT /api/professional/content/:groupId",
+null
+],
+[
+"POST /api/professional/content/:groupId/publish",
+null
+],
+[
+"GET /api/sport/members/:groupId",
+[
+"GET",
+"/api/sport/members/:groupId",
+29310,
+"exact"
+]
+],
+[
+"POST /api/sport/members",
+[
+"POST",
+"/api/sport/members",
+29348,
+"exact"
+]
+],
+[
+"POST /api/sport/members/:id/renew",
+[
+"POST",
+"/api/sport/members/:id/renew",
+29668,
+"exact"
+]
+],
+[
+"POST /api/sport/members/:id/freeze",
+[
+"POST",
+"/api/sport/members/:id/freeze",
+29404,
+"exact"
+]
+],
+[
+"GET /api/service-calls/:groupId",
+[
+"PATCH",
+"/api/service-calls/:id",
+25821,
+"path-only"
+]
+],
+[
+"POST /api/service-calls/:id/assign",
+[
+"POST",
+"/api/service-calls/check-schedule-notifications/:groupId",
+25747,
+"exact"
+]
+],
+[
+"GET /api/routines/:groupId",
+[
+"GET",
+"/api/routines/:groupId",
+27327,
+"exact"
+]
+],
+[
+"POST /api/routines",
+null
+],
+[
+"POST /api/routines/:id/complete",
+[
+"PUT",
+"/api/routines/contracts/:id",
+27537,
+"path-only"
+]
+],
+[
+"GET /api/biz/ads/:groupId",
+null
+],
+[
+"POST /api/biz/ads/purchase",
+null
+],
+[
+"PUT /api/biz/ads/:id",
+null
+],
+[
+"PATCH /api/biz/ads/:id/status",
+null
+],
+[
+"PUT /api/biz/update-type",
+null
+],
+[
+" /api/biz/pricing-catalog",
+[
+"GET",
+"/api/biz/pricing-catalog",
+5903,
+"path-only"
+]
+],
+[
+"POST /api/ai/biz-advice",
+null
+],
+[
+"POST /api/ai/forecast",
+null
+],
+[
+"POST /api/ai/budget-insight",
+null
+],
+[
+"POST /api/ai/quiz",
+null
+],
+[
+"POST /api/ai/biz-tutor",
+null
+],
+[
+"POST /api/ai/food-cost",
+null
+],
+[
+"PUT /api/biz/onboarding-step",
+null
+],
+[
+"POST /api/biz/onboarding-complete",
+null
+]
+],
+"docs/FAMILY_ENV_SPEC.md": [
+[
+"POST /api/auth/send-otp",
+null
+],
+[
+"POST /api/auth/verify-otp",
+null
+],
+[
+"POST /api/auth/login",
+null
+],
+[
+"GET /api/family/sso-login",
+[
+"GET",
+"/api/family/sso-login",
+43791,
+"exact"
+]
+],
+[
+"GET /api/ads/all",
+null
+],
+[
+"GET /api/banners",
+[
+"GET",
+"/api/banners",
+9024,
+"exact"
+]
+],
+[
+"POST /api/shopping/add",
+[
+"POST",
+"/api/shopping/add",
+10863,
+"exact"
+]
+],
+[
+"DELETE /api/shopping/delete-multiple",
+null
+],
+[
+"GET /api/shopping/saved-lists",
+null
+],
+[
+"POST /api/shopping/save-list",
+null
+],
+[
+"POST /api/shopping/copy",
+[
+"POST",
+"/api/shopping/copy",
+11095,
+"exact"
+]
+],
+[
+"POST /api/ai/shopping-list",
+null
+],
+[
+"POST /api/shopping/checkout",
+[
+"POST",
+"/api/shopping/checkout",
+11048,
+"exact"
+]
+],
+[
+"POST /api/ai/scan-receipt",
+null
+],
+[
+"POST /api/pantry/add",
+[
+"POST",
+"/api/pantry/add",
+11206,
+"exact"
+]
+],
+[
+"POST /api/pantry/update",
+[
+"POST",
+"/api/pantry/update",
+11225,
+"exact"
+]
+],
+[
+"POST /api/pantry/use",
+[
+"POST",
+"/api/pantry/use",
+11236,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+"DELETE /api/pantry/delete-multiple",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+"GET /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"exact"
+]
+],
+[
+"POST /api/transactions/add",
+null
+],
+[
+"PUT /api/transactions/update/:id",
+null
+],
+[
+"DELETE /api/transactions/delete/:id",
+null
+],
+[
+"GET /api/transactions/export",
+null
+],
+[
+"POST /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"exact"
+]
+],
+[
+"POST /api/loans/approve/:id",
+null
+],
+[
+"POST /api/loans/reject/:id",
+null
+],
+[
+"GET /api/loans/:groupId",
+[
+"POST",
+"/api/loans/request",
+11463,
+"path-only"
+]
+],
+[
+"POST /api/goals",
+[
+"POST",
+"/api/goals",
+11504,
+"exact"
+]
+],
+[
+"POST /api/goals/deposit",
+[
+"POST",
+"/api/goals/deposit",
+11520,
+"exact"
+]
+],
+[
+"POST /api/admin/update-settings",
+[
+"POST",
+"/api/admin/update-settings",
+11786,
+"exact"
+]
+],
+[
+"POST /api/admin/payday",
+[
+"POST",
+"/api/admin/payday",
+11801,
+"exact"
+]
+],
+[
+"POST /api/admin/adjust-balance",
+[
+"POST",
+"/api/admin/adjust-balance",
+11729,
+"exact"
+]
+],
+[
+"GET /api/transactions/cashflow",
+null
+],
+[
+"GET /api/budget",
+null
+],
+[
+"PUT /api/budget/update/:id",
+null
+],
+[
+"POST /api/budget/add",
+null
+],
+[
+"POST /api/tasks/add",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+"POST /api/tasks/update",
+[
+"POST",
+"/api/tasks/update",
+12023,
+"exact"
+]
+],
+[
+"POST /api/tasks/upload-proof",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+"POST /api/ai/verify-task",
+null
+],
+[
+"GET /api/tasks/:id/comments",
+[
+"GET",
+"/api/tasks/:id/comments",
+11994,
+"exact"
+]
+],
+[
+"POST /api/tasks/:id/comments",
+[
+"POST",
+"/api/tasks/:id/comments",
+12006,
+"exact"
+]
+],
+[
+"POST /api/ai/generate-tasks",
+null
+],
+[
+"GET /api/academy/kids-overview/:groupId",
+null
+],
+[
+"POST /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"exact"
+]
+],
+[
+"POST /api/academy/assign-game",
+null
+],
+[
+"GET /api/quest-library",
+[
+"GET",
+"/api/quest-library",
+3906,
+"exact"
+]
+],
+[
+"POST /api/quest-library/:id/use",
+[
+"POST",
+"/api/quest-library/:id/use",
+3992,
+"exact"
+]
+],
+[
+"GET /api/academy/my-assignments/:userId",
+null
+],
+[
+"GET /api/academy/bundles/:id",
+[
+"GET",
+"/api/academy/bundles/:id",
+12268,
+"exact"
+]
+],
+[
+"POST /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"exact"
+]
+],
+[
+"POST /api/kids/award-flw",
+[
+"POST",
+"/api/kids/award-flw",
+35294,
+"exact"
+]
+],
+[
+"POST /api/ai/recipe",
+null
+],
+[
+"GET /api/family/search-by-phone",
+null
+],
+[
+"POST /api/family/link-request",
+[
+"POST",
+"/api/family/link-request",
+2506,
+"exact"
+]
+],
+[
+"GET /api/family/link-requests/:groupId",
+[
+"GET",
+"/api/family/link-requests/:groupId",
+2538,
+"exact"
+]
+],
+[
+"GET /api/members/:groupId",
+[
+"GET",
+"/api/members/:groupId",
+25443,
+"exact"
+]
+],
+[
+"GET /api/community/data/:groupId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"GET /api/community/feed",
+[
+"GET",
+"/api/community/feed",
+36008,
+"exact"
+]
+],
+[
+"GET /api/community/unread-counts",
+null
+],
+[
+"POST /api/community/mark-read",
+null
+],
+[
+"POST /api/community/like/:postId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"path-only"
+]
+],
+[
+"GET /api/community/comments/:postId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"POST /api/community/comments/:postId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"path-only"
+]
+],
+[
+"GET /api/community/likers/:postId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"POST /api/community/report/:postId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"path-only"
+]
+],
+[
+"POST /api/community/posts",
+[
+"POST",
+"/api/community/posts",
+36068,
+"exact"
+]
+],
+[
+"GET /api/community/interest-groups/:commId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"POST /api/community/interest-groups/join",
+null
+],
+[
+"POST /api/community/interest-groups/leave",
+null
+],
+[
+"POST /api/community/interest-groups",
+null
+],
+[
+"GET /api/store/orders/my/:userId",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"exact"
+]
+],
+[
+"POST /api/store/orders/:id/confirm-receipt",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"path-only"
+]
+],
+[
+"GET /api/calendar/availability/:groupId",
+null
+],
+[
+"POST /api/calendar/events",
+[
+"POST",
+"/api/calendar/events",
+22891,
+"exact"
+]
+],
+[
+"GET /api/store/quotes/family/:groupId",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"exact"
+]
+],
+[
+"POST /api/store/orders/:id/rate",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"path-only"
+]
+],
+[
+"GET /api/family/my-activities/:groupId",
+null
+],
+[
+"GET /api/equipment/maintenance/:groupId",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"exact"
+]
+],
+[
+"GET /api/equipment/faults/:groupId",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"exact"
+]
+],
+[
+"GET /api/equipment/contacts/:groupId",
+null
+],
+[
+"POST /api/equipment/items",
+[
+"POST",
+"/api/equipment/items",
+26062,
+"exact"
+]
+],
+[
+"DELETE /api/equipment/items/:id",
+[
+"DELETE",
+"/api/equipment/items/:id",
+26081,
+"exact"
+]
+],
+[
+"GET /api/equipment/history/:itemId",
+null
+],
+[
+"POST /api/equipment/maintenance",
+[
+"POST",
+"/api/equipment/maintenance",
+26099,
+"exact"
+]
+],
+[
+"POST /api/equipment/maintenance/:id/complete",
+[
+"PUT",
+"/api/equipment/maintenance/:id/complete",
+26118,
+"path-only"
+]
+],
+[
+"DELETE /api/equipment/maintenance/:id",
+[
+"DELETE",
+"/api/equipment/maintenance/:id",
+26138,
+"exact"
+]
+],
+[
+"POST /api/equipment/faults",
+[
+"POST",
+"/api/equipment/faults",
+26185,
+"exact"
+]
+],
+[
+"PATCH /api/equipment/faults/:id/status",
+[
+"PATCH",
+"/api/equipment/faults/:id/status",
+26205,
+"exact"
+]
+],
+[
+"POST /api/equipment/faults/:id/notes",
+[
+"POST",
+"/api/equipment/faults/:id/notes",
+26171,
+"exact"
+]
+],
+[
+"GET /api/family/service-calls/:groupId",
+null
+],
+[
+"POST /api/service-calls/:id/message",
+[
+"POST",
+"/api/service-calls/check-schedule-notifications/:groupId",
+25747,
+"exact"
+]
+],
+[
+"POST /api/service-calls",
+[
+"POST",
+"/api/service-calls",
+25570,
+"exact"
+]
+],
+[
+"POST /api/equipment/contacts",
+null
+],
+[
+"GET /api/community/businesses/:communityId",
+[
+"GET",
+"/api/community/:communityId/groups",
+36408,
+"exact"
+]
+],
+[
+"GET /api/marketplace/history/:groupId",
+null
+],
+[
+"POST /api/ai/budget-insight",
+null
+],
+[
+"POST /api/ai/pantry-insight",
+null
+],
+[
+"POST /api/ai/quiz",
+null
+],
+[
+"POST /api/ai/advice",
+null
+],
+[
+"POST /api/ai/tutor",
+null
+],
+[
+"POST /api/solo/activate",
+[
+"POST",
+"/api/solo/activate",
+2469,
+"exact"
+]
+],
+[
+"GET /api/solo/search-by-phone",
+[
+"GET",
+"/api/solo/search-by-phone",
+2998,
+"exact"
+]
+],
+[
+"GET /api/dashboard/family/:groupId",
+null
+]
+],
+"docs/SA_ENV_SPEC.md": [
+[
+"POST /api/superadmin/login",
+[
+"POST",
+"/api/superadmin/login",
+8558,
+"exact"
+]
+],
+[
+"GET /api/sa/dashboard",
+[
+"GET",
+"/api/sa/dashboard",
+9118,
+"exact"
+]
+],
+[
+"GET /api/sa/live-pulse",
+null
+],
+[
+"GET /api/sa/pending-actions-center",
+[
+"GET",
+"/api/sa/pending-actions-center",
+9741,
+"exact"
+]
+],
+[
+"GET /api/sa/unified-stats",
+[
+"GET",
+"/api/sa/unified-stats",
+9373,
+"exact"
+]
+],
+[
+"GET /api/sa/insights-top-lists",
+[
+"GET",
+"/api/sa/insights-top-lists",
+9858,
+"exact"
+]
+],
+[
+"GET /api/sa/kpi-detail",
+[
+"GET",
+"/api/sa/kpi-detail",
+9567,
+"exact"
+]
+],
+[
+"GET /api/superadmin/data",
+[
+"GET",
+"/api/superadmin/data",
+9046,
+"exact"
+]
+],
+[
+"PUT /api/sa/groups/:id",
+[
+"PUT",
+"/api/sa/groups/:id",
+8761,
+"exact"
+]
+],
+[
+"POST /api/sa/groups/:id/freeze",
+[
+"POST",
+"/api/sa/groups/:id/freeze",
+2930,
+"exact"
+]
+],
+[
+"PATCH /api/sa/groups/:id/modules",
+[
+"PATCH",
+"/api/sa/groups/:id/modules",
+31073,
+"exact"
+]
+],
+[
+"PATCH /api/sa/groups/:id/module-request",
+[
+"PATCH",
+"/api/sa/groups/:id/module-request",
+5971,
+"exact"
+]
+],
+[
+"GET /api/sa/sc-customers",
+[
+"GET",
+"/api/sa/sc-customers",
+43752,
+"exact"
+]
+],
+[
+"POST /api/sa/sc-customers/:id/reset-pin",
+[
+"POST",
+"/api/sa/sc-customers/:id/reset-pin",
+43773,
+"exact"
+]
+],
+[
+"GET /api/sa/communities",
+[
+"GET",
+"/api/sa/communities",
+17473,
+"exact"
+]
+],
+[
+"GET /api/sa/businesses",
+[
+"GET",
+"/api/sa/businesses",
+17881,
+"exact"
+]
+],
+[
+"GET /api/sa/articles",
+[
+"GET",
+"/api/sa/articles",
+15803,
+"exact"
+]
+],
+[
+"POST /api/sa/articles",
+[
+"POST",
+"/api/sa/articles",
+15810,
+"exact"
+]
+],
+[
+"DELETE /api/sa/articles/:id",
+[
+"DELETE",
+"/api/sa/articles/:id",
+15819,
+"exact"
+]
+],
+[
+"PUT /api/sa/settings/rates",
+[
+"PUT",
+"/api/sa/settings/rates",
+18626,
+"exact"
+]
+],
+[
+"POST /api/sa/groups/:id/billing",
+[
+"POST",
+"/api/sa/groups/:id/billing",
+5732,
+"exact"
+]
+],
+[
+"GET /api/superadmin/tickets",
+[
+"GET",
+"/api/superadmin/tickets",
+5137,
+"exact"
+]
+],
+[
+"POST /api/superadmin/tickets/:id/reply",
+[
+"POST",
+"/api/superadmin/tickets/:id/reply",
+6132,
+"exact"
+]
+],
+[
+"POST /api/superadmin/tickets/:id/assign_and_classify",
+[
+"POST",
+"/api/superadmin/tickets/:id/assign_and_classify",
+6014,
+"exact"
+]
+],
+[
+"DELETE /api/superadmin/tickets/:id",
+[
+"DELETE",
+"/api/superadmin/tickets/:id",
+5702,
+"exact"
+]
+],
+[
+"POST /api/superadmin/tickets",
+[
+"POST",
+"/api/superadmin/tickets",
+5112,
+"exact"
+]
+],
+[
+"POST /api/sa/sla-matrix",
+[
+"POST",
+"/api/sa/sla-matrix",
+5718,
+"exact"
+]
+],
+[
+"GET /api/sa/dev/tasks",
+[
+"GET",
+"/api/sa/dev/tasks",
+23714,
+"exact"
+]
+],
+[
+"POST /api/sa/dev/tasks",
+[
+"POST",
+"/api/sa/dev/tasks",
+23732,
+"exact"
+]
+],
+[
+"PUT /api/sa/dev/tasks/:id",
+[
+"PUT",
+"/api/sa/dev/tasks/:id",
+23752,
+"exact"
+]
+],
+[
+"PUT /api/sa/dev/tasks/:id/status",
+[
+"PUT",
+"/api/sa/dev/tasks/:id/status",
+23777,
+"exact"
+]
+],
+[
+"DELETE /api/sa/dev/tasks/:id",
+[
+"DELETE",
+"/api/sa/dev/tasks/:id",
+23817,
+"exact"
+]
+],
+[
+"GET /api/sa/matrix",
+[
+"GET",
+"/api/sa/matrix",
+23874,
+"exact"
+]
+],
+[
+"PUT /api/sa/matrix/:id/status",
+[
+"PUT",
+"/api/sa/matrix/:id/status",
+23916,
+"exact"
+]
+],
+[
+"POST /api/sa/matrix",
+[
+"POST",
+"/api/sa/matrix",
+23904,
+"exact"
+]
+],
+[
+"DELETE /api/sa/matrix/:id",
+[
+"DELETE",
+"/api/sa/matrix/:id",
+23924,
+"exact"
+]
+],
+[
+"POST /api/sa/ai-generate",
+[
+"POST",
+"/api/sa/ai-generate",
+6345,
+"exact"
+]
+],
+[
+"POST /api/sa/inbox/broadcast",
+[
+"POST",
+"/api/sa/inbox/broadcast",
+23256,
+"exact"
+]
+],
+[
+"GET /api/sa/finance",
+null
+],
+[
+"GET /api/sa/teams",
+[
+"GET",
+"/api/sa/teams",
+8646,
+"exact"
+]
+],
+[
+"GET /api/sa/staff",
+[
+"GET",
+"/api/sa/staff",
+8710,
+"exact"
+]
+],
+[
+"POST /api/sa/teams",
+[
+"POST",
+"/api/sa/teams",
+8683,
+"exact"
+]
+],
+[
+"DELETE /api/sa/teams/:id",
+[
+"DELETE",
+"/api/sa/teams/:id",
+8703,
+"exact"
+]
+],
+[
+"PATCH /api/superadmin/users/:id",
+[
+"PATCH",
+"/api/superadmin/users/:id",
+8878,
+"exact"
+]
+],
+[
+"POST /api/superadmin/settings",
+[
+"POST",
+"/api/superadmin/settings",
+8900,
+"exact"
+]
+],
+[
+"GET /api/sa/banner/slots",
+[
+"GET",
+"/api/sa/banner/slots",
+34528,
+"exact"
+]
+],
+[
+"GET /api/sa/banner/orders",
+[
+"GET",
+"/api/sa/banner/orders",
+34608,
+"exact"
+]
+],
+[
+"POST /api/sa/banner/slots",
+[
+"POST",
+"/api/sa/banner/slots",
+34545,
+"exact"
+]
+],
+[
+"PUT /api/sa/banner/slots/:id",
+[
+"PUT",
+"/api/sa/banner/slots/:id",
+34559,
+"exact"
+]
+],
+[
+"PUT /api/sa/banner/slots/:id/communities",
+[
+"PUT",
+"/api/sa/banner/slots/:id/communities",
+34571,
+"exact"
+]
+],
+[
+"PUT /api/sa/banner/slots/:id/pricing",
+[
+"PUT",
+"/api/sa/banner/slots/:id/pricing",
+34586,
+"exact"
+]
+],
+[
+"GET /api/sa/banner/slots/:id/availability",
+[
+"GET",
+"/api/sa/banner/slots/:id/availability",
+34627,
+"exact"
+]
+],
+[
+"PUT /api/sa/banner/orders/:id/approve",
+[
+"PUT",
+"/api/sa/banner/orders/:id/approve",
+34664,
+"exact"
+]
+],
+[
+"GET /api/sa/config",
+null
+],
+[
+"GET /api/sa/email-settings",
+null
+],
+[
+"GET /api/sa/kol-haam-queue",
+null
+],
+[
+"GET /api/sa/zone-managers",
+[
+"GET",
+"/api/sa/zone-managers",
+19160,
+"exact"
+]
+],
+[
+"GET /api/sa/zone-settings",
+[
+"GET",
+"/api/sa/zone-settings",
+19312,
+"exact"
+]
+],
+[
+"GET /api/sa/zone-managers/pending",
+[
+"GET",
+"/api/sa/zone-managers/pending",
+19216,
+"exact"
+]
+],
+[
+"PUT /api/sa/zone-managers/:id",
+[
+"PUT",
+"/api/sa/zone-managers/:id",
+19263,
+"exact"
+]
+],
+[
+"DELETE /api/sa/zone-managers/:id",
+[
+"DELETE",
+"/api/sa/zone-managers/:id",
+19283,
+"exact"
+]
+],
+[
+"GET /api/sa/zone-managers/finance-summary",
+[
+"GET",
+"/api/sa/zone-managers/finance-summary",
+19175,
+"exact"
+]
+],
+[
+"GET /api/sa/pilot-waitlist",
+[
+"GET",
+"/api/sa/pilot-waitlist",
+7548,
+"exact"
+]
+],
+[
+"PATCH /api/sa/pilot-waitlist/:id",
+[
+"PATCH",
+"/api/sa/pilot-waitlist/:id",
+7566,
+"exact"
+]
+],
+[
+"DELETE /api/sa/pilot-waitlist/:id",
+[
+"DELETE",
+"/api/sa/pilot-waitlist/:id",
+7581,
+"exact"
+]
+],
+[
+"GET /api/sa/legal",
+[
+"GET",
+"/api/sa/legal",
+25287,
+"exact"
+]
+],
+[
+"PUT /api/sa/legal/:key",
+[
+"PUT",
+"/api/sa/legal/:key",
+25299,
+"exact"
+]
+],
+[
+"POST /api/sa/biz-impersonate-token",
+[
+"POST",
+"/api/sa/biz-impersonate-token",
+44011,
+"exact"
+]
+]
+],
+"docs/WEFLOWZ-family-capabilities-customer-v1.md": [],
+"docs/WEFLOWZ-retail-capabilities-customer-v1.md": [],
+"docs/WEFLOWZ-retail-modules-customer-v1.md": [],
+"docs/WEFLOWZ-shuka-customer-doc.md": [],
+"docs/ZM_ENV_SPEC.md": [
+[
+"POST /api/zone-manager/login",
+[
+"POST",
+"/api/zone-manager/login",
+18816,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/register",
+[
+"POST",
+"/api/zone-manager/register",
+18760,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/forgot-password",
+[
+"POST",
+"/api/zone-manager/forgot-password",
+18777,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/reset-password",
+[
+"POST",
+"/api/zone-manager/reset-password",
+18804,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/dashboard",
+[
+"GET",
+"/api/zone-manager/dashboard",
+18837,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/pending-businesses",
+[
+"GET",
+"/api/zone-manager/pending-businesses",
+18956,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/pending-families",
+[
+"GET",
+"/api/zone-manager/pending-families",
+19086,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/pending-removals",
+[
+"GET",
+"/api/zone-manager/pending-removals",
+19012,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/invited-businesses",
+[
+"GET",
+"/api/zone-manager/invited-businesses",
+18939,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/approve",
+[
+"POST",
+"/api/zone-manager/community-business/approve",
+18974,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/reject",
+[
+"POST",
+"/api/zone-manager/community-business/reject",
+18993,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/approve-invited",
+[
+"POST",
+"/api/zone-manager/community-business/approve-invited",
+18907,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/reject-invited",
+[
+"POST",
+"/api/zone-manager/community-business/reject-invited",
+18923,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/approve-removal",
+[
+"POST",
+"/api/zone-manager/community-business/approve-removal",
+19030,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/decline-removal",
+[
+"POST",
+"/api/zone-manager/community-business/decline-removal",
+19047,
+"exact"
+]
+],
+[
+"GET /api/community/search-business",
+[
+"GET",
+"/api/community/search-business",
+16821,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/invite-business",
+[
+"POST",
+"/api/zone-manager/invite-business",
+18889,
+"exact"
+]
+],
+[
+"PUT /api/zone-manager/community-business/discount",
+[
+"PUT",
+"/api/zone-manager/community-business/discount",
+19062,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-family/approve",
+[
+"POST",
+"/api/zone-manager/community-family/approve",
+19103,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-family/reject",
+[
+"POST",
+"/api/zone-manager/community-family/reject",
+19119,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/community-detail/:commId",
+[
+"GET",
+"/api/zone-manager/community-detail/:id",
+19398,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/family-detail/:groupId",
+[
+"GET",
+"/api/zone-manager/family-detail/:groupId",
+19135,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/communities-members",
+[
+"GET",
+"/api/zone-manager/communities-members",
+19357,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/set-community-manager",
+[
+"POST",
+"/api/zone-manager/set-community-manager",
+19962,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/campaigns",
+[
+"GET",
+"/api/zone-manager/campaigns",
+19979,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/campaigns",
+[
+"POST",
+"/api/zone-manager/campaigns",
+19989,
+"exact"
+]
+],
+[
+"PUT /api/zone-manager/campaigns/:id",
+[
+"PUT",
+"/api/zone-manager/campaigns/:id",
+20003,
+"exact"
+]
+],
+[
+"DELETE /api/zone-manager/campaigns/:id",
+[
+"DELETE",
+"/api/zone-manager/campaigns/:id",
+20023,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/draft-campaign",
+[
+"POST",
+"/api/zone-manager/ai/draft-campaign",
+20149,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/generate-banner",
+[
+"POST",
+"/api/zone-manager/ai/generate-banner",
+20114,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/suggest-reply",
+[
+"POST",
+"/api/zone-manager/ai/suggest-reply",
+20223,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/analyze-leads",
+[
+"POST",
+"/api/zone-manager/ai/analyze-leads",
+20197,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/templates",
+[
+"GET",
+"/api/zone-manager/templates",
+20347,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/templates",
+[
+"POST",
+"/api/zone-manager/templates",
+20354,
+"exact"
+]
+],
+[
+"DELETE /api/zone-manager/templates/:id",
+[
+"DELETE",
+"/api/zone-manager/templates/:id",
+20365,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/campaigns/:id/leads",
+[
+"GET",
+"/api/zone-manager/campaigns/:id/leads",
+20030,
+"exact"
+]
+],
+[
+"PUT /api/zone-manager/leads/:id",
+[
+"PUT",
+"/api/zone-manager/leads/:id",
+20081,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/leads/:id/actions",
+[
+"GET",
+"/api/zone-manager/leads/:id/actions",
+20097,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/leads/:id/actions",
+[
+"POST",
+"/api/zone-manager/leads/:id/actions",
+20104,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/inbox",
+[
+"GET",
+"/api/zone-manager/inbox",
+20239,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/inbox/:threadId",
+[
+"GET",
+"/api/zone-manager/inbox/:threadId",
+20316,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/inbox/:threadId/reply",
+[
+"POST",
+"/api/zone-manager/inbox/:threadId/reply",
+20330,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/inbox/new",
+[
+"POST",
+"/api/zone-manager/inbox/new",
+20254,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/inbox/broadcast",
+[
+"POST",
+"/api/zone-manager/inbox/broadcast",
+20275,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/commissions",
+[
+"GET",
+"/api/zone-manager/commissions",
+18875,
+"exact"
+]
+],
+[
+" /api/zm/",
+null
+],
+[
+"GET /api/zm/zones",
+null
+],
+[
+"GET /api/zm/articles",
+[
+"GET",
+"/api/zm/articles",
+15827,
+"exact"
+]
+],
+[
+"POST /api/zm/articles",
+[
+"POST",
+"/api/zm/articles",
+15841,
+"exact"
+]
+],
+[
+"DELETE /api/zm/articles/:id",
+[
+"DELETE",
+"/api/zm/articles/:id",
+15854,
+"exact"
+]
+],
+[
+"GET /api/kol-haam/zm/queue",
+[
+"GET",
+"/api/kol-haam/zm/queue",
+41527,
+"exact"
+]
+],
+[
+"POST /api/kol-haam/zm/:id/approve",
+[
+"POST",
+"/api/kol-haam/zm/:id/approve",
+40059,
+"exact"
+]
+],
+[
+"POST /api/kol-haam/zm/:id/reject",
+[
+"POST",
+"/api/kol-haam/zm/:id/reject",
+40097,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns",
+[
+"POST",
+"/api/zone-manager/community-campaigns",
+19488,
+"exact"
+]
+],
+[
+"PATCH /api/zone-manager/community-campaigns/:id",
+[
+"PATCH",
+"/api/zone-manager/community-campaigns/:id",
+19516,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns/:id/businesses",
+[
+"POST",
+"/api/zone-manager/community-campaigns/:id/businesses",
+19566,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns/:id/invite",
+[
+"POST",
+"/api/zone-manager/community-campaigns/:id/invite",
+19935,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns/:id/requests/:requestId/respond",
+[
+"POST",
+"/api/zone-manager/community-campaigns/:id/requests/:requestId/respond",
+19908,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/community-campaigns/:id/products-review",
+[
+"GET",
+"/api/zone-manager/community-campaigns/:id/products-review",
+19634,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns/:id/products/review",
+[
+"POST",
+"/api/zone-manager/community-campaigns/:id/products/review",
+19658,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-campaigns/:id/products",
+[
+"POST",
+"/api/zone-manager/community-campaigns/:id/products",
+19620,
+"exact"
+]
+],
+[
+" /api/zone-manager/",
+null
+],
+[
+" /api/kol-haam/zm/",
+null
+]
+],
+"docs/retail-module-map-internal.md": [
+[
+"POST /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"exact"
+]
+],
+[
+"POST /api/store/customers",
+[
+"POST",
+"/api/store/customers",
+15183,
+"exact"
+]
+],
+[
+" /api/biz/retail/inventory/",
+null
+],
+[
+"GET /api/members/:groupId",
+[
+"GET",
+"/api/members/:groupId",
+25443,
+"exact"
+]
+],
+[
+"GET /api/reports/:groupId",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"exact"
+]
+],
+[
+"POST /api/store/orders/status",
+[
+"POST",
+"/api/store/orders/status",
+14666,
+"exact"
+]
+],
+[
+" /api/suppliers/",
+[
+"POST",
+"/api/suppliers",
+17185,
+"path-only"
+]
+],
+[
+" /api/b2b/",
+null
+],
+[
+"GET /api/timeclock/status",
+[
+"GET",
+"/api/timeclock/status",
+12860,
+"exact"
+]
+],
+[
+"GET /api/timeclock/report",
+[
+"GET",
+"/api/timeclock/report",
+12970,
+"exact"
+]
+],
+[
+"POST /api/timeclock/punch",
+[
+"POST",
+"/api/timeclock/punch",
+12919,
+"exact"
+]
+],
+[
+"GET /api/timeclock/payroll-preview/:groupId",
+[
+"GET",
+"/api/timeclock/payroll-preview/:groupId",
+11829,
+"exact"
+]
+],
+[
+"POST /api/timeclock/payroll-run",
+[
+"POST",
+"/api/timeclock/payroll-run",
+11853,
+"exact"
+]
+],
+[
+"POST /api/timeclock/adhoc-payment",
+[
+"POST",
+"/api/timeclock/adhoc-payment",
+11874,
+"exact"
+]
+]
+],
+"docs/security-audit-report-2026-10.md": [
+[
+" /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"path-only"
+]
+],
+[
+" /api/admin/approve-user",
+[
+"POST",
+"/api/admin/approve-user",
+11597,
+"path-only"
+]
+],
+[
+"POST /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"exact"
+]
+],
+[
+"POST /api/loans/approve",
+[
+"POST",
+"/api/loans/approve",
+11473,
+"exact"
+]
+],
+[
+"GET /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"exact"
+]
+],
+[
+"POST /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"exact"
+]
+],
+[
+"PUT /api/admin/user-details/:userId",
+[
+"PUT",
+"/api/admin/user-details/:userId",
+11668,
+"exact"
+]
+],
+[
+"POST /api/users/:id/set-first-password",
+[
+"POST",
+"/api/users/:id/set-first-password",
+11709,
+"exact"
+]
+],
+[
+"PUT /api/groups/:id/address",
+[
+"PUT",
+"/api/groups/:id/address",
+25409,
+"exact"
+]
+],
+[
+"POST /api/tasks/vision-verify",
+[
+"POST",
+"/api/tasks/vision-verify",
+12549,
+"exact"
+]
+],
+[
+"GET /api/family/marketplace-history/:groupId",
+[
+"GET",
+"/api/family/marketplace-history/:groupId",
+7958,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"exact"
+]
+],
+[
+" /api/shopping/identify-product",
+null
+]
+],
+"docs/spec-biz-environment.md": [
+[
+"POST /api/login",
+[
+"POST",
+"/api/login",
+10619,
+"exact"
+]
+],
+[
+"POST /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"exact"
+]
+],
+[
+"POST /api/groups",
+[
+"POST",
+"/api/groups",
+10064,
+"exact"
+]
+],
+[
+"POST /api/forgot-code",
+[
+"POST",
+"/api/forgot-code",
+10247,
+"exact"
+]
+],
+[
+"PUT /api/users/:id/permissions",
+[
+"PUT",
+"/api/users/:id/permissions",
+11555,
+"exact"
+]
+],
+[
+"PATCH /api/users/:id/role-type",
+[
+"PATCH",
+"/api/users/:id/role-type",
+26446,
+"exact"
+]
+],
+[
+"GET /api/store/orders/:groupId",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"exact"
+]
+],
+[
+"POST /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"exact"
+]
+],
+[
+"POST /api/store/orders/status",
+[
+"POST",
+"/api/store/orders/status",
+14666,
+"exact"
+]
+],
+[
+"PATCH /api/store/orders/:id/target-date",
+[
+"PATCH",
+"/api/store/orders/:id/target-date",
+14755,
+"exact"
+]
+],
+[
+"GET /api/store/orders/my/:userId",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"exact"
+]
+],
+[
+"POST /api/store/quotes/:id/approve",
+[
+"POST",
+"/api/store/quotes/:id/approve",
+14813,
+"exact"
+]
+],
+[
+"POST /api/store/quotes",
+[
+"POST",
+"/api/store/quotes",
+14099,
+"exact"
+]
+],
+[
+"GET /api/store/quotes/:groupId",
+[
+"GET",
+"/api/store/quotes/:groupId",
+14156,
+"exact"
+]
+],
+[
+"PUT /api/store/quotes/:id",
+[
+"PUT",
+"/api/store/quotes/:id",
+14175,
+"exact"
+]
+],
+[
+"PATCH /api/store/quotes/:id/status",
+[
+"PATCH",
+"/api/store/quotes/:id/status",
+14763,
+"exact"
+]
+],
+[
+"POST /api/store/ai-desc",
+[
+"POST",
+"/api/store/ai-desc",
+15884,
+"exact"
+]
+],
+[
+"POST /api/ai/generate-catalog",
+[
+"POST",
+"/api/ai/generate-catalog",
+18308,
+"exact"
+]
+],
+[
+"GET /api/store/catalog/:groupId",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"exact"
+]
+],
+[
+"POST /api/store/catalog",
+[
+"POST",
+"/api/store/catalog",
+13310,
+"exact"
+]
+],
+[
+"PUT /api/store/catalog/:id",
+[
+"PUT",
+"/api/store/catalog/:id",
+13344,
+"exact"
+]
+],
+[
+"POST /api/store/catalog/toggle",
+[
+"POST",
+"/api/store/catalog/toggle",
+13368,
+"exact"
+]
+],
+[
+"DELETE /api/store/catalog/:id",
+[
+"DELETE",
+"/api/store/catalog/:id",
+13605,
+"exact"
+]
+],
+[
+"GET /api/store/coupons/:groupId",
+[
+"GET",
+"/api/store/coupons/validate",
+16980,
+"exact"
+]
+],
+[
+"POST /api/store/coupons",
+[
+"POST",
+"/api/store/coupons",
+17008,
+"exact"
+]
+],
+[
+"DELETE /api/store/coupons/:id",
+[
+"DELETE",
+"/api/store/coupons/:id",
+17021,
+"exact"
+]
+],
+[
+"GET /api/store/promotions/:groupId",
+[
+"GET",
+"/api/store/promotions/:groupId",
+17060,
+"exact"
+]
+],
+[
+"POST /api/store/promotions",
+[
+"POST",
+"/api/store/promotions",
+17067,
+"exact"
+]
+],
+[
+"PUT /api/store/promotions/toggle/:id",
+[
+"PUT",
+"/api/store/promotions/toggle/:id",
+17105,
+"exact"
+]
+],
+[
+"GET /api/store/customers/:groupId",
+[
+"GET",
+"/api/store/customers/:groupId",
+15158,
+"exact"
+]
+],
+[
+"POST /api/store/customers",
+[
+"POST",
+"/api/store/customers",
+15183,
+"exact"
+]
+],
+[
+"PUT /api/store/customers/:id",
+[
+"PUT",
+"/api/store/customers/:id",
+15205,
+"exact"
+]
+],
+[
+"DELETE /api/store/customers/:id",
+[
+"DELETE",
+"/api/store/customers/:id",
+15244,
+"exact"
+]
+],
+[
+"POST /api/timeclock/set-location",
+[
+"POST",
+"/api/timeclock/set-location",
+12848,
+"exact"
+]
+],
+[
+"GET /api/timeclock/status",
+[
+"GET",
+"/api/timeclock/status",
+12860,
+"exact"
+]
+],
+[
+"POST /api/timeclock/punch",
+[
+"POST",
+"/api/timeclock/punch",
+12919,
+"exact"
+]
+],
+[
+"GET /api/timeclock/report",
+[
+"GET",
+"/api/timeclock/report",
+12970,
+"exact"
+]
+],
+[
+"POST /api/timeclock/manual",
+[
+"POST",
+"/api/timeclock/manual",
+12992,
+"exact"
+]
+],
+[
+"POST /api/tasks",
+[
+"POST",
+"/api/tasks",
+11890,
+"exact"
+]
+],
+[
+"POST /api/tasks/update",
+[
+"POST",
+"/api/tasks/update",
+12023,
+"exact"
+]
+],
+[
+"POST /api/tasks/ai-generate",
+[
+"POST",
+"/api/tasks/ai-generate",
+12310,
+"exact"
+]
+],
+[
+"POST /api/tasks/vision-verify",
+[
+"POST",
+"/api/tasks/vision-verify",
+12549,
+"exact"
+]
+],
+[
+"POST /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"exact"
+]
+],
+[
+"POST /api/academy/ai-generate",
+[
+"POST",
+"/api/academy/ai-generate",
+12226,
+"exact"
+]
+],
+[
+"POST /api/academy/tutor",
+[
+"POST",
+"/api/academy/tutor",
+12770,
+"exact"
+]
+],
+[
+"POST /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"exact"
+]
+],
+[
+"GET /api/academy/bundles/:id",
+[
+"GET",
+"/api/academy/bundles/:id",
+12268,
+"exact"
+]
+],
+[
+"PUT /api/academy/bundles/:id",
+[
+"PUT",
+"/api/academy/bundles/:id",
+12280,
+"exact"
+]
+],
+[
+"POST /api/academy/bundles",
+[
+"POST",
+"/api/academy/bundles",
+12165,
+"exact"
+]
+],
+[
+" /api/pantry/use",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+"POST /api/pantry/familai-insight",
+[
+"POST",
+"/api/pantry/familai-insight",
+12486,
+"exact"
+]
+],
+[
+"POST /api/pantry/add",
+[
+"POST",
+"/api/pantry/add",
+11206,
+"exact"
+]
+],
+[
+"POST /api/pantry/update",
+[
+"POST",
+"/api/pantry/update",
+11225,
+"exact"
+]
+],
+[
+"POST /api/pantry/use",
+[
+"POST",
+"/api/pantry/use",
+11236,
+"exact"
+]
+],
+[
+"DELETE /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"exact"
+]
+],
+[
+"POST /api/b2b/orders/receive",
+[
+"POST",
+"/api/b2b/orders/receive",
+17341,
+"exact"
+]
+],
+[
+"GET /api/suppliers/:groupId",
+[
+"GET",
+"/api/suppliers/:groupId",
+17178,
+"exact"
+]
+],
+[
+"POST /api/suppliers",
+[
+"POST",
+"/api/suppliers",
+17185,
+"exact"
+]
+],
+[
+"GET /api/b2b/catalog/:groupId",
+[
+"GET",
+"/api/b2b/catalog/:groupId",
+17303,
+"exact"
+]
+],
+[
+"POST /api/b2b/orders",
+[
+"POST",
+"/api/b2b/orders",
+18196,
+"exact"
+]
+],
+[
+"GET /api/b2b/orders/:groupId",
+[
+"GET",
+"/api/b2b/orders/:groupId",
+17316,
+"exact"
+]
+],
+[
+"POST /api/shopping/scan-receipt",
+[
+"POST",
+"/api/shopping/scan-receipt",
+12599,
+"exact"
+]
+],
+[
+"POST /api/budget/familai-insight",
+[
+"POST",
+"/api/budget/familai-insight",
+12460,
+"exact"
+]
+],
+[
+"GET /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"exact"
+]
+],
+[
+"POST /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"exact"
+]
+],
+[
+"PUT /api/transaction/:id",
+[
+"PUT",
+"/api/transaction/:id",
+11409,
+"exact"
+]
+],
+[
+"DELETE /api/transaction/:id",
+[
+"DELETE",
+"/api/transaction/:id",
+11432,
+"exact"
+]
+],
+[
+"GET /api/loans",
+[
+"GET",
+"/api/loans",
+11456,
+"exact"
+]
+],
+[
+"POST /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"exact"
+]
+],
+[
+"POST /api/loans/approve",
+[
+"POST",
+"/api/loans/approve",
+11473,
+"exact"
+]
+],
+[
+"POST /api/loans/reject",
+[
+"POST",
+"/api/loans/reject",
+11489,
+"exact"
+]
+],
+[
+"POST /api/forecast/familai-insight",
+[
+"POST",
+"/api/forecast/familai-insight",
+12513,
+"exact"
+]
+],
+[
+"GET /api/budget/filter",
+[
+"GET",
+"/api/budget/filter",
+11330,
+"exact"
+]
+],
+[
+"POST /api/budget/update",
+[
+"POST",
+"/api/budget/update",
+11349,
+"exact"
+]
+],
+[
+"GET /api/equipment/items/:groupId",
+[
+"GET",
+"/api/equipment/items/:groupId",
+26050,
+"exact"
+]
+],
+[
+"GET /api/equipment/maintenance/:groupId",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"exact"
+]
+],
+[
+"GET /api/equipment/faults/:groupId",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"exact"
+]
+],
+[
+"POST /api/equipment/notifications/check/:groupId",
+[
+"POST",
+"/api/equipment/notifications/check/:groupId",
+26264,
+"exact"
+]
+],
+[
+"GET /api/food-cost/:groupId",
+[
+"GET",
+"/api/food-cost/:groupId",
+22632,
+"exact"
+]
+],
+[
+"POST /api/food-cost/recipe/:catalogId",
+[
+"POST",
+"/api/food-cost/:groupId/overhead-presets",
+22351,
+"exact"
+]
+],
+[
+"GET /api/calendar/:groupId",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"exact"
+]
+],
+[
+"POST /api/calendar/settings",
+[
+"POST",
+"/api/calendar/settings",
+22855,
+"exact"
+]
+],
+[
+"POST /api/calendar/services",
+[
+"POST",
+"/api/calendar/services",
+22869,
+"exact"
+]
+],
+[
+"POST /api/calendar/events",
+[
+"POST",
+"/api/calendar/events",
+22891,
+"exact"
+]
+],
+[
+"PUT /api/calendar/events/:id/status",
+[
+"PUT",
+"/api/calendar/events/:id/status",
+22977,
+"exact"
+]
+],
+[
+"DELETE /api/calendar/events/:id",
+[
+"DELETE",
+"/api/calendar/events/:id",
+23175,
+"exact"
+]
+],
+[
+"GET /api/group/members",
+[
+"GET",
+"/api/group/members",
+11541,
+"exact"
+]
+],
+[
+"GET /api/admin/pending-users",
+[
+"GET",
+"/api/admin/pending-users",
+11584,
+"exact"
+]
+],
+[
+"POST /api/admin/approve-user",
+[
+"POST",
+"/api/admin/approve-user",
+11597,
+"exact"
+]
+],
+[
+"DELETE /api/users/:id",
+[
+"DELETE",
+"/api/users/:id",
+11627,
+"exact"
+]
+],
+[
+"POST /api/users/:id/password",
+[
+"POST",
+"/api/users/:id/password",
+11689,
+"exact"
+]
+],
+[
+"GET /api/biz/communities/my/:bizId",
+[
+"GET",
+"/api/biz/communities/my/:bizId",
+16630,
+"exact"
+]
+],
+[
+"GET /api/biz/communities/available/:bizId",
+[
+"GET",
+"/api/biz/communities/available/:bizId",
+16755,
+"exact"
+]
+],
+[
+"POST /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"exact"
+]
+],
+[
+"DELETE /api/biz/communities/leave/:communityId/:bizId",
+[
+"DELETE",
+"/api/biz/communities/leave/:communityId/:bizId",
+16971,
+"exact"
+]
+],
+[
+"GET /api/inbox/:groupId",
+[
+"GET",
+"/api/inbox/:groupId",
+23185,
+"exact"
+]
+],
+[
+"PUT /api/inbox/:id/read",
+[
+"PUT",
+"/api/inbox/:id/read",
+23193,
+"exact"
+]
+],
+[
+"POST /api/store/settings",
+[
+"POST",
+"/api/store/settings",
+13116,
+"exact"
+]
+],
+[
+"POST /api/store/settings/presets",
+[
+"POST",
+"/api/store/settings/presets",
+13276,
+"exact"
+]
+],
+[
+"GET /api/store/settings/:groupId",
+[
+"GET",
+"/api/store/settings/:groupId",
+13092,
+"exact"
+]
+],
+[
+"POST /api/groups/:id/logo",
+[
+"POST",
+"/api/groups/:id/logo",
+23694,
+"exact"
+]
+],
+[
+"GET /api/beauty/:bizId/practitioners",
+[
+"GET",
+"/api/beauty/:bizId/practitioners",
+31280,
+"exact"
+]
+],
+[
+"GET /api/beauty/:bizId/appointments",
+[
+"GET",
+"/api/beauty/:bizId/appointments",
+31386,
+"exact"
+]
+],
+[
+"POST /api/beauty/:bizId/appointments",
+[
+"POST",
+"/api/beauty/:bizId/appointments",
+31409,
+"exact"
+]
+],
+[
+"GET /api/beauty/:bizId/clients",
+[
+"GET",
+"/api/beauty/:bizId/clients",
+31729,
+"exact"
+]
+],
+[
+"GET /api/beauty/:bizId/services",
+[
+"GET",
+"/api/beauty/:bizId/services",
+32497,
+"exact"
+]
+],
+[
+"GET /api/logistics/orders/:groupId",
+[
+"GET",
+"/api/logistics/orders/:groupId",
+32716,
+"exact"
+]
+],
+[
+"POST /api/logistics/orders",
+[
+"POST",
+"/api/logistics/orders",
+32736,
+"exact"
+]
+],
+[
+" /api/login",
+[
+"POST",
+"/api/login",
+10619,
+"path-only"
+]
+],
+[
+" /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"path-only"
+]
+],
+[
+" /api/groups",
+[
+"POST",
+"/api/groups",
+10064,
+"path-only"
+]
+],
+[
+" /api/groups/onboard",
+[
+"POST",
+"/api/groups/onboard",
+10238,
+"path-only"
+]
+],
+[
+" /api/forgot-code",
+[
+"POST",
+"/api/forgot-code",
+10247,
+"path-only"
+]
+],
+[
+" /api/groups/:id/logo",
+[
+"POST",
+"/api/groups/:id/logo",
+23694,
+"path-only"
+]
+],
+[
+" /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"path-only"
+]
+],
+[
+" /api/group/members",
+[
+"GET",
+"/api/group/members",
+11541,
+"path-only"
+]
+],
+[
+" /api/users/:id/permissions",
+[
+"PUT",
+"/api/users/:id/permissions",
+11555,
+"path-only"
+]
+],
+[
+" /api/users/:id/role-type",
+[
+"PATCH",
+"/api/users/:id/role-type",
+26446,
+"path-only"
+]
+],
+[
+" /api/admin/pending-users",
+[
+"GET",
+"/api/admin/pending-users",
+11584,
+"path-only"
+]
+],
+[
+" /api/admin/approve-user",
+[
+"POST",
+"/api/admin/approve-user",
+11597,
+"path-only"
+]
+],
+[
+" /api/users/:id",
+[
+"DELETE",
+"/api/users/:id",
+11627,
+"path-only"
+]
+],
+[
+" /api/users/:id/password",
+[
+"POST",
+"/api/users/:id/password",
+11689,
+"path-only"
+]
+],
+[
+" /api/admin/update-settings",
+[
+"POST",
+"/api/admin/update-settings",
+11786,
+"path-only"
+]
+],
+[
+" /api/admin/send-credentials",
+[
+"POST",
+"/api/admin/send-credentials",
+10336,
+"path-only"
+]
+],
+[
+" /api/store/settings/:groupId",
+[
+"GET",
+"/api/store/settings/:groupId",
+13092,
+"path-only"
+]
+],
+[
+" /api/store/settings",
+[
+"POST",
+"/api/store/settings",
+13116,
+"path-only"
+]
+],
+[
+" /api/store/catalog/:groupId",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"path-only"
+]
+],
+[
+" /api/store/catalog",
+[
+"POST",
+"/api/store/catalog",
+13310,
+"path-only"
+]
+],
+[
+" /api/store/catalog/:id",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"path-only"
+]
+],
+[
+" /api/store/catalog/toggle",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"path-only"
+]
+],
+[
+" /api/store/orders/:groupId",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"path-only"
+]
+],
+[
+" /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"path-only"
+]
+],
+[
+" /api/store/orders/status",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"path-only"
+]
+],
+[
+" /api/store/orders/:id/target-date",
+[
+"PATCH",
+"/api/store/orders/:id/target-date",
+14755,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:groupId",
+[
+"GET",
+"/api/store/quotes/:groupId",
+14156,
+"path-only"
+]
+],
+[
+" /api/store/quotes",
+[
+"POST",
+"/api/store/quotes",
+14099,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:id",
+[
+"GET",
+"/api/store/quotes/:groupId",
+14156,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:id/status",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:id/approve",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/store/customers/:groupId",
+[
+"GET",
+"/api/store/customers/:groupId",
+15158,
+"path-only"
+]
+],
+[
+" /api/store/customers",
+[
+"POST",
+"/api/store/customers",
+15183,
+"path-only"
+]
+],
+[
+" /api/store/customers/:id",
+[
+"GET",
+"/api/store/customers/:groupId",
+15158,
+"path-only"
+]
+],
+[
+" /api/storefront/:code",
+[
+"GET",
+"/api/storefront/:code",
+15286,
+"path-only"
+]
+],
+[
+" /api/store/coupons/:groupId",
+[
+"GET",
+"/api/store/coupons/validate",
+16980,
+"path-only"
+]
+],
+[
+" /api/store/coupons",
+[
+"POST",
+"/api/store/coupons",
+17008,
+"path-only"
+]
+],
+[
+" /api/store/promotions/:groupId",
+[
+"GET",
+"/api/store/promotions/:groupId",
+17060,
+"path-only"
+]
+],
+[
+" /api/store/promotions",
+[
+"POST",
+"/api/store/promotions",
+17067,
+"path-only"
+]
+],
+[
+" /api/store/promotions/toggle/:id",
+[
+"PUT",
+"/api/store/promotions/toggle/:id",
+17105,
+"path-only"
+]
+],
+[
+" /api/timeclock/set-location",
+[
+"POST",
+"/api/timeclock/set-location",
+12848,
+"path-only"
+]
+],
+[
+" /api/timeclock/status",
+[
+"GET",
+"/api/timeclock/status",
+12860,
+"path-only"
+]
+],
+[
+" /api/timeclock/punch",
+[
+"POST",
+"/api/timeclock/punch",
+12919,
+"path-only"
+]
+],
+[
+" /api/timeclock/report",
+[
+"GET",
+"/api/timeclock/report",
+12970,
+"path-only"
+]
+],
+[
+" /api/timeclock/manual",
+[
+"POST",
+"/api/timeclock/manual",
+12992,
+"path-only"
+]
+],
+[
+" /api/tasks",
+[
+"POST",
+"/api/tasks",
+11890,
+"path-only"
+]
+],
+[
+" /api/tasks/update",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+" /api/tasks/ai-generate",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+" /api/tasks/vision-verify",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+" /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"path-only"
+]
+],
+[
+" /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"path-only"
+]
+],
+[
+" /api/academy/bundles/:id",
+[
+"GET",
+"/api/academy/bundles/:id",
+12268,
+"path-only"
+]
+],
+[
+" /api/academy/ai-generate",
+[
+"POST",
+"/api/academy/ai-generate",
+12226,
+"path-only"
+]
+],
+[
+" /api/academy/tutor",
+[
+"POST",
+"/api/academy/tutor",
+12770,
+"path-only"
+]
+],
+[
+" /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"path-only"
+]
+],
+[
+" /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"path-only"
+]
+],
+[
+" /api/transaction/:id",
+[
+"PUT",
+"/api/transaction/:id",
+11409,
+"path-only"
+]
+],
+[
+" /api/loans",
+[
+"GET",
+"/api/loans",
+11456,
+"path-only"
+]
+],
+[
+" /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"path-only"
+]
+],
+[
+" /api/loans/approve",
+[
+"POST",
+"/api/loans/approve",
+11473,
+"path-only"
+]
+],
+[
+" /api/loans/reject",
+[
+"POST",
+"/api/loans/reject",
+11489,
+"path-only"
+]
+],
+[
+" /api/budget/filter",
+[
+"GET",
+"/api/budget/filter",
+11330,
+"path-only"
+]
+],
+[
+" /api/budget/update",
+[
+"POST",
+"/api/budget/update",
+11349,
+"path-only"
+]
+],
+[
+" /api/pantry/add",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/update",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"path-only"
+]
+],
+[
+" /api/suppliers/:groupId",
+[
+"GET",
+"/api/suppliers/:groupId",
+17178,
+"path-only"
+]
+],
+[
+" /api/suppliers",
+[
+"POST",
+"/api/suppliers",
+17185,
+"path-only"
+]
+],
+[
+" /api/suppliers/:id",
+[
+"GET",
+"/api/suppliers/:groupId",
+17178,
+"path-only"
+]
+],
+[
+" /api/b2b/catalog/:groupId",
+[
+"GET",
+"/api/b2b/catalog/:groupId",
+17303,
+"path-only"
+]
+],
+[
+" /api/b2b/orders",
+[
+"POST",
+"/api/b2b/orders",
+18196,
+"path-only"
+]
+],
+[
+" /api/b2b/orders/:groupId",
+[
+"GET",
+"/api/b2b/orders/:groupId",
+17316,
+"path-only"
+]
+],
+[
+" /api/b2b/orders/receive",
+[
+"GET",
+"/api/b2b/orders/:groupId",
+17316,
+"path-only"
+]
+],
+[
+" /api/calendar/:groupId",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"path-only"
+]
+],
+[
+" /api/calendar/settings",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"path-only"
+]
+],
+[
+" /api/calendar/services",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"path-only"
+]
+],
+[
+" /api/calendar/events",
+[
+"GET",
+"/api/calendar/:groupId",
+22800,
+"path-only"
+]
+],
+[
+" /api/calendar/events/:id/status",
+[
+"PUT",
+"/api/calendar/events/:id/status",
+22977,
+"path-only"
+]
+],
+[
+" /api/biz/communities/my/:bizId",
+[
+"GET",
+"/api/biz/communities/my/:bizId",
+16630,
+"path-only"
+]
+],
+[
+" /api/biz/communities/available/:bizId",
+[
+"GET",
+"/api/biz/communities/available/:bizId",
+16755,
+"path-only"
+]
+],
+[
+" /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"path-only"
+]
+],
+[
+" /api/biz/chat-assistant",
+[
+"POST",
+"/api/biz/chat-assistant",
+16038,
+"path-only"
+]
+],
+[
+" /api/store/ai-desc",
+[
+"POST",
+"/api/store/ai-desc",
+15884,
+"path-only"
+]
+],
+[
+" /api/ai/generate-catalog",
+[
+"POST",
+"/api/ai/generate-catalog",
+18308,
+"path-only"
+]
+],
+[
+" /api/budget/familai-insight",
+[
+"POST",
+"/api/budget/familai-insight",
+12460,
+"path-only"
+]
+],
+[
+" /api/pantry/familai-insight",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/forecast/familai-insight",
+[
+"POST",
+"/api/forecast/familai-insight",
+12513,
+"path-only"
+]
+],
+[
+" /api/shopping/scan-receipt",
+[
+"POST",
+"/api/shopping/scan-receipt",
+12599,
+"path-only"
+]
+],
+[
+" /api/guide/chat",
+[
+"POST",
+"/api/guide/chat",
+12799,
+"path-only"
+]
+],
+[
+" /api/recipes/generate",
+[
+"POST",
+"/api/recipes/generate",
+12206,
+"path-only"
+]
+],
+[
+" /api/equipment/items/:groupId",
+[
+"GET",
+"/api/equipment/items/:groupId",
+26050,
+"path-only"
+]
+],
+[
+" /api/equipment/maintenance/:groupId",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"path-only"
+]
+],
+[
+" /api/equipment/faults/:groupId",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"path-only"
+]
+],
+[
+" /api/equipment/notifications/check/:groupId",
+[
+"POST",
+"/api/equipment/notifications/check/:groupId",
+26264,
+"path-only"
+]
+],
+[
+" /api/food-cost/:groupId",
+[
+"GET",
+"/api/food-cost/:groupId",
+22632,
+"path-only"
+]
+],
+[
+" /api/food-cost/recipe/:catalogId",
+[
+"GET",
+"/api/food-cost/:groupId/known-ingredients",
+22325,
+"path-only"
+]
+],
+[
+" /api/inbox/:groupId",
+[
+"GET",
+"/api/inbox/:groupId",
+23185,
+"path-only"
+]
+],
+[
+" /api/inbox/:id/read",
+[
+"PUT",
+"/api/inbox/:id/read",
+23193,
+"path-only"
+]
+],
+[
+" /api/inbox/:id",
+[
+"GET",
+"/api/inbox/:groupId",
+23185,
+"path-only"
+]
+],
+[
+" /api/inbox/customer",
+[
+"GET",
+"/api/inbox/:groupId",
+23185,
+"path-only"
+]
+],
+[
+" /api/tickets",
+[
+"POST",
+"/api/tickets",
+23402,
+"path-only"
+]
+],
+[
+" /api/tickets/:groupId",
+[
+"GET",
+"/api/tickets/:groupId",
+23432,
+"path-only"
+]
+],
+[
+"GET /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"exact"
+]
+],
+[
+"GET /api/banners",
+[
+"GET",
+"/api/banners",
+9024,
+"exact"
+]
+],
+[
+"POST /api/tickets",
+[
+"POST",
+"/api/tickets",
+23402,
+"exact"
+]
+],
+[
+"GET /api/tickets/:groupId",
+[
+"GET",
+"/api/tickets/:groupId",
+23432,
+"exact"
+]
+],
+[
+"POST /api/support/ticket",
+[
+"POST",
+"/api/support/ticket",
+4349,
+"exact"
+]
+],
+[
+"GET /api/settings/welcome",
+[
+"GET",
+"/api/settings/welcome",
+8956,
+"exact"
+]
+]
+],
+"docs/spec-family-environment.md": [
+[
+"POST /api/login",
+[
+"POST",
+"/api/login",
+10619,
+"exact"
+]
+],
+[
+"POST /api/groups",
+[
+"POST",
+"/api/groups",
+10064,
+"exact"
+]
+],
+[
+"POST /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"exact"
+]
+],
+[
+" /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"path-only"
+]
+],
+[
+" /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"path-only"
+]
+],
+[
+" /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"path-only"
+]
+],
+[
+"GET /api/data/:userId",
+[
+"GET",
+"/api/data/:userId",
+10755,
+"exact"
+]
+],
+[
+"GET /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"exact"
+]
+],
+[
+" /api/data",
+null
+],
+[
+"GET /api/kids/parent-overview/:groupId",
+[
+"GET",
+"/api/kids/parent-overview/:groupId",
+35075,
+"exact"
+]
+],
+[
+" /api/transaction/:id",
+[
+"PUT",
+"/api/transaction/:id",
+11409,
+"path-only"
+]
+],
+[
+" /api/kids/parent-overview/:groupId",
+[
+"GET",
+"/api/kids/parent-overview/:groupId",
+35075,
+"path-only"
+]
+],
+[
+" /api/kids/quests",
+[
+"POST",
+"/api/kids/quests",
+35720,
+"path-only"
+]
+],
+[
+"DELETE /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"path-only"
+]
+],
+[
+"POST /api/transaction",
+[
+"POST",
+"/api/transaction",
+11387,
+"exact"
+]
+],
+[
+"POST /api/kids/quests",
+[
+"POST",
+"/api/kids/quests",
+35720,
+"exact"
+]
+],
+[
+"DELETE /api/transaction/:id",
+[
+"DELETE",
+"/api/transaction/:id",
+11432,
+"exact"
+]
+],
+[
+" /api/admin/payday",
+[
+"POST",
+"/api/admin/payday",
+11801,
+"path-only"
+]
+],
+[
+" /api/loans",
+[
+"GET",
+"/api/loans",
+11456,
+"path-only"
+]
+],
+[
+" /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"path-only"
+]
+],
+[
+" /api/loans/approve",
+[
+"POST",
+"/api/loans/approve",
+11473,
+"path-only"
+]
+],
+[
+" /api/loans/reject",
+[
+"POST",
+"/api/loans/reject",
+11489,
+"path-only"
+]
+],
+[
+" /api/goals",
+[
+"POST",
+"/api/goals",
+11504,
+"path-only"
+]
+],
+[
+" /api/goals/deposit",
+[
+"POST",
+"/api/goals/deposit",
+11520,
+"path-only"
+]
+],
+[
+" /api/goals/familai-advice",
+[
+"POST",
+"/api/goals/familai-advice",
+12430,
+"path-only"
+]
+],
+[
+" /api/admin/adjust-balance",
+[
+"POST",
+"/api/admin/adjust-balance",
+11729,
+"path-only"
+]
+],
+[
+" /api/admin/update-settings",
+[
+"POST",
+"/api/admin/update-settings",
+11786,
+"path-only"
+]
+],
+[
+"POST /api/loans/approve",
+[
+"POST",
+"/api/loans/approve",
+11473,
+"exact"
+]
+],
+[
+"POST /api/loans/reject",
+[
+"POST",
+"/api/loans/reject",
+11489,
+"exact"
+]
+],
+[
+"GET /api/loans",
+[
+"GET",
+"/api/loans",
+11456,
+"exact"
+]
+],
+[
+"POST /api/loans/request",
+[
+"POST",
+"/api/loans/request",
+11463,
+"exact"
+]
+],
+[
+"POST /api/goals",
+[
+"POST",
+"/api/goals",
+11504,
+"exact"
+]
+],
+[
+"POST /api/goals/deposit",
+[
+"POST",
+"/api/goals/deposit",
+11520,
+"exact"
+]
+],
+[
+"POST /api/goals/familai-advice",
+[
+"POST",
+"/api/goals/familai-advice",
+12430,
+"exact"
+]
+],
+[
+"POST /api/admin/update-settings",
+[
+"POST",
+"/api/admin/update-settings",
+11786,
+"exact"
+]
+],
+[
+"POST /api/admin/payday",
+[
+"POST",
+"/api/admin/payday",
+11801,
+"exact"
+]
+],
+[
+" /api/budget/filter",
+[
+"GET",
+"/api/budget/filter",
+11330,
+"path-only"
+]
+],
+[
+" /api/budget/update",
+[
+"POST",
+"/api/budget/update",
+11349,
+"path-only"
+]
+],
+[
+" /api/budget/familai-insight",
+[
+"POST",
+"/api/budget/familai-insight",
+12460,
+"path-only"
+]
+],
+[
+"GET /api/budget/filter",
+[
+"GET",
+"/api/budget/filter",
+11330,
+"exact"
+]
+],
+[
+"POST /api/budget/update",
+[
+"POST",
+"/api/budget/update",
+11349,
+"exact"
+]
+],
+[
+"POST /api/budget/familai-insight",
+[
+"POST",
+"/api/budget/familai-insight",
+12460,
+"exact"
+]
+],
+[
+"GET /api/biz/export-report",
+[
+"GET",
+"/api/biz/export-report",
+16373,
+"exact"
+]
+],
+[
+" /api/forecast/familai-insight",
+[
+"POST",
+"/api/forecast/familai-insight",
+12513,
+"path-only"
+]
+],
+[
+"POST /api/forecast/familai-insight",
+[
+"POST",
+"/api/forecast/familai-insight",
+12513,
+"exact"
+]
+],
+[
+"POST /api/shopping/scan-receipt",
+[
+"POST",
+"/api/shopping/scan-receipt",
+12599,
+"exact"
+]
+],
+[
+"POST /api/shopping/ai-generate-list",
+[
+"POST",
+"/api/shopping/ai-generate-list",
+12700,
+"exact"
+]
+],
+[
+"POST /api/shopping/identify-product",
+null
+],
+[
+" /api/shopping/add",
+[
+"POST",
+"/api/shopping/add",
+10863,
+"path-only"
+]
+],
+[
+" /api/shopping/update",
+[
+"POST",
+"/api/shopping/update",
+10879,
+"path-only"
+]
+],
+[
+" /api/shopping/delete/:id",
+[
+"DELETE",
+"/api/shopping/delete/:id",
+10900,
+"path-only"
+]
+],
+[
+" /api/shopping/clear/:groupId",
+[
+"DELETE",
+"/api/shopping/clear/:groupId",
+10910,
+"path-only"
+]
+],
+[
+" /api/shopping/category-map",
+[
+"GET",
+"/api/shopping/category-map",
+10918,
+"path-only"
+]
+],
+[
+" /api/shopping/checkout",
+[
+"POST",
+"/api/shopping/checkout",
+11048,
+"path-only"
+]
+],
+[
+" /api/shopping/history",
+[
+"GET",
+"/api/shopping/history",
+11086,
+"path-only"
+]
+],
+[
+" /api/shopping/copy",
+[
+"POST",
+"/api/shopping/copy",
+11095,
+"path-only"
+]
+],
+[
+" /api/shopping/saved",
+[
+"GET",
+"/api/shopping/saved",
+11114,
+"path-only"
+]
+],
+[
+" /api/shopping/save",
+[
+"POST",
+"/api/shopping/save",
+11122,
+"path-only"
+]
+],
+[
+" /api/shopping/load-saved",
+[
+"POST",
+"/api/shopping/load-saved",
+11143,
+"path-only"
+]
+],
+[
+" /api/shopping/saved/:id",
+[
+"PUT",
+"/api/shopping/saved/:id",
+11162,
+"path-only"
+]
+],
+[
+" /api/shopping/scan-receipt",
+[
+"POST",
+"/api/shopping/scan-receipt",
+12599,
+"path-only"
+]
+],
+[
+" /api/shopping/ai-generate-list",
+[
+"POST",
+"/api/shopping/ai-generate-list",
+12700,
+"path-only"
+]
+],
+[
+" /api/shopping/scan-receipt/save",
+[
+"POST",
+"/api/shopping/scan-receipt/save",
+12730,
+"path-only"
+]
+],
+[
+" /api/shopping/supermarket/start",
+[
+"POST",
+"/api/shopping/supermarket/start",
+12752,
+"path-only"
+]
+],
+[
+" /api/shopping/supermarket/end",
+[
+"POST",
+"/api/shopping/supermarket/end",
+12763,
+"path-only"
+]
+],
+[
+"DELETE /api/shopping/delete/:id",
+[
+"DELETE",
+"/api/shopping/delete/:id",
+10900,
+"exact"
+]
+],
+[
+"DELETE /api/shopping/saved/:id",
+[
+"DELETE",
+"/api/shopping/saved/:id",
+11179,
+"exact"
+]
+],
+[
+"POST /api/shopping/update",
+[
+"POST",
+"/api/shopping/update",
+10879,
+"exact"
+]
+],
+[
+" /api/shopping/identify-product",
+null
+],
+[
+" /api/pantry/:groupId",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/add",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/update",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/use",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"path-only"
+]
+],
+[
+" /api/pantry/bulk-update",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/pantry/familai-insight",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+"DELETE /api/pantry/delete/:id",
+[
+"DELETE",
+"/api/pantry/delete/:id",
+11255,
+"exact"
+]
+],
+[
+" /api/recipes/generate",
+[
+"POST",
+"/api/recipes/generate",
+12206,
+"path-only"
+]
+],
+[
+"POST /api/recipes/generate",
+[
+"POST",
+"/api/recipes/generate",
+12206,
+"exact"
+]
+],
+[
+" /api/store/orders/my/:userId",
+[
+"POST",
+"/api/store/orders/:id/customer-feedback",
+14722,
+"path-only"
+]
+],
+[
+" /api/store/quotes/family/:groupId",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:id/customer-response",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/store/orders/:id/customer-feedback",
+[
+"POST",
+"/api/store/orders/:id/customer-feedback",
+14722,
+"path-only"
+]
+],
+[
+"POST /api/tasks/vision-verify",
+[
+"POST",
+"/api/tasks/vision-verify",
+12549,
+"exact"
+]
+],
+[
+" /api/tasks/update",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+" /api/tasks",
+[
+"POST",
+"/api/tasks",
+11890,
+"path-only"
+]
+],
+[
+" /api/tasks/bulk",
+[
+"POST",
+"/api/tasks/bulk",
+11932,
+"path-only"
+]
+],
+[
+" /api/tasks/:id",
+[
+"POST",
+"/api/tasks/bulk",
+11932,
+"path-only"
+]
+],
+[
+" /api/tasks/:id/proof",
+[
+"POST",
+"/api/tasks/:id/proof",
+11976,
+"path-only"
+]
+],
+[
+" /api/tasks/:id/comments",
+[
+"GET",
+"/api/tasks/:id/comments",
+11994,
+"path-only"
+]
+],
+[
+" /api/tasks/ai-generate",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+" /api/tasks/vision-verify",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"path-only"
+]
+],
+[
+"POST /api/tasks/ai-generate",
+[
+"POST",
+"/api/tasks/ai-generate",
+12310,
+"exact"
+]
+],
+[
+"PATCH /api/tasks/:id",
+[
+"PATCH",
+"/api/tasks/:id",
+11956,
+"exact"
+]
+],
+[
+"POST /api/academy/ai-generate",
+[
+"POST",
+"/api/academy/ai-generate",
+12226,
+"exact"
+]
+],
+[
+" /api/academy/request-challenge",
+[
+"POST",
+"/api/academy/request-challenge",
+12084,
+"path-only"
+]
+],
+[
+" /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"path-only"
+]
+],
+[
+" /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"path-only"
+]
+],
+[
+" /api/academy/bundles",
+[
+"POST",
+"/api/academy/bundles",
+12165,
+"path-only"
+]
+],
+[
+" /api/academy/ai-generate",
+[
+"POST",
+"/api/academy/ai-generate",
+12226,
+"path-only"
+]
+],
+[
+" /api/academy/tutor",
+[
+"POST",
+"/api/academy/tutor",
+12770,
+"path-only"
+]
+],
+[
+" /api/academy/bundles/:id",
+[
+"GET",
+"/api/academy/bundles/:id",
+12268,
+"path-only"
+]
+],
+[
+"POST /api/academy/submit",
+[
+"POST",
+"/api/academy/submit",
+12126,
+"exact"
+]
+],
+[
+"POST /api/academy/assign",
+[
+"POST",
+"/api/academy/assign",
+12111,
+"exact"
+]
+],
+[
+" /api/kids/award-flw",
+[
+"POST",
+"/api/kids/award-flw",
+35294,
+"path-only"
+]
+],
+[
+"POST /api/academy/bundles",
+[
+"POST",
+"/api/academy/bundles",
+12165,
+"exact"
+]
+],
+[
+"PUT /api/academy/bundles/:id",
+[
+"PUT",
+"/api/academy/bundles/:id",
+12280,
+"exact"
+]
+],
+[
+"GET /api/academy/bundles/:id",
+[
+"GET",
+"/api/academy/bundles/:id",
+12268,
+"exact"
+]
+],
+[
+"POST /api/sa/communities",
+[
+"POST",
+"/api/sa/communities",
+17490,
+"exact"
+]
+],
+[
+"POST /api/community/user-create",
+[
+"POST",
+"/api/community/user-create",
+16593,
+"exact"
+]
+],
+[
+"POST /api/community/join",
+[
+"POST",
+"/api/community/join",
+18484,
+"exact"
+]
+],
+[
+"POST /api/community/manager/family/approve",
+[
+"POST",
+"/api/community/manager/family/approve",
+20464,
+"exact"
+]
+],
+[
+"DELETE /api/community/leave/:groupId/:communityId",
+[
+"DELETE",
+"/api/community/leave/:groupId/:communityId",
+18522,
+"exact"
+]
+],
+[
+"PUT /api/sa/communities/:commId/set-manager",
+[
+"PUT",
+"/api/sa/communities/:commId/set-manager",
+18640,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/set-community-manager",
+[
+"POST",
+"/api/zone-manager/set-community-manager",
+19962,
+"exact"
+]
+],
+[
+"POST /api/community/invite-business",
+[
+"POST",
+"/api/community/invite-business",
+16833,
+"exact"
+]
+],
+[
+"POST /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"exact"
+]
+],
+[
+"POST /api/biz/community/promotions",
+[
+"POST",
+"/api/biz/community/promotions",
+17824,
+"exact"
+]
+],
+[
+"POST /api/community/promotions/:id/redeem",
+[
+"POST",
+"/api/community/promotions/:id/redeem",
+22132,
+"exact"
+]
+],
+[
+"GET /api/community/approved-banners",
+[
+"GET",
+"/api/community/approved-banners",
+21458,
+"exact"
+]
+],
+[
+" /api/community/user-create",
+[
+"POST",
+"/api/community/user-create",
+16593,
+"path-only"
+]
+],
+[
+" /api/community/my-initiatives/:groupId",
+[
+"GET",
+"/api/community/my-initiatives/:groupId",
+16614,
+"path-only"
+]
+],
+[
+" /api/community/join",
+[
+"POST",
+"/api/community/join",
+18484,
+"path-only"
+]
+],
+[
+" /api/community/leave/:groupId/:communityId",
+[
+"DELETE",
+"/api/community/leave/:groupId/:communityId",
+18522,
+"path-only"
+]
+],
+[
+" /api/community/manager/family/approve",
+[
+"POST",
+"/api/community/manager/family/approve",
+20464,
+"path-only"
+]
+],
+[
+" /api/community/manager/community-business/approve",
+[
+"POST",
+"/api/community/manager/community-business/approve",
+16891,
+"path-only"
+]
+],
+[
+" /api/community/manager-data/:groupId",
+[
+"GET",
+"/api/community/manager-data/:groupId",
+20490,
+"path-only"
+]
+],
+[
+" /api/community/manager/campaigns",
+[
+"POST",
+"/api/community/manager/campaigns",
+20575,
+"path-only"
+]
+],
+[
+" /api/community/manager/articles",
+[
+"POST",
+"/api/community/manager/articles",
+15863,
+"path-only"
+]
+],
+[
+" /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"path-only"
+]
+],
+[
+" /api/biz/community-invitation/accept",
+[
+"POST",
+"/api/biz/community-invitation/accept",
+16865,
+"path-only"
+]
+],
+[
+" /api/biz/community/promotions",
+[
+"POST",
+"/api/biz/community/promotions",
+17824,
+"path-only"
+]
+],
+[
+" /api/biz/community-discount",
+[
+"PUT",
+"/api/biz/community-discount",
+19074,
+"path-only"
+]
+],
+[
+"GET /api/biz/community-invitations/:bizId",
+[
+"GET",
+"/api/biz/community-invitations/:bizId",
+16852,
+"exact"
+]
+],
+[
+"POST /api/biz/community-invitation/accept",
+[
+"POST",
+"/api/biz/community-invitation/accept",
+16865,
+"exact"
+]
+],
+[
+"DELETE /api/biz/communities/leave/:communityId/:bizId",
+[
+"DELETE",
+"/api/biz/communities/leave/:communityId/:bizId",
+16971,
+"exact"
+]
+],
+[
+"GET /api/biz/community/promotions/:bizId",
+[
+"GET",
+"/api/biz/community/:communityId/groups",
+16646,
+"exact"
+]
+],
+[
+"POST /api/biz/community/promotions/:id/banner-request",
+[
+"POST",
+"/api/biz/community/promotions/:id/banner-request",
+21437,
+"exact"
+]
+],
+[
+"PUT /api/biz/community-discount",
+[
+"PUT",
+"/api/biz/community-discount",
+19074,
+"exact"
+]
+],
+[
+"GET /api/biz/communities/my/:bizId",
+[
+"GET",
+"/api/biz/communities/my/:bizId",
+16630,
+"exact"
+]
+],
+[
+" /api/community/pool",
+[
+"POST",
+"/api/community/pool",
+33982,
+"path-only"
+]
+],
+[
+" /api/community/pool/community/:communityId",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id",
+[
+"GET",
+"/api/community/pool/:id",
+34029,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/join",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/remove-member",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/bid",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/bids",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/select-bid",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/open-round2",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/archive",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/renew",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/edit",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/restore",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/messages",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/:id/message",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"path-only"
+]
+],
+[
+" /api/community/pool/family-archive/:groupId",
+[
+"POST",
+"/api/community/pool/:id/remove-member",
+34050,
+"path-only"
+]
+],
+[
+" /api/biz/pools/:bizGroupId",
+[
+"GET",
+"/api/biz/pools/:bizGroupId",
+34332,
+"path-only"
+]
+],
+[
+" /api/biz/my-pool-bids/:bizGroupId",
+[
+"GET",
+"/api/biz/my-pool-bids/:bizGroupId",
+34302,
+"path-only"
+]
+],
+[
+" /api/biz/pool-archive/:bizGroupId",
+[
+"GET",
+"/api/biz/pool-archive/:bizGroupId",
+34393,
+"path-only"
+]
+],
+[
+" /api/community/pool/cleanup",
+[
+"GET",
+"/api/community/pool/:id",
+34029,
+"path-only"
+]
+],
+[
+"GET /api/community/pool/:id",
+[
+"GET",
+"/api/community/pool/:id",
+34029,
+"exact"
+]
+],
+[
+"GET /api/community/pool/community/:communityId",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"exact"
+]
+],
+[
+"GET /api/community/pool/:id/messages",
+[
+"GET",
+"/api/community/pool/community/:communityId",
+34010,
+"exact"
+]
+],
+[
+" /api/flow/wallet/family/:groupId",
+[
+"GET",
+"/api/flow/wallet/family/:groupId",
+21894,
+"path-only"
+]
+],
+[
+" /api/flow/wallet/business/:groupId",
+[
+"GET",
+"/api/flow/wallet/business/:groupId",
+21917,
+"path-only"
+]
+],
+[
+" /api/flow/community-wallet/:communityId",
+[
+"GET",
+"/api/flow/community-wallet/:communityId",
+21929,
+"path-only"
+]
+],
+[
+" /api/flow/redeem",
+[
+"POST",
+"/api/flow/redeem",
+21950,
+"path-only"
+]
+],
+[
+" /api/flow/redeem/validate",
+[
+"POST",
+"/api/flow/redeem/validate",
+22025,
+"path-only"
+]
+],
+[
+" /api/flow/deduct",
+[
+"POST",
+"/api/flow/deduct",
+22044,
+"path-only"
+]
+],
+[
+" /api/flow/redemptions/:code/use",
+[
+"POST",
+"/api/flow/redemptions/:code/use",
+22119,
+"path-only"
+]
+],
+[
+" /api/flow/daily-login",
+[
+"POST",
+"/api/flow/daily-login",
+22090,
+"path-only"
+]
+],
+[
+" /api/sa/flow/",
+null
+],
+[
+"GET /api/flow/wallet/family/:groupId",
+[
+"GET",
+"/api/flow/wallet/family/:groupId",
+21894,
+"exact"
+]
+],
+[
+"POST /api/flow/redeem",
+[
+"POST",
+"/api/flow/redeem",
+21950,
+"exact"
+]
+],
+[
+"POST /api/flow/deduct",
+[
+"POST",
+"/api/flow/deduct",
+22044,
+"exact"
+]
+],
+[
+"POST /api/flow/daily-login",
+[
+"POST",
+"/api/flow/daily-login",
+22090,
+"exact"
+]
+],
+[
+"POST /api/flow/redeem/validate",
+[
+"POST",
+"/api/flow/redeem/validate",
+22025,
+"exact"
+]
+],
+[
+"POST /api/flow/redemptions/:code/use",
+[
+"POST",
+"/api/flow/redemptions/:code/use",
+22119,
+"exact"
+]
+],
+[
+"GET /api/flow/community-wallet/:id",
+[
+"GET",
+"/api/flow/community-wallet/:communityId",
+21929,
+"exact"
+]
+],
+[
+"PUT /api/users/:id/permissions",
+[
+"PUT",
+"/api/users/:id/permissions",
+11555,
+"exact"
+]
+],
+[
+" /api/equipment/items/:groupId",
+[
+"GET",
+"/api/equipment/items/:groupId",
+26050,
+"path-only"
+]
+],
+[
+" /api/equipment/items",
+[
+"POST",
+"/api/equipment/items",
+26062,
+"path-only"
+]
+],
+[
+" /api/equipment/items/:id",
+[
+"GET",
+"/api/equipment/items/:groupId",
+26050,
+"path-only"
+]
+],
+[
+" /api/equipment/items/:id/history",
+[
+"GET",
+"/api/equipment/items/:id/history",
+26242,
+"path-only"
+]
+],
+[
+" /api/equipment/maintenance/:groupId",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"path-only"
+]
+],
+[
+" /api/equipment/maintenance",
+[
+"POST",
+"/api/equipment/maintenance",
+26099,
+"path-only"
+]
+],
+[
+" /api/equipment/maintenance/:id/complete",
+[
+"PUT",
+"/api/equipment/maintenance/:id/complete",
+26118,
+"path-only"
+]
+],
+[
+" /api/equipment/maintenance/:id",
+[
+"GET",
+"/api/equipment/maintenance/:groupId",
+26088,
+"path-only"
+]
+],
+[
+" /api/equipment/faults/:groupId",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"path-only"
+]
+],
+[
+" /api/equipment/faults",
+[
+"POST",
+"/api/equipment/faults",
+26185,
+"path-only"
+]
+],
+[
+" /api/equipment/faults/:id/status",
+[
+"PATCH",
+"/api/equipment/faults/:id/status",
+26205,
+"path-only"
+]
+],
+[
+" /api/equipment/faults/:id/notes",
+[
+"GET",
+"/api/equipment/faults/:id/notes",
+26160,
+"path-only"
+]
+],
+[
+" /api/equipment/faults/:id",
+[
+"GET",
+"/api/equipment/faults/:groupId",
+26145,
+"path-only"
+]
+],
+[
+" /api/equipment/technicians/:groupId",
+[
+"GET",
+"/api/equipment/technicians/:groupId",
+25458,
+"path-only"
+]
+],
+[
+" /api/equipment/technicians",
+[
+"POST",
+"/api/equipment/technicians",
+25465,
+"path-only"
+]
+],
+[
+" /api/equipment/technicians/:id",
+[
+"GET",
+"/api/equipment/technicians/:groupId",
+25458,
+"path-only"
+]
+],
+[
+" /api/equipment/technicians/:id/link-business",
+[
+"POST",
+"/api/equipment/technicians/:id/link-business",
+25492,
+"path-only"
+]
+],
+[
+" /api/equipment/notifications/check/:groupId",
+[
+"POST",
+"/api/equipment/notifications/check/:groupId",
+26264,
+"path-only"
+]
+],
+[
+" /api/upload/product-image",
+[
+"POST",
+"/api/upload/product-image",
+13648,
+"path-only"
+]
+],
+[
+" /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"path-only"
+]
+],
+[
+" /api/group/members",
+[
+"GET",
+"/api/group/members",
+11541,
+"path-only"
+]
+],
+[
+" /api/admin/pending-users",
+[
+"GET",
+"/api/admin/pending-users",
+11584,
+"path-only"
+]
+],
+[
+" /api/admin/approve-user",
+[
+"POST",
+"/api/admin/approve-user",
+11597,
+"path-only"
+]
+],
+[
+" /api/admin/change-role",
+[
+"POST",
+"/api/admin/change-role",
+11609,
+"path-only"
+]
+],
+[
+" /api/admin/user-details/:userId",
+[
+"GET",
+"/api/admin/user-details/:userId",
+11659,
+"path-only"
+]
+],
+[
+" /api/users/:id",
+[
+"DELETE",
+"/api/users/:id",
+11627,
+"path-only"
+]
+],
+[
+" /api/users/:id/password",
+[
+"POST",
+"/api/users/:id/password",
+11689,
+"path-only"
+]
+],
+[
+" /api/users/:id/permissions",
+[
+"PUT",
+"/api/users/:id/permissions",
+11555,
+"path-only"
+]
+],
+[
+" /api/admin/send-credentials",
+[
+"POST",
+"/api/admin/send-credentials",
+10336,
+"path-only"
+]
+],
+[
+"POST /api/admin/change-role",
+[
+"POST",
+"/api/admin/change-role",
+11609,
+"exact"
+]
+],
+[
+"PUT /api/admin/user-details/:userId",
+[
+"PUT",
+"/api/admin/user-details/:userId",
+11668,
+"exact"
+]
+],
+[
+"GET /api/group/members",
+[
+"GET",
+"/api/group/members",
+11541,
+"exact"
+]
+],
+[
+"GET /api/admin/pending-users",
+[
+"GET",
+"/api/admin/pending-users",
+11584,
+"exact"
+]
+],
+[
+"POST /api/admin/send-credentials",
+[
+"POST",
+"/api/admin/send-credentials",
+10336,
+"exact"
+]
+],
+[
+"DELETE /api/users/:id",
+[
+"DELETE",
+"/api/users/:id",
+11627,
+"exact"
+]
+],
+[
+"POST /api/users/:id/set-first-password",
+[
+"POST",
+"/api/users/:id/set-first-password",
+11709,
+"exact"
+]
+],
+[
+"POST /api/logout",
+[
+"POST",
+"/api/logout",
+10740,
+"exact"
+]
+],
+[
+" /api/users/:userId/phone",
+[
+"GET",
+"/api/users/:userId/phone",
+24668,
+"path-only"
+]
+],
+[
+" /api/users/:userId/email",
+[
+"GET",
+"/api/users/:userId/email",
+24708,
+"path-only"
+]
+],
+[
+" /api/users/:id/set-first-password",
+[
+"POST",
+"/api/users/:id/set-first-password",
+11709,
+"path-only"
+]
+],
+[
+" /api/groups/:id/address",
+[
+"PUT",
+"/api/groups/:id/address",
+25409,
+"path-only"
+]
+],
+[
+" /api/groups/:id/nickname",
+[
+"PATCH",
+"/api/groups/:id/nickname",
+25432,
+"path-only"
+]
+],
+[
+"GET /api/users/:userId/phone",
+[
+"GET",
+"/api/users/:userId/phone",
+24668,
+"exact"
+]
+],
+[
+"GET /api/users/:userId/email",
+[
+"GET",
+"/api/users/:userId/email",
+24708,
+"exact"
+]
+],
+[
+"PUT /api/groups/:id/address",
+[
+"PUT",
+"/api/groups/:id/address",
+25409,
+"exact"
+]
+],
+[
+"PATCH /api/groups/:id/nickname",
+[
+"PATCH",
+"/api/groups/:id/nickname",
+25432,
+"exact"
+]
+],
+[
+"POST /api/users/:id/password",
+[
+"POST",
+"/api/users/:id/password",
+11689,
+"exact"
+]
+],
+[
+"GET /api/family/marketplace/:groupId",
+[
+"GET",
+"/api/family/marketplace/:groupId",
+7982,
+"exact"
+]
+],
+[
+"POST /api/family/visit-business",
+[
+"POST",
+"/api/family/visit-business",
+7792,
+"exact"
+]
+],
+[
+" /api/family/marketplace/:groupId",
+[
+"GET",
+"/api/family/marketplace/:groupId",
+7982,
+"path-only"
+]
+],
+[
+" /api/family/marketplace-history/:groupId",
+[
+"GET",
+"/api/family/marketplace-history/:groupId",
+7958,
+"path-only"
+]
+],
+[
+" /api/family/visit-business",
+[
+"POST",
+"/api/family/visit-business",
+7792,
+"path-only"
+]
+],
+[
+" /api/family/preferred-areas/:groupId",
+[
+"GET",
+"/api/family/preferred-areas/:groupId",
+7922,
+"path-only"
+]
+],
+[
+" /api/family/preferred-areas/:groupId/:areaId",
+[
+"DELETE",
+"/api/family/preferred-areas/:groupId/:areaId",
+7949,
+"path-only"
+]
+],
+[
+"GET /api/family/marketplace-history/:groupId",
+[
+"GET",
+"/api/family/marketplace-history/:groupId",
+7958,
+"exact"
+]
+],
+[
+"GET /api/store/orders/my/:userId",
+[
+"GET",
+"/api/store/orders/my/:userId",
+14775,
+"exact"
+]
+],
+[
+"PATCH /api/store/quotes/:id/customer-response",
+[
+"PATCH",
+"/api/store/quotes/:id/customer-response",
+15048,
+"exact"
+]
+],
+[
+"GET /api/family/business-activity/:familyGroupId/:bizGroupId",
+[
+"GET",
+"/api/family/business-activity/:familyGroupId/:bizGroupId",
+31837,
+"exact"
+]
+],
+[
+" /api/store/quotes/family/:familyGroupId",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/family/business-activity/:familyGroupId/:bizGroupId",
+[
+"GET",
+"/api/family/business-activity/:familyGroupId/:bizGroupId",
+31837,
+"path-only"
+]
+],
+[
+" /api/family/:familyGroupId/beauty/appointments/:id/client-confirm",
+[
+"PUT",
+"/api/family/:familyGroupId/beauty/appointments/:id/client-confirm",
+32018,
+"path-only"
+]
+],
+[
+" /api/service-calls/:id/messages",
+[
+"GET",
+"/api/service-calls/family/:groupId",
+25714,
+"path-only"
+]
+],
+[
+" /api/service-calls/:id/payments",
+[
+"GET",
+"/api/service-calls/family/:groupId",
+25714,
+"path-only"
+]
+],
+[
+" /api/family/linked-businesses/:groupId",
+[
+"GET",
+"/api/family/linked-businesses/:groupId",
+31799,
+"path-only"
+]
+],
+[
+"GET /api/store/quotes/family/:familyGroupId",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"exact"
+]
+],
+[
+"POST /api/service-calls/:id/messages",
+[
+"POST",
+"/api/service-calls/check-schedule-notifications/:groupId",
+25747,
+"exact"
+]
+],
+[
+"POST /api/service-calls/:id/payments",
+[
+"POST",
+"/api/service-calls/check-schedule-notifications/:groupId",
+25747,
+"exact"
+]
+],
+[
+"PUT /api/family/:familyGroupId/beauty/appointments/:id/client-confirm",
+[
+"PUT",
+"/api/family/:familyGroupId/beauty/appointments/:id/client-confirm",
+32018,
+"exact"
+]
+],
+[
+"POST /api/pantry/familai-insight",
+[
+"POST",
+"/api/pantry/familai-insight",
+12486,
+"exact"
+]
+],
+[
+"POST /api/academy/tutor",
+[
+"POST",
+"/api/academy/tutor",
+12770,
+"exact"
+]
+],
+[
+" /api/login",
+[
+"POST",
+"/api/login",
+10619,
+"path-only"
+]
+],
+[
+" /api/groups",
+[
+"POST",
+"/api/groups",
+10064,
+"path-only"
+]
+],
+[
+" /api/forgot-code",
+[
+"POST",
+"/api/forgot-code",
+10247,
+"path-only"
+]
+],
+[
+" /api/groups/onboard",
+[
+"POST",
+"/api/groups/onboard",
+10238,
+"path-only"
+]
+],
+[
+" /api/support/ticket",
+[
+"POST",
+"/api/support/ticket",
+4349,
+"path-only"
+]
+],
+[
+" /api/support/tickets/my/:groupId",
+[
+"POST",
+"/api/support/tickets/:id/reply",
+4381,
+"path-only"
+]
+],
+[
+" /api/banners",
+[
+"GET",
+"/api/banners",
+9024,
+"path-only"
+]
+],
+[
+" /api/settings/welcome",
+[
+"GET",
+"/api/settings/welcome",
+8956,
+"path-only"
+]
+],
+[
+" /api/public/legal/:key",
+[
+"GET",
+"/api/public/legal/:key",
+25275,
+"path-only"
+]
+],
+[
+"GET /api/banners",
+[
+"GET",
+"/api/banners",
+9024,
+"exact"
+]
+],
+[
+"POST /api/support/ticket",
+[
+"POST",
+"/api/support/ticket",
+4349,
+"exact"
+]
+]
+],
+"docs/spec-qa-book.md": [
+[
+" /api/store/ai-desc",
+[
+"POST",
+"/api/store/ai-desc",
+15884,
+"path-only"
+]
+],
+[
+" /api/store/quotes/:id/approve",
+[
+"GET",
+"/api/store/quotes/family/:familyGroupId",
+14122,
+"path-only"
+]
+],
+[
+" /api/superadmin/login",
+[
+"POST",
+"/api/superadmin/login",
+8558,
+"path-only"
+]
+],
+[
+" /api/store/orders",
+[
+"POST",
+"/api/store/orders",
+14447,
+"path-only"
+]
+],
+[
+" /api/store/orders/status",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"path-only"
+]
+],
+[
+" /api/login",
+[
+"POST",
+"/api/login",
+10619,
+"path-only"
+]
+],
+[
+" /api/join",
+[
+"POST",
+"/api/join",
+10359,
+"path-only"
+]
+],
+[
+" /api/transactions",
+[
+"GET",
+"/api/transactions",
+11371,
+"path-only"
+]
+],
+[
+" /api/shopping/add",
+[
+"POST",
+"/api/shopping/add",
+10863,
+"path-only"
+]
+],
+[
+" /api/pantry/familai-insight",
+[
+"GET",
+"/api/pantry/:groupId",
+11193,
+"path-only"
+]
+],
+[
+" /api/store/catalog/1",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"path-only"
+]
+],
+[
+" /api/store/orders/1",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"path-only"
+]
+],
+[
+" /api/store/quotes",
+[
+"POST",
+"/api/store/quotes",
+14099,
+"path-only"
+]
+],
+[
+" /api/store/quotes/1/approve",
+[
+"POST",
+"/api/store/quotes/:id/approve",
+14813,
+"path-only"
+]
+],
+[
+" /api/timeclock/status",
+[
+"GET",
+"/api/timeclock/status",
+12860,
+"path-only"
+]
+],
+[
+" /api/timeclock/punch",
+[
+"POST",
+"/api/timeclock/punch",
+12919,
+"path-only"
+]
+],
+[
+" /api/timeclock/report",
+[
+"GET",
+"/api/timeclock/report",
+12970,
+"path-only"
+]
+],
+[
+" /api/superadmin/data",
+[
+"GET",
+"/api/superadmin/data",
+9046,
+"path-only"
+]
+],
+[
+" /api/superadmin/banners",
+[
+"POST",
+"/api/superadmin/banners",
+9963,
+"path-only"
+]
+],
+[
+" /api/banners",
+[
+"GET",
+"/api/banners",
+9024,
+"path-only"
+]
+],
+[
+" /api/groups",
+[
+"POST",
+"/api/groups",
+10064,
+"path-only"
+]
+],
+[
+" /api/store/orders/:groupId",
+[
+"GET",
+"/api/store/orders/:groupId",
+14297,
+"path-only"
+]
+],
+[
+" /api/store/catalog/:id",
+[
+"GET",
+"/api/store/catalog/:groupId",
+13285,
+"path-only"
+]
+],
+[
+" /api/ai/chat",
+[
+"POST",
+"/api/ai/chat",
+4720,
+"path-only"
+]
+],
+[
+" /api/shopping/scan-receipt",
+[
+"POST",
+"/api/shopping/scan-receipt",
+12599,
+"path-only"
+]
+]
+],
+"docs/spec-retail-store.md": [
+[
+"DELETE /api/suppliers",
+[
+"POST",
+"/api/suppliers",
+17185,
+"path-only"
+]
+],
+[
+" /api/suppliers",
+[
+"POST",
+"/api/suppliers",
+17185,
+"path-only"
+]
+],
+[
+" /api/suppliers/:id/products",
+[
+"GET",
+"/api/suppliers/:supplierId/products",
+17210,
+"path-only"
+]
+],
+[
+" /api/biz/retail/",
+null
+],
+[
+" /api/store/promotions",
+[
+"POST",
+"/api/store/promotions",
+17067,
+"path-only"
+]
+],
+[
+" /api/b2b/orders/create",
+[
+"GET",
+"/api/b2b/orders/:groupId",
+17316,
+"path-only"
+]
+],
+[
+" /api/store/inventory-count",
+[
+"POST",
+"/api/store/inventory-count",
+13806,
+"path-only"
+]
+],
+[
+" /api/reports/:groupId",
+[
+"GET",
+"/api/reports/:groupId",
+33754,
+"path-only"
+]
+]
+],
+"docs/spec-shuka-feature.md": [
+[
+" /api/biz/market-radar",
+[
+"GET",
+"/api/biz/market-radar",
+20823,
+"path-only"
+]
+],
+[
+" /api/biz/market-campaigns/mine",
+[
+"GET",
+"/api/biz/market-campaigns/mine",
+20854,
+"path-only"
+]
+],
+[
+" /api/biz/market-campaigns/:campaignId/request",
+[
+"POST",
+"/api/biz/market-campaigns/:campaignId/request",
+20878,
+"path-only"
+]
+],
+[
+" /api/biz/market-campaigns/requests/:requestId/respond",
+[
+"POST",
+"/api/biz/market-campaigns/requests/:requestId/respond",
+20912,
+"path-only"
+]
+],
+[
+" /api/biz/market-campaigns/:campaignId/leave",
+[
+"POST",
+"/api/biz/market-campaigns/:campaignId/leave",
+20937,
+"path-only"
+]
+],
+[
+" /api/biz/market-campaigns/:campaignId/products",
+[
+"GET",
+"/api/biz/market-campaigns/:campaignId/products",
+20947,
+"path-only"
+]
+],
+[
+" /api/zone-manager/community-campaigns/",
+[
+"POST",
+"/api/zone-manager/community-campaigns",
+19488,
+"path-only"
+]
+],
+[
+" /api/community/manager/campaigns/",
+[
+"POST",
+"/api/community/manager/campaigns",
+20575,
+"path-only"
+]
+],
+[
+" /api/sa/shuka/campaigns",
+[
+"GET",
+"/api/sa/shuka/campaigns",
+19679,
+"path-only"
+]
+],
+[
+" /api/sa/shuka/campaigns/:id/status",
+[
+"POST",
+"/api/sa/shuka/campaigns/:id/status",
+19709,
+"path-only"
+]
+],
+[
+" /api/campaign/:code",
+[
+"GET",
+"/api/campaign/:code",
+15385,
+"path-only"
+]
+],
+[
+" /api/campaign/:code/order",
+[
+"POST",
+"/api/campaign/:code/order",
+15450,
+"path-only"
+]
+],
+[
+" /api/campaign/:code/my-orders",
+[
+"GET",
+"/api/campaign/:code/my-orders",
+15575,
+"path-only"
+]
+]
+],
+"docs/spec-super-admin.md": [
+[
+"POST /api/superadmin/send-otp",
+[
+"POST",
+"/api/superadmin/send-otp",
+8496,
+"exact"
+]
+],
+[
+"POST /api/superadmin/verify-otp",
+[
+"POST",
+"/api/superadmin/verify-otp",
+8523,
+"exact"
+]
+],
+[
+"POST /api/superadmin/login",
+[
+"POST",
+"/api/superadmin/login",
+8558,
+"exact"
+]
+],
+[
+"POST /api/superadmin/data",
+[
+"GET",
+"/api/superadmin/data",
+9046,
+"path-only"
+]
+],
+[
+"GET /api/sa/sla-matrix",
+[
+"GET",
+"/api/sa/sla-matrix",
+5710,
+"exact"
+]
+],
+[
+"POST /api/sa/sla-matrix",
+[
+"POST",
+"/api/sa/sla-matrix",
+5718,
+"exact"
+]
+],
+[
+"POST /api/superadmin/tickets/:id/ai-triage",
+[
+"POST",
+"/api/superadmin/tickets/:id/ai-triage",
+6077,
+"exact"
+]
+],
+[
+"POST /api/sa/dev/check-duplicates",
+[
+"POST",
+"/api/sa/dev/check-duplicates",
+6188,
+"exact"
+]
+],
+[
+"POST /api/sa/tickets/:id/feedback-loop",
+[
+"POST",
+"/api/sa/tickets/:id/feedback-loop",
+6217,
+"exact"
+]
+],
+[
+"POST /api/superadmin/tickets",
+[
+"POST",
+"/api/superadmin/tickets",
+5112,
+"exact"
+]
+],
+[
+"POST /api/sa/matrix",
+[
+"POST",
+"/api/sa/matrix",
+23904,
+"exact"
+]
+],
+[
+"PUT /api/sa/matrix/:id/status",
+[
+"PUT",
+"/api/sa/matrix/:id/status",
+23916,
+"exact"
+]
+],
+[
+"DELETE /api/sa/matrix/:id",
+[
+"DELETE",
+"/api/sa/matrix/:id",
+23924,
+"exact"
+]
+],
+[
+"DELETE /api/sa/dev/tasks",
+[
+"GET",
+"/api/sa/dev/tasks",
+23714,
+"path-only"
+]
+],
+[
+"PUT /api/sa/dev/tasks/:id/status",
+[
+"PUT",
+"/api/sa/dev/tasks/:id/status",
+23777,
+"exact"
+]
+],
+[
+"POST /api/sa/dev/subtasks",
+[
+"POST",
+"/api/sa/dev/subtasks",
+23832,
+"exact"
+]
+],
+[
+"PUT /api/sa/dev/subtasks/:id/toggle",
+[
+"PUT",
+"/api/sa/dev/subtasks/:id/toggle",
+23840,
+"exact"
+]
+],
+[
+"DELETE /api/sa/dev/subtasks/:id",
+[
+"DELETE",
+"/api/sa/dev/subtasks/:id",
+23848,
+"exact"
+]
+],
+[
+"GET /api/sa/qa/tests",
+[
+"GET",
+"/api/sa/qa/tests",
+23953,
+"exact"
+]
+],
+[
+"POST /api/sa/qa/runs",
+[
+"POST",
+"/api/sa/qa/runs",
+24006,
+"exact"
+]
+],
+[
+"POST /api/sa/ai/generate-qa",
+[
+"POST",
+"/api/sa/ai/generate-qa",
+24018,
+"exact"
+]
+],
+[
+"POST /api/sa/ai-generate",
+[
+"POST",
+"/api/sa/ai-generate",
+6345,
+"exact"
+]
+],
+[
+"POST /api/sa/community-business",
+[
+"POST",
+"/api/sa/community-business",
+17615,
+"exact"
+]
+],
+[
+"POST /api/sa/community-business/approve",
+[
+"POST",
+"/api/sa/community-business/approve",
+17654,
+"exact"
+]
+],
+[
+"PUT /api/sa/communities/:id/assign-zone",
+[
+"PUT",
+"/api/sa/communities/:id/assign-zone",
+19303,
+"exact"
+]
+],
+[
+"GET /api/sa/businesses",
+[
+"GET",
+"/api/sa/businesses",
+17881,
+"exact"
+]
+],
+[
+"PATCH /api/sa/groups/:id/modules",
+[
+"PATCH",
+"/api/sa/groups/:id/modules",
+31073,
+"exact"
+]
+],
+[
+"POST /api/sa/inbox/broadcast",
+[
+"POST",
+"/api/sa/inbox/broadcast",
+23256,
+"exact"
+]
+],
+[
+"GET /api/system/public-config",
+[
+"GET",
+"/api/system/public-config",
+10041,
+"exact"
+]
+],
+[
+"POST /api/superadmin/banners",
+[
+"POST",
+"/api/superadmin/banners",
+9963,
+"exact"
+]
+],
+[
+"POST /api/superadmin/settings",
+[
+"POST",
+"/api/superadmin/settings",
+8900,
+"exact"
+]
+],
+[
+"GET /api/sa/settings/rates",
+[
+"GET",
+"/api/sa/settings/:keys",
+9006,
+"exact"
+]
+],
+[
+"PUT /api/sa/settings/rates",
+[
+"PUT",
+"/api/sa/settings/rates",
+18626,
+"exact"
+]
+],
+[
+" /api/sa/finance-summary",
+[
+"GET",
+"/api/sa/finance-summary",
+18671,
+"path-only"
+]
+],
+[
+" /api/sa/settings/rates",
+[
+"GET",
+"/api/sa/settings/:keys",
+9006,
+"path-only"
+]
+],
+[
+" /api/sa/business-dues",
+[
+"GET",
+"/api/sa/business-dues",
+18692,
+"path-only"
+]
+],
+[
+" /api/sa/business-collections/:bizId",
+[
+"GET",
+"/api/sa/business-collections/:businessId",
+18725,
+"path-only"
+]
+],
+[
+" /api/sa/business-collections",
+[
+"POST",
+"/api/sa/business-collections",
+18712,
+"path-only"
+]
+],
+[
+" /api/sa/community-wallets",
+[
+"GET",
+"/api/sa/community-wallets",
+18738,
+"path-only"
+]
+],
+[
+"POST /api/sa/zone-managers/:id/zones",
+[
+"POST",
+"/api/sa/zone-managers/:id/zones",
+19291,
+"exact"
+]
+],
+[
+"POST /api/sa/zone-manager-payments",
+[
+"POST",
+"/api/sa/zone-manager-payments",
+19232,
+"exact"
+]
+],
+[
+"PUT /api/sa/zone-settings",
+[
+"PUT",
+"/api/sa/zone-settings",
+19323,
+"exact"
+]
+],
+[
+"GET /api/sa/zone-managers/pending",
+[
+"GET",
+"/api/sa/zone-managers/pending",
+19216,
+"exact"
+]
+],
+[
+"POST /api/sa/teams",
+[
+"POST",
+"/api/sa/teams",
+8683,
+"exact"
+]
+],
+[
+"DELETE /api/sa/teams/:id",
+[
+"DELETE",
+"/api/sa/teams/:id",
+8703,
+"exact"
+]
+],
+[
+"DELETE /api/sa/staff",
+[
+"GET",
+"/api/sa/staff",
+8710,
+"path-only"
+]
+],
+[
+"GET /api/sa/chat/:room",
+[
+"GET",
+"/api/sa/chat/:room",
+8660,
+"exact"
+]
+],
+[
+"POST /api/sa/chat",
+[
+"POST",
+"/api/sa/chat",
+8670,
+"exact"
+]
+],
+[
+"GET /api/sa/legal",
+[
+"GET",
+"/api/sa/legal",
+25287,
+"exact"
+]
+],
+[
+"PUT /api/sa/legal/:key",
+[
+"PUT",
+"/api/sa/legal/:key",
+25299,
+"exact"
+]
+],
+[
+"POST /api/sa/versions",
+[
+"POST",
+"/api/sa/versions",
+23944,
+"exact"
+]
+],
+[
+"PUT /api/sa/versions/:id",
+[
+"PUT",
+"/api/sa/versions/:id",
+23856,
+"exact"
+]
+],
+[
+"PUT /api/sa/versions/name/:name",
+[
+"PUT",
+"/api/sa/versions/name/:name",
+24142,
+"exact"
+]
+],
+[
+"DELETE /api/sa/versions/:id",
+[
+"DELETE",
+"/api/sa/versions/:id",
+23864,
+"exact"
+]
+],
+[
+"DELETE /api/sa/versions/name/:name",
+[
+"DELETE",
+"/api/sa/versions/name/:name",
+24326,
+"exact"
+]
+],
+[
+" /api/superadmin/send-otp",
+[
+"POST",
+"/api/superadmin/send-otp",
+8496,
+"path-only"
+]
+],
+[
+" /api/superadmin/verify-otp",
+[
+"POST",
+"/api/superadmin/verify-otp",
+8523,
+"path-only"
+]
+],
+[
+" /api/superadmin/login",
+[
+"POST",
+"/api/superadmin/login",
+8558,
+"path-only"
+]
+],
+[
+" /api/superadmin/data",
+[
+"GET",
+"/api/superadmin/data",
+9046,
+"path-only"
+]
+],
+[
+" /api/superadmin/group-360/:id",
+[
+"GET",
+"/api/superadmin/group-360/:id",
+8833,
+"path-only"
+]
+],
+[
+" /api/superadmin/pulse",
+[
+"GET",
+"/api/superadmin/pulse",
+24429,
+"path-only"
+]
+],
+[
+" /api/superadmin/groups/:id",
+[
+"DELETE",
+"/api/superadmin/groups/:id",
+8848,
+"path-only"
+]
+],
+[
+" /api/sa/groups/:id",
+[
+"POST",
+"/api/sa/groups/merge-duplicate",
+2660,
+"path-only"
+]
+],
+[
+" /api/sa/groups/:id/modules",
+[
+"GET",
+"/api/sa/groups/by-status/:status",
+2964,
+"path-only"
+]
+],
+[
+" /api/sa/groups/:id/upgrade-member",
+[
+"GET",
+"/api/sa/groups/by-status/:status",
+2964,
+"path-only"
+]
+],
+[
+" /api/superadmin/groups/:id/premium",
+[
+"POST",
+"/api/superadmin/groups/:id/premium",
+8913,
+"path-only"
+]
+],
+[
+" /api/superadmin/users/:id",
+[
+"DELETE",
+"/api/superadmin/users/:id",
+8868,
+"path-only"
+]
+],
+[
+" /api/sa/users/:id",
+[
+"POST",
+"/api/sa/users/merge",
+2773,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets",
+[
+"POST",
+"/api/superadmin/tickets",
+5112,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets/:id",
+[
+"DELETE",
+"/api/superadmin/tickets/:id",
+5702,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets/:id/reply",
+[
+"POST",
+"/api/superadmin/tickets/:id/reply",
+6132,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets/:id/assign_and_classify",
+[
+"POST",
+"/api/superadmin/tickets/:id/assign_and_classify",
+6014,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets/:id/ai-triage",
+[
+"POST",
+"/api/superadmin/tickets/:id/ai-triage",
+6077,
+"path-only"
+]
+],
+[
+" /api/superadmin/tickets/:id/status",
+[
+"PUT",
+"/api/superadmin/tickets/:id/status",
+5174,
+"path-only"
+]
+],
+[
+" /api/sa/sla-matrix",
+[
+"GET",
+"/api/sa/sla-matrix",
+5710,
+"path-only"
+]
+],
+[
+" /api/sa/dev/tasks",
+[
+"GET",
+"/api/sa/dev/tasks",
+23714,
+"path-only"
+]
+],
+[
+" /api/sa/dev/tasks/:id",
+[
+"PUT",
+"/api/sa/dev/tasks/:id",
+23752,
+"path-only"
+]
+],
+[
+" /api/sa/dev/tasks/:id/status",
+[
+"PUT",
+"/api/sa/dev/tasks/:id/status",
+23777,
+"path-only"
+]
+],
+[
+" /api/sa/dev/check-duplicates",
+[
+"POST",
+"/api/sa/dev/check-duplicates",
+6188,
+"path-only"
+]
+],
+[
+" /api/sa/dev/subtasks",
+[
+"GET",
+"/api/sa/dev/subtasks",
+23825,
+"path-only"
+]
+],
+[
+" /api/sa/dev/subtasks/:id/toggle",
+[
+"PUT",
+"/api/sa/dev/subtasks/:id/toggle",
+23840,
+"path-only"
+]
+],
+[
+" /api/sa/dev/subtasks/:id",
+[
+"DELETE",
+"/api/sa/dev/subtasks/:id",
+23848,
+"path-only"
+]
+],
+[
+" /api/sa/versions",
+[
+"GET",
+"/api/sa/versions",
+23936,
+"path-only"
+]
+],
+[
+" /api/sa/versions/:id",
+[
+"PUT",
+"/api/sa/versions/:id",
+23856,
+"path-only"
+]
+],
+[
+" /api/sa/versions/name/:name",
+[
+"PUT",
+"/api/sa/versions/name/:name",
+24142,
+"path-only"
+]
+],
+[
+" /api/sa/matrix",
+[
+"GET",
+"/api/sa/matrix",
+23874,
+"path-only"
+]
+],
+[
+" /api/sa/matrix/:id/status",
+[
+"PUT",
+"/api/sa/matrix/:id/status",
+23916,
+"path-only"
+]
+],
+[
+" /api/sa/matrix/:id",
+[
+"DELETE",
+"/api/sa/matrix/:id",
+23924,
+"path-only"
+]
+],
+[
+" /api/sa/qa/tests",
+[
+"GET",
+"/api/sa/qa/tests",
+23953,
+"path-only"
+]
+],
+[
+" /api/sa/qa/tests/bulk",
+[
+"POST",
+"/api/sa/qa/tests/bulk",
+23976,
+"path-only"
+]
+],
+[
+" /api/sa/qa/tests/:id",
+[
+"POST",
+"/api/sa/qa/tests/bulk",
+23976,
+"path-only"
+]
+],
+[
+" /api/sa/qa/results",
+[
+"GET",
+"/api/sa/qa/results",
+24065,
+"path-only"
+]
+],
+[
+" /api/sa/qa/results/bulk",
+[
+"POST",
+"/api/sa/qa/results/bulk",
+24075,
+"path-only"
+]
+],
+[
+" /api/sa/qa/runs",
+[
+"POST",
+"/api/sa/qa/runs",
+24006,
+"path-only"
+]
+],
+[
+" /api/sa/ai/generate-qa",
+[
+"POST",
+"/api/sa/ai/generate-qa",
+24018,
+"path-only"
+]
+],
+[
+" /api/sa/tickets/:id/feedback-loop",
+[
+"POST",
+"/api/sa/tickets/:id/feedback-loop",
+6217,
+"path-only"
+]
+],
+[
+" /api/sa/communities",
+[
+"GET",
+"/api/sa/communities",
+17473,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id",
+[
+"PUT",
+"/api/sa/communities/:id",
+17515,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id/details",
+[
+"GET",
+"/api/sa/communities/:id/details",
+17540,
+"path-only"
+]
+],
+[
+" /api/sa/communities/pending-businesses",
+[
+"PUT",
+"/api/sa/communities/:id",
+17515,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id/assign-zone",
+[
+"PUT",
+"/api/sa/communities/:id/assign-zone",
+19303,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id/set-manager",
+[
+"PUT",
+"/api/sa/communities/:commId/set-manager",
+18640,
+"path-only"
+]
+],
+[
+" /api/sa/community-business",
+[
+"POST",
+"/api/sa/community-business",
+17615,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/:commId",
+[
+"POST",
+"/api/sa/community-business/override-approve",
+17589,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/:commId/:bizId",
+[
+"DELETE",
+"/api/sa/community-business/:commId/:bizId",
+17638,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/approve",
+[
+"GET",
+"/api/sa/community-business/:commId",
+17626,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/reject",
+[
+"GET",
+"/api/sa/community-business/:commId",
+17626,
+"path-only"
+]
+],
+[
+" /api/sa/teams",
+[
+"GET",
+"/api/sa/teams",
+8646,
+"path-only"
+]
+],
+[
+" /api/sa/teams/:id",
+[
+"PUT",
+"/api/sa/teams/:id",
+8695,
+"path-only"
+]
+],
+[
+" /api/sa/staff",
+[
+"GET",
+"/api/sa/staff",
+8710,
+"path-only"
+]
+],
+[
+" /api/sa/staff/:id",
+[
+"PUT",
+"/api/sa/staff/:id",
+8736,
+"path-only"
+]
+],
+[
+" /api/sa/chat/:room",
+[
+"GET",
+"/api/sa/chat/:room",
+8660,
+"path-only"
+]
+],
+[
+" /api/sa/chat",
+[
+"POST",
+"/api/sa/chat",
+8670,
+"path-only"
+]
+],
+[
+" /api/sa/inbox/broadcast",
+[
+"POST",
+"/api/sa/inbox/broadcast",
+23256,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers",
+[
+"GET",
+"/api/sa/zone-managers",
+19160,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id",
+[
+"GET",
+"/api/sa/zone-managers/finance-summary",
+19175,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/pending",
+[
+"GET",
+"/api/sa/zone-managers/pending",
+19216,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id/details",
+[
+"GET",
+"/api/sa/zone-managers/:id/details",
+19336,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id/zones",
+[
+"POST",
+"/api/sa/zone-managers/:id/zones",
+19291,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/finance-summary",
+[
+"GET",
+"/api/sa/zone-managers/finance-summary",
+19175,
+"path-only"
+]
+],
+[
+" /api/sa/all-zones",
+[
+"GET",
+"/api/sa/all-zones",
+19224,
+"path-only"
+]
+],
+[
+" /api/sa/zone-settings",
+[
+"GET",
+"/api/sa/zone-settings",
+19312,
+"path-only"
+]
+],
+[
+" /api/sa/zone-manager-payments/:id",
+[
+"GET",
+"/api/sa/zone-manager-payments/:id",
+19243,
+"path-only"
+]
+],
+[
+" /api/sa/zone-manager-payments",
+[
+"POST",
+"/api/sa/zone-manager-payments",
+19232,
+"path-only"
+]
+],
+[
+" /api/sa/campaigns/stats",
+[
+"GET",
+"/api/sa/campaigns/stats",
+19200,
+"path-only"
+]
+],
+[
+" /api/sa/leads/stats",
+[
+"GET",
+"/api/sa/leads/stats",
+19208,
+"path-only"
+]
+],
+[
+" /api/superadmin/banners",
+[
+"POST",
+"/api/superadmin/banners",
+9963,
+"path-only"
+]
+],
+[
+" /api/superadmin/settings",
+[
+"POST",
+"/api/superadmin/settings",
+8900,
+"path-only"
+]
+],
+[
+" /api/superadmin/credentials",
+[
+"POST",
+"/api/superadmin/credentials",
+8621,
+"path-only"
+]
+],
+[
+" /api/sa/ai-generate",
+[
+"POST",
+"/api/sa/ai-generate",
+6345,
+"path-only"
+]
+],
+[
+" /api/system/public-config",
+[
+"GET",
+"/api/system/public-config",
+10041,
+"path-only"
+]
+],
+[
+" /api/sa/legal",
+[
+"GET",
+"/api/sa/legal",
+25287,
+"path-only"
+]
+],
+[
+" /api/sa/legal/:key",
+[
+"PUT",
+"/api/sa/legal/:key",
+25299,
+"path-only"
+]
+],
+[
+" /api/sa/businesses",
+[
+"GET",
+"/api/sa/businesses",
+17881,
+"path-only"
+]
+]
+],
+"docs/spec-zone-community.md": [
+[
+" /api/zone-manager/",
+null
+],
+[
+"POST /api/zone-manager/login",
+[
+"POST",
+"/api/zone-manager/login",
+18816,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/communities-members",
+[
+"GET",
+"/api/zone-manager/communities-members",
+19357,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/set-community-manager",
+[
+"POST",
+"/api/zone-manager/set-community-manager",
+19962,
+"exact"
+]
+],
+[
+"POST /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/approve",
+[
+"POST",
+"/api/zone-manager/community-business/approve",
+18974,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/draft-campaign",
+[
+"POST",
+"/api/zone-manager/ai/draft-campaign",
+20149,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/generate-banner",
+[
+"POST",
+"/api/zone-manager/ai/generate-banner",
+20114,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/campaigns",
+[
+"POST",
+"/api/zone-manager/campaigns",
+19989,
+"exact"
+]
+],
+[
+"PUT /api/zone-manager/campaigns/:id",
+[
+"PUT",
+"/api/zone-manager/campaigns/:id",
+20003,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/templates",
+[
+"POST",
+"/api/zone-manager/templates",
+20354,
+"exact"
+]
+],
+[
+"DELETE /api/zone-manager/templates/:id",
+[
+"DELETE",
+"/api/zone-manager/templates/:id",
+20365,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/analyze-leads",
+[
+"POST",
+"/api/zone-manager/ai/analyze-leads",
+20197,
+"exact"
+]
+],
+[
+"PUT /api/zone-manager/leads/:id",
+[
+"PUT",
+"/api/zone-manager/leads/:id",
+20081,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/leads/:id/actions",
+[
+"POST",
+"/api/zone-manager/leads/:id/actions",
+20104,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/leads/:id/actions",
+[
+"GET",
+"/api/zone-manager/leads/:id/actions",
+20097,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/ai/suggest-reply",
+[
+"POST",
+"/api/zone-manager/ai/suggest-reply",
+20223,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/inbox/new",
+[
+"POST",
+"/api/zone-manager/inbox/new",
+20254,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/inbox/broadcast",
+[
+"POST",
+"/api/zone-manager/inbox/broadcast",
+20275,
+"exact"
+]
+],
+[
+"GET /api/zone-manager/commissions",
+[
+"GET",
+"/api/zone-manager/commissions",
+18875,
+"exact"
+]
+],
+[
+" /api/public/campaign-image/:token",
+[
+"GET",
+"/api/public/campaign-image/:token",
+25206,
+"path-only"
+]
+],
+[
+" /api/public/logo",
+[
+"GET",
+"/api/public/logo",
+25190,
+"path-only"
+]
+],
+[
+"GET /api/public/campaign/:token",
+[
+"GET",
+"/api/public/campaign/:token",
+20040,
+"exact"
+]
+],
+[
+"POST /api/public/campaign/:token/submit",
+[
+"POST",
+"/api/public/campaign/:token/submit",
+20052,
+"exact"
+]
+],
+[
+"POST /api/community/join",
+[
+"POST",
+"/api/community/join",
+18484,
+"exact"
+]
+],
+[
+"POST /api/community/user-create",
+[
+"POST",
+"/api/community/user-create",
+16593,
+"exact"
+]
+],
+[
+"DELETE /api/community/leave/:groupId/:communityId",
+[
+"DELETE",
+"/api/community/leave/:groupId/:communityId",
+18522,
+"exact"
+]
+],
+[
+"GET /api/biz/communities/my/:bizId",
+[
+"GET",
+"/api/biz/communities/my/:bizId",
+16630,
+"exact"
+]
+],
+[
+"GET /api/biz/communities/available/:bizId",
+[
+"GET",
+"/api/biz/communities/available/:bizId",
+16755,
+"exact"
+]
+],
+[
+"DELETE /api/biz/communities/leave/:communityId/:bizId",
+[
+"DELETE",
+"/api/biz/communities/leave/:communityId/:bizId",
+16971,
+"exact"
+]
+],
+[
+"POST /api/zone-manager/community-business/reject",
+[
+"POST",
+"/api/zone-manager/community-business/reject",
+18993,
+"exact"
+]
+],
+[
+"GET /api/community/manager-data/:groupId",
+[
+"GET",
+"/api/community/manager-data/:groupId",
+20490,
+"exact"
+]
+],
+[
+" /api/zone-manager/register",
+[
+"POST",
+"/api/zone-manager/register",
+18760,
+"path-only"
+]
+],
+[
+" /api/zone-manager/login",
+[
+"POST",
+"/api/zone-manager/login",
+18816,
+"path-only"
+]
+],
+[
+" /api/zone-manager/forgot-password",
+[
+"POST",
+"/api/zone-manager/forgot-password",
+18777,
+"path-only"
+]
+],
+[
+" /api/zone-manager/reset-password",
+[
+"POST",
+"/api/zone-manager/reset-password",
+18804,
+"path-only"
+]
+],
+[
+" /api/zone-manager/dashboard",
+[
+"GET",
+"/api/zone-manager/dashboard",
+18837,
+"path-only"
+]
+],
+[
+" /api/zone-manager/commissions",
+[
+"GET",
+"/api/zone-manager/commissions",
+18875,
+"path-only"
+]
+],
+[
+" /api/zone-manager/communities-members",
+[
+"GET",
+"/api/zone-manager/communities-members",
+19357,
+"path-only"
+]
+],
+[
+" /api/zone-manager/set-community-manager",
+[
+"POST",
+"/api/zone-manager/set-community-manager",
+19962,
+"path-only"
+]
+],
+[
+" /api/zone-manager/pending-businesses",
+[
+"GET",
+"/api/zone-manager/pending-businesses",
+18956,
+"path-only"
+]
+],
+[
+" /api/zone-manager/community-business/approve",
+[
+"POST",
+"/api/zone-manager/community-business/approve",
+18974,
+"path-only"
+]
+],
+[
+" /api/zone-manager/community-business/reject",
+[
+"POST",
+"/api/zone-manager/community-business/reject",
+18993,
+"path-only"
+]
+],
+[
+" /api/zone-manager/campaigns",
+[
+"GET",
+"/api/zone-manager/campaigns",
+19979,
+"path-only"
+]
+],
+[
+" /api/zone-manager/campaigns/:id",
+[
+"PUT",
+"/api/zone-manager/campaigns/:id",
+20003,
+"path-only"
+]
+],
+[
+" /api/zone-manager/campaigns/:id/leads",
+[
+"GET",
+"/api/zone-manager/campaigns/:id/leads",
+20030,
+"path-only"
+]
+],
+[
+" /api/zone-manager/leads/:id",
+[
+"GET",
+"/api/zone-manager/leads/:id",
+20068,
+"path-only"
+]
+],
+[
+" /api/zone-manager/leads/:id/actions",
+[
+"GET",
+"/api/zone-manager/leads/:id/actions",
+20097,
+"path-only"
+]
+],
+[
+" /api/zone-manager/ai/draft-campaign",
+[
+"POST",
+"/api/zone-manager/ai/draft-campaign",
+20149,
+"path-only"
+]
+],
+[
+" /api/zone-manager/ai/generate-banner",
+[
+"POST",
+"/api/zone-manager/ai/generate-banner",
+20114,
+"path-only"
+]
+],
+[
+" /api/zone-manager/ai/analyze-leads",
+[
+"POST",
+"/api/zone-manager/ai/analyze-leads",
+20197,
+"path-only"
+]
+],
+[
+" /api/zone-manager/ai/suggest-reply",
+[
+"POST",
+"/api/zone-manager/ai/suggest-reply",
+20223,
+"path-only"
+]
+],
+[
+" /api/zone-manager/inbox",
+[
+"GET",
+"/api/zone-manager/inbox",
+20239,
+"path-only"
+]
+],
+[
+" /api/zone-manager/inbox/new",
+[
+"POST",
+"/api/zone-manager/inbox/new",
+20254,
+"path-only"
+]
+],
+[
+" /api/zone-manager/inbox/broadcast",
+[
+"POST",
+"/api/zone-manager/inbox/broadcast",
+20275,
+"path-only"
+]
+],
+[
+" /api/zone-manager/inbox/:threadId",
+[
+"POST",
+"/api/zone-manager/inbox/new",
+20254,
+"path-only"
+]
+],
+[
+" /api/zone-manager/inbox/:threadId/reply",
+[
+"POST",
+"/api/zone-manager/inbox/:threadId/reply",
+20330,
+"path-only"
+]
+],
+[
+" /api/zone-manager/templates",
+[
+"GET",
+"/api/zone-manager/templates",
+20347,
+"path-only"
+]
+],
+[
+" /api/zone-manager/templates/:id",
+[
+"DELETE",
+"/api/zone-manager/templates/:id",
+20365,
+"path-only"
+]
+],
+[
+" /api/public/campaign/:token",
+[
+"GET",
+"/api/public/campaign/:token",
+20040,
+"path-only"
+]
+],
+[
+" /api/public/campaign/:token/submit",
+[
+"POST",
+"/api/public/campaign/:token/submit",
+20052,
+"path-only"
+]
+],
+[
+" /api/community/info/:groupId",
+[
+"GET",
+"/api/community/info/:groupId",
+18358,
+"path-only"
+]
+],
+[
+" /api/community/join",
+[
+"POST",
+"/api/community/join",
+18484,
+"path-only"
+]
+],
+[
+" /api/community/leave/:groupId/:communityId",
+[
+"DELETE",
+"/api/community/leave/:groupId/:communityId",
+18522,
+"path-only"
+]
+],
+[
+" /api/community/user-create",
+[
+"POST",
+"/api/community/user-create",
+16593,
+"path-only"
+]
+],
+[
+" /api/community/my-initiatives/:groupId",
+[
+"GET",
+"/api/community/my-initiatives/:groupId",
+16614,
+"path-only"
+]
+],
+[
+" /api/community/cashback-info/:groupId",
+[
+"GET",
+"/api/community/cashback-info/:groupId",
+20446,
+"path-only"
+]
+],
+[
+" /api/community/manager-data/:groupId",
+[
+"GET",
+"/api/community/manager-data/:groupId",
+20490,
+"path-only"
+]
+],
+[
+" /api/community/inbox/:groupId",
+[
+"GET",
+"/api/community/inbox/:groupId",
+20374,
+"path-only"
+]
+],
+[
+" /api/community/inbox/thread/:threadId/:groupId",
+[
+"GET",
+"/api/community/inbox/thread/:threadId/:groupId",
+20412,
+"path-only"
+]
+],
+[
+" /api/community/inbox/thread/:threadId/reply",
+[
+"GET",
+"/api/community/inbox/thread/:threadId/:groupId",
+20412,
+"path-only"
+]
+],
+[
+" /api/community/inbox/new",
+[
+"GET",
+"/api/community/inbox/:groupId",
+20374,
+"path-only"
+]
+],
+[
+" /api/biz/communities/my/:bizId",
+[
+"GET",
+"/api/biz/communities/my/:bizId",
+16630,
+"path-only"
+]
+],
+[
+" /api/biz/communities/available/:bizId",
+[
+"GET",
+"/api/biz/communities/available/:bizId",
+16755,
+"path-only"
+]
+],
+[
+" /api/biz/communities/join",
+[
+"POST",
+"/api/biz/communities/join",
+16807,
+"path-only"
+]
+],
+[
+" /api/biz/communities/leave/:communityId/:bizId",
+[
+"DELETE",
+"/api/biz/communities/leave/:communityId/:bizId",
+16971,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers",
+[
+"GET",
+"/api/sa/zone-managers",
+19160,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id",
+[
+"GET",
+"/api/sa/zone-managers/finance-summary",
+19175,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/pending",
+[
+"GET",
+"/api/sa/zone-managers/pending",
+19216,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id/zones",
+[
+"POST",
+"/api/sa/zone-managers/:id/zones",
+19291,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/:id/details",
+[
+"GET",
+"/api/sa/zone-managers/:id/details",
+19336,
+"path-only"
+]
+],
+[
+" /api/sa/zone-managers/finance-summary",
+[
+"GET",
+"/api/sa/zone-managers/finance-summary",
+19175,
+"path-only"
+]
+],
+[
+" /api/sa/zone-manager-payments",
+[
+"POST",
+"/api/sa/zone-manager-payments",
+19232,
+"path-only"
+]
+],
+[
+" /api/sa/communities",
+[
+"GET",
+"/api/sa/communities",
+17473,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id",
+[
+"PUT",
+"/api/sa/communities/:id",
+17515,
+"path-only"
+]
+],
+[
+" /api/sa/communities/:id/details",
+[
+"GET",
+"/api/sa/communities/:id/details",
+17540,
+"path-only"
+]
+],
+[
+" /api/sa/communities/pending-businesses",
+[
+"PUT",
+"/api/sa/communities/:id",
+17515,
+"path-only"
+]
+],
+[
+" /api/sa/community-business",
+[
+"POST",
+"/api/sa/community-business",
+17615,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/:commId",
+[
+"POST",
+"/api/sa/community-business/override-approve",
+17589,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/:commId/:bizId",
+[
+"DELETE",
+"/api/sa/community-business/:commId/:bizId",
+17638,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/approve",
+[
+"GET",
+"/api/sa/community-business/:commId",
+17626,
+"path-only"
+]
+],
+[
+" /api/sa/community-business/reject",
+[
+"GET",
+"/api/sa/community-business/:commId",
+17626,
+"path-only"
+]
+]
+],
+"docs/test-checklist-shuka.md": []
+}

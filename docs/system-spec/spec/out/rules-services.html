@@ -1,0 +1,454 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>לוגיקה · תחזוקה ומקצועי · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>לוגיקה · תחזוקה ומקצועי</h1><span class="meta">60 תהליכים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="cur">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro"><strong>לוגיקה עסקית לבנייה מחדש.</strong> בכל תהליך מתועדים, לפי סדר: מטרה וטריגר, תנאים ואימותים, שלבי עיבוד (כולל סדר הכתיבות ל-DB), חישובים ונוסחאות, מכונת מצבים, תופעות לוואי (התראות, מטבעות, AI, cron), התנהגות הממשק, ולבסוף פערים. רוב התוכן מתאר את ההתנהגות כפי שהיא ממומשת. "פערים" הוא החלק האחרון, ומופיע רק כשנמצא בקוד. כל כלל מגובה במספר שורה (server.js:N או file.js:N). החוזה הטכני של כל נתיב נמצא בעמודי ה-API, והסכמה במילון הנתונים.</div><h2 class="grp">פקודות עבודה / תיקים (Work Orders)</h2>
+
+ <section class="proc" data-f="work order convert quote to-work-order המרה הצעת מחיר פקודת עבודה תיק"><h3>המרת הצעת מחיר לפקודת עבודה / תיק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בעל עסק (BIZ) הופך הצעת מחיר (<code>store_orders</code> בסטטוס quote) לפקודת עבודה. שני מסלולים בקוד: (א) כפתור "🔨 המר לפקודת עבודה / לתיק" → <code>business-app.js:42690 convertToWorkOrder</code> → <code>POST /api/work-orders/convert/:quoteId</code> (server.js:26503). (ב) אישור הצעה עם תאריך יעד במודל "יעד אספקה" → <code>business-app.js:9649 submitTargetDatetime</code> → <code>POST /api/store/quotes/:id/to-work-order</code> (server.js:15085). פקודת העבודה היא <b>אותה שורה</b> ב-<code>store_orders</code> (id זהה), מסומנת <code>call_type='work_order'</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>convert: <code>verifyBiz</code>; בדיקת בעלות <code>store_orders.id=$1 AND group_id=bizAuth.groupId</code> → 403 "אין הרשאה" (server.js:26507-26508).</li>
+<li>convert: ה-UPDATE מותנה <code>call_type IS NULL OR call_type&lt;&gt;'work_order'</code>; אם כבר פקודה → 404 "הצעה לא נמצאה" (26510-26514).</li>
+<li>to-work-order: <code>verifyBizOrLegacy</code> + <code>requireModule('sales')</code> (15085); חסר groupId → 400 "groupId נדרש" (15089); הצעה לא של העסק → 404 (15091).</li>
+<li>ממשק: אישור <code>_uiConfirm</code> עם נוסח שונה לעסק <code>professional</code> ("להמיר הצעה זו לתיק?") (42691-42695).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>convert: <code>UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'</code> (26510).</li>
+<li><code>addWorkOrderTimeline(id,'created','פקודת עבודה נוצרה מהצעת מחיר', userName||'מנהל')</code> → INSERT <code>work_order_timeline</code> (26494-26501, 26515).</li>
+<li>אם להזמנה <code>family_group_id</code> → INSERT <code>alert_notifications</code> (trigger_type <code>work_order_created</code>, "&lt;שם עסק&gt; פתח פקודת עבודה עבורך") (26518-26529).</li>
+<li>to-work-order: חילוץ כותרת מ-<code>quote_title</code> או מפריט metadata (<code>is_quote_metadata</code> → JSON <code>data.title/notes</code>); ברירת מחדל "פקודת עבודה — &lt;לקוח|מס' הצעה|#id&gt;" (15094-15105).</li>
+<li>to-work-order: UPDATE <code>quote_status='approved', status='processing', call_type='work_order', quote_title</code> + הוספת אירוע <code>{type:'converted_to_work_order',actor:'business'}</code> ל-<code>quote_history</code> (jsonb append) (15107-15110).</li>
+<li>to-work-order: INSERT timeline עם עמודה <code>actor</code> (15113) ו-alert עם עמודות <code>type,title,reference_id</code> (15120).</li>
+<li>מסלול (ב) בצד לקוח: אם הוזן תאריך → <code>POST /api/calendar/events</code> (status approved, notes <code>ORDER_REF:&lt;id&gt;</code>) + <code>PATCH /store/orders/:id/target-date</code> (business-app.js:9680-9702). אין טרנזקציה.</li>
+</ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>quote (call_type≠work_order)</td><td>processing + call_type=work_order + quote_status=approved</td><td>BIZ</td><td>בעלות</td><td>timeline created, alert למשפחה</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>Timeline; התראה ב-<code>alert_notifications</code> ללקוח המשפחתי. ממשק: <code>fetchStoreQuotes</code>, <code>fetchWorkOrders</code>, פתיחת <code>openWorkOrderModal</code>, ניווט ל-<code>cases</code> (professional) או לטאב sales/work-orders (42704-42711).</div>
+<div>ממשק</div><div><code>business-app.js:42690 convertToWorkOrder</code>; <code>9531 convertQuoteToWorkOrder</code> (wrapper). כותרות: professional="תיק", maintenance_repair="קריאה #id" (43140).</div>
+<div>פערים</div><div><ul>
+<li>to-work-order: INSERT ל-<code>work_order_timeline</code> משתמש בעמודה <code>actor</code> שאינה קיימת (הסכמה: <code>user_name</code>, server.js:1486-1494) → נכשל בשקט (try/catch 15112-15115).</li>
+<li>to-work-order: עמודות <code>type,title,reference_id</code> לא קיימות ב-<code>alert_notifications</code> (סכמה 760,771) → ההתראה לא נשמרת לעולם.</li>
+<li>מסלול (ב) שולח בקשה ללא Authorization וללא groupId (business-app.js:9666-9669) → <code>verifyBizOrLegacy</code> נופל ל-legacy עם groupId=null → 400 "groupId נדרש" → המרה נכשלת תמיד.</li>
+</ul></div></div></section>
+
+ <section class="proc" data-f="work order new create empty case פתח תיק חדש"><h3>יצירת פקודת עבודה / תיק ריק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"פתח תיק חדש" בטאב תיקים (<code>business-app.js:55375</code>) קורא <code>openWorkOrderModal(null)</code> (42990-42998) → <code>POST /api/work-orders/new/:groupId</code> (server.js:26574).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>verifyBiz</code>; <code>groupId</code> ב-URL חייב להיות שווה ל-<code>bizAuth.groupId</code> → אחרת 403 (26577).</li><li>אין שדות חובה; הלקוח שולח <code>{}</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>store_orders</code>: <code>status='open', call_type='work_order', quote_title=title, notes, items='[]', total_amount=0</code> (26580-26583). הכותרת נשמרת ב-<code>quote_title</code> ולא ב-notes (הערה 26578).</li><li>החזרת id; הלקוח פותח את מודל הפקודה.</li></ol></div>
+<div>מכונת מצבים</div><div>סטטוס התחלתי <code>open</code>.</div>
+<div>פערים</div><div>טאב תיקים (<code>renderCasesTab</code> 55341) סופר רק new/processing/completed ומציג <code>c.title</code> (לא קיים; צריך quote_title) — תיק שנוצר כאן (open) לא נספר ב-KPI.</div></div></section>
+
+ <section class="proc" data-f="work order list profitability רשימה רווחיות"><h3>רשימת פקודות עבודה ורווחיות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב sales→work-orders: <code>fetchWorkOrders</code> (business-app.js:42860) קורא במקביל <code>GET /api/work-orders/list/:groupId</code> (26535) ו-<code>GET /api/work-orders/profitability/:groupId</code> (26553).</div>
+<div>תנאים ואימותים</div><div><ul><li>שתיהן <code>verifyBiz</code> + groupId==bizAuth.groupId → 403 (26538, 26555).</li><li>list: פילטר <code>?status</code> (≠all).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>list: <code>store_orders</code> של העסק כאשר <code>call_type='work_order' OR (is_event=TRUE AND status='quote')</code> + ספירות: assignees, inventory reserved, equipment reserved; מיון created_at DESC (26539-26547).</li><li>profitability: רק <code>call_type='work_order'</code>.</li></ol></div>
+<div>חישובים</div><div>(26556-26569): <code>revenue=COALESCE(total_amount,0)</code>; <code>team_cost=Σ(hourly_rate×hours_worked)</code> מ-<code>work_order_assignees</code>; <code>inventory_cost=Σ(unit_price×reserved_qty)</code> שורות status≠released; <code>equipment_cost=Σcost</code> מ-<code>work_order_equipment</code> status≠released; <code>total_cost=team+inv+eq</code>; <code>profit=revenue−total_cost</code>. בממשק: פס רווח <code>pct=clamp(round((revenue−total_cost)/revenue×100),0,100)</code> (42945); סיכום עליון הכנסות/עלויות/רווח (42876-42885).</div>
+<div>ממשק</div><div><code>renderWorkOrdersList</code> (42893): כרטיס status=quote → ניווט לטאב הצעות (לא נפתח מודל); הודעת ריק לפי סוג עסק (professional / restaurant / אחר). פילטר <code>wo-list-filter</code>: all, quote, processing, scheduled, completed, cancelled (business-app.js:997-1004), פילטור צד-לקוח.</div>
+<div>פערים</div><div>רווחיות ברשימה מחשבת הכנסה רק מ-<code>total_amount</code>, בעוד מסך העלויות במודל מוסיף סכום הצעות משויכות (43457-43458) — מספרים שונים לאותה פקודה.</div></div></section>
+
+ <section class="proc" data-f="work order detail modal tabs פרטי פקודה מודל"><h3>פרטי פקודה ומודל ניהול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openWorkOrderModal(woId)</code> (42985) → <code>GET /api/work-orders/detail/:id</code> (26601).</div>
+<div>תנאים ואימותים</div><div><code>verifyBiz</code>; פקודה חייבת להיות <code>call_type='work_order'</code> של העסק → 403 (26604-26605); לא נמצאה → 404 (26626).</div>
+<div>שלבי עיבוד</div><div><ol><li>שליפה מקבילה (26606-26625): הפקודה + שם/טווח סועדים/slug של תפריט (<code>menu_templates</code>), assignees, inventory (כולל מלאי pantry/catalog), messages, timeline, calendar_events לפי <code>work_order_id</code>, equipment reserved, linkedQuotes.</li><li>לקוח: טעינת עובדים (<code>/work-orders/users</code>), הצעות משמרת (<code>/suggest-staff</code> לפי תאריך הזימון הראשון), קטלוג, תבניות תפריט; עבור <code>maintenance_repair</code> — מסתיר תפריט ומציג שיוך הצעות (<code>/available-quotes</code>) (43076-43093). <strong style="color:var(--warn)">[תוקן באימות: התוכן נכון, אך הקוד נמצא ב-public/business-app.js ולא ב-server.js, והטווח מתחיל ב-43036 (טעינת /work-orders/users), suggest-staff ב-43043, קטלוג 43052, תבניות תפריט 43059, ו-maintenance_repair/available-quotes ב-43076-43093.]</strong></li></ol></div>
+<div>חישובים</div><div>סכום מוצג = <code>total_amount + Σ linkedQuotes.total_amount</code> (43146-43147). פריטים: מסונן <code>is_quote_metadata</code>, <code>is_delivery_metadata</code>, <code>catalogId 999999</code>, שמות <code>DELIVERY_META|</code> (43153-43155); שורה=qty×price_at_order.</div>
+<div>ממשק</div><div>טאבים (42672): overview, team, inventory, equipment, chat, custchat, notes, timeline, calendar, purchase, costs, payments, timelogs. Professional: "משתתפים", מסתיר inventory+purchase, תוויות סטטוס חלופיות (processing="בטיפול", pending_payment="הושלם — ממתין לתשלום", completed="סגור ✓") (43101-43123), כפתור "פגישת קיקאוף" כשהתיק לא completed/cancelled (43233-43246) וכפתור "צור מסמך סיכום". הערות: notes כ-JSON (<code>internalNote/customerNote</code>) או טקסט עם "הערות לקוח:" (43207-43215).</div></div></section>
+
+ <section class="proc" data-f="work order status change cancelled release statuses סטטוס פקודה"><h3>שינוי סטטוס פקודת עבודה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בחירה ב-<code>wo-status-select</code> (business-app.js:42387) → <code>updateWorkOrderStatus</code> (43690) → <code>PUT /api/work-orders/:id/status</code> (server.js:26631). גם עוזר ה-AI: <code>_aiUpdateCaseStatus</code> (57534).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>verifyBiz</code>; פקודה של העסק → 403 (26634-26635).</li><li>אין אימות ערך הסטטוס ואין בדיקת מעבר חוקי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>store_orders.status</code> (26636).</li><li>Timeline <code>status_change</code> עם תווית: open=פתוח, processing=בתהליך, new=חדש, scheduled=מתוזמן, pending_payment=בוצע — ממתין לתשלום, completed=הושלם, cancelled=בוטל (26637-26638).</li><li><code>logBizAction(...,'UPDATE_CASE_STATUS','work_order',...)</code> → <code>biz_audit_log</code> (26639; 4160).</li><li>אם <code>family_group_id</code> וסטטוס ∈ {processing,scheduled,completed,cancelled} → alert <code>work_order_status</code> "עדכון סטטוס: &lt;כותרת&gt; — &lt;בטיפול|מתוזמן|הושלם ✅|בוטל&gt;" (26641-26656).</li><li>cancelled: לכל שורת <code>work_order_inventory</code> reserved → <code>store_catalog.reserved_qty=GREATEST(0,reserved_qty−reserved_qty_row)</code> ושורה→released (26658-26663).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>כל סטטוס</td><td>open / new / processing / scheduled / pending_payment / completed / cancelled</td><td>BIZ (כל משתמש עם טוקן)</td><td>אין</td><td>timeline + audit; alert ללקוח ל-processing/scheduled/completed/cancelled</td></tr>
+<tr><td>כל סטטוס</td><td>cancelled</td><td>BIZ</td><td>—</td><td>שחרור שריוני קטלוג</td></tr>
+<tr><td>(רשימה) quote</td><td>—</td><td>—</td><td>אירוע is_event טרם הומר</td><td>מוצג ברשימה בלבד</td></tr></table></div>ערכים מהלקוח: options ב-42388-42394; AI: processing/scheduled/completed/cancelled/new (57545).</div>
+<div>פערים</div><div><ul><li>ביטול משחרר רק <code>store_catalog</code> לפי <code>catalog_id</code>; שריוני <code>pantry</code> (שהם ברירת המחדל מהממשק — <code>addInventoryReservation</code> שולח pantryId, 43863-43866) לא משתחררים.</li><li><code>_aiUpdateCaseStatus</code> שולח בלי Authorization (57541-57543) → 401 תמיד.</li></ul></div></div></section>
+
+ <section class="proc" data-f="work order delete מחיקה"><h3>מחיקת פקודת עבודה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>DELETE /api/work-orders/:id</code> (server.js:26590).</div>
+<div>תנאים ואימותים</div><div><code>verifyBiz</code>; DELETE מותנה <code>group_id</code> + <code>call_type='work_order'</code>; 0 שורות → 404 "פקודת עבודה לא נמצאה".</div>
+<div>שלבי עיבוד</div><div>DELETE מ-<code>store_orders</code>; טבלאות צוות/מלאי/ציוד/תשלומים/timeline/שיח ב-ON DELETE CASCADE, יומן ורכש ON DELETE SET NULL (הערה 26588-26589). <code>professional_documents.work_order_id</code> → SET NULL (1651).</div>
+<div>פערים</div><div>מחיקה לא משחררת <code>reserved_qty</code> בקטלוג/מחסן לפני ה-CASCADE.</div></div></section>
+
+ <section class="proc" data-f="work order assignees team cost hourly suggest staff shift צוות שיוך עובד"><h3>שיוך צוות / משתתפים ועלות עבודה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב team: <code>addAssigneeToWo</code> (business-app.js:43705) → <code>POST /api/work-orders/:id/assignees</code> (26693); הסרה <code>removeWoAssignee</code> → <code>DELETE .../assignees/:userId</code> (26722); עדכון שעות/תעריף <code>updateAssigneeCost</code> → <code>PUT /api/work-orders/:woId/assignees/:userId/cost</code> (17246). רשימת עובדים: <code>GET /work-orders/users/:groupId</code> (26669); הצעות: <code>GET /work-orders/suggest-staff/:groupId?eventDate</code> (26678).</div>
+<div>תנאים ואימותים</div><div><ul><li>כולן <code>verifyBiz</code> ובעלות פקודה (403). cost בודק בעלות על <code>store_orders</code> בלי call_type (17249).</li><li>suggest-staff: חסר eventDate → 400 "חסר תאריך" (26682).</li><li>לקוח: חובה לבחור עובד ("בחר עובד").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT <code>work_order_assignees</code> (UNIQUE work_order_id,user_id; בקונפליקט מעדכן רק role_label) (26698-26701).</li><li>Timeline <code>assignee_added</code> "שויך עובד: X".</li><li>התראה לעובד: group היעד = <code>users.family_group_id</code> או group העסק; INSERT alert עם <code>type='work_order_assigned'</code>, title, reference_id (26704-26717).</li><li>הסרה: DELETE + timeline <code>assignee_removed</code> עם actor 'מנהל'.</li><li>cost: <code>UPDATE hourly_rate, hours_worked</code> (ברירת מחדל 0).</li><li>suggest-staff: עובדים עם משימה <code>tasks.status='approved'</code> ו-<code>title LIKE 'SHIFT|&lt;date&gt;|%'</code> (26683-26688); בממשק מסומנים ⭐ "במשמרת בתאריך זה" (43048-43050).</li></ol></div>
+<div>חישובים</div><div>עלות עובד = hourly_rate × hours_worked; סה"כ צוות = Σ (43341). Professional: תווית "שעות עבודה בתיק" ופירוט "Xש' × ₪Y".</div>
+<div>פערים</div><div>התראת השיוך כותבת לעמודות <code>type,title,reference_id</code> שאינן קיימות ב-<code>alert_notifications</code> → נבלעת. <code>users.family_group_id</code> לא נבדק אם קיים בסכמה.</div></div></section>
+
+ <section class="proc" data-f="work order inventory reserve use release pantry catalog buffer auto from menu שריון מלאי"><h3>שריון מלאי לפקודה (ידני, שימוש, שחרור, אוטומטי מתפריט)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב inventory: <code>addInventoryReservation</code> (43850) → <code>POST /api/work-orders/:id/inventory</code> (26777); "אשר שימוש" <code>confirmInventoryUse</code> → <code>POST .../inventory/:resId/use</code> (26841); "שחרר" → <code>DELETE .../inventory/:resId</code> (26861); "שריון אוטומטי מהתפריט" <code>autoReserveInventoryFromMenu</code> → <code>POST .../inventory/auto-from-menu</code> (26934). קטלוג עם זמינות: <code>GET /work-orders/catalog/:groupId</code> (26733).</div>
+<div>תנאים ואימותים</div><div><ul><li>כולן <code>verifyBiz</code> + פקודה work_order של העסק (403).</li><li>pantry/catalog לא נמצא → 404 "פריט לא נמצא במלאי"/"פריט לא נמצא".</li><li>use: שריון לא נמצא → 404 "שריון לא נמצא"; release: רק status=reserved → אחרת 404 "שריון לא נמצא או כבר בשימוש".</li><li>auto: חסר <code>menu_template_id</code> → 400 "לאירוע זה לא משויך תפריט" (26943); אין פריטים עם מתכון → success עם הודעה.</li><li>לקוח: usedQty חייב &gt;0 (43885).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>reserve: חישוב זמינות → <code>UPDATE pantry|store_catalog SET reserved_qty+=actualReserved</code> (רק אם &gt;0) → INSERT <code>work_order_inventory</code> (needed_qty, reserved_qty, unit_price, reserved_by) → timeline <code>inventory_reserved</code> "שורין ציוד: X (a/n יח' — חסר s)".</li>
+<li>use: <code>actualUsed=min(usedQty||reserved, reserved)</code>; שורה→<code>status='used', used_qty, used_at</code>; pantry/catalog: <code>quantity|stock_quantity −= actualUsed</code>, <code>reserved_qty −= reserved_qty_row</code> (GREATEST 0) (26849-26855); timeline <code>inventory_used</code>.</li>
+<li>release: שורה→released; <code>reserved_qty −= row.reserved_qty</code>; timeline <code>inventory_released</code>.</li>
+<li>auto: איסוף <code>menu_items.catalog_item_id</code> של התבנית → <code>product_ingredients</code> → איחוד לפי שם (lowercase/trim) → לכל מרכיב חיפוש <code>pantry</code> לפי <code>LOWER(item_name)</code> → שריון ו-INSERT רק אם reserved&gt;0; timeline <code>inventory_auto_reserved</code> (26946-26995). בממשק: אם יש מחסור מציע טיוטת רכש לכל החוסרים.</li></ol></div>
+<div>חישובים</div><div><code>buffer=stock×min_stock_buffer_pct/100</code>; <code>available=max(0, stock−reserved−buffer)</code>; <code>actualReserved=min(needed, available)</code>; <code>shortage=round4(needed−actualReserved)</code> (26800-26803, 26820-26823). auto: <code>qtyPerGuest=quantity×(1+waste_pct/100)</code>; <code>needed=Σ qtyPerGuest×event_guest_count(||1)</code> (26959-26963). catalog זמין: <code>max(0, stock_quantity−reserved_qty)</code>, רק stock&gt;0 (26738-26739).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>reserved</td><td>BIZ</td><td>—</td><td>reserved_qty עולה</td></tr>
+<tr><td>reserved/used</td><td>used</td><td>BIZ</td><td>שורה קיימת</td><td>הורדת מלאי פיזי</td></tr>
+<tr><td>reserved</td><td>released</td><td>BIZ / ביטול פקודה</td><td>status=reserved</td><td>הורדת reserved_qty</td></tr></table></div></div>
+<div>ממשק</div><div><code>renderWoInventory</code> (43385): התראת מחסור עם כפתור <code>draftPurchaseOrderForShortage</code>; פירוט מלאי כולל/משוריין/זמין. Professional: הטאב מוסתר.</div>
+<div>פערים</div><div><ul><li>use לא בודק status — אפשר "להשתמש" שוב בשורה שכבר used/released ולהוריד מלאי פעמיים.</li><li>חישוב auto מבצע שאילתת buffer בכל איטרציה (לולאה) — לא טרנזקציה; כשל באמצע משאיר שריון חלקי.</li><li>הממשק מאכלס את הבחירה רק מ-<code>pantryCache</code> ושולח תמיד <code>data-price=0</code> (43824) — מחיר יחידה 0 כברירת מחדל.</li></ul></div></div></section>
+
+ <section class="proc" data-f="work order equipment reservation conflict overlaps events hub ציוד אירוע"><h3>שיוך ציוד לפקודה/אירוע (Events Hub)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב equipment: <code>addEquipmentReservation</code> (business-app.js:43993) → <code>POST /api/work-orders/:id/equipment</code> (26889); שחרור <code>removeWoEquipment</code> → <code>DELETE .../equipment/:resId</code> (26922); טעינה <code>GET .../equipment</code> (26880); יצירה מהירה של פריט ציוד → <code>POST /api/equipment/items</code> קטגוריה "אירועים".</div>
+<div>תנאים ואימותים</div><div><ul><li><code>verifyBiz</code>; בעלות <code>store_orders</code> (ללא בדיקת call_type) (26892).</li><li>חובה equipmentItemId, eventDate, startTime → 400 "חסרים נתוני ציוד/תאריך/שעה".</li><li>פריט ציוד של העסק → אחרת 404.</li><li>התנגשות: אותו פריט, status reserved, אותו תאריך, טווחים חופפים (<code>OVERLAPS</code>) → 409 "הפריט כבר משוריין לאירוע אחר (&lt;לקוח|#id&gt;) באותו חלון זמן" (26900-26910).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT <code>work_order_equipment</code> (duration ברירת מחדל 120, cost) → timeline <code>equipment_reserved</code>. שחרור: <code>status='released', released_at=NOW()</code> + timeline <code>equipment_released</code>.</div>
+<div>חישובים</div><div>חלון = [start_time, start_time + duration_minutes(||120)].</div>
+<div>ממשק</div><div>ברירת מחדל לתאריך/שעה מהזימון הראשון של הפקודה (43986-43990). עלות ציוד נכנסת לטאב העלויות (לא ב-professional).</div></div></section>
+
+ <section class="proc" data-f="work order purchase orders supplier delivered רכש הזמנת רכש"><h3>הזמנות רכש לפקודת עבודה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב purchase: <code>submitWoPurchaseOrder</code> (business-app.js:44669) → <code>POST /api/work-orders/:id/purchase-orders</code> (28333); אישור/קבלה/ביטול: <code>updateWoPo</code>, <code>confirmWoPoReceive</code> → <code>PATCH .../purchase-orders/:poId/status</code> (28368); רשימות: <code>GET .../purchase-orders</code> (28318), <code>GET /work-orders/purchase-orders/group/:groupId</code> (28424).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST: items ריק → 400 "נדרשים פריטים להזמנה"; body.groupId חייב להיות bizAuth.groupId → 403; פקודה של העסק.</li><li>לקוח: לפחות פריט אחד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם אין supplierId ויש supplierName → INSERT <code>suppliers</code> ON CONFLICT DO NOTHING או SELECT קיים (28343-28355).</li><li>INSERT <code>purchase_orders</code> (status 'pending', work_order_id) + timeline <code>purchase_order_created</code>.</li><li>PATCH status: UPDATE + timeline "עודכנה ל: ממתין/אושר/התקבל/בוטל".</li><li>delivered: לכל פריט — catalog_id מהפריט או מ-<code>supplier_products.catalog_id</code>; <code>store_catalog.stock_quantity += totalUnits</code>; INSERT <code>work_order_inventory</code> (status reserved); <code>store_catalog.reserved_qty += totalUnits</code>; timeline (28377-28416).</li></ol></div>
+<div>חישובים</div><div><code>total_amount=Σ unit_price×quantity(||1)</code> (28340); <code>totalUnits=quantity×units_per_package(||1)</code> (28390).</div>
+<div>מכונת מצבים</div><div>pending → approved → delivered; כל מצב → cancelled. אין אימות מעבר.</div>
+<div>פערים</div><div>סימון delivered פעמיים מוסיף מלאי ושריון כפולים (אין בדיקת סטטוס קודם).</div></div></section>
+
+ <section class="proc" data-f="work order messages notes menu timeline customer chat business-message שיח הערות"><h3>שיח פנימי, הערות, תפריט, ציר זמן ושיח לקוח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sendWoMessage</code> → <code>POST /work-orders/:id/messages</code> (27085); <code>saveWoNotes</code> → <code>PUT .../notes</code> (27098); <code>saveWoMenu</code> → <code>PUT .../menu</code> (27111); <code>loadWoTimeline</code> → <code>GET .../timeline</code> (27183); שיח לקוח <code>sendWoCustomerMessage</code> → <code>POST /api/store/quotes/:id/business-message</code> (15130).</div>
+<div>תנאים ואימותים</div><div>כולן <code>verifyBiz</code>+בעלות (business-message: <code>verifyBizOrLegacy</code>+<code>requireModule('sales')</code>, טקסט ריק → 400 "הודעה ריקה"). menu: תבנית לא של העסק → 400 "תפריט לא נמצא".</div>
+<div>שלבי עיבוד</div><div><ol><li>messages: INSERT <code>work_order_messages</code>.</li><li>notes: UPDATE <code>wo_notes, wo_notes_updated_at, wo_notes_updated_by</code> + INSERT <code>work_order_notes_history</code> + timeline <code>notes_updated</code>.</li><li>menu: UPDATE <code>menu_template_id</code> (או NULL) + timeline <code>menu_assigned/menu_removed</code>.</li><li>business-message: append <code>{type:'business_message',text}</code> ל-<code>quote_history</code>; alert ללקוח (type quote_business_message, 80 תווים ראשונים).</li></ol></div>
+<div>ממשק</div><div>שיח לקוח מוצג מ-<code>quote_history</code> אירועי business_message/customer_response (43572-43600); תוויות תגובה approved/rejected/discount_request/items_request. בועות "שלי" לפי <code>user_name===currentUser.nickname</code>.</div>
+<div>פערים</div><div>התראת business-message משתמשת בעמודות לא קיימות (type,title,reference_id) → לא נשמרת.</div></div></section>
+
+ <section class="proc" data-f="work order quote links linked quotes maintenance שיוך הצעות"><h3>שיוך הצעות מחיר לפקודה (תחזוקה ותיקונים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>רק עבור <code>business_type='maintenance_repair'</code> בממשק (43076-43093): <code>saveWoQuoteLink</code> → <code>POST /work-orders/:id/quotes</code> (27157); הסרה → <code>DELETE .../quotes/:quoteId</code> (27173); רשימות <code>GET .../quotes</code> (27132), <code>GET .../available-quotes</code> (27144).</div>
+<div>תנאים ואימותים</div><div>verifyBiz + בעלות; הצעה של העסק → 404 "הצעת מחיר לא נמצאה". available: <code>status='quote'</code>, לא work_order, לא משויכת, LIMIT 100.</div>
+<div>שלבי עיבוד</div><div>INSERT <code>work_order_quote_links</code> ON CONFLICT DO NOTHING + timeline <code>quote_linked</code> "(₪total)"; DELETE + timeline <code>quote_unlinked</code>.</div>
+<div>חישובים</div><div>הכנסה צפויה = total_amount של הפקודה + Σ הצעות משויכות — משמשת בסקירה, בעלויות, בבסיס תבנית התשלום ובברירת מחדל ל-total_amount של תחנה (27054-27057, 28471-28475).</div></div></section>
+
+ <section class="proc" data-f="work order calendar event zimun kickoff זימון יומן"><h3>זימון ביומן מתוך פקודה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב calendar: <code>createWoCalendarEvent</code> (business-app.js:44149) → <code>POST /api/work-orders/:id/calendar</code> (27192).</div>
+<div>תנאים ואימותים</div><div>body.groupId==bizAuth.groupId (403); פקודה של העסק. לקוח: חובה נושא, תאריך, שעה.</div>
+<div>שלבי עיבוד</div><div>INSERT <code>calendar_events</code> status 'approved', <code>work_order_id</code>, address, <code>attendees_user_ids</code>=JSON של משויכים, duration; timeline <code>calendar_event</code>.</div>
+<div>פערים</div><div><code>customer_phone</code> נשמר עם <code>customerName</code> (27201, פרמטר $5) — טלפון שגוי ביומן.</div></div></section>
+
+ <section class="proc" data-f="quote from menu template event per person events hub הצעת מחיר תבנית תפריט"><h3>הצעת מחיר לאירוע מתבנית תפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"אירוע חדש מתפריט" <code>openNewEventFromMenuModal</code>/<code>submitNewEventFromMenu</code> (business-app.js:42716-42857) → <code>POST /api/store/quotes/from-template</code> (27001).</div>
+<div>תנאים ואימותים</div><div>verifyBiz; חובה templateId, customerName → 400; תבנית של העסק → 404. לקוח: אזהרה (לא חסימה) אם סועדים מחוץ ל-min/max.</div>
+<div>שלבי עיבוד</div><div>פריטים מ-<code>menu_items</code> זמינים (is_available≠false) לפי סדר; INSERT <code>store_orders</code> status 'quote', <code>is_event=TRUE</code>, event_guest_count, target_datetime; UPDATE <code>quote_number='QT-'+id padded 6</code>.</div>
+<div>חישובים</div><div><code>guests=max(1, guestCount||min_guests||1)</code>; per_person: quantity=guests לכל פריט + שורת "מחיר בסיס לסועד" (base_price_per_person×guests); אחרת quantity=1; <code>total=Σ price×qty</code> (27015-27030). הערכת לקוח: base×guests.</div></div></section>
+
+<h2 class="grp">גביה ותחנות תשלום</h2>
+
+ <section class="proc" data-f="payments milestones work order deposit template mark paid full תחנות תשלום מקדמה"><h3>תחנות תשלום לפקודה / הזמנה (יצירה, תבנית מקדמה, תשלום מלא)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב payments: <code>savePaymentMilestone</code> (44274) → <code>POST /api/work-orders/:id/payments</code> (28459); <code>applyPaymentMilestoneTemplate</code> (43922) → <code>POST .../payments/apply-template</code> (27045); מהזמנות חנות: <code>markOrderPaidFull</code> (12179) → <code>POST .../mark-paid-full</code> (28494); תחנה מהזמנה רגילה (12199).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST payments: <code>amount&gt;0</code> → אחרת 400 "סכום נדרש"; בעלות על <code>store_orders</code> בלי בדיקת call_type (משרת גם הזמנות רגילות, 28463-28465).</li><li>apply-template: רק work_order; אם קיימות תחנות → 400 "כבר קיימות אבני דרך לפרויקט זה".</li><li>mark-paid-full: <code>total_amount&lt;=0</code> → 400 "אין סכום לגביה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: קביעת total_amount (ראו חישובים) → INSERT <code>work_order_payments</code> (status ברירת מחדל pending) → <code>store_orders.payment_status=COALESCE(payment_status,'pending_payment')</code>.</li><li>template: שתי שורות — "מקדמה" due=CURRENT_DATE, "יתרה — יום האירוע" due=target_datetime; payment_status כנ"ל; timeline <code>payments_template_applied</code>.</li><li>mark-paid-full: INSERT תחנה "תשלום מלא" status received, received_amount=amount; <code>payment_status='paid'</code>; INSERT <code>transactions</code> (income, category sales, user=ADMIN ראשון, "גביה הזמנה — &lt;לקוח&gt;").</li></ol></div>
+<div>חישובים</div><div>POST total_amount: מה-body אם &gt;0, אחרת <code>wo.total_amount+Σlinked quotes</code>, ואם 0 → amount (28468-28476). template: <code>pct=clamp(depositPct||30,10,90)</code>; <code>deposit=round2(total×pct/100)</code>; <code>balance=round2(total−deposit)</code> (27058-27060). ממשק: dealTotal = wo.total_amount אם &gt;0 אחרת original_amount אחרת Σamount; נותר = dealTotal − Σreceived (44199-44244).</div>
+<div>מכונת מצבים</div><div>store_orders.payment_status: NULL → pending_payment (תחנה ראשונה) → partial/paid (קבלה) ; mark-paid-full → paid.</div>
+<div>פערים</div><div>הלקוח קורא <code>original_amount</code> (44198, 44263, 44351) אך העמודה בשרת היא <code>total_amount</code> (1520, 28479) — fallback תמיד.</div></div></section>
+
+ <section class="proc" data-f="payment receive delete collection income transactions partial paid גביה התקבל"><h3>קבלת תשלום ומחיקת תחנה (פקודה + קריאת שירות)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"גבה ✓": <code>markPaymentReceived</code> (44299), <code>markScPaymentReceived</code>, ובטאב גביה (6789) → <code>PATCH /api/work-orders/payments/:paymentId/receive</code> (28520). מחיקה → <code>DELETE /api/work-orders/payments/:paymentId</code> (28581).</div>
+<div>תנאים ואימותים</div><div>verifyBiz; תחנה קיימת (404); בעלות = <code>store_orders.group_id</code> או <code>service_calls.business_group_id</code> == bizAuth.groupId → 403.</div>
+<div>שלבי עיבוד</div><div><ol><li>receive: <code>recAmt=receivedAmount||amount</code>; UPDATE status received, received_amount, received_at (receivedAt או now).</li><li>פקודה: INSERT <code>transactions</code> income/sales "גביה פקודת עבודה — לקוח (שם תחנה אם ≠'תשלום')"; ספירת pending → <code>payment_status</code>='paid' אם 0 אחרת 'partial'.</li><li>קריאת שירות: אותו דבר על <code>service_calls.payment_status</code> ותיאור "גביה קריאת שירות".</li><li>delete: DELETE; אם לא נותרו תחנות → payment_status NULL; אחרת 'paid' אם אין pending, אחרת 'pending_payment'.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>received</td><td>BIZ</td><td>בעלות</td><td>transaction הכנסה; payment_status paid/partial</td></tr>
+<tr><td>כל</td><td>(נמחק)</td><td>BIZ</td><td>בעלות</td><td>חישוב payment_status מחדש</td></tr></table></div></div>
+<div>פערים</div><div><ul><li>receive לא בודק שהתחנה pending — לחיצה כפולה רושמת הכנסה כפולה ב-transactions.</li><li>מחיקת תחנה שהתקבלה לא מוחקת את ה-transaction.</li><li>אחרי מחיקה הסטטוס הוא 'pending_payment' ולא 'partial' — לא עקבי עם receive.</li></ul></div></div></section>
+
+ <section class="proc" data-f="service call payments milestones תחנות תשלום קריאת שירות"><h3>תחנות תשלום לקריאת שירות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בתוך מודל הקריאה (business-app.js:38826-38863): <code>loadScPayments</code> → <code>GET /api/service-calls/:id/payments</code> (29003); <code>saveScPaymentMilestone</code> → <code>POST</code> (29014); אחרי "סמן כהושלם" — <code>_offerServiceCallCollection</code> (39003) מציע תחנה "תשלום מלא" על <code>price_quote</code> אם אין תחנות. משפחה רואה תחנות במודל שלה (app.js:13027).</div>
+<div>תנאים ואימותים</div><div>GET: <code>verifyFamilyOrBiz</code> + <code>_assertServiceCallAccess</code> (משפחה=family_group_id, עסק=business_group_id) (25896-25905). POST: <code>verifyBiz</code> + business_group_id==groupId; amount&gt;0.</div>
+<div>חישובים</div><div>total_amount: מה-body, אחרת מהתחנה האחרונה, אחרת amount (29023-29033).</div>
+<div>שלבי עיבוד</div><div>INSERT <code>work_order_payments</code> עם <code>service_call_id</code>; <code>service_calls.payment_status=COALESCE(...,'pending_payment')</code>.</div></div></section>
+
+ <section class="proc" data-f="collection tab alerts overdue due date גביה התראות"><h3>טאב גביה והתראות גביה בדשבורד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב גביה (business-app.js:6730) → <code>GET /api/work-orders/collection/:groupId</code> (29049); דשבורד ADMIN/מנהל (6187) → <code>GET /collection-alerts/:groupId</code> (29085).</div>
+<div>תנאים ואימותים</div><div>verifyBiz + groupId (403).</div>
+<div>חישובים</div><div>collection: UNION פקודות (wo_total=so.total_amount) וקריאות (wo_total=Σamount, מספר <code>SC-&lt;id&gt;</code>); total_received=Σreceived_amount של received; ספירת תחנות. alerts: status pending ו-<code>due_date&lt;=CURRENT_DATE</code>.</div></div></section>
+
+<h2 class="grp">קריאות שירות (Service Calls)</h2>
+
+ <section class="proc" data-f="service call create open new triage needs_triage member link פתיחת קריאה"><h3>פתיחת קריאת שירות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>POST /api/service-calls</code> (server.js:25570). מקורות: עסק — <code>submitNewServiceCall</code> (business-app.js:39241, טכנאי/מנהל); משפחה — אשף <code>scw</code> (app.js:13237) ומסך עסק מקושר (app.js:14190); חבר מקושר <code>_memberSubmitNewSc</code> (business-app.js:49048); אשף הקמה "קריאה ראשונה" (22858).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא middleware אימות.</li><li>חובה <code>title</code> → 400 "שדות חסרים" (25573).</li><li>businessGroupId/familyGroupId שאינם קיימים ב-<code>family_groups</code> מאופסים ל-NULL (25576-25587).</li><li>לקוח עסקי: חובה כותרת; משפחה: "נא לתאר את הבעיה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>autoNeedsTriage = needsTriage מפורש ? !!needsTriage : (familyGroupId קיים &amp;&amp; !assignedMemberId)</code>; אם triage → assigned_member_id=NULL (25591-25592).</li><li>INSERT <code>service_calls</code> (priority ברירת מחדל 'normal', status ברירת מחדל 'new' מהסכמה 1210); fallback ללא needs_triage אם העמודה חסרה (25599-25605).</li><li>אם family≠business ושניהם קיימים: UPSERT <code>member_business_links</code> status 'pending' (נשאר 'active' אם כבר active), business_type ברירת מחדל 'maintenance_repair'; <code>familyLinked=false</code> בכשל (25608-25624).</li></ol></div>
+<div>ממשק</div><div>עסק: שדות כותרת*, שם לקוח (+חיפוש WEFLOWZ <code>/api/groups/search-all</code> ולקוחות עסק מ-<code>storeCustomersCache</code>), טלפון, כתובת, תיאור, עדיפות (normal/high/urgent/low), שיוך טכנאי (רק ADMIN/branch_manager; רשימת <code>employee_role_type='field_tech'</code>), צ'קבוקס "העבר למנהל לסיווג" (39046-39099). התיאור נשלח עם קידומת "לקוח: &lt;שם&gt;\n" (39258).</div>
+<div>פערים</div><div><ul><li>אין אימות — כל אחד יכול לפתוח קריאה לכל עסק ולקבע link pending.</li><li>אשף ההקמה שולח <code>groupId</code> במקום <code>businessGroupId</code> (22860) → קריאה יתומה עם business_group_id NULL.</li></ul></div></div></section>
+
+ <section class="proc" data-f="store service request storefront maintenance time window sc-auth בקשת שירות חנות"><h3>בקשת שירות מחנות ציבורית (תחזוקה ותיקונים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח בחנות <code>storefront.html</code> לוחץ על שירות → <code>openServiceRequestModal</code>/<code>submitServiceRequest</code> (storefront.html:4183-4239) → <code>POST /api/store/service-request/:groupId</code> (server.js:25632).</div>
+<div>תנאים ואימותים</div><div><ul><li>דורש Bearer של sc-auth; <code>_scGetCustomerByToken</code> ריק → 401 "יש להתחבר לפני שליחת בקשת שירות"; ללא family_group_id → 400 (25634-25637).</li><li>עסק לא קיים → 404; חסר serviceName → 400 "חסר שם שירות"; חסר preferredDate → 400 "יש לבחור תאריך מועדף".</li><li>לקוח: תיאור ותאריך חובה; תאריך מינימלי=היום; <code>scAuth.requireLogin</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>תיאור = description + "חלון זמן מועדף: " עם תוויות morning=בוקר (08:00-12:00), afternoon=צהריים (12:00-16:00), evening=ערב (16:00-20:00) (25647-25649).</li><li>INSERT <code>service_calls</code> (family מה-token, priority normal, requested_date, <code>needs_triage=true</code>, customer_name=first+last).</li><li>UPSERT <code>member_business_links</code> pending (כמו בפתיחה).</li></ol></div></div></section>
+
+ <section class="proc" data-f="service call update patch status assign schedule price quote rating triage notification עדכון קריאה סטטוס"><h3>עדכון קריאת שירות ומכונת המצבים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>PATCH /api/service-calls/:id</code> (25821). מקורות: <code>saveServiceCallUpdates</code> (38886), <code>returnCallToManager</code> (38923), <code>scResolveCancelRequest</code> (38979), <code>markServiceCallDone</code> (38989), <code>_aiUpdateSCStatus</code> (57552), דירוג משפחה <code>rateFamilyServiceCall</code> (app.js:13160).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא middleware. אם נשלח <code>groupId</code> — חייב להיות family_group_id או business_group_id של הקריאה → 403 "אין הרשאה לעדכן קריאה זו" (25826-25834). אם לא נשלח — אין בדיקה.</li><li>אין שדות → 400 "אין שדות לעדכון"; לא נמצא → 404.</li><li>ממשק: סטטוס+שיוך רק ל-ADMIN/branch_manager; field_tech: סטטוס + "החזר למנהל"; option list ללא cancelled/pending_cancel (38695-38698).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בניית SET דינמי: status, assigned_member_id, scheduled_at, price_quote, discount_pct (||0), community_discount, parts_status, rating, needs_triage; אם assignedMemberId truthy ו-needsTriage לא נשלח → needs_triage=false (25846-25847); updated_at=NOW().</li><li>אם status נשלח → <code>logBizAction(...,'UPDATE_SC_STATUS')</code>.</li><li>אם status ויש link <code>status='active' AND is_active</code> → <code>_sendMemberBizNotif</code> (alert trigger_type business_update, refKey <code>mbiz_sc_&lt;id&gt;_&lt;status&gt;</code>, dedup) "קריאת השירות שלך ב&lt;עסק&gt; עודכנה: &lt;תווית&gt;" (25856-25869; 30937).</li><li>לקוח: אחרי שמירה עם scheduledAt → <code>syncServiceCallsToCalendar</code>; status pending_parts → דיאלוג "פתח הזמנת רכש" (38901-38916).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>new (ברירת מחדל)</td><td>seen / in_progress / pending_parts / pending_payment / done</td><td>מנהל/טכנאי (UI)</td><td>אין אימות בשרת</td><td>audit; התראה ללקוח אם link פעיל</td></tr>
+<tr><td>new/seen</td><td>pending_cancel</td><td>לקוח (DELETE)</td><td>רק new/seen</td><td>—</td></tr>
+<tr><td>pending_cancel</td><td>cancelled</td><td>מנהל "אשר ביטול"</td><td>UI: isMgr</td><td>התראה</td></tr>
+<tr><td>pending_cancel</td><td>seen</td><td>מנהל "דחה בקשה"</td><td>UI</td><td>התראה</td></tr>
+<tr><td>כל</td><td>seen + assigned=NULL</td><td>טכנאי "החזר למנהל"</td><td>—</td><td>—</td></tr>
+<tr><td>כל</td><td>done</td><td>"סמן כהושלם"</td><td>—</td><td>הצעת תחנת גביה על price_quote</td></tr></table></div>תוויות שרת (25865): new חדשה, seen נצפתה, in_progress בטיפול, pending_parts ממתין לחלקים, pending_payment ממתין לתשלום, pending_cancel בקשת ביטול, done הושלם, cancelled בוטל. parts_status: waiting_delivery (יצירת PO מקושר, 18107/18230), parts_ready (קבלת סחורה, 17355).</div>
+<div>חישובים</div><div>needs_triage לוגיקה למעלה. דירוג: SMALLINT (1237).</div>
+<div>פערים</div><div><ul><li>ללא אימות אמיתי; ניתן לשנות כל קריאה בלי groupId.</li><li>עוזר ה-AI שולח סטטוסים scheduled/processing/waiting_parts (57562) שאינם חלק מהמכונה.</li><li><code>saveWorkOrderSchedule</code> (business-app.js:9568) שולח PATCH ל-<code>/service-calls/&lt;id של פקודת עבודה&gt;</code> — טבלה שגויה.</li></ul></div></div></section>
+
+ <section class="proc" data-f="service call cancel request customer delete pending_cancel ביטול קריאה"><h3>בקשת ביטול קריאה ע"י הלקוח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה: <code>cancelFamilyServiceCall</code> (app.js:13149) / מסך עסק (app.js:14111) → <code>DELETE /api/service-calls/:id</code> (server.js:25874).</div>
+<div>תנאים ואימותים</div><div>לא נמצא → 404; groupId (אם נשלח) שייך → 403 "אין הרשאה לבטל קריאה זו"; status חייב להיות new/seen → 400 "ניתן לבקש ביטול רק לקריאה שטרם החל בה טיפול" (25887-25889).</div>
+<div>שלבי עיבוד</div><div>UPDATE status='pending_cancel' (לא מחיקה). אישור/דחייה בצד העסק (ראו מכונה).</div></div></section>
+
+ <section class="proc" data-f="service call messages chat notes polling צ'אט הערות טיפול"><h3>צ'אט לקוח-עסק ויומן טיפול לקריאה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>צ'אט: <code>GET/POST /api/service-calls/:id/messages</code> (25907/25915). יומן טיפול פנימי: <code>GET/POST .../notes</code> (25932/25939).</div>
+<div>תנאים ואימותים</div><div><ul><li>messages: <code>verifyFamilyOrBiz</code> + <code>_assertServiceCallAccess</code>; הודעה ריקה → 400; קיצור ל-2000 תווים; <code>sender_type</code> נגזר מהסשן (business/family), לא מה-body (25921).</li><li>notes: ללא אימות; note ריק → 400 "הערה ריקה"; author ברירת מחדל 'טכנאי'.</li></ul></div>
+<div>שלבי עיבוד</div><div>משפחה שולחת → UPDATE updated_at בקריאה. INSERT <code>service_call_messages</code> / <code>service_call_notes</code>.</div>
+<div>ממשק</div><div>מודל עסק מרענן צ'אט כל 10 שניות (<code>_scChatInterval</code>, business-app.js:38874-38883); משפחה גם עם polling (app.js:13117).</div>
+<div>פערים</div><div>notes פתוחים לקריאה/כתיבה לכל id ללא אימות. sendServiceCallMessage שולח senderType שמתעלמים ממנו.</div></div></section>
+
+ <section class="proc" data-f="service call link oneflow weflowz family customer קישור לקוח"><h3>קישור קריאה קיימת ללקוח WEFLOWZ</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>במודל קריאה ללא family: "🔗 קשר ל-WEFLOWZ" <code>scInviteToOneflow</code> → <code>_scOflSearch</code>/<code>_scOflLink</code> (business-app.js:39102-39167), או יצירת חבר חדש באשף (49053/49079) → <code>PATCH /api/service-calls/:id/link-oneflow</code> (25678).</div>
+<div>תנאים ואימותים</div><div>ללא אימות; חסר familyGroupId/callId → 400 "חסרים שדות"; קריאה לא נמצאה → 404.</div>
+<div>שלבי עיבוד</div><div>UPDATE family_group_id → UPSERT <code>member_business_links</code> pending → INSERT alert (type sc_received, "&lt;עסק&gt; פתח עבורך קריאת שירות — ממתין לאישורך").</div>
+<div>פערים</div><div><ul><li>ללא אימות — כל אחד יכול לשייך קריאה של עסק לכל משפחה.</li><li>ה-alert כותב ל-type/title/reference_id שאינם בסכמה → נכשל בשקט.</li><li><code>_scOflSearch</code> קורא <code>d.results</code> (39132) בעוד השרת מחזיר <code>groups</code> (25564) → תמיד "לא נמצא ב-WEFLOWZ".</li></ul></div></div></section>
+
+ <section class="proc" data-f="service call schedule notifications due tomorrow overdue alerts תזמון התראות"><h3>התראות תזמון קריאות (מחר / באיחור)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>נקרא בכל טעינת דשבורד מנהל סניף (business-app.js:38389) → <code>POST /api/service-calls/check-schedule-notifications/:groupId</code> (25747). אין cron.</div>
+<div>תנאים ואימותים</div><div>ללא אימות.</div>
+<div>חישובים</div><div>מחר: <code>scheduled_at ∈ [tomorrow 00:00, dayAfter 00:00)</code>; באיחור: <code>scheduled_at &lt; today 00:00</code>; שניהם status∉{done,cancelled}. refKey <code>sc_due_tomorrow_&lt;id&gt;_&lt;today&gt;</code> / <code>sc_overdue_&lt;id&gt;_&lt;today&gt;</code> — פעם ביום לכל קריאה (25756-25776). זמן שרת (לא Asia/Jerusalem).</div>
+<div>תופעות לוואי</div><div>INSERT <code>alert_notifications</code> trigger_type sc_due_soon / sc_overdue.</div></div></section>
+
+ <section class="proc" data-f="service call lists family business customer by-customer שליפות"><h3>שליפות קריאות (משפחה, עסק, לקוח, היסטוריית לקוח)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET /service-calls/family/:groupId</code> (25714, ללא אימות); <code>/business/:groupId</code> (25727, verifyBiz — groupId מהטוקן); <code>/customer/:biz/:family</code> (25807, ללא אימות); <code>/by-customer/:biz?name&amp;phone</code> (25951, ללא אימות, LIMIT 20).</div>
+<div>חישובים</div><div>by-customer: אם יש טלפון — התאמה מדויקת על ספרות <code>regexp_replace(customer_phone,'\D')</code> או LIKE על שם משפחה/תיאור; אחרת LIKE על שם בלבד.</div>
+<div>ממשק</div><div>טכנאי רואה רק קריאות משויכות אליו (39311-39312) או שיצר (38317); מנהל — הכל. KPIs מנהל: פתוחות, ממתין לסיווג, דחופות, טכנאים (38396-38401). רשימה "כל הקריאות" עם חיפוש טקסט ופילטרים new/in_progress/pending_parts/done.</div>
+<div>פערים</div><div>family/customer/by-customer חושפים נתוני לקוחות ללא אימות. endpoints דיבאג פתוחים: <code>/api/debug/sc-columns</code>, <code>/api/debug/sc-business-test/:gid</code> (25782-25804).</div></div></section>
+
+ <section class="proc" data-f="service call analytics reports technician trend csv pdf דוחות אנליטיקה"><h3>אנליטיקת קריאות ודוחות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>showMaintenanceReports</code> (business-app.js:38540) → <code>GET /api/service-calls/analytics/:biz?days&amp;memberId</code> (25985); ייצוא CSV/PDF בצד לקוח (38447-38471).</div>
+<div>תנאים ואימותים</div><div>verifyBiz (groupId מהטוקן).</div>
+<div>חישובים</div><div>(25992-26037) total, open (∉done,cancelled), done, cancelled, urgent_open, completed_today/week(7d)/month, created_this_month, <code>avg_completion_hours=round1(AVG(updated_at−created_at)/3600)</code> על done, <code>total_revenue=Σprice_quote</code> של done, revenue_this_month; לפי סטטוס/עדיפות(פתוחות)/טכנאי (מיון הכנסה, done); מגמה <code>trendDays=min(max(days||6,6),89)</code>.</div>
+<div>פערים</div><div>byTech מתעלם מ-memberId. "זמן השלמה" מבוסס updated_at — כל עדכון אחרי done (דירוג!) משנה אותו.</div></div></section>
+
+ <section class="proc" data-f="service call parts procurement purchase order waiting delivery parts ready חלקים רכש"><h3>חלקים ורכש לקריאת שירות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>סטטוס pending_parts → "פתח הזמנת רכש" <code>openProcurementForSC</code> (business-app.js:39280) — מעבר למסך shop עם <code>_pendingScForPo</code>; הזמנה ב-<code>/api/b2b/orders(/create)</code> עם serviceCallId.</div>
+<div>שלבי עיבוד</div><div>יצירת PO: <code>purchase_orders.service_call_id</code> + <code>service_calls.parts_status='waiting_delivery'</code> (18104-18108, 18227-18231). קבלת סחורה <code>/api/b2b/orders/receive</code>: parts_status='parts_ready' + alert sc_parts_ready (17352-17360).</div>
+<div>ממשק</div><div>תגיות "📦 ממתין לאספקה" / "✅ חלקים לאיסוף"; פירוט פריטי PO מקושר מ-<code>b2bOrdersHistory</code> (38719-38733).</div></div></section>
+
+<h2 class="grp">ציוד, תחזוקה, תקלות וטכנאים</h2>
+
+ <section class="proc" data-f="equipment items crud history warranty ציוד פריטים היסטוריה"><h3>פריטי ציוד והיסטוריית פריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>BIZ טאב equipment (<code>loadEquipment</code>, business-app.js:36415) וגם FAMILY "ניהול בית" (app.js:12240-12410). <code>GET/POST /api/equipment/items</code> (26050/26062), <code>DELETE /items/:id</code> (26081), <code>GET /items/:id/history</code> (26242).</div>
+<div>תנאים ואימותים</div><div><code>verifyFamilyOrBiz</code>; groupId תמיד מהסשן (<code>req.bizAuth.groupId</code>, alias גם למשפחה 43109). name חובה → 400 "שם חובה". עדכון/מחיקה מותנים group_id.</div>
+<div>שלבי עיבוד</div><div>id קיים → UPDATE, אחרת INSERT; category ברירת מחדל 'כללי', status 'active'. history: איחוד תחזוקות (event_date=completed או scheduled) ותקלות (created_at) ממוין יורד.</div>
+<div>מכונת מצבים</div><div>item.status: active / inactive / disposed (תוויות 36524).</div>
+<div>ממשק</div><div>צבע אחריות: פגה=אדום, &lt;30 יום=כתום (36547-36552); ספירת תחזוקות/תקלות פתוחות; כפתור השאלה/החזרה; מחיקה עם אזהרה "כל נתוני התחזוקה והתקלות שלו יימחקו".</div></div></section>
+
+ <section class="proc" data-f="equipment maintenance schedule complete interval recurring תחזוקה מחזורית"><h3>תחזוקה מתוזמנת והשלמה מחזורית</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitMaintenanceRecord</code> (business-app.js:37146) → <code>POST /api/equipment/maintenance</code> (26099); "בוצע" <code>completeMaintenanceRecord</code> → <code>PUT /maintenance/:id/complete</code> (26118); DELETE (26138).</div>
+<div>תנאים ואימותים</div><div>equipmentId חובה → 400 "ציוד חובה"; group_id מהסשן.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>equipment_maintenance</code> (type ברירת מחדל 'periodic', interval_days).</li><li>complete: <code>status='completed', completed_date=CURRENT_DATE</code>, cost/technician/notes COALESCE.</li><li>אם interval_days → INSERT רשומה חדשה (pending) עם <code>scheduled_date=completed_date+interval_days</code> (26126-26133).</li></ol></div>
+<div>מכונת מצבים</div><div>pending → completed (+ יצירת pending הבא). בממשק: overdue מחושב = pending ותאריך &lt; היום (36593-36594).</div>
+<div>חישובים</div><div>נקודת תג בטאב = תחזוקות לא completed עם תאריך ≤ היום+7 + תקלות ≠ resolved (36503-36518).</div>
+<div>פערים</div><div>complete לא בודק סטטוס — השלמה כפולה יוצרת רשומת המשך כפולה.</div></div></section>
+
+ <section class="proc" data-f="equipment faults status notes severity image technician תקלות"><h3>תקלות ציוד: פתיחה, סטטוס והערות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitFault</code> (business-app.js:37256) / משפחה (app.js:12787) → <code>POST /api/equipment/faults</code> (26185); שינוי סטטוס <code>submitFaultStatusChange</code> → <code>PATCH /faults/:id/status</code> (26205); הערות <code>GET/POST /faults/:id/notes</code> (26160/26171); DELETE (26235). שליחה לטכנאי ב-WhatsApp/מייל בצד לקוח (37477-37498).</div>
+<div>תנאים ואימותים</div><div>equipmentId+title חובה → 400 "ציוד וכותרת חובה"; status חובה ב-PATCH; בעלות group_id → 404. note חובה בהערות.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>equipment_faults</code> (severity ברירת מחדל medium, status open).</li><li>PATCH: <code>resolved_date</code> = הקיים או היום אם status=resolved, אחרת NULL; INSERT <code>equipment_fault_notes</code> עם status_from/to וטקסט "סטטוס שונה ל"X": note" או "סטטוס שונה מ"A" ל"B"" (26213-26230).</li><li>משפחה: אחרי פתיחה עם טכנאי — הצעת WhatsApp.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>open</td><td>in_progress</td><td>BIZ/FAMILY</td><td>—</td><td>הערת היסטוריה</td></tr>
+<tr><td>כל</td><td>resolved</td><td>BIZ/FAMILY</td><td>—</td><td>resolved_date נקבע</td></tr>
+<tr><td>resolved</td><td>open/in_progress</td><td>—</td><td>—</td><td>resolved_date מתאפס</td></tr></table></div>severity: low/medium/high/critical. תוויות שרת open/in_progress/resolved; דשבורד טכנאי מציג גם pending_parts (38258).</div>
+<div>פערים</div><div>עריכה מצד BIZ (<code>submitFault</code>) לא שולחת technicianId/scheduledDate → ה-UPDATE (26193) מאפס אותם ל-NULL. התמונה נשמרת כ-data URL ישירות (window._eqFaultImageData).</div></div></section>
+
+ <section class="proc" data-f="equipment technicians contacts link business oneflow verified טכנאים אנשי קשר"><h3>טכנאים / אנשי קשר וקישור לעסק WEFLOWZ</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET/POST /api/equipment/technicians</code> (25458/25465), DELETE (25484), <code>POST /technicians/:id/link-business</code> (25492). משפחה מחפשת עסק <code>GET /api/groups/search-business?q&amp;type</code> (25516) ומקשרת (app.js:13296-13320).</div>
+<div>תנאים ואימותים</div><div>verifyFamilyOrBiz; name חובה; link-business מוגבל ל-group_id של המבקש (25495-25500) → 404 "לא נמצא". search-business: q≥2 תווים; טלפון רק אם ≥7 ספרות; רק type BUSINESS; LIMIT 10.</div>
+<div>שלבי עיבוד</div><div>INSERT/UPDATE <code>equipment_technicians</code>; <code>oneflow_verified=(business_group_id IS NOT NULL)</code>. BIZ: אזהרה אם קיים field_tech רשום בשם זהה (37438-37449).</div>
+<div>פערים</div><div>עריכת טכנאי מצד BIZ לא שולחת businessGroupId (37454-37459) → UPDATE מאפס business_group_id ו-oneflow_verified=false.</div></div></section>
+
+ <section class="proc" data-f="equipment notifications check maintenance 7 days service call tomorrow התראות ציוד"><h3>בדיקת התראות ציוד ותחזוקה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בכל <code>loadEquipment</code> (BIZ 36466) ובמשפחה (app.js:12229) → <code>POST /api/equipment/notifications/check/:groupId</code> (26264). אין cron.</div>
+<div>חישובים</div><div>תחזוקות pending עם scheduled_date ∈ [היום, היום+7]; <code>diffDays=round((date−today)/86400000)</code>; 2..7 → refKey <code>eq_maint_&lt;id&gt;_7d_&lt;date&gt;</code> "🔧 תחזוקה בעוד N ימים"; ≤1 → <code>_1d_</code> "היום/מחר" (26276-26288). קריאות שירות עם DATE(scheduled_at)=מחר → refKey <code>sc_scheduled_&lt;id&gt;_&lt;date&gt;</code>.</div>
+<div>תופעות לוואי</div><div>INSERT alert trigger_type equipment_maintenance / service_call_scheduled (dedup לפי reference_key); מחזיר created → <code>updateAlertBadge</code>.</div>
+<div>פערים</div><div>קריאות נבחרות גם לפי <code>family_group_id</code> של כל משפחות הקהילה של הקבוצה (26302) — קבוצה מקבלת התראות על קריאות של משפחות אחרות בקהילה.</div></div></section>
+
+ <section class="proc" data-f="equipment loans borrow return השאלות ציוד"><h3>השאלת ציוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>_eqLoanItem</code>/<code>_eqReturnLoan</code> (business-app.js:36442/36457) → <code>POST /api/equipment/loans</code> (26331), <code>POST /loans/:id/return</code> (26345), <code>GET /loans/:groupId</code> (26320, רק פעילות).</div>
+<div>תנאים ואימותים</div><div>verifyBiz; equipmentId+borrowerName → 400 "ציוד ושם לקוח חובה"; השאלה פעילה קיימת לפריט → 400 "הפריט כבר מושאל כרגע"; return רק פעילה → 404 "לא נמצאה השאלה פעילה".</div>
+<div>מכונת מצבים</div><div>פעיל (returned_at NULL) → הוחזר (returned_at=NOW()).</div>
+<div>פערים</div><div>בדיקת השאלה קיימת לא מסננת group_id ולא מאמתת שהפריט שייך לעסק.</div></div></section>
+
+ <section class="proc" data-f="equipment costs summary 12 months עלויות ציוד"><h3>סיכום עלויות ציוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>fetchEquipmentCostSummary</code> → <code>GET /api/equipment/costs/:groupId</code> (26356).</div>
+<div>חישובים</div><div>לפי חודש: <code>SUM(cost)</code> על COALESCE(completed,scheduled) ב-6 חודשים אחרונים, cost&gt;0; סה"כ 12 חודשים: completed_date בלבד. מוצג "💰 סה"כ עלות תחזוקת ציוד ב-12 החודשים האחרונים".</div></div></section>
+
+<h2 class="grp">יומן ותורים (Calendar / Booking)</h2>
+
+ <section class="proc" data-f="calendar settings services open close interval beauty catalog הגדרות יומן שירותים"><h3>הגדרות יומן ושירותי יומן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב calendar→settings: <code>saveCalendarSettings</code> (business-app.js:27036) → <code>POST /api/calendar/settings</code> (22855); <code>submitCalendarService</code> → <code>POST /api/calendar/services</code> (22869); <code>DELETE /calendar/services/:id</code> (22885).</div>
+<div>תנאים ואימותים</div><div>ללא אימות; groupId מה-body.</div>
+<div>שלבי עיבוד</div><div>UPSERT <code>calendar_settings</code> (open 09:00, close 18:00, interval 30, cancellation_hours 0, <code>show_in_storefront</code> true אלא אם false/'false'). שירות: עסק beauty → INSERT ל-<code>beauty_service_catalog</code>, אחרת <code>calendar_services</code> (duration 30, price 0).</div>
+<div>פערים</div><div>ללא אימות ובעלות; DELETE שירות מוחק רק מ-calendar_services (לא מ-beauty catalog).</div></div></section>
+
+ <section class="proc" data-f="calendar get events beauty synthetic merge service calls quotes שליפת יומן"><h3>שליפת יומן (כולל מיזוג יופי וקריאות שירות)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>fetchCalendarData</code> (26110) → <code>GET /api/calendar/:groupId</code> (22800), ולאחר מכן <code>syncServiceCallsToCalendar</code> (26716) ו-<code>syncQuotesToCalendar</code> (wrapper 26795-26801).</div>
+<div>שלבי עיבוד</div><div><ol><li>הגדרות (ברירת מחדל is_active false, 09:00-18:00, 30).</li><li>beauty: שירותים מ-<code>beauty_service_catalog</code> פעילים; אירועים = רק calendar_events pending + "אירועים סינתטיים" מ-<code>beauty_appointments</code> (status∉cancelled,no_show, segment 1, אזור Asia/Jerusalem) עם id <code>bap-&lt;id&gt;</code>, status approved (22822-22848).</li><li>לקוח: קריאות עם scheduled_at ולא done/cancelled מוזרקות כ-<code>sc_&lt;id&gt;</code> approved.</li></ol></div>
+<div>ממשק</div><div>בקשות ממתינות (<code>renderCalendarRequests</code>, 26648): כרטיס עם אישור; לשולחן — "דחה + חלופות", אחרת "המר להצעת מחיר"; מחיקה. מנהל רואה גם "קריאות מתוזמנות" (טכנאי — רק שלו) (26140-26175).</div>
+<div>פערים</div><div>GET ללא אימות חושף טלפוני לקוחות של כל עסק.</div></div></section>
+
+ <section class="proc" data-f="calendar create event table reservation auto approve guests table assign יצירת תור הזמנת שולחן"><h3>יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>POST /api/calendar/events</code> (22891). מקורות: מודל אירוע עסקי (status approved, business-app.js:26595-26627), חנויות restaurant/market/sport, אפליקציית משפחה (app.js:14759), AI (57309), המרת הצעה (9694).</div>
+<div>תנאים ואימותים</div><div>ללא אימות וללא שדות חובה בשרת (title/event_date/start_time NOT NULL בסכמה 1039). לקוח עסקי: כותרת, תאריך, שעה חובה.</div>
+<div>שלבי עיבוד</div><div><ol><li>status ברירת מחדל 'pending'.</li><li>table_reservation: אם <code>auto_approve_max_guests</code> מוגדר ו-<code>numGuests≤</code>ערך → חיפוש שולחן פנוי 1..<code>table_count</code>(8) שאין לו הזמנה approved באותו תאריך בהפרש &lt;2 שעות; נמצא → status approved + reserved_table_number (22898-22919).</li><li>INSERT <code>calendar_events</code>.</li><li>beauty + customerGroupId+phone: קישור/יצירת <code>beauty_client_records</code> (fire-and-forget) (22929-22950).</li><li>table_reservation: inbox_messages נכנסת לעסק "הזמנת שולחן 🍽️"; אם אושר אוטומטית ויש customerGroupId → inbox יוצאת ללקוח "הזמנת השולחן אושרה!" (22955-22971).</li></ol></div>
+<div>חישובים</div><div>קונפליקט שולחן: <code>|start_time − req|/3600 &lt; 2</code> שעות.</div>
+<div>פערים</div><div>עריכה בממשק = DELETE ואז POST חדש (26619-26621) — id משתנה וקשרים אובדים.</div></div></section>
+
+ <section class="proc" data-f="calendar status approve beauty appointment sms twilio inbox אישור תור"><h3>אישור / שינוי סטטוס אירוע</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>approveCalendarEvent</code> (business-app.js:26809) → <code>PUT /api/calendar/events/:id/status</code> (22977). id בתבנית <code>quote_&lt;id&gt;</code> מנותב לאישור הצעה.</div>
+<div>תנאים ואימותים</div><div>ללא אימות; אין בדיקת ערך.</div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE status.</li><li>approved + table_reservation: הקצאת שולחן פנוי (אותו אלגוריתם) → UPDATE reserved_table_number; SMS ב-Twilio "&lt;עסק&gt; — הזמנת שולחן אושרה! … WEFLOWZ" (טלפון 0X→+972); inbox ללקוח (22986-23027).</li><li>approved + עסק beauty: יצירת <code>beauty_appointments</code> (source storefront, confirmed, total 0) + segment 1 (duration מקטלוג או 60, practitioner מועדף); SMS "התור שלך אושר! ✅ … 💅"; inbox "הסלון" (23028-23075).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>BIZ</td><td>—</td><td>שולחן/תור יופי + SMS + inbox</td></tr>
+<tr><td>pending</td><td>rejected</td><td>BIZ (reject-with-alts)</td><td>—</td><td>alternatives_json + inbox</td></tr>
+<tr><td>כל</td><td>(נמחק)</td><td>BIZ</td><td>—</td><td>"הבקשה נדחתה"/"התור בוטל"</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>SMS (Twilio <code>sendSMSviaTwilio</code>), <code>inbox_messages</code>. ממשק: יופי → ניווט ל-<code>beauty_calendar</code> לתאריך; אחרים → יומן ראשי.</div>
+<div>פערים</div><div>אישור חוזר יוצר beauty_appointment כפול; ללא אימות כל אחד יכול לאשר.</div></div></section>
+
+ <section class="proc" data-f="calendar suggest alternatives reject with alts table restaurant חלופות דחייה"><h3>דחיית הזמנת שולחן עם 3 חלופות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>rejectTableReservation</code> (26885) → <code>GET /api/calendar/events/:id/suggest-alts</code> (23084, preview בלבד); בחירה → <code>_confirmRejectWithAlts</code> → <code>POST .../reject-with-alts</code> (23112).</div>
+<div>תנאים ואימותים</div><div>אירוע לא נמצא → 404 "אירוע לא נמצא". לקוח: לפחות שעה אחת.</div>
+<div>חישובים</div><div>זמנים תפוסים = approved table_reservation באותו יום. הצעות: שעות עגולות 12:00..22:00 שאינן תפוסות ושונות מהמבוקשת, עד 3; אם חסר — 12:30..21:30 (23096-23106). מודל לקוח מציג 12:00-22:30 בחצאי שעה ירוק/אדום/כתום.</div>
+<div>שלבי עיבוד</div><div>UPDATE status='rejected', <code>alternatives_json</code>; אם customer_group_id ויש חלופות → inbox "הזמנת שולחן — חלופות זמינות" עם רשימה ממוספרת.</div></div></section>
+
+ <section class="proc" data-f="calendar public booking request sms verify temp booking code 4 digits בקשת תור ציבורית"><h3>בקשת תור ציבורית עם אימות SMS (יופי/תיקונים/שירותים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חנות <code>storefront.html</code>: <code>submitBookingRequest</code> (3870) → <code>POST /api/calendar/request-booking-sms</code> (33685); קוד 4 ספרות → <code>verifySmsCode</code> (4271) → <code>POST /api/calendar/verify-booking-sms</code> (33713). משבצות פנויות מחושבות בלקוח מ-open/close/interval פחות שעות תפוסות ושעות שעברו (3840-3858).</div>
+<div>תנאים ואימותים</div><div><ul><li>request: חובה name, phone, eventDate, startTime → 400 "חסרים פרטים חובה".</li><li>verify: code באורך 4 → אחרת 400 "קוד שגוי"; temp pending לאותו group → 404 "בקשה לא נמצאה"; קוד שונה → "קוד שגוי"; &gt;30 דקות → "קוד פג תוקף".</li><li>לקוח: <code>scAuth.requireLogin</code> לפני שליחה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קוד אקראי 0000-9999; אם <code>system_settings.sms_debug_code</code> באורך 4 — משתמשים בו (33690-33693).</li><li>INSERT <code>temp_booking_requests</code> + SMS "בקשת תור ✅ … קוד אישור: XXXX".</li><li>verify: איתור customer_group_id מ-<code>storefront_customers.phone</code>; INSERT <code>calendar_events</code> pending (title "שם — שירות"); temp→verified; <code>upsertStoreCustomer</code> (יוצר גם storefront customer "שקט").</li></ol></div>
+<div>מכונת מצבים</div><div>temp_booking_requests: pending → verified. האירוע נכנס pending לאישור העסק (ה-SMS הסופי נשלח רק באישור).</div>
+<div>פערים</div><div><ul><li>אין מגבלת ניסיונות ואין rate limit (SMS לכל מספר).</li><li><code>preferred_practitioner_id</code> נשמר ב-temp אך לא מועבר ל-calendar_events (33736) — מטפלת מועדפת אובדת.</li><li>קוד דיבאג גלובלי עוקף SMS.</li></ul></div></div></section>
+
+<h2 class="grp">פורטל לקוח חנות (sc-auth)</h2>
+
+ <section class="proc" data-f="sc-auth otp send verify sms email rate limit bcrypt קוד אימות"><h3>שליחת ואימות OTP ללקוח חנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כפתור "🔑 כניסה" צף (sc-auth.js:20-46) → <code>sendOtp</code> (233) → <code>POST /api/sc-auth/send-otp</code> (server.js:43210); גיבוי מייל <code>sendOtpByEmail</code> (245); <code>verifyOtp</code> (258) → <code>POST /api/sc-auth/verify-otp</code> (43255).</div>
+<div>תנאים ואימותים</div><div><ul><li>phone חובה; ספרות 9..15 → "מספר טלפון לא תקין".</li><li>email channel: regex מייל על ה-email או המייל השמור → "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li><li>Rate: ≥3 קודים לטלפון+purpose ב-10 דקות → "נשלחו יותר מדי קודים — נסה שוב בעוד 10 דקות".</li><li>verify: OTP לא used ולא פג; attempts≥5 → סימון used + "יותר מדי ניסיונות — שלח קוד חדש"; קוד שגוי → attempts+1.</li><li>לקוח: טלפון ≥9 ספרות, קוד 6 ספרות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קוד 6 ספרות 100000-999999; bcrypt cost 8; INSERT <code>storefront_otp</code> expires +5 דק', channel sms/email.</li><li>שליחה: <code>sendSystemEmail</code> או Twilio "WEFLOWZ\nקוד האימות שלך: X (בתוקף 5 דקות)"; ב-non-production מודפס ללוג.</li><li>verify הצלחה: used=TRUE; לקוח חדש → <code>{isNew:true}</code> (מעבר למסך הרשמה); קיים → INSERT <code>storefront_sessions</code> (token 96 hex, 30 יום) והחזרת לקוח ללא pin_hash.</li></ol></div>
+<div>חישובים</div><div>E.164: מתחיל 972 → '+'; מתחיל 0 → '+972'+slice(1); אחרת '+' (43215).</div>
+<div>פערים</div><div>send-otp ללא try/catch — כשל DB גורם ל-unhandled rejection.</div></div></section>
+
+ <section class="proc" data-f="sc-auth register pin 6 digits family solo account shopper הרשמה"><h3>הרשמת לקוח חנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>אחרי verify-otp עם isNew: <code>register</code> (sc-auth.js:270) → <code>POST /api/sc-auth/register</code> (43297).</div>
+<div>תנאים ואימותים</div><div>phone, firstName, lastName, pin חובה → "חסרים שדות חובה"; PIN בדיוק 6 ספרות; טלפון קיים עם pin_hash → "מספר טלפון זה כבר רשום — נסה להתחבר".</div>
+<div>שלבי עיבוד</div><div><ol><li>pin bcrypt cost 10.</li><li>חיפוש משתמש קיים עם הטלפון בקבוצה active (עדיפות FAMILY, אח"כ BUSINESS) → family_group_id; אחרת יצירת <code>family_groups</code> (FAMILY, plan solo, <code>group_code='SC'+6 ספרות אחרונות</code>, member_type shopper) + <code>users</code> ADMIN (43310-43336).</li><li>חשבון "שקט" קיים (בלי PIN) → UPDATE, אחרת INSERT <code>storefront_customers</code>.</li><li>יצירת session 30 יום.</li></ol></div>
+<div>ממשק</div><div><code>_saveSession</code> (291) שומר <code>sc_auth_token</code>/<code>sc_customer</code> ב-localStorage, ממלא שדות checkout, ומריץ פעולה ממתינה <code>window._pendingAfterScLogin</code>.</div>
+<div>פערים</div><div>register לא מאמת שבוצע verify-otp לטלפון — ניתן לרשום כל מספר שאין לו PIN (כולל השתלטות על חשבון "שקט" ועל קישור למשפחה קיימת לפי טלפון).</div></div></section>
+
+ <section class="proc" data-f="sc-auth session me profile logout sliding expiry סשן פרופיל"><h3>סשן, פרופיל והתנתקות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>init</code> → <code>_verifySession</code> (sc-auth.js:55) → <code>GET /api/sc-auth/me</code> (43367); <code>saveProfile</code> → <code>PATCH /profile</code> (43376); <code>logout</code> → <code>POST /logout</code> (43483).</div>
+<div>חישובים</div><div><code>_scGetCustomerByToken</code>: session לא פג → עדכון <code>last_activity</code> והארכה ל-NOW()+30 יום (sliding) (43192-43207). Cron כל 24 שעות מוחק sessions/otp/sso פגים (43835-43845).</div>
+<div>שלבי עיבוד</div><div>profile: COALESCE לכל שדה (ערך ריק לא מוחק). logout: DELETE session.</div></div></section>
+
+ <section class="proc" data-f="sc-auth pin verify change forgot reset lockout PIN"><h3>PIN: אימות לפעולה, שינוי, שכחתי ואיפוס</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>requirePin/confirmPin</code> (sc-auth.js:322-344) → <code>POST /verify-pin</code> (43411); <code>doChangePin</code> → <code>PATCH /change-pin</code> (43393); <code>sendForgotPin</code> → <code>POST /forgot-pin</code> (43442); <code>doResetPin</code> → <code>POST /reset-pin</code> (43462).</div>
+<div>תנאים ואימותים</div><div><ul><li>verify-pin: נעילה בזיכרון <code>_scPinLockout['cust_&lt;id&gt;']</code>: אחרי 5 כשלונות נעילה 15 דקות ("יותר מדי ניסיונות — נסה שוב בעוד N דקות"); הודעה "PIN שגוי (k ניסיונות נוספים)".</li><li>change-pin: newPin 6 ספרות; currentPin שגוי → "ה-PIN הנוכחי שגוי".</li><li>forgot-pin: טלפון לא רשום → "מספר לא רשום".</li><li>reset-pin: OTP purpose pin_reset בתוקף; קוד שגוי → "קוד שגוי".</li></ul></div>
+<div>שלבי עיבוד</div><div>forgot: OTP 6 ספרות, תוקף 10 דקות, SMS "קוד לאיפוס ה-PIN". reset: used=TRUE, pin_hash חדש לפי טלפון.</div>
+<div>פערים</div><div>נעילת PIN בזיכרון התהליך (מתאפסת בריסטארט/מופעים מרובים). forgot-pin ללא rate limit; reset-pin ללא מונה ניסיונות — brute force על 6 ספרות בחלון 10 דקות.</div></div></section>
+
+ <section class="proc" data-f="sc-auth sso token family app my-families test phone SSO כניסה למשפחה"><h3>SSO מחנות לאפליקציית המשפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>goToOFL</code> (sc-auth.js:961) → <code>GET /my-families</code> (43496) ואז <code>GET /sso-token</code> (43519) → פתיחת <code>/?sso_token=</code> → app.js:114 → <code>GET /api/family/sso-login</code> (43791).</div>
+<div>תנאים ואימותים</div><div><ul><li>בחירת משפחה ידנית רק לטלפון הבדיקות <code>SC_MULTI_FAMILY_TEST_PHONE='0526626619'</code> (43492), מאומת מול users.phone, FAMILY פעילה, לא shopper/member.</li><li>sso-login: token לא used ולא פג; ללא family → "אין חשבון משפחה מקושר"; BUSINESS → 403 "חשבון עסקי אינו נגיש דרך חנות לקוח"; חייב משתמש active.</li></ul></div>
+<div>שלבי עיבוד</div><div>SSO token תוקף 60 שניות, חד-פעמי (used=TRUE); <code>createFamilySession(fgId,userId,'storefront-sso','family')</code> עם ADMIN ראשון.</div></div></section>
+
+ <section class="proc" data-f="sc-auth activity panel orders bookings beauty sport restaurant פעילות לקוח"><h3>פאנל "הפעילות שלי" מול עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openActivityPanel</code> (sc-auth.js:370) → <code>GET /api/sc-auth/activity/:bizGroupId</code> (43636).</div>
+<div>שלבי עיבוד</div><div>שליפה מקבילה לפי טלפון / family_group_id: store_orders (20), calendar_events (20), רישומי שיעורים עתידיים, מנויים (active/trial/frozen/pending), תורי ספורט (מ-7 ימים אחורה), צ'ק-אינים, ביקורי מסעדה; ל-beauty: תורים פעילים והיסטוריה (cancelled/no_show/completed/pending_cancel). מחזיר businessType לבניית UI.</div>
+<div>פערים</div><div>אין שליפת קריאות שירות (service_calls) לפורטל — לקוח תיקונים לא רואה את בקשות השירות שלו כאן.</div></div></section>
+
+ <section class="proc" data-f="sc-auth requireLogin gate pending action storefront שער התחברות"><h3>שער התחברות לפעולות בחנות (requireLogin)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>scAuth.requireLogin(actionName, hint)</code> (sc-auth.js:83) לפני כל הזמנה/תור/פנייה; משמש ב-storefront.html, storefront-professional.html (662, 704), storefront-repairs.html (674).</div>
+<div>שלבי עיבוד</div><div>מחובר → true; אחרת שומר <code>_pendingAfterScLogin</code>, מוסיף רמז ירוק ופותח מודל טלפון; לאחר הצלחה מריץ <code>window[action]()</code> (מקרים מיוחדים openBookingModal, submitOrderAfterLogin).</div>
+<div>פערים</div><div>האכיפה צד-לקוח בלבד — <code>/api/store/leads</code>, <code>/api/professional-leads</code>, <code>/api/calendar/request-booking-sms</code> לא דורשים טוקן.</div></div></section>
+
+<h2 class="grp">אנכי מקצועי (Professional)</h2>
+
+ <section class="proc" data-f="professional content hero about cta ai gemini אתר תדמית תוכן"><h3>ניהול תוכן אתר תדמית (Hero / אודות) + AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב <code>content</code> (רק business_type professional, מודולים 37539): <code>renderProfessionalContentTab</code> (business-app.js:55703); שמירה <code>saveProfContentHero/About</code> → <code>POST /api/professional-content/:groupId</code> (28665); קריאה ציבורית <code>GET</code> (28659).</div>
+<div>תנאים ואימותים</div><div>POST: verifyBiz + groupId==bizAuth (403). GET ציבורי.</div>
+<div>שלבי עיבוד</div><div>UPSERT <code>professional_content</code> (UNIQUE group_id) עם <code>COALESCE(new, old)</code> לכל אחד מ-8 שדות (he/en: hero_title, hero_subtitle, cta_text, about_text) (28668-28674).</div>
+<div>תופעות לוואי</div><div>AI: <code>_profContentAI</code> → <code>POST /api/ai/generate</code> (13907) → <code>callGeminiDirect</code> (הגרסה האחרונה 6260: רשימת מודלי Gemini, עדיפות flash-lite→flash→אחר, 4 מודלים × 3 ניסיונות עם backoff 2s/4s). פרומפטים: כותרת+תת-כותרת+CTA ב-JSON (55822), אודות 3-4 משפטים (55851). תשובה מנוקה מ-```json ומפורסרת.</div>
+<div>ממשק</div><div>תתי-טאבים hero/expertise/articles/about; קישור "צפה באתר הציבורי" ל-<code>/storefront.html?store=&lt;group_code&gt;</code>.</div>
+<div>פערים</div><div>COALESCE מונע ניקוי שדה (מחרוזת ריקה '' אינה NULL — נשמרת ריקה; אך undefined לא נוגע).</div></div></section>
+
+ <section class="proc" data-f="professional expertise areas ai suggest icons תחומי עיסוק"><h3>תחומי עיסוק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openAddExpertise/saveExpertise</code>, <code>openEditExpertise/saveEditExpertise</code>, <code>deleteExpertise</code>, AI <code>aiSuggestExpertise</code> (5 הצעות לבחירה), <code>aiFillExpertise</code>, <code>aiWriteExpertiseDesc</code> (business-app.js:55868-56121) → <code>/api/professional-expertise</code> (28680-28716).</div>
+<div>תנאים ואימותים</div><div>POST: groupId==bizAuth; PATCH/DELETE: בעלות → 403. לקוח: "הזן שם תחום".</div>
+<div>שלבי עיבוד</div><div>INSERT (icon ברירת מחדל ⚖️); PATCH COALESCE; DELETE = soft (<code>is_active=FALSE</code>). GET מחזיר רק is_active, מיון sort_order,id.</div></div></section>
+
+ <section class="proc" data-f="professional articles publish share linkedin whatsapp ai מאמרים"><h3>מאמרים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openAddArticle/saveArticle</code>, <code>toggleArticlePublish</code>, <code>deleteArticle</code>, <code>aiWriteArticle</code> (300-500 מילים, he+en+tags), שיתוף <code>openArticleShare</code> (LinkedIn/WhatsApp/העתקה) → <code>/api/professional-articles</code> (28719-28756).</div>
+<div>תנאים ואימותים</div><div>כמו תחומי עיסוק. GET <code>?published=1</code> מסנן מפורסמים (לאתר הציבורי). לקוח: כותרת חובה; "פרסם מיד" מסומן כברירת מחדל.</div>
+<div>מכונת מצבים</div><div>טיוטה (is_published=false) ⇄ פורסם; כפתור שיתוף רק למפורסם.</div></div></section>
+
+ <section class="proc" data-f="professional leads contact form store leads convert customer status פניות לידים"><h3>פניות נכנסות (לידים) והמרה ללקוח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טופס יצירת קשר באתר: <code>POST /api/professional-leads/:groupId</code> (28803, ציבורי) — storefront.html:1607, storefront-professional.html:680; טופס כללי: <code>POST /api/store/leads/:groupId</code> (28759). ניהול: <code>renderProfessionalLeadsTab</code> (business-app.js:56277) → <code>GET</code> (28796), <code>updateLeadStatus</code> → <code>PATCH</code> (28816); <code>convertLeadToCustomer</code> (56354); "קבע פגישה" → מודל יומן עם "שיחת היכרות — שם" (56341).</div>
+<div>תנאים ואימותים</div><div><ul><li>professional-leads POST: groupId לא מספרי → success בלי שמירה; חייב name/phone/email → 400 "פרטים חסרים".</li><li>store/leads: groupId 'general' או לא מספרי → success בלי שמירה; חייב name או phone → 400 "חסרים פרטים".</li><li>GET/PATCH: verifyBiz + בעלות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>professional-leads: INSERT <code>professional_leads</code> (status new) + <code>upsertStoreCustomer</code> (notes "פנייה: נושא").</li><li>store/leads: הערות מורכבות "מקור | תיאור | כתובת | איסוף | מסירה | דחיפות | דחוף | זמן מועדף" → <code>upsertStoreCustomer</code> בלבד; לוגיסטיקה גם <code>logistics_customers</code> (28765-28789). <b>לא נוצר ליד ולא קריאת שירות.</b></li><li>PATCH: UPDATE status + <code>logBizAction('UPDATE_LEAD_STATUS')</code>.</li><li>המרה: <code>POST /api/store/customers</code> ואז PATCH status converted; מודל עם "שלח הצעת מחיר"/"צפה בכרטיס".</li></ol></div>
+<div>מכונת מצבים</div><div>new → contacted → converted / closed (כל מעבר מותר, select בממשק 56286).</div>
+<div>תופעות לוואי</div><div><code>upsertStoreCustomer</code> (7393) יוצר/מעדכן <code>store_customers</code> ו-<code>getOrCreateStorefrontCustomer</code> (חשבון "שקט").</div>
+<div>פערים</div><div><code>_aiUpdateLeadStatus</code> (57520) שולח ללא Authorization → 401. ליד מטופס storefront-professional "צור קשר" נשמר רק כלקוח (store/leads) ולא מופיע בטאב פניות.</div></div></section>
+
+ <section class="proc" data-f="professional documents templates versions signature email pdf case work order מסמכים חתימה"><h3>מסמכים מקצועיים (תבניות, גרסאות, חתימה, מייל, PDF)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב documents: <code>renderDocumentsTab</code> (56409); יצירה/עריכה <code>openNewDocModal</code>, <code>openDocFromTemplate</code>, <code>editDocModal</code>, <code>saveDocModal</code> (56695-56843); כרטיס לקוח <code>loadCustomerDocuments</code>, <code>openNewDocForCustomer</code>; חתימה <code>openSignaturePad/_saveSignature</code>; גרסאות <code>showDocVersions</code>; מייל <code>sendDocEmail</code>; PDF <code>exportDocPDF</code> (הדפסה בחלון). API: <code>/api/professional-documents</code> (28829-28937).</div>
+<div>תנאים ואימותים</div><div><ul><li>כולן verifyBiz + בעלות (groupId או group_id של המסמך).</li><li>send-email: חסר to_email → 400 "חסרה כתובת מייל".</li><li>לקוח: כותרת חובה; מייל regex <code>\S+@\S+\.\S+</code>; חתימה — canvas לא ריק ("נא לחתום קודם").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT (doc_type document, status draft, is_template, work_order_id) — תבנית נשמרת ללא פרטי לקוח/תיק.</li><li>PATCH: אם נשלח title/content/status ולמסמך היה title/content → INSERT <code>professional_document_versions</code> עם הערכים הקודמים, ומחיקת גרסאות מעבר ל-20 האחרונות (28862-28874); UPDATE COALESCE לכל שדה כולל <code>signature_data</code> ו-<code>work_order_id</code>.</li><li>חתימה: PATCH <code>{signature_data: PNG dataURL, status:'signed'}</code>.</li><li>send-email: HTML עם תוכן escaped, הערות פנימיות, חתימה → <code>sendSystemEmail</code>; draft → sent. אם המייל שונה — PATCH customer_email.</li><li>DELETE: מוחק גרסאות ואז המסמך.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>draft</td><td>sent</td><td>BIZ (send-email)</td><td>status=draft</td><td>מייל</td></tr>
+<tr><td>כל</td><td>signed</td><td>BIZ (חתימה)</td><td>—</td><td>signature_data</td></tr>
+<tr><td>כל</td><td>draft/sent/signed/approved/cancelled</td><td>BIZ (select)</td><td>—</td><td>גרסה נשמרת</td></tr></table></div>doc_type: document, contract, quote, letter, report + <code>custom_&lt;id&gt;</code>.</div>
+<div>פערים</div><div><ul><li><code>editDocModal</code> שולף ללא Authorization (56762) → 401 → "מסמך לא נמצא" — עריכה לא עובדת.</li><li>מייל ללקוח כולל "הערות פנימיות" (28916) ו-title לא escaped.</li><li>COALESCE מונע ניתוק work_order_id/ניקוי שדות.</li></ul></div></div></section>
+
+ <section class="proc" data-f="professional doc types custom סוגי מסמכים"><h3>סוגי מסמכים מותאמים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>_addDocType/_saveNewDocType/_deleteDocType</code> (57035-57063) → <code>/api/professional-doc-types</code> (28939-28965).</div>
+<div>תנאים ואימותים</div><div>verifyBiz + בעלות; name חובה → 400 "חסר שם"; icon ברירת מחדל 📄 (maxlength 2 בממשק).</div>
+<div>פערים</div><div>מחיקת סוג לא מעדכנת מסמכים עם <code>custom_&lt;id&gt;</code>.</div></div></section>
+
+ <section class="proc" data-f="professional dashboard kpi active cases unbilled hours leads revenue דשבורד מקצועי"><h3>דשבורד מקצועי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>renderProfessionalDashboard</code> (business-app.js:45639) → <code>GET /api/professional/dashboard/:groupId</code> (28967).</div>
+<div>חישובים</div><div>(28972-28996) <code>active_cases=count(status ∈ open,in_progress,pending)</code>; <code>completed_cases=count(done)</code>; <code>unbilled_hours=round1(Σminutes לא מחויב/60)</code>; total_hours; new_leads (status new); month_revenue מ-<code>cashflow_entries</code>; today_appointments; pending_quotes (status quote + quote_status waiting_customer). כל שאילתה עטופה ב-<code>safe</code> (שגיאה → []).</div>
+<div>ממשק</div><div>6 KPI עם ניווט (cases, timelog, leads, cashflow); משימות דחופות מ-allTasks עד מחר.</div>
+<div>פערים</div><div><ul><li>סטטוסי פקודות בפועל הם processing/scheduled/completed — active_cases לא סופר processing/scheduled ו-completed_cases (done) תמיד 0.</li><li><code>cashflow_entries</code> לא נוצרת בשום מקום בקוד → month_revenue תמיד 0.</li><li>today_appointments: <code>DATE(start_time)</code> על עמודת TIME ועמודה <code>end_time</code> שאינה קיימת → תמיד [].</li></ul></div></div></section>
+
+ <section class="proc" data-f="timelog timer hours billing csv invoice work order שעות עבודה טיימר"><h3>שעות עבודה (Timelog)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב timelog (<code>renderTimelogTab</code>, business-app.js:55428) ובטאב timelogs במודל פקודה (<code>loadWoTimeLogs</code> 43643). API: <code>GET/POST /api/timelog/:groupId</code> (28619/28629), <code>PATCH /timelog/entry/:id/bill</code> (28642), <code>DELETE /timelog/entry/:id</code> (28649).</div>
+<div>תנאים ואימותים</div><div>ללא אימות. POST: minutes ≥1 → 400 "minutes required". לקוח: "הזן מספר דקות".</div>
+<div>שלבי עיבוד</div><div>טיימר: start נשמר ב-localStorage <code>_timelog_timer</code> {groupId,start}; תצוגה כל 1 שנייה; עצירה → <code>elapsed=round(ms/60000)</code> ממלא את שדה הדקות ותיק (55547-55578). INSERT <code>time_logs</code> (wo_id אופציונלי, rate). "סמן כחויב" → is_billed=TRUE.</div>
+<div>חישובים</div><div>שווי = minutes/60 × hourly_rate; "שעות לחיוב" בכותרת = ceil(Σmin לא מחויב/60). CSV עם BOM, שם קובץ <code>דוח_שעות_YYYY_MM.csv</code>. "צור חשבונית מהשעות" רק מנווט לתזרים ומציג סכום (55656-55670).</div>
+<div>פערים</div><div>endpoints פתוחים לחלוטין (קריאה/מחיקה של רשומות כל עסק לפי id). "חשבונית" לא נוצרת ורשומות לא מסומנות כחויבו.</div></div></section>
+
+ <section class="proc" data-f="professional cases tab תיקים"><h3>טאב תיקים (Cases)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>switchTab('cases')</code> → <code>renderCasesTab</code> (business-app.js:55341) — שולף <code>GET /api/store/orders/:groupId</code> ומסנן <code>call_type='work_order'</code>.</div>
+<div>ממשק</div><div>KPI: בטיפול (processing), חדשים (new), הושלמו (completed); פילטרים all/new/processing/completed בצד לקוח; כרטיס פותח <code>openWorkOrderModal</code>; "פתח תיק חדש".</div>
+<div>פערים</div><div>תיקים חדשים נוצרים בסטטוס open שאינו מוצג בפילטרים/KPI; כותרת מ-<code>c.title</code> שאינו קיים.</div></div></section>
+
+<h2 class="grp">חלונות ראווה ציבוריים</h2>
+
+ <section class="proc" data-f="storefront professional html booking contact services articles חנות מקצועית"><h3>storefront-professional.html</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מוגש כשה-<code>store_settings.template_id='professional'</code> דרך נתיב <code>/:alias</code> (server.js:23377-23395). <code>initStore</code> (storefront-professional.html:449) → <code>GET /api/storefront/:code</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>רינדור מ-<code>settings</code>: שם, לוגו, תמונת בעלים, tagline, תיאור, תווית סוג (lawyer/accountant/consultant/coach/financial/architect/engineer/medical/therapy), badges מ-expertise/specialties/tags (עד 6), סטטיסטיקות (ניסיון, לקוחות, דירוג), highlights, מאמרים מ-<code>s.articles||data.articles</code>, WhatsApp.</li><li>"קביעת פגישה" → <code>POST /api/professional-leads/:groupId</code> עם message "בקשה לקביעת פגישה — זמן מועדף: X" (680).</li><li>"צור קשר" → <code>POST /api/store/leads/:groupId</code> (717).</li><li>שני הטפסים דורשים <code>scAuth.requireLogin</code>.</li></ol></div>
+<div>פערים</div><div><code>loadServices</code> קורא <code>/api/store/products/:gid</code> — נתיב שאינו קיים בשרת → תמיד "אין שירותים". המאמרים/תוכן המנוהלים ב-<code>professional_*</code> אינם נקראים בעמוד זה (רק ב-storefront.html מצב תדמית, 1175-1196).</div></div></section>
+
+ <section class="proc" data-f="storefront repairs html lead form demo mode חנות תיקונים"><h3>storefront-repairs.html</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מוגש ל-template_id <code>repairs</code>/<code>maintenance_repair</code> (server.js:23384-23385). <code>loadStore</code> (storefront-repairs.html:496): id מ-<code>?store|storeId|id</code> או alias מתת-דומיין.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/store/public/&lt;id&gt;</code> או <code>/api/store/public/alias/&lt;alias&gt;</code>; כשל → <code>populateDemo</code> (שם "שירותי תיקון פלוס", טלפון 050-1234567, 8 שירותי ברירת מחדל, 6 ביקורות קבועות).</li><li>טופס "שלחו פנייה": חובה שם, טלפון, תיאור; <code>requireLogin</code>; payload עם address, urgency, preferredTime, source 'storefront-repairs' → <code>POST /api/store/leads/&lt;GROUP_ID|general&gt;</code> (691).</li></ol></div>
+<div>פערים</div><div><ul><li><code>/api/store/public/*</code> ו-<code>/api/store/products/:id</code> לא קיימים בשרת; גם בהגשה דרך <code>/:alias</code> אין <code>?store</code> → העמוד תמיד במצב דמו עם ביקורות מפוברקות וטלפון דמו.</li><li>במצב דמו GROUP_ID ריק → הפנייה נשלחת ל-'general' שהשרת מחזיר לו success בלי לשמור (28762) — פניות אובדות.</li><li>הפנייה אינה יוצרת service_call (רק store_customers), בניגוד ל-storefront.html שמשתמש ב-<code>/api/store/service-request</code>.</li></ul></div></div></section>
+
+ <section class="proc" data-f="storefront html professional branding site renderProfessionalSite אתר תדמית מקצועי"><h3>אתר תדמית מקצועי בתוך storefront.html</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ב-storefront.html במצב branding ו-<code>_btype==='professional'</code> → <code>renderProfessionalSite</code> (1066, 1175).</div>
+<div>שלבי עיבוד</div><div>שליפת <code>/professional-content</code>, <code>/professional-expertise</code>, <code>/professional-articles?published=1</code>; תמיכה ב-?lang=en (dir ltr, שדות _en עם fallback); טופס <code>submitProfContact</code> (1590): name או phone חובה, requireLogin, POST professional-leads.</div>
+<div>פערים</div><div>כותרות/תיאורי תחומי עיסוק מוזרקים ל-HTML ללא escape (1218-1222).</div></div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

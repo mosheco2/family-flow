@@ -1,0 +1,785 @@
+[
+{
+"id": "RST-01",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "אימות והרשאות",
+"category": "security",
+"severity": "critical",
+"title": "כל נתיבי המסעדה, Food Cost, יומן, ספקים ורכש ללא אימות",
+"as_is": "81 נתיבים תחת /api/restaurant, /api/tables, /api/food-cost, /api/calendar, /api/b2b, /api/suppliers ללא middleware, למשל PUT /api/tables/:groupId/states (14233-14249), assignments (14252-14276), bills (14285), PUT /api/calendar/events/:id/status (22977), POST /api/food-cost/recipe/:catalogId ללא בדיקת בעלות (22714), DELETE /api/suppliers/:id לפי id בלבד, POST /api/b2b/orders/create|receive|status (18090, 17341, 17441), DELETE /api/b2b/orders/:id (17450), PATCH /api/groups/:id/table-settings (26412).",
+"proposal": "כל הנתיבים דורשים verifyBiz; group_id מהסשן בלבד, וכל עדכון/מחיקה של משאב (אירוע, ספק, מוצר ספק, הזמנת רכש, מתכון) בודק שהמשאב שייך לעסק (0 שורות → 404). ציבוריים במכוון בלבד: availability, book-table, verify-table-sms, menu public, /c/po.",
+"alternatives": [],
+"refs": [
+"server.js:14233-14285",
+"server.js:22977",
+"server.js:22714",
+"server.js:17185-17259",
+"server.js:17341",
+"server.js:17441-17450",
+"server.js:18090",
+"server.js:26412",
+"s1-rbac.html#BIZ — מסעדה ותפעול"
+]
+},
+{
+"id": "RST-02",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "security",
+"severity": "critical",
+"title": "הסרת GET /api/init-procurement שמוחק את כל נתוני הרכש",
+"as_is": "GET /api/init-procurement ללא אימות מבצע DROP TABLE purchase_orders, purchase_requests, supplier_products, suppliers CASCADE ויוצר מחדש ללא עמודות המיגרציות (customer_number, confirm_token, service_call_id...) (server.js:17120-17124).",
+"proposal": "הנתיב נמחק; הסכמה נוצרת רק במיגרציות בעליית השרת. אין נתיב HTTP שמבצע DROP.",
+"alternatives": [],
+"refs": [
+"server.js:17120",
+"rules-restaurant.html#אתחול מנוע הרכש (init-procurement)"
+]
+},
+{
+"id": "RST-03",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "אימות והרשאות",
+"category": "security",
+"severity": "medium",
+"title": "הרשאות תפקיד עובד נאכפות בשרת (מלצר/טבח/קופאי/מחסנאי)",
+"as_is": "employee_role_type (waiter, cook, cashier, warehouse...) משפיע רק על טאבים בלקוח (ROLE_TYPE_TABS business-app.js:37506-37524); השרת מבחין רק ADMIN מול לא-ADMIN, ו-MEMBER/CHILD יכולים לשנות מזווה דרך API.",
+"proposal": "מטריצת הרשאות בשרת לפי מודול: foodcost — ADMIN/MANAGER/cook (קריאה) ו-ADMIN/MANAGER (כתיבה); pantry כתיבה — ADMIN/MANAGER/SENIOR/warehouse/branch_manager/cook; rfq/b2b — ADMIN/MANAGER/warehouse; ביטול פריט שנשלח למטבח ושינוי מחיר — ADMIN/shift_manager/branch_manager. הפרה → 403.",
+"alternatives": [],
+"refs": [
+"business-app.js:37506-37524",
+"server.js:11193-11264",
+"s1-rbac.html#employee_role_type",
+"s1-rbac.html#FAMILY — קניות, מזווה, מתכונים"
+]
+},
+{
+"id": "RST-04",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ניהול שולחנות",
+"category": "functional",
+"severity": "medium",
+"title": "מצבי שולחן reserved ו-disabled — מימוש בפועל",
+"as_is": "אין קוד שקובע reserved או disabled (ההערה ב-business-app.js:40157 טוענת שאישור ביומן קובע reserved); לכן תצוגת שעות ההזמנה על האריח לעולם לא מופיעה.",
+"proposal": "reserved נגזר: לשולחן עם הזמנה approved ו-reserved_table_number=N מוצג reserved מ-30 דק' לפני start_time ועד 15 דק' אחריו אם לא הושב. disabled נקבע ידנית ע\"י מנהל במודאל הגדרות השולחנות ונשמר בשרת.",
+"alternatives": [
+"להסיר את המצבים reserved/disabled מהמחזור"
+],
+"refs": [
+"business-app.js:40157",
+"business-app.js:40168",
+"business-app.js:40210",
+"rules-restaurant.html#מצב שולחנות (Grid) וסנכרון בין מכשירים"
+]
+},
+{
+"id": "RST-05",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ניהול שולחנות",
+"category": "functional",
+"severity": "medium",
+"title": "אחרי תשלום בקופה השולחן עובר ל-awaiting_payment במקום free",
+"as_is": "finalizePOSOrder קורא setTableAwaitingPayment אחרי שהעסקה שולמה (business-app.js:33475), כך שההזמנה completed והשולחן עדיין 'ממתין לתשלום'.",
+"proposal": "תשלום מלא בקופה לשולחן → השולחן free (טיימר נמחק) והחשבון הפתוח שלו נסגר. awaiting_payment נקבע רק כשמלצר מבקש חשבון ללא תשלום.",
+"alternatives": [],
+"refs": [
+"business-app.js:33475",
+"rules-restaurant.html#מחזור חיים של הזמנת מסעדה (אישור למטבח → מוכן → נאסף)"
+]
+},
+{
+"id": "RST-06",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ניהול שולחנות",
+"category": "architecture",
+"severity": "medium",
+"title": "מקור אמת לשולחנות בשרת: מצב, קיבולת, מיזוג והגדרות",
+"as_is": "מצב שולחנות נשמר ב-localStorage ונשלח כאובייקט שלם ב-PUT; מיזוג 'server wins' ללא גרסה → דריסה בין מכשירים (business-app.js:39901-39945). קיבולת, מיזוג וספי טיימר רק ב-localStorage (40807, 40833); ביטול מיזוג לא מחזיר קיבולת.",
+"proposal": "טבלת restaurant_tables(group_id, table_number, capacity, merged_into, is_disabled, state, state_changed_at, version). עדכון שולחן בודד ב-PATCH עם version (409 בהתנגשות). ביטול מיזוג מחזיר לכל שולחן את הקיבולת המקורית. ספי טיימר ב-store_settings. localStorage — מטמון בלבד.",
+"alternatives": [],
+"refs": [
+"business-app.js:39901-39945",
+"business-app.js:40181",
+"business-app.js:40807",
+"business-app.js:40833",
+"server.js:14233-14249",
+"rules-restaurant.html#העברת שולחן, מיזוג, קיבולת ו-QR לשולחן"
+]
+},
+{
+"id": "RST-07",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ניהול שולחנות",
+"category": "functional",
+"severity": "medium",
+"title": "העברת שולחן — רק ליעד פנוי, כולל חשבון ושיוך מלצר",
+"as_is": "executeTableTransfer מאפשר יעד תפוס ודורס אותו בשקט; שיוך המלצר מועבר רק ב-localStorage ללא PUT (business-app.js:40350).",
+"proposal": "יעד חייב להיות free (אחרת הצעה למזג). ההעברה מתבצעת בשרת בפעולה אחת: מצב, טיימר, חשבון פתוח (restaurant_table_bills) ושיוך מלצר.",
+"alternatives": [],
+"refs": [
+"business-app.js:40317-40350",
+"rules-restaurant.html#העברת שולחן, מיזוג, קיבולת ו-QR לשולחן"
+]
+},
+{
+"id": "RST-08",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "שיוך מלצרים",
+"category": "functional",
+"severity": "low",
+"title": "יום משמרת לפי שעון ישראל",
+"as_is": "shift_date מחושב ב-toISOString (UTC) בלקוח ובשרת (server.js:14252-14265) — השיוכים מתאפסים ב-02:00/03:00 שעון מקומי.",
+"proposal": "shift_date לפי Asia/Jerusalem, עם שעת החלפה 05:00 (משמרת לילה נחשבת ליום הקודם).",
+"alternatives": [],
+"refs": [
+"server.js:14252-14265",
+"rules-restaurant.html#שיוך מלצרים לשולחנות (משמרת יומית)"
+]
+},
+{
+"id": "RST-09",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "QR לשולחן",
+"category": "functional",
+"severity": "medium",
+"title": "QR לשולחן: נתיב קיים ושיוך ההזמנה לשולחן",
+"as_is": "showTableQR מייצר {origin}/store/{alias}?table=N (business-app.js:40529) — הנתיב /store/:alias לא קיים בשרת, ואף חזית לא קוראת את הפרמטר table.",
+"proposal": "QR מצביע ל-/{alias}?table=N. החזית שומרת את מספר השולחן, מציגה 'הזמנה לשולחן N' ומבטלת משלוח; ההזמנה נשלחת עם orderSource='qr_table' ו-tableNumber, ומתווספת לחשבון השולחן אצל המלצר.",
+"alternatives": [],
+"refs": [
+"business-app.js:40529",
+"server.js:23346",
+"s1-docsvscode.html#restaurant-guide — QR לשולחן",
+"rules-restaurant.html#העברת שולחן, מיזוג, קיבולת ו-QR לשולחן"
+]
+},
+{
+"id": "RST-10",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תור המתנה",
+"category": "functional",
+"severity": "low",
+"title": "תור המתנה בשרת והושבה לפי קיבולת",
+"as_is": "התור נשמר רק ב-localStorage['waitlist_{gid}']; הושבה בוחרת את השולחן הפנוי בעל המספר הנמוך ללא התחשבות בקיבולת/סועדים (business-app.js:40928-40936).",
+"proposal": "טבלת restaurant_waitlist(group_id, name, phone?, guests 1–30, notes, added_at, status ∈ {waiting, seated, removed}). הושבה בוחרת שולחן free בעל הקיבולת הקטנה ביותר ש-≥ guests; אם אין → 'אין שולחן פנוי מתאים'.",
+"alternatives": [],
+"refs": [
+"business-app.js:40865-40936",
+"rules-restaurant.html#תור המתנה (Waitlist)"
+]
+},
+{
+"id": "RST-11",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "מסוף מלצר",
+"category": "money",
+"severity": "high",
+"title": "ביטול פריט שכבר נשלח למטבח — מעדכן את ההזמנה בשרת",
+"as_is": "waiterRemoveSubmitted מוחק פריט רק מהחשבון המקומי; store_orders וסכומו לא מתעדכנים (business-app.js:32185).",
+"proposal": "ביטול פריט שנשלח הוא פעולת שרת (void) שמסירה/מסמנת את השורה ב-store_order_items, מעדכנת total_amount ורושמת audit עם סיבה ומשתמש. מותר ל-ADMIN/shift_manager/branch_manager; לפריט שכבר סומן מוכן — דורש סיבה.",
+"alternatives": [],
+"refs": [
+"business-app.js:32175-32185",
+"rules-restaurant.html#מסוף מלצר — חשבון שולחן ושליחה למטבח"
+]
+},
+{
+"id": "RST-12",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "מחזור הזמנה במסעדה",
+"category": "functional",
+"severity": "medium",
+"title": "הזמנות פנימיות (שולחן/קופה) נכנסות ישר למטבח",
+"as_is": "waiterSubmitOrder שולח ללא status ולכן הזמנה נוצרת pending_approval ודורשת 'אשר לטבח' (business-app.js:32286-32299; server.js:14540). ב-KDS סימון מנה ראשונה מקדם רק מ-new, והמלצר רואה items_ready רק ב-new/processing.",
+"proposal": "orderSource ∈ {table, internal, qr_table עם שולחן מאושר} → status='new' ביצירה. pending_approval רק להזמנות אונליין (website/restaurant-v3). KDS: סימון מנה ראשונה מקדם new→processing.",
+"alternatives": [
+"להשאיר אישור לכל ההזמנות אך לאפשר הגדרת 'אישור אוטומטי להזמנות פנימיות'"
+],
+"refs": [
+"business-app.js:32286-32299",
+"server.js:14540",
+"business-app.js:40990",
+"rules-restaurant.html#מסוף מלצר — חשבון שולחן ושליחה למטבח"
+]
+},
+{
+"id": "RST-13",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "סגירת חשבון",
+"category": "money",
+"severity": "high",
+"title": "סגירת חשבון שולחן רושמת תשלום בשרת",
+"as_is": "waiterConfirmCloseBill שומר ארכיון ב-localStorage['closed_bills_{gid}'] בלבד (business-app.js:32378); אין רישום תשלום/הכנסה; פריטי pending שלא נשלחו נכללים בסכום בלי הזמנה.",
+"proposal": "סגירת חשבון = POST /api/tables/:tableId/close-bill שמקבל אמצעי תשלום (חובה: cash/credit/app), מעביר את כל הזמנות השולחן ל-completed (completeOrder פעם אחת לכל הזמנה), רושם תשלומים, ומשחרר את השולחן. לא ניתן לסגור עם פריטי pending — חייבים לשלוח או להסיר. ארכיון חשבונות נשמר בשרת.",
+"alternatives": [],
+"refs": [
+"business-app.js:32335-32378",
+"server.js:14684",
+"s1-docsvscode.html#סגירת חשבון שולחן → דוח יומי",
+"rules-restaurant.html#סגירת חשבון שולחן"
+]
+},
+{
+"id": "RST-14",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "KDS",
+"category": "functional",
+"severity": "medium",
+"title": "KDS: סימוני מנות וסיום הכנה בשרת בלבד",
+"as_is": "סימוני מנות נשמרים ב-localStorage['kds_items_{gid}_{orderId}'] ורשימת 'גמורות' ב-kds_done — שני מסכים לא רואים זה את זה (business-app.js:40950-41119, 41636-41650). הבון מזהה אינדקס ב-regex ותחנה לפי טקסט כותרת; דשבורד הטבח ללא polling.",
+"proposal": "items_ready בשרת הוא מקור האמת היחיד (כולל station); כרטיס יורד מה-KDS לפי status=ready בשרת. כל מסכי KDS (מנהל וטבח) מתרעננים כל 10 שניות. הבון נבנה מנתוני ההזמנה ולא מה-DOM.",
+"alternatives": [],
+"refs": [
+"business-app.js:40950-41119",
+"business-app.js:41636-41652",
+"server.js:26384-26403",
+"rules-restaurant.html#KDS — כרטיסי הזמנה, סימון מנות והשלמת הכנה"
+]
+},
+{
+"id": "RST-15",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "functional",
+"severity": "high",
+"title": "פונקציית זמינות שולחנות אחת לכל המסלולים",
+"as_is": "availability מניח 10:00–23:00 קבוע ו-2 סועדים לשולחן (server.js:33511-33525); book-table סופר הזמנות של כל היום מול table_count (33551-33562); verify לא בודק שוב; יומן משתמש בחלון <2 שעות ושיבוץ לפי מספר (22898-22918); suggest-alts מחשב 'תפוס' לפי שעה זהה בלבד (23084).",
+"proposal": "checkTableAvailability(groupId, date, time, guests): סלוטים כל 30 דק' בשעות הפתיחה של העסק (store_settings open/close), משך ישיבה 90 דק' (ניתן להגדרה), שולחן פנוי = ללא הזמנה approved חופפת ובקיבולת ≥ guests. משמשת את availability, book-table, verify, calendar events, אישור, אישור אוטומטי ו-suggest-alts.",
+"alternatives": [],
+"refs": [
+"server.js:33488-33525",
+"server.js:33541-33562",
+"server.js:22898-22918",
+"server.js:23084",
+"rules-restaurant.html#בדיקת זמינות שולחנות (ציבורי)"
+]
+},
+{
+"id": "RST-16",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "security",
+"severity": "high",
+"title": "אימות SMS: הגבלת ניסיונות ושליחות, ניקוי וקוד דיבאג",
+"as_is": "אין הגבלת ניסיונות לקוד 4 ספרות ואין rate-limit על שליחת SMS (server.js:33541-33604); אין ניקוי temp_table_reservations; system_settings.sms_debug_code דורס את הקוד גם בייצור.",
+"proposal": "עד 5 ניסיונות לקוד (אחרי כן הרשומה נפסלת); עד 3 SMS לטלפון לשעה ו-10 לעסק לשעה ל-IP; רשומות זמניות שפג תוקפן נמחקות אחרי 24 שעות; sms_debug_code פעיל רק כש-NODE_ENV≠production.",
+"alternatives": [],
+"refs": [
+"server.js:33541-33604",
+"server.js:1395",
+"rules-restaurant.html#הזמנת שולחן ציבורית עם אימות SMS (2 שלבים)"
+]
+},
+{
+"id": "RST-17",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "functional",
+"severity": "medium",
+"title": "אישור הזמנה ע\"י הלקוח הציבורי מפעיל אישור אוטומטי",
+"as_is": "verify-table-sms יוצר אירוע pending בלבד; auto_approve_max_guests מופעל רק ב-POST /api/calendar/events (server.js:33604-33672, 22898).",
+"proposal": "אחרי אימות SMS חל אותו כלל: numGuests ≤ auto_approve_max_guests ויש שולחן פנוי → approved עם שולחן משובץ ו-SMS אישור; אחרת pending.",
+"alternatives": [],
+"refs": [
+"server.js:33604-33672",
+"server.js:22898-22918",
+"rules-restaurant.html#הזמנת שולחן ציבורית עם אימות SMS (2 שלבים)"
+]
+},
+{
+"id": "RST-18",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "functional",
+"severity": "medium",
+"title": "מעברי סטטוס הזמנת שולחן ושיבוץ חובה באישור",
+"as_is": "PUT /api/calendar/events/:id/status ללא בדיקת מצב קודם (אפשר לאשר שוב); אם אין שולחן פנוי reserved_table_number נשאר ריק בלי שגיאה (server.js:22977). פעולת AI יוצרת approved ללא שולחן (business-app.js:57307).",
+"proposal": "מעברים: pending→approved|rejected; rejected→cancelled; pending/approved→cancelled_by_customer; אחר → 400. אישור ללא שולחן פנוי → 409 'אין שולחן פנוי בשעה זו' והמנהל יכול לבחור שולחן ידנית (override). status=approved ביצירה מחייב שיבוץ.",
+"alternatives": [],
+"refs": [
+"server.js:22977",
+"business-app.js:57307",
+"server.js:22891-22918",
+"rules-restaurant.html#אישור הזמנת שולחן ע\"י העסק ושיבוץ שולחן"
+]
+},
+{
+"id": "RST-19",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "security",
+"severity": "high",
+"title": "ביטול הזמנת שולחן ע\"י לקוח — אימות זהות והודעה לעסק",
+"as_is": "DELETE /api/public/restaurants/:groupId/reservation/:eventId: אם phone לא נשלח כל אחד שיודע eventId מבטל (server.js:33152). אין הודעה לעסק.",
+"proposal": "ביטול דורש טוקן sc-auth (או FAMILY) של לקוח שהטלפון/משפחה שלו תואמים להזמנה (אחרת 403). חלון cancellation_hours נשמר. בביטול: inbox לעסק ושחרור השולחן.",
+"alternatives": [],
+"refs": [
+"server.js:33152",
+"sc-auth.js:820",
+"rules-restaurant.html#ביטול הזמנת שולחן ע\"י הלקוח (חלון ביטול)"
+]
+},
+{
+"id": "RST-20",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "ux",
+"severity": "low",
+"title": "תצוגת סטטוס rejected וחלופות אצל הלקוח",
+"as_is": "sc-auth לא מכיר את הסטטוס rejected ומציג טקסט גולמי (sc-auth.js:609); חלופות מוצעות רק באפליקציית המשפחה.",
+"proposal": "תווית 'נדחתה — הוצעו מועדים חלופיים' ב-sc-auth עם כפתורי החלופות (כמו app.js:14829-14844).",
+"alternatives": [],
+"refs": [
+"sc-auth.js:609",
+"app.js:14829-14844",
+"rules-restaurant.html#דחיית הזמנה עם הצעת שעות חלופיות ובחירת חלופה ע\"י הלקוח"
+]
+},
+{
+"id": "RST-21",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "הזמנות שולחן",
+"category": "ux",
+"severity": "low",
+"title": "רשימות הזמנות היום: תאריך מקומי ושדה מקור",
+"as_is": "reservations-today מחושב לפי UTC (server.js:23145); תווית המקור קוראת order_source שלא נשלף ולכן ריקה תמיד; הזמנה ללא שולחן מוצגת על שולחן 1 (business-app.js:40619).",
+"proposal": "'היום' לפי Asia/Jerusalem; השאילתה מחזירה source (store/app/manual/ai); הזמנה ללא שולחן מוצגת בשורה 'לא משובץ'.",
+"alternatives": [],
+"refs": [
+"server.js:23145-23160",
+"business-app.js:40619",
+"rules-restaurant.html#חלונות הושבה ורשימות הזמנות (היום / 7 ימים)"
+]
+},
+{
+"id": "RST-22",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "CRM מסעדה",
+"category": "scope",
+"severity": "medium",
+"title": "נתיבי CRM מסעדה (/api/restaurant/*) — קוד מת",
+"as_is": "לקוח, ביקור, self-visit, checkout, dashboard ו-alerts (server.js:33058-33211) ללא שום קריאה מהלקוח ובלי אימות; רדומים = 30 יום בעוד RESTAURANT_PROCESSES מתאר 60.",
+"proposal": "להסיר את הנתיבים ואת restaurant_customers/restaurant_visits, ולהשתמש בכרטיס הלקוח המאוחד (STR-43) עם מונה ביקורים מתוך הזמנות. התראת 'לקוח רדום' = 60 יום ללא הזמנה.",
+"alternatives": [
+"לבנות ממשק צ'ק-אין לנתיבים הקיימים, עם verifyBiz ו-self-visit מוגבל ל-sc-auth"
+],
+"refs": [
+"server.js:33058-33211",
+"s1-docsvscode.html#\"לקוח לא חזר\" 60 יום",
+"rules-restaurant.html#לקוח מסעדה — הוספה/עדכון ורשימה"
+]
+},
+{
+"id": "RST-23",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "functional",
+"severity": "high",
+"title": "המרת פניית תפריט להזמנה מאבדת את כל הפריטים",
+"as_is": "הפנייה שומרת selections כשמות ({שם שלב:[שם פריט]}, server.js:42722) או כמערך עגלה, וההמרה מניחה מזהים: Number(name)=NaN מסונן, וההזמנה נוצרת רק עם שורת מחיר הבסיס (server.js:42958). פריט מקושר-קטלוג ללא name נשמר כמספר.",
+"proposal": "selections נשמרות כמערך snapshot: [{section_id, section_name, item_id, item_name, unit_price}] כששם ומחיר נלקחים בשרת (custom_price ?? catalog.price; שם קטלוג אם מקושר). ההמרה בונה שורות מה-snapshot בלבד.",
+"alternatives": [],
+"refs": [
+"server.js:42636-42722",
+"server.js:42935-42962",
+"rules-restaurant.html#ניהול פניות תפריט: סטטוס והמרה להזמנה"
+]
+},
+{
+"id": "RST-24",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "functional",
+"severity": "medium",
+"title": "המרת פניית תפריט יוצרת הצעת מחיר ולא הזמנה",
+"as_is": "convert יוצר store_orders עם status='new' (server.js:42935-42962), אך הלקוח עובר לטאב 'הצעות מחיר' ושם ההזמנה לא מופיעה כהצעה.",
+"proposal": "ההמרה יוצרת status='quote', quote_status='draft', quote_number='QT-'+id, is_event=TRUE, event_guest_count ו-target_datetime מהפנייה — כמו from-template.",
+"alternatives": [],
+"refs": [
+"server.js:42935-42962",
+"server.js:27001-27040",
+"rules-restaurant.html#ניהול פניות תפריט: סטטוס והמרה להזמנה"
+]
+},
+{
+"id": "RST-25",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "money",
+"severity": "medium",
+"title": "כלל מחיר ושם אחיד לפריט תפריט בכל המסלולים",
+"as_is": "בתצוגה הציבורית מחיר = custom_price ?? catalog.price (server.js:42614-42620); ב-from-template פריט מקושר ללא custom_price מתומחר 0 וללא שם (27008-27040); catalog-request שומר שמות ומחירים מהלקוח ללא אימות (42828).",
+"proposal": "פונקציה אחת resolveMenuItem: name = שם קטלוג אם מקושר אחרת name; price = custom_price ?? catalog.price ?? 0. משמשת בתצוגה, from-template, convert ו-catalog-request (שבו השרת מחליף מחיר/שם לפי catalog_item_id).",
+"alternatives": [],
+"refs": [
+"server.js:42614-42620",
+"server.js:27008-27040",
+"server.js:42828",
+"rules-restaurant.html#פנייה מ\"הרכבת קטלוג\""
+]
+},
+{
+"id": "RST-26",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "functional",
+"severity": "low",
+"title": "תצוגה מקדימה של טיוטה, מפתחות סוג אירוע ושכפול",
+"as_is": "_mtPreview פותח /menu/slug בלי preview_token — טיוטה מציגה 'התפריט אינו זמין' (business-app.js:59688); event_type בשרת bar_mitzvah מול barmitzvah בלקוח; 'שכפול — בקרוב' (59693).",
+"proposal": "תצוגה מקדימה תמיד מצרפת preview_token. מפתחות event_type קנוניים: wedding, bar_mitzvah, corporate, birthday, general (מיגרציה barmitzvah→bar_mitzvah). שכפול תבנית ממומש (תבנית+שלבים+פריטים, is_public=false) או שהכפתור מוסר.",
+"alternatives": [],
+"refs": [
+"business-app.js:59688",
+"business-app.js:59693",
+"business-app.js:58538",
+"rules-restaurant.html#תבנית תפריט — יצירה, עריכה, מחיקה רכה"
+]
+},
+{
+"id": "RST-27",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "scope",
+"severity": "low",
+"title": "price_modifier של שלב תפריט — לממש או להסיר",
+"as_is": "price_modifier נשמר ומוחזר בציבורי אך לא משתתף בחישוב (menu.html:649).",
+"proposal": "per_person: כל שלב שנבחר בו פריט מוסיף price_modifier לאיש; per_item: מתווסף פעם אחת. החישוב זהה בשרת (convert) ובלקוח.",
+"alternatives": [
+"להסיר את השדה"
+],
+"refs": [
+"menu.html:649",
+"server.js:42279",
+"rules-restaurant.html#שלבי תפריט (Sections)"
+]
+},
+{
+"id": "RST-28",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תפריטי אירועים",
+"category": "security",
+"severity": "low",
+"title": "Rate-limit לפניות תפריט — כתובת IP אמינה ואחסון משותף",
+"as_is": "המגבלה (5 לשעה) בזיכרון התהליך ולפי הערך הראשון ב-x-forwarded-for שנשלט ע\"י הלקוח (server.js:42518-42539).",
+"proposal": "זיהוי IP דרך req.ip עם trust proxy מוגדר; מונה ב-DB/Redis משותף לכל המופעים; 5 פניות לשעה ל-IP ו-20 ליום לתבנית.",
+"alternatives": [],
+"refs": [
+"server.js:42518-42539",
+"rules-restaurant.html#שליחת פנייה מאשף התפריט"
+]
+},
+{
+"id": "RST-29",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "Events Hub",
+"category": "data-integrity",
+"severity": "medium",
+"title": "שריון מלאי אוטומטי מתפריט — נוסחה, יחידות ומנות נבחרות",
+"as_is": "auto-from-menu משתמש ב-qty×(1+waste%) ללא המרת יחידות (שונה מ-Food Cost qty/(1−waste%)), ומסכם את כל מנות התבנית לכל סועד ולא רק את הנבחרות (server.js:26934).",
+"proposal": "השריון מחושב מהשורות שבהזמנה/הצעה (המנות שנבחרו) × כמות, עם הנוסחה האחידה effective = qty/(1−min(waste,95)/100) והמרת יחידות משותפת (ראו RST-30).",
+"alternatives": [],
+"refs": [
+"server.js:26934",
+"server.js:22670",
+"rules-restaurant.html#הצעת מחיר מתבנית תפריט, שיוך תפריט לפקודת עבודה ושריון מלאי אוטומטי"
+]
+},
+{
+"id": "RST-30",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "Food Cost",
+"category": "money",
+"severity": "medium",
+"title": "Food Cost: טיפול אחיד בכשל המרת יחידות",
+"as_is": "בכשל המרה הרשימה מחשבת עלות עם כמות לא מומרת (עלולה להתנפח פי 1000, server.js:22670-22690), בונה המתכון מציג 0 (business-app.js:24281) ו-computeFixedOverhead מדלג — שלוש תוצאות שונות.",
+"proposal": "מודול המרה משותף לשרת וללקוח. כשל המרה → עלות המרכיב לא נספרת, המרכיב מסומן unit_mismatch והמנה has_incomplete_data=true; אותו כלל ברשימה, בבונה, בתקורה הקבועה ובניכוי מלאי.",
+"alternatives": [],
+"refs": [
+"server.js:22223-22246",
+"server.js:22670-22690",
+"business-app.js:24208-24281",
+"rules-restaurant.html#חישוב עלות מנה ו-Food Cost % (כולל המרת יחידות)"
+]
+},
+{
+"id": "RST-31",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "Food Cost",
+"category": "functional",
+"severity": "medium",
+"title": "בונה המתכון: שינוי מחיר מכירה של מנה קיימת לא נשמר",
+"as_is": "במנה קיימת שדה המחיר פתוח לעריכה, האישור והתצוגה מחושבים לפיו, אך רק עץ המוצר נשלח ל-POST /api/food-cost/recipe (business-app.js:24387; server.js:22714).",
+"proposal": "שמירה בבונה שולחת גם sale_price, והשרת מעדכן store_catalog.price באותה טרנזקציה (רק לבעלי הרשאת עריכת קטלוג).",
+"alternatives": [
+"לנעול את שדה המחיר במנה קיימת"
+],
+"refs": [
+"business-app.js:24387",
+"server.js:22714-22750",
+"rules-restaurant.html#בונה המתכון — שמירת עץ מוצר ויצירת מנה חדשה"
+]
+},
+{
+"id": "RST-32",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "Food Cost",
+"category": "money",
+"severity": "medium",
+"title": "תקורה קבועה: הוצאות והכנסות מאותה תקופה",
+"as_is": "הוצאות 'בפועל' נלקחות מתחילת החודש הנוכחי (חלקי, server.js:22398) והכנסות/כמויות מהחודש הקודם (22412-22432) — אחוז התקורה מעוות בתחילת חודש.",
+"proposal": "שני הצדדים מאותה תקופה: החודש הקלנדרי המלא האחרון; אם אין בו מכירות — 30 הימים האחרונים לשניהם.",
+"alternatives": [],
+"refs": [
+"server.js:22392-22432",
+"server.js:22509",
+"rules-restaurant.html#תקורה תפעולית קבועה, נקודת איזון והחלה על כל התפריט"
+]
+},
+{
+"id": "RST-33",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "Food Cost ומלאי",
+"category": "data-integrity",
+"severity": "medium",
+"title": "קישור מרכיב↔פריט מחסן לפי מזהה ונרמול שם אחיד",
+"as_is": "מתכון↔מחסן ומחירון מקושרים לפי שם (product_ingredients.ingredient_name ↔ pantry.item_name); Food Cost וניכוי מנרמלים trim+lowercase, אך קבלת סחורה מתאימה רגיש-רישיות (server.js:17341) ו-use דורש שם מדויק (11236).",
+"proposal": "product_ingredients.pantry_id (FK, אופציונלי) כמפתח העדיף; ללא קישור — התאמה לפי lower(trim(name)) בכל המסלולים (קבלת סחורה, ניכוי, use, Food Cost, שריון). קבלת סחורה מקשרת supplier_product → pantry_id.",
+"alternatives": [],
+"refs": [
+"server.js:22288-22297",
+"server.js:17341",
+"server.js:11236",
+"s1-erd.html#ProductIngredient",
+"rules-restaurant.html#קבלת סחורה ועדכון מלאי"
+]
+},
+{
+"id": "RST-34",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ייבוא Excel",
+"category": "functional",
+"severity": "medium",
+"title": "מיפוי עמודות ב-AI בייבוא Excel תמיד נכשל וגובה סוללה",
+"as_is": "_excelCatOpenModal שולח שורות ל-/api/ai/generate-catalog שמחזיר items ולא mapping, כך שהמיפוי נופל תמיד לידני — ובכל זאת נגבית סוללת AI (server.js:18308; business-app.js:20182-20236).",
+"proposal": "מיפוי עמודות מתבצע בלי AI בניחוש מילות מפתח (כבר קיים); AI רק בלחיצה יזומה על 'מיפוי חכם' דרך נתיב ייעודי שמחזיר {mapping}, וחיוב סוללה רק בהצלחה.",
+"alternatives": [],
+"refs": [
+"server.js:18308",
+"business-app.js:20182-20236",
+"rules-restaurant.html#ייבוא קטלוג מ-Excel (מיפוי עמודות → bulk-import)"
+]
+},
+{
+"id": "RST-35",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "ייבוא Excel",
+"category": "scope",
+"severity": "medium",
+"title": "בורר 'סוג עסק' במודאל ייבוא Excel מנוגד לכלל 5",
+"as_is": "EXCEL_BIZ_TYPES (business-app.js:20101) מציג בחירת מסעדה/חנות/שירותים במודאל הייבוא — משמש רק לתבנית קטגוריות, אך מנוגד לכלל שבחירת סוג עסק רק בויזארד/SA. ייבוא זה גם יוצר פריט-פריט ועוקף את מגבלת bulk.",
+"proposal": "הבורר מוסר; תבנית הקטגוריות נגזרת מ-family_groups.business_type. הייבוא עובר דרך bulk-import עם מגבלת המסלול (STR-34).",
+"alternatives": [
+"לשמור בורר אך לשנות את התווית ל'תבנית קטגוריות' ללא המילה 'סוג עסק'"
+],
+"refs": [
+"business-app.js:20101",
+"business-app.js:20825",
+"CLAUDE.md#כלל 5",
+"rules-restaurant.html#ייבוא Excel \"חכם\" (EXCEL_BIZ_TYPES) לאשף ההקמה / לקטלוג"
+]
+},
+{
+"id": "RST-36",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "קופה — פיצול",
+"category": "money",
+"severity": "low",
+"title": "פיצול חשבון לפי מנות כולל הנחות וטיפ",
+"as_is": "סכום חלק = Σprice×qty של המנות המשויכות לפני הנחות/טיפ (business-app.js:32855-32968), כך שסכום החלקים ≠ הסכום לתשלום.",
+"proposal": "הנחה וטיפ מחולקים יחסית לסכום כל חלק; עיגול ל-0.01 ושארית העיגול לחלק האחרון; Σחלקים = grandTotal.",
+"alternatives": [],
+"refs": [
+"business-app.js:32855-32968",
+"rules-restaurant.html#פיצול חשבון לפי מנות (קופה)"
+]
+},
+{
+"id": "RST-37",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "חזית מסעדה",
+"category": "ux",
+"severity": "medium",
+"title": "מסך סיום הזמנה בחזית המסעדה מציג 'שולמה ואושרה' בלי תשלום",
+"as_is": "מסך הסיום מציג 'שולמה ואושרה' ו'בהכנה' קבועים; אמצעי התשלום הנבחר (_payMethod) לא נשלח; מספר הזמנה אקראי אם לא חזר id (storefront-restaurant.html:2160-2200).",
+"proposal": "המסך מציג 'ההזמנה התקבלה וממתינה לאישור המסעדה' ומספר הזמנה מהשרת בלבד (ללא id → הודעת שגיאה). paymentMethod (cash/card_on_delivery) נשלח ונשמר. הסטטוס מתעדכן מהשרת.",
+"alternatives": [],
+"refs": [
+"storefront-restaurant.html:2160-2200",
+"rules-restaurant.html#הזמנה אונליין מחנות המסעדה"
+]
+},
+{
+"id": "RST-38",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "חזית מסעדה",
+"category": "functional",
+"severity": "low",
+"title": "בקשת אירוע/קייטרינג מהחזית — סוג רשומה ייעודי",
+"as_is": "submitEventBooking יוצר calendar_events עם startTime קבוע '12:00' וללא callType (storefront-restaurant.html:2413) — מופיע כבקשה כללית.",
+"proposal": "callType='event_request' עם מספר אורחים ושעה שהלקוח בחר; בכרטיס הבקשה כפתור 'המר להצעת מחיר' (from-template).",
+"alternatives": [],
+"refs": [
+"storefront-restaurant.html:2413",
+"rules-restaurant.html#בקשת אירוע/קייטרינג מהחנות"
+]
+},
+{
+"id": "RST-39",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "functional",
+"severity": "high",
+"title": "העברת דרישה לספק שולחת מייל מיידי בהזמנה במחיר 0",
+"as_is": "submitAssignSupplier שולח status:'draft' ומציג 'הועברה לטיוטת הזמנה', אך POST /api/b2b/orders מתעלם, קובע 'sent' ושולח מייל לספק מיד (server.js:18196; business-app.js:7430).",
+"proposal": "השרת מכבד status='draft': נוצרת טיוטה ללא מייל וללא confirm_token; שליחה לספק רק בפעולת 'שגר' מפורשת.",
+"alternatives": [],
+"refs": [
+"server.js:18196",
+"business-app.js:7430",
+"rules-restaurant.html#העברת דרישת רכש (רשימת קניות) לספק"
+]
+},
+{
+"id": "RST-40",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "data-integrity",
+"severity": "medium",
+"title": "סטטוסי הזמנת רכש — נתיב אחד ומעברים מוגדרים",
+"as_is": "POST /api/b2b/orders/status ו-PUT /api/b2b/orders/:id/status מקבלים כל ערך, כולל delivered שעוקף קבלת סחורה (server.js:17332, 17441).",
+"proposal": "נתיב יחיד; enum: draft, sent, approved, processing, shipped, delivered, cancelled (pending מוסר). מעברים: draft→sent; sent→approved|processing|cancelled; approved→processing; processing→shipped; shipped/approved/processing→delivered רק דרך receive; כל מצב שאינו delivered→cancelled.",
+"alternatives": [],
+"refs": [
+"server.js:17332",
+"server.js:17441",
+"business-app.js:19023-19055",
+"rules-restaurant.html#סטטוסי הזמנת רכש"
+]
+},
+{
+"id": "RST-41",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "data-integrity",
+"severity": "high",
+"title": "קבלת סחורה — אידמפוטנטית וקבלה חלקית",
+"as_is": "POST /api/b2b/orders/receive לא בודק שההזמנה כבר delivered — קבלה כפולה מוסיפה מלאי ורישום מחיר פעמיים (server.js:17341).",
+"proposal": "receive מותר רק כש-status ∈ {sent, approved, processing, shipped}, עם SELECT ... FOR UPDATE; אחרת 409 'ההזמנה כבר התקבלה'. כמות שהתקבלה נשמרת לכל שורה (received_qty); חוסרים → טיוטת השלמה (כקיים).",
+"alternatives": [],
+"refs": [
+"server.js:17341",
+"rules-restaurant.html#קבלת סחורה ועדכון מלאי"
+]
+},
+{
+"id": "RST-42",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "functional",
+"severity": "medium",
+"title": "שיגור הזמנות רכש: סטטוס מייל אמיתי ואישור ספק",
+"as_is": "כשל במייל נבלע (success שקט); שגיאה כללית מציגה 'ההזמנה נשלחה — בדוק בהיסטוריה' גם כשלא נוצרה; supplier_confirmed_at לא משנה status (server.js:18090-18133, 25176).",
+"proposal": "לכל הזמנה email_status ∈ {sent, failed, no_email} שמוצג בהיסטוריה עם 'שלח שוב'. הלקוח מציג הצלחה רק על 2xx. אישור ספק (POST /c/po) מעביר status sent→approved.",
+"alternatives": [],
+"refs": [
+"server.js:18090-18133",
+"server.js:25151-25190",
+"business-app.js:18903",
+"rules-restaurant.html#שיגור הזמנות רכש: יצירה, PDF, מייל ואישור קבלה ע\"י הספק"
+]
+},
+{
+"id": "RST-43",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "functional",
+"severity": "low",
+"title": "אכיפת מינימום הזמנה לספק ומועד אספקה",
+"as_is": "min_order לספק נבדק רק בלקוח (business-app.js:18639); cutoff_time ו-delivery_days לא נאכפים ולא מחושבים.",
+"proposal": "השרת דוחה הזמנה לספק מתחת ל-min_order (400). לכל הזמנה מחושב expected_delivery_date: יום האספקה הקרוב מתוך delivery_days, ואם השעה אחרי cutoff_time — הבא אחריו.",
+"alternatives": [],
+"refs": [
+"business-app.js:18639",
+"server.js:18090",
+"rules-restaurant.html#מרקטפלייס B2B — עגלה וצ'קאאוט מפוצל לספקים"
+]
+},
+{
+"id": "RST-44",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "רכש",
+"category": "scope",
+"severity": "low",
+"title": "קישורי מוצר ספק↔קטלוג: שימוש בפועל או הסרה",
+"as_is": "supplier_product_catalog_links (qty_per_unit) נשמרים ומוצגים בלבד (server.js:17259); 'סריקה חכמה' מציגה 'תהיה זמינה בקרוב'. משיכת טיוטה לעגלה לא מוצאת שורות req_N.",
+"proposal": "בקבלת סחורה: מוצר ספק מקושר מגדיל store_catalog.stock_quantity ב-qty×qty_per_unit ומעדכן cost_price. כפתור 'סריקה חכמה' מוסתר עד מימוש. שורות דרישה (req_N) נשמרות עם supplier_product_id אם נבחר.",
+"alternatives": [
+"להסיר את טבלת הקישורים"
+],
+"refs": [
+"server.js:17259",
+"business-app.js:18493",
+"business-app.js:19153",
+"rules-restaurant.html#קטלוג מוצרי ספק וקישור למוצרי החנות"
+]
+},
+{
+"id": "RST-45",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "מחסן",
+"category": "data-integrity",
+"severity": "medium",
+"title": "שימוש בפריט מחסן לא מוחק אותו כשמגיע ל-0",
+"as_is": "POST /api/pantry/use מוחק את הפריט כשהכמות ≤0 (server.js:11236-11255) — מאבד reserved_qty ושריונים, בניגוד לניכוי האוטומטי שמשאיר 0.",
+"proposal": "use מעדכן quantity=max(0, q−deduct) ולעולם לא מוחק; מחיקה רק בפעולת מחיקה מפורשת, וחסומה אם reserved_qty>0.",
+"alternatives": [],
+"refs": [
+"server.js:11236-11255",
+"server.js:22269-22322",
+"rules-restaurant.html#פריטי מלאי — הוספה, עדכון, שימוש ומחיקה"
+]
+},
+{
+"id": "RST-46",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "מחסן",
+"category": "functional",
+"severity": "low",
+"title": "'חסרים במלאי' בדשבורד הטבח: שם ריק וסף קבוע",
+"as_is": "renderCookDashboard קורא p.name ו-min_quantity שאינם קיימים (העמודה item_name; אין min_quantity) — הסף תמיד 2 והשם ריק (business-app.js:41628-41660).",
+"proposal": "שימוש ב-item_name; עמודה חדשה pantry.min_quantity (ברירת מחדל NULL → סף לפי min_stock_warning_pct של העסק); נמוך = זמין (quantity − reserved_qty) ≤ הסף.",
+"alternatives": [],
+"refs": [
+"business-app.js:41628-41660",
+"s1-erd.html#pantry",
+"rules-restaurant.html#מלאי נמוך בדשבורד הטבח"
+]
+},
+{
+"id": "RST-47",
+"domain": "מסעדה, תפריטים, Food Cost ורכש",
+"area": "תיעוד",
+"category": "docs",
+"severity": "low",
+"title": "עדכון restaurant-guide ו-RESTAURANT_PROCESSES לפי ההחלטות",
+"as_is": "המדריך והמסמך מתארים QR לתפריט, ביטול באישור מנהל משמרת, 'לקוח לא חזר' 60 יום, סגירת חשבון → דוח יומי — לא ממומשים או ממומשים אחרת (s1-docsvscode).",
+"proposal": "אחרי אישור ההחלטות, public/restaurant-guide.html ו-RESTAURANT_PROCESSES.md מעודכנים באותו קומיט של כל שינוי (שולחנות, QR, סגירת חשבון, KDS, הזמנות שולחן).",
+"alternatives": [
+"לממש ביטול הזמנה/פריט באישור מנהל משמרת כפי שמתואר"
+],
+"refs": [
+"s1-docsvscode.html#RESTAURANT_PROCESSES.md — מפת תהליכי מסעדה",
+"s1-docsvscode.html#restaurant-guide — QR לשולחן"
+]
+}
+]

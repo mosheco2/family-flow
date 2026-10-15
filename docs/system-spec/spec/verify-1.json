@@ -1,0 +1,92 @@
+[
+ {
+  "id": 1,
+  "domain": "auth",
+  "process": "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA",
+  "claim": "reset-pin (43462): OTP אחרון בתוקף, bcrypt.compare; UPDATE pin."
+ },
+ {
+  "id": 2,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "SA: logoutSA() sa-app.js:418 — מנקה intervals, מוחק ofl_sa_token (לא ofl_sa_user), אין קריאת שרת."
+ },
+ {
+  "id": 3,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "ZM: zmLogout() zone-manager-app.js:118 — מוחק zm_token, zm_manager; אין קריאת שרת."
+ },
+ {
+  "id": 4,
+  "domain": "auth",
+  "process": "Middleware ‏verifyFamily — אלגוריתם מדויק",
+  "claim": "שורה לא נמצאה → 401 \"פגישה לא תקינה — יש להתחבר מחדש\" (41893). שגיאת DB → 500 \"שגיאה פנימית\"."
+ },
+ {
+  "id": 5,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "BIZ: logout() ב-business-app.js:2390 — רק removeItem('ofl_session') ו-redirect; לא קורא לשרת ולא מוחק ofl_family_token. common.js:364 זהה (reload)."
+ },
+ {
+  "id": 6,
+  "domain": "family",
+  "process": "ניווט משפחתי (ALL_TABS, ROLE_DEFAULTS, FAMILY_GNAV_GROUPS)",
+  "claim": "ALL_TABS (app.js:9461): feed, tasks, shop, myorders, bank, cashflow, community, academy, members, budget, pantry, recipes, forecast, home-maintenance."
+ },
+ {
+  "id": 7,
+  "domain": "family",
+  "process": "עריכת פרטי משתמש, סיסמה ומחיקה",
+  "claim": "set-first-password (11709): רק עצמו; רק אם must_change_password=true; סיסמה ≥4; אופציונלי id_number (20), email (200, lower), birth_year 1920–2020."
+ },
+ {
+  "id": 8,
+  "domain": "family",
+  "process": "סשן משפחתי, middleware, bootstrap-token ו-logout",
+  "claim": "logout (10740): מוחק את שורת ה-session לפי hash; תמיד success. לקוח: מוחק ofl_session/ofl_family_token ומנווט ל-/ (app.js:851)."
+ },
+ {
+  "id": 9,
+  "domain": "family",
+  "process": "כניסה עם קוד סביבה + כינוי + סיסמה",
+  "claim": "users.status!='active' → 403 \"חשבון ממתין לאישור מנהל\" (10688)."
+ },
+ {
+  "id": 10,
+  "domain": "family",
+  "process": "הצטרפות לקבוצה קיימת עם קוד",
+  "claim": "ברקע: sendAlertEmail למנהל הקבוצה + מייל ל-adminNotificationEmail עם קוד הקבוצה (10406-10427)."
+ },
+ {
+  "id": 11,
+  "domain": "biz",
+  "process": "כלי AI נקודתיים לעסק",
+  "claim": "/api/ai/generate-image (12346, ללא auth): לבאנר — Gemini מייצר prompt באנגלית (≤30 מילים); ספקים לפי סדר: HF nebius FLUX-schnell → HF together FLUX.1-schnell (HF_TOKEN, timeout 30ש') → Pollinations (45ש', seed אקראי); באנר 1024×576, לוגו 512×512; מוחזר data URI."
+ },
+ {
+  "id": 12,
+  "domain": "biz",
+  "process": "FamliAI — עוזרת עסקית (chat-assistant)",
+  "claim": "שרת: business_type מה-context בוחר מקטע הנחיות ייעודי (logistics, maintenance_repair, professional, beauty, retail, construction, sport, restaurant/cafe, אחר=food cost) (16051-16260)."
+ },
+ {
+  "id": 13,
+  "domain": "biz",
+  "process": "מחזור חיי משימה ואישור תגמול",
+  "claim": "approved ו-rew>0: balance של assigned_to += rew; INSERT transactions income 'tasks' \"תגמול משימה: …\"; INSERT transactions expense לאדמין הראשון (12055-12059)."
+ },
+ {
+  "id": 14,
+  "domain": "biz",
+  "process": "בקשת פתיחת/ביטול מודול ואישורה ע\"י SA",
+  "claim": "biz: בונה אובייקט {moduleId, moduleName||moduleId, note||'', requested_at: ISO, status:'pending'} ומחליף בקשה קודמת לאותו moduleId ב-family_groups.module_requests (jsonb: מסנן את הקיים ומוסיף) (5923-5932). לא טרנזקציה, UPDATE יחיד."
+ },
+ {
+  "id": 15,
+  "domain": "biz",
+  "process": "תפקידים והרשאות טאבים — ROLE_DEFAULTS, ROLE_TYPE_TABS, enforcePermissions",
+  "claim": "ערכי users.role בעסק: ADMIN, MANAGER, SENIOR, MEMBER (בחירה ב-smart invite 4283-4286 ובמודל ההרשאות). השרת ב-/api/admin/change-role מכיר רק ADMIN|CHILD|MEMBER (server.js:11612)."
+ }
+]

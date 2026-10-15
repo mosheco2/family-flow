@@ -1,0 +1,754 @@
+<h2 class="grp">יופי / קוסמטיקה — תשתית, הרשאות וניווט</h2>
+
+<section class="proc" data-f="beauty schema tables migrations init beauty_practitioners beauty_appointments segments"><h3>מודל הנתונים של מודול היופי (אתחול וברירות מחדל עסקיות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הטבלאות נוצרות ב-<code>initDB()</code> (server.js:4406) בעליית השרת, בבלוק server.js:2021-2259. אין טבלאות נפרדות לפי עסק; כל הטבלאות מסוננות לפי <code>business_group_id</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>אילוצי NOT NULL עסקיים בלבד: <code>beauty_practitioners.display_name</code>, <code>beauty_resources.name</code>, <code>beauty_appointment_segments.segment_order/segment_type/start_time/end_time/duration_minutes</code>, <code>beauty_client_photos.photo_type/image_url</code>, <code>beauty_inventory.product_name/inventory_type</code>, <code>beauty_commissions.gross_amount/commission_rate/commission_amount</code>, <code>beauty_rfq.service_description</code>, <code>beauty_service_catalog.name/duration_minutes/price</code> (server.js:2022-2257).</li>
+<li>אין אילוצי CHECK על סטטוסים; כל ערך מחרוזת נשמר.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>server.js:1866-1867 — <code>ALTER TABLE beauty_practitioners ADD COLUMN work_days JSONB / slot_minutes INT DEFAULT 60</code> (רץ <b>לפני</b> ה-CREATE).</li>
+<li>server.js:2022-2190 — CREATE של practitioners, resources, appointments, appointment_segments, client_records, formulas, client_photos, inventory, commissions, rfq.</li>
+<li>server.js:2193-2194 — הוספת <code>payment_confirmed</code> (FALSE) ו-<code>payment_confirmed_at</code> ל-appointments.</li>
+<li>server.js:2197-2203 — אינדקסים; server.js:2204 — <code>beauty_client_records.id_number</code>.</li>
+<li>server.js:2212-2228 — <code>beauty_service_catalog</code> + <code>commission_pct</code>, <code>allowed_practitioner_ids INT[]</code>, <code>available_days JSONB</code>.</li>
+<li>server.js:2231-2258 — <code>beauty_subscription_types</code>, <code>beauty_client_subscriptions</code>.</li>
+<li>server.js:1389 — הסרת FK על <code>calendar_events.service_id</code> כדי שיכיל מזהי <code>beauty_service_catalog</code>.</li>
+</ol></div>
+<div>חישובים</div><div>ברירות מחדל עסקיות: עמלת שירות 30.00%, עמלת קמעונאות 10.00% (server.js:2031-2032); סטטוס תור ברירת מחדל <code>confirmed</code> (server.js:2056); <code>booking_source</code> ברירת מחדל <code>biz</code>; <code>client_type</code> ברירת מחדל <code>external</code>; <code>patch_test_status</code> ברירת מחדל <code>none</code> (server.js:2097); סף הזמנה מחדש למלאי 5 (server.js:2150); RFQ סטטוס התחלתי <code>new</code> (server.js:2180); חבילה: 5 כניסות, תוקף 365 יום (server.js:2236-2238).</div>
+<div>פערים</div><div><ul>
+<li>server.js:1866-1867 רצים לפני CREATE ב-2022 → בהתקנה חדשה ה-ALTER נכשל בשקט, וה-CREATE אינו כולל <code>work_days/slot_minutes</code>; העמודות ייווצרו רק באתחול השני של השרת.</li>
+<li>עמודות שאין להן שימוש בקוד: <code>deposit_wallet_txn</code>, <code>reminder_sent_at</code>, <code>followup_sent_at</code> (server.js:2059-2066), <code>loyalty_points</code> (2102), <code>resulting_appointment_ids</code> (2186), <code>period_start/period_end</code> בעמלות, <code>beauty_inventory.image_url</code>. לא קיים קוד תזכורות תור.</li>
+<li>אין עמודה <code>general_notes</code> ב-<code>beauty_client_records</code>, אך הקוד כותב אליה (ראו "עדכון פרטי לקוח").</li>
+<li>אין עמודה <code>client_phone</code> ב-<code>beauty_rfq</code>, אך server.js:31880 משתמש בה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="permissions verifybiz verifybeautyclientaccess verifybeautypractitioneraccess roles therapist reception senior_therapist"><h3>הרשאות גישה ל-API של היופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל קריאה ל-<code>/api/beauty/:bizId/*</code> מצד ממשק העסק (business.html) עוברת middleware אימות. מסלולי ציבור (חנות) ומשפחה משתמשים ב-middleware אחרים.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>verifyBiz</code> (server.js:41914-41948): Bearer token → <code>family_sessions</code> לפי hash; 401 "נדרש token להתחברות עסקית" אם חסר; 401 על פגישה לא תקינה או שפג תוקפה (כולל מחיקה אסינכרונית); 403 "גישה מורשית לעסקים בלבד" אם <code>session_type</code> אינו <code>biz</code>. מוסיף <code>req.bizAuth = {groupId, userId, role, employeeRoleType}</code>.</li>
+<li>כמעט כל handler בודק בנוסף <code>parseInt(req.params.bizId) !== req.bizAuth.groupId</code> → 403 "אין הרשאה".</li>
+<li><code>verifyBeautyClientAccess</code> (server.js:41950-41956): עובר רק אם <code>role==='ADMIN'</code> או ש-<code>employeeRoleType</code> נמצא ב-<code>{therapist, senior_therapist, nail_tech, makeup_artist, reception}</code>; אחרת 403 "אין הרשאה לגשת למידע לקוחות". חל על כל <code>/clients*</code> (רשימה, כרטיס, יצירה, עדכון, פורמולות, תמונות).</li>
+<li><code>verifyBeautyPractitionerAccess</code> (server.js:41965-41971): ADMIN או <code>senior_therapist</code> בלבד; אחרת 403 "אין הרשאה לנהל צוות מטפלות". חל על POST/PATCH מטפלות ועל <code>POST /commissions/pay</code>.</li>
+<li><code>verifyFamilyOrBiz</code> (server.js:43089-43114): מקבל פגישה מכל סוג; <code>req.callerAuth.type</code> = <code>business</code> אם <code>session_type==='biz'</code>, אחרת <code>family</code>; מגדיר גם <code>req.bizAuth</code> כ-alias.</li>
+<li>מסלולים ללא אימות כלל: <code>GET /slots</code>, <code>/practitioners/public</code>, <code>/services/public</code>, <code>/availability</code>, <code>/api/beauty/businesses</code>.</li>
+<li><code>cancel-by-customer</code> מאמת טוקן לקוח חנות דרך <code>_scGetCustomerByToken</code> (server.js:43551-43553).</li>
+</ul></div>
+<div>תופעות לוואי</div><div>Middleware כללי (server.js:107-144) רושם <code>HTTP_POST/PATCH/...</code> ב-<code>biz_audit_log</code> לכל בקשה עסקית מוצלחת שיש בה <code>req.bizAuth.groupId</code>, למעט <code>/api/beauty/:id/appointments/:id</code> (server.js:116), שמתועד ידנית ב-<code>UPDATE_APPT_STATUS</code>.</div>
+<div>ממשק</div><div>בצד הלקוח <code>ROLE_TYPE_TABS</code> (business-app.js:37519-37523): reception → beauty_calendar, beauty_clients, pos, tasks, timeclock; therapist/nail_tech/makeup_artist → beauty_calendar, beauty_clients, tasks, timeclock; senior_therapist → בנוסף beauty_practitioners, beauty_commissions.</div>
+<div>פערים</div><div><ul>
+<li>approve-cancel, reject-cancel ו-by-customer (server.js:43572-43633) <b>אינם</b> משווים <code>bizId</code> ל-<code>req.bizAuth.groupId</code>, כך שכל משתמש עסקי יכול לפעול על תור של עסק אחר אם הוא מעביר את ה-bizId שלו.</li>
+<li>מסלולים בלי בדיקת תפקיד (כל עובד עם פגישת biz, כולל קופאי או מנקה): inventory, commissions GET, services, subscriptions, rfq, appointments, dashboard. רק לקוחות, מטפלות ותשלום עמלות מוגבלים לפי תפקיד.</li>
+<li>רשימות התפקידים לבחירה לעסק יופי (business-app.js:4259, 21234-21240) לא כוללות <code>senior_therapist</code>, למרות שהשרת מתייחס לתפקיד הזה.</li>
+<li>verifyFamilyOrBiz מגדיר <code>req.bizAuth</code> גם לפגישה משפחתית, ולכן פעולות משפחה (POST תור, RFQ reject/message) נרשמות ב-<code>biz_audit_log</code> עם <code>group_id</code> של המשפחה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="navigation data-beauty-only gnav all_tabs business_types switchtab tabs"><h3>ניווט BIZ לעסק יופי (טאבים, data-beauty-only, הפניות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חשיפת 8 טאבי היופי למשתמש שעסקו מסוג <code>business_type='beauty'</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כפתורי ה-dropdown בעלי <code>data-beauty-only="1"</code> מוסתרים (<code>class="hidden"</code>) ב-business.html:749-750, 766-769, 785, 801. הם נחשפים רק כשמורץ <code>renderBeautyAdminDashboard</code> (business-app.js:45809), כלומר רק ל-ADMIN של עסק יופי (business-app.js:5661).</li>
+<li><code>switchTab('customers')</code> בעסק יופי מופנה ל-<code>beauty_clients</code> (business-app.js:2862).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GNAV_GROUPS</code> (business-app.js:5402-5406): team ← beauty_calendar, beauty_practitioners; sales ← beauty_services, beauty_subscriptions, beauty_clients, beauty_rfq; inventory ← beauty_inventory; finance ← beauty_commissions.</li>
+<li><code>ALL_TABS</code> (business-app.js:3861-3869): beauty_calendar "יומן מטפלות 💆", beauty_clients "תיקי לקוחות 📋", beauty_inventory "מלאי מקצועי 🧴", beauty_services, beauty_subscriptions, beauty_commissions "עמלות ושכר 💰", beauty_rfq "ייעוץ ובקשות 💬", beauty_practitioners "מטפלות 💆".</li>
+<li><code>BUSINESS_TYPES</code> beauty modules (business-app.js:37534): feed, beauty_calendar, beauty_practitioners, beauty_services, beauty_subscriptions, pos, beauty_clients, beauty_inventory, beauty_commissions, beauty_rfq, timeclock, cashflow, tasks, shop, biz-ads, reports.</li>
+<li>loaders ב-switchTab (business-app.js:3000-3007): כל טאב מפעיל את <code>loadBeautyX()</code> המתאים, עטוף ב-try/catch.</li>
+<li>מכלי התוכן: <code>content-beauty_*</code> (business.html:2676-2683).</li>
+<li>Quick tiles לעסק יופי (business-app.js:35117-35125): יומן תורים, לקוחות, מלאי מקצועי, עמלות, קופה (badge = הזמנות חנות pending/new), קטלוג, נוכחות.</li>
+</ol></div>
+<div>ממשק</div><div>תוויות ה-dropdown: "📅 יומן פנימי", "💆 מטפלות", "💎 שירותים וטיפולים", "🎁 מנויים וחבילות", "📋 תיקי לקוחות", "💬 ייעוץ ובקשות", "🧴 מלאי יופי", "💸 עמלות ושכר".</div>
+<div>פערים</div><div>עובד שאינו ADMIN (למשל therapist) לא מריץ את <code>renderBeautyAdminDashboard</code>, ולכן כפתורי ה-dropdown המסומנים <code>data-beauty-only</code> נשארים מוסתרים אצלו. הגישה שלו לטאבים היא דרך הפעולות המהירות בדשבורד הצוות בלבד.</div>
+</div></section>
+
+<h2 class="grp">מטפלות, משאבים וזמינות</h2>
+
+<section class="proc" data-f="practitioner create post users linked commission tier work_days slot_minutes"><h3>יצירת מטפלת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN או senior_therapist בטאב "מטפלות" לוחצים "מטפלת חדשה" (<code>_beautyPractModal</code> ואחריו <code>_beautyPractSave</code>, business-app.js:55043-55187). המסלול: <code>POST /api/beauty/:bizId/practitioners</code> (server.js:31294-31319).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה, "נא להזין שם מטפלת" (business-app.js:55153).</li>
+<li>שרת: verifyBiz, verifyBeautyPractitionerAccess, התאמת bizId. אין אימות שם או טווח עמלה בשרת.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>BEGIN (טרנזקציה, server.js:31299).</li>
+<li><code>INSERT users (group_id=bizId, nickname=display_name, role='MEMBER', status='active')</code>: משתמש מקושר ללא טלפון או סיסמה, שאיתו אי אפשר להתחבר. הוא קיים כדי שהמטפלת תופיע ברשימת העובדים לשיוך משימות (server.js:31300-31306).</li>
+<li><code>INSERT beauty_practitioners</code> עם <code>user_id</code> (server.js:31307-31314).</li>
+<li>COMMIT; מחזיר את השורה. בשגיאה מתבצע ROLLBACK ומוחזר 500.</li>
+</ol></div>
+<div>חישובים</div><div>ברירות מחדל ב-INSERT (server.js:31310-31313): <code>tier||'standard'</code>, <code>color_hex||'#6366f1'</code>, <code>specializations||[]</code>, <code>commission_rate_svc||30</code>, <code>commission_rate_retail||10</code>, <code>slot_minutes||60</code>, <code>work_days</code> כ-JSON או NULL.</div>
+<div>ממשק</div><div>טופס (business-app.js:55045-55126): דרגות <code>['מטפלת ג׳וניור','מטפלת','מטפלת בכירה','מנהלת טיפולים']</code>; התמחויות <code>['פנים','גוף','ציפורניים','שיער','הסרת שיער','עיסוי','איפור','ריסים']</code>; slot ∈ {15,20,30,45,60,90,120}; זמינות שבועית לפי ימים 0-6 עם start/end (ברירת מחדל 09:00-18:00). יום לא מסומן נשלח כ-<code>null</code> (business-app.js:55165). עמלה ריקה נשלחת כ-0 (55172-55173). צבע ברירת מחדל #ec4899.</div>
+<div>תופעות לוואי</div><div>נוצר משתמש ב-<code>users</code>. Backfill רטרואקטיבי: <code>backfillPractitionerUsers()</code> (server.js:7482-7497) רץ 13 שניות אחרי עליית השרת (server.js:44169) ויוצר משתמש מקושר לכל מטפלת עם <code>user_id IS NULL</code>.</div>
+<div>פערים</div><div><ul>
+<li>הלקוח שולח 0 כשהעמלה ריקה, והשרת משתמש ב-<code>||30</code> / <code>||10</code>. מטפלת שנוצרה עם עמלה 0% תקבל בפועל 30%/10%. ב-PATCH הערך 0 נשמר כ-0.</li>
+<li>מודאל ישן <code>_beautyManagePractitioners</code> + <code>_beautyAddPractitioner</code> (business-app.js:51037-51099) הוא קוד מת ללא קורא. הוא גם בודק <code>r.success||r.practitioner</code>, בעוד השרת מחזיר את השורה עצמה.</li>
+<li>שמירת מטפלות בויזארד (business-app.js:22916-22921) קוראת ל-<code>POST /api/beauty/practitioners</code>, נתיב שאינו קיים בשרת. השגיאה נבלעת והמטפלות מהויזארד לא נשמרות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="practitioner update patch deactivate toggle is_active"><h3>עדכון / השבתת מטפלת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"עריכה" או "השבת/הפעל" ברשימת המטפלות (<code>_beautyPractSave</code> עם id, <code>_beautyPractToggle</code>, business-app.js:55150-55200). המסלול: <code>PATCH /api/beauty/:bizId/practitioners/:id</code> (server.js:31321-31332).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz, verifyBeautyPractitionerAccess, התאמת bizId. אישור ב-<code>_uiConfirm</code> לפני השבתה: "להשבית מטפלת זו?".</li><li>אם אין שדות לעדכון, מוחזר <code>{success:true}</code> ללא כתיבה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>whitelist: display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, is_active, work_days, slot_minutes. ערך שהוא object עובר <code>JSON.stringify</code> (server.js:31326).</li><li><code>UPDATE beauty_practitioners ... WHERE id AND business_group_id</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>is_active=TRUE</td><td>FALSE</td><td>ADMIN/senior_therapist</td><td>אישור</td><td>מוסתרת מ-GET practitioners (ללא all=1), מהחנות ומ-slots (מחזיר [])</td></tr><tr><td>FALSE</td><td>TRUE</td><td>אותו דבר</td><td>אישור</td><td>חוזרת לרשימות</td></tr></table></div></div>
+<div>ממשק</div><div><code>GET /practitioners?all=1</code> (server.js:31285) מחזיר גם מטפלות לא פעילות. היומן משתמש בזה כדי לבנות עמודה עבור תורים שמשויכים למטפלת שהושבתה, עם תווית "(לא פעילה)" (business-app.js:50236-50241, 50330).</div>
+<div>פערים</div><div>השבתה לא משפיעה על המשתמש המקושר ב-<code>users</code>, ולא נבדק אם למטפלת יש תורים עתידיים.</div>
+</div></section>
+
+<section class="proc" data-f="slots availability work_days slot_minutes free slots practitioner calendar"><h3>חישוב משבצות פנויות למטפלת (slots) ובדיקת זמינות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודאל "תור חדש" (business-app.js:50937-50957), בחירת מטפלת או תאריך מפעילה <code>GET /api/beauty/:bizId/slots?practitionerId&amp;date</code> (server.js:31212-31267, ללא אימות).</div>
+<div>תנאים ואימותים</div><div><ul><li>חסר date: 400 "חסר bizId או date".</li><li>מטפלת לא קיימת בעסק או לא פעילה: <code>slots:[]</code>.</li><li>אם ל-<code>work_days</code> אין מפתח ליום בשבוע (<code>new Date(date).getDay()</code>, 0=ראשון), זה יום חופש ומוחזר <code>slots:[]</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>slotMin = <code>slot_minutes||60</code>. שעות עבודה מ-<code>work_days[dow].start||'09:00'</code> / <code>.end||'18:00'</code>. אם <code>work_days</code> הוא NULL או שלא הועבר practitionerId: 09:00-18:00.</li>
+<li>שליפת סגמנטים מסוג <code>segment_type='active'</code> של המטפלת באותו יום, כשסטטוס התור אינו <code>cancelled</code> או <code>no_show</code>.</li>
+<li>לולאה מ-start עד <code>cur+slotMin &lt;= end</code> בקפיצות של slotMin. משבצת נכללת רק אם היא בעתיד (<code>slotStart &gt; Date.now()</code>) ואינה חופפת: <code>!(slotEnd &lt;= bs || slotStart &gt;= be)</code>.</li>
+<li>תגובה: <code>{success, slots:[{time:'HH:MM', start, end}], slotMinutes}</code>.</li>
+</ol></div>
+<div>חישובים</div><div>חפיפה בקטע חצי-פתוח; גודל משבצת = slot_minutes של המטפלת, ולא משך השירות.</div>
+<div>ממשק</div><div>לחיצה על משבצת ממלאת את <code>bnap-time</code> (business-app.js:50959-50968). בתצוגת יום, <code>_freeSlotCards</code> (business-app.js:50275-50306) מחשב משבצות פנויות בצד הלקוח באותה לוגיקה מתוך התורים שנטענו, ומציג כרטיסים מקווקווים שלחיצה עליהם קוראת ל-<code>_beautyNewApModal('HH:MM')</code>.</div>
+<div>פערים</div><div><ul>
+<li><code>_beautyNewApModal</code> לא מקבל פרמטר, ולכן השעה מהמשבצת שנלחצה אינה ממולאת והטופס נפתח עם 10:00 (business-app.js:50302, 50865, 50905).</li>
+<li><code>_freeSlotCards</code> לא מסנן תורים מבוטלים או no_show, בניגוד לשרת.</li>
+<li><code>GET /availability</code> (server.js:31705-31726): בודק חפיפה למטפלת (active) ולמשאב בלי סינון סטטוס ובלי אימות. אין לו שימוש בצד הלקוח.</li>
+<li>המשבצות לא נבדקות מול <code>available_days</code> של השירות ומול <code>allowed_practitioner_ids</code>.</li>
+<li>הזמנה מהחנות הציבורית לא משתמשת ב-<code>/slots</code> (ראו "בקשת תור מהחנות").</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="resources rooms beauty_resources"><h3>משאבים (חדרים / ציוד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET/POST/PATCH /api/beauty/:bizId/resources</code> (server.js:31335-31365).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz והתאמת bizId. GET מחזיר רק <code>is_active=TRUE</code>, ממוין לפי name.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: <code>resource_type||'room'</code>, <code>color_hex||'#94a3b8'</code>.</li><li>PATCH: <code>COALESCE</code> לכל שדה (name, resource_type, color_hex, is_active).</li></ol></div>
+<div>פערים</div><div>אין ממשק משתמש למשאבים, אך יצירת תור בודקת התנגשות משאב (<code>RESOURCE_CONFLICT</code>) אם הסגמנט כולל resource_id.</div>
+</div></section>
+
+<h2 class="grp">שירותים (קטלוג טיפולים)</h2>
+
+<section class="proc" data-f="services catalog beauty_service_catalog create update deactivate commission_pct allowed_practitioner_ids available_days patch test"><h3>ניהול קטלוג שירותים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "שירותים וטיפולים" (<code>loadBeautyServices</code>, <code>_beautyServiceModal</code>, <code>_beautySubmitService</code>, <code>_beautyDeactivateService</code>, business-app.js:54334-54583). מסלולים: <code>GET/POST /api/beauty/:bizId/services</code>, <code>PATCH /services/:id</code> (server.js:32497-32537).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה, "שם שירות הוא שדה חובה" (business-app.js:54534); משך ברירת מחדל 60.</li>
+<li>שרת POST: <code>!name || !duration_minutes</code> מחזיר 400 "name and duration required" (server.js:32512).</li>
+<li>GET (פנימי וציבורי) מחזיר רק <code>is_active=TRUE</code>, ממוין לפי category ואז name.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>POST: INSERT עם <code>category||'general'</code>, <code>price||0</code>, <code>color_hex||'#6366f1'</code>, <code>requires_patch_test||false</code>, <code>commission_pct</code> (null אם לא הועבר), <code>allowed_practitioner_ids</code> (מערך, ריק = כולן), <code>available_days</code> JSON או NULL.</li>
+<li>PATCH: whitelist (name, category, duration_minutes, price, description, color_hex, requires_patch_test, is_active, commission_pct, allowed_practitioner_ids, available_days). הערכים עוברים כמו שהם, בלי stringify.</li>
+<li>"הסר שירות" = <code>PATCH {is_active:false}</code> (מחיקה רכה) אחרי <code>_uiConfirm</code>.</li>
+<li>נתיב חלופי: <code>POST /api/calendar/services</code> (server.js:22869-22883). בעסק יופי הוא כותב ל-<code>beauty_service_catalog</code> (name, duration ברירת מחדל 30, price), ללא אימות.</li>
+<li><code>GET /api/calendar/:groupId</code> בעסק יופי מחזיר את השירותים מ-<code>beauty_service_catalog</code> (server.js:22809-22814) כ-<code>duration_mins</code>.</li>
+</ol></div>
+<div>חישובים</div><div>קטגוריות בממשק (business-app.js:54320-54329): hair, nails, face, body, spa, laser, makeup, general. <code>available_days</code> = <code>{ "0".."6": {start,end} }</code> לימים המסומנים בלבד; אם אין יום מסומן נשלח null (business-app.js:54539-54558).</div>
+<div>ממשק</div><div>רשימה מקובצת לפי קטגוריה; תג "⚠️ Patch Test" לשירות שדורש בדיקה. שדה "% עמלה לשירות" עם placeholder "ריק = ברירת מחדל מטפלת".</div>
+<div>פערים</div><div><ul>
+<li><code>_beautySubmitService</code> לא בודק את תגובת השרת (business-app.js:54562-54566), כך ש-400/500 מוצגים כהצלחה.</li>
+<li><code>commission_pct</code> לא משמש בחישוב העמלה. ההשלמה משתמשת רק ב-<code>commission_rate_svc</code> של המטפלת (server.js:31641-31648).</li>
+<li><code>available_days</code> ו-<code>allowed_practitioner_ids</code> משמשים רק לתצוגת שמות מטפלות ב-select בחנות (storefront.html:3729-3740), ולא לחסימה בשום מקום.</li>
+<li>שמירת שירותים בויזארד (business-app.js:22891-22896) קוראת ל-<code>POST /api/beauty/services</code>, נתיב שאינו קיים. השירותים מהויזארד לא נשמרים והשגיאה נבלעת.</li>
+<li>אין ממשק שמעדכן <code>patch_test_status</code> של לקוח (ראו "בדיקת רגישות").</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="wizard ai generate beauty services gemini catalog"><h3>יצירת שירותים ב-AI בויזארד ההקמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בויזארד V2, שלב <code>services</code>, נקרא <code>_generateBeautyServices()</code> (business-app.js:21974, 22414-22471) אם נבחרו <code>serviceCategories</code>.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>POST /api/ai/generate-catalog</code> עם promptText: "צור רשימת טיפולי יופי עבור: … צור בדיוק 6 טיפולים. החזר JSON בלבד: {items:[{name,duration_minutes,price,category}]} משך ריאלי בדקות (30-120), מחירים ריאליים בשקלים", <code>type:'BUSINESS'</code>.</li>
+<li>אם התשובה היא <code>!success</code>: מוצגות שורות ידניות ריקות. אחרת <code>items</code> או <code>JSON.parse(outer.result)</code> ממופים ל-<code>wizardV2Data.services</code> (ברירות מחדל duration 60, price 0, category = הקטגוריה הראשונה).</li>
+<li>במעבר לשלב הבא מבוצע POST לכל שירות בשם (business-app.js:22885-22897).</li>
+</ol></div>
+<div>פערים</div><div>נתיב השמירה <code>/api/beauty/services</code> לא קיים (מוחזר 404), כך שתוצרי ה-AI והקלט הידני לא נשמרים לקטלוג.</div>
+</div></section>
+
+<h2 class="grp">תורים — יצירה, יומן ומחזור חיים</h2>
+
+<section class="proc" data-f="appointment status state machine pending_client confirmed scheduled completed cancelled no_show pending_cancel in_progress"><h3>מכונת המצבים של תור יופי (beauty_appointments.status)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ריכוז כל ערכי הסטטוס והמעברים שמופיעים בשרת ובלקוחות.</div>
+<div>מכונת מצבים</div><div>
+<p>ערכים בשימוש: <code>pending_client</code>, <code>confirmed</code>, <code>scheduled</code>, <code>completed</code>, <code>no_show</code>, <code>cancelled</code>, <code>pending_cancel</code>. <code>in_progress</code> מופיע רק במפת התגים (business-app.js:50163) ולא נכתב בשום מקום.</p>
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(חדש)</td><td>pending_client</td><td>עסק (POST appointments, booking_source=biz)</td><td>זוהה <code>client_family_id</code> (הועבר או נמצא לפי טלפון)</td><td>נוצר או מקושר כרטיס לקוח (server.js:31498)</td></tr>
+<tr><td>(חדש)</td><td>confirmed</td><td>עסק בלי לקוח מקושר, או משפחה (booking_source=family)</td><td>—</td><td>אותו דבר</td></tr>
+<tr><td>(חדש)</td><td>confirmed</td><td>אישור בקשת חנות (<code>PUT /api/calendar/events/:id/status</code> approved)</td><td>העסק מסוג beauty</td><td>booking_source=storefront, total_price=0, SMS ו-inbox ללקוח (server.js:23043-23074)</td></tr>
+<tr><td>pending_client</td><td>confirmed</td><td>לקוח משפחה (client-confirm action=confirm), או עסק ("אשר תור" → PATCH)</td><td>בשרת המשפחתי: <code>status='pending_client'</code> ו-<code>client_family_id</code> = המשפחה</td><td>אין</td></tr>
+<tr><td>pending_client</td><td>cancelled</td><td>לקוח משפחה (action≠confirm)</td><td>כנ"ל</td><td>אין</td></tr>
+<tr><td>כל סטטוס</td><td>pending_cancel</td><td>לקוח חנות (cancel-by-customer)</td><td>טלפון או family תואמים; אין בדיקת סטטוס</td><td>מוצג בבאנרים בדשבורד וביומן</td></tr>
+<tr><td>כל סטטוס</td><td>cancelled</td><td>עסק (approve-cancel)</td><td>התור קיים בעסק; אין בדיקת סטטוס</td><td>אין</td></tr>
+<tr><td>pending_cancel</td><td>confirmed</td><td>עסק (reject-cancel)</td><td>חייב להיות <code>pending_cancel</code>, אחרת 400 "הסטטוס אינו בקשת ביטול"</td><td>אין</td></tr>
+<tr><td>כל סטטוס</td><td>completed</td><td>עסק (POST complete)</td><td>אין בדיקת סטטוס</td><td>ניכוי back-bar, עמלות, סטטיסטיקות ביקור, הכנסה בתזרים</td></tr>
+<tr><td>כל סטטוס</td><td>no_show</td><td>עסק (POST no-show)</td><td>אין</td><td>אין</td></tr>
+<tr><td>כל סטטוס</td><td>כל ערך</td><td>עסק (PATCH status, מסך עריכה או AI)</td><td>אין whitelist</td><td>רישום ב-biz_audit_log בלבד, ללא תופעות של complete</td></tr>
+</table></div>
+<p>בממשק: כפתורי "השלם" ו"לא הגיע" מוצגים רק ל-<code>scheduled</code>/<code>confirmed</code>; "אשר תור" רק ל-<code>pending_client</code> (business-app.js:50690-50696). ה-select בעריכה מציע scheduled, confirmed, completed, cancelled, no_show (business-app.js:50748-50754).</p>
+</div>
+<div>פערים</div><div><ul>
+<li>אף מסלול לא יוצר סטטוס <code>scheduled</code>, הוא נוצר רק בעריכה ידנית. לכן מדד "תורים עתידיים" (<code>appt_pending</code>, server.js:32220-32224), שסופר רק <code>scheduled</code>, יהיה כמעט תמיד 0. גם תנאי ה-retention cron (scheduled/confirmed) מושפע.</li>
+<li>תוויות לא עקביות: בכרטיס הלקוח ובמסך הלקוח הכללי <code>scheduled</code> מתורגם "ממתין לאישור" (business-app.js:51494, 12001, 11339), וביומן "מתוכנן" (50170).</li>
+<li>שינוי סטטוס ל-<code>completed</code> דרך PATCH (מסך עריכה או AI) לא מייצר עמלות, ניכוי מלאי או הכנסה.</li>
+<li>אפשר להשלים את אותו תור כמה פעמים (אין guard), וכל השלמה מכפילה עמלות, הכנסה ו-visit_count.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment create post internal segments conflict patch test pending_client client record resolve phone"><h3>יצירת תור (פנימי או ממשפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>העסק לוחץ "תור חדש" ביומן (<code>_beautyNewApModal</code>, <code>_beautySubmitNewAp</code>, business-app.js:50865-51035), או "קבע תור" בכרטיס לקוח (business-app.js:51443). המסלול: <code>POST /api/beauty/:bizId/appointments</code> (server.js:31409-31550, verifyFamilyOrBiz).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם לקוח, תאריך ושעה חובה, "שם לקוח, תאריך ושעה הם שדות חובה" (business-app.js:51002-51006).</li>
+<li>IDOR (server.js:31416-31422): <code>src = booking_source||'biz'</code>. אם <code>src==='family'</code>, הקורא חייב להיות family ו-<code>client_family_id</code> = הקבוצה שלו. אחרת הקורא חייב להיות business ו-bizId = הקבוצה שלו. בכשל: 403 "אין הרשאה".</li>
+<li>התנגשות משאב: לכל סגמנט עם resource_id, כל סגמנט אחר החופף בזמן מחזיר 409 <code>RESOURCE_CONFLICT</code> (server.js:31426-31433).</li>
+<li>התנגשות מטפלת: סגמנט <code>active</code> עם practitioner_id שחופף לסגמנט active אחר של אותה מטפלת מחזיר 409 <code>PRACTITIONER_CONFLICT</code> (server.js:31434-31441).</li>
+<li>בדיקת רגישות: נדרשת אם <code>req.body.requires_patch_test</code> או אם אחד מ-<code>service_catalog_id</code> בקטלוג של העסק מסומן <code>requires_patch_test=TRUE</code>. אז מחפשים כרטיס לקוח לפי <code>client_family_id</code> או לפי ספרות טלפון. אם אין כרטיס, או <code>patch_test_status≠'passed'</code>, או <code>patch_test_expires_at</code> בעבר: 400 <code>PATCH_TEST_REQUIRED</code> (server.js:31471-31495). בלקוח מוצג "לא ניתן לקבוע תור — נדרשת בדיקת רגישות (פאץ׳ טסט) תקפה ללקוחה עבור שירות זה" (business-app.js:51025-51027).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>BEGIN (טרנזקציה).</li>
+<li>בדיקות ההתנגשות (לעיל).</li>
+<li><code>totalPrice = Σ parseFloat(seg.price||0)</code>. השדה <code>total_price</code> מה-body מתעלם.</li>
+<li>זיהוי לקוח (רק כש-<code>src==='biz'</code> ואין client_family_id): ספרות הטלפון ו-alt (972↔0). חיפוש <code>users</code> של קבוצה <code>type='FAMILY'</code>, ואם לא נמצא, <code>beauty_client_records.client_family_id</code> של העסק לפי טלפון (server.js:31446-31469).</li>
+<li>בדיקת רגישות.</li>
+<li>סטטוס: <code>(resolvedFamilyId &amp;&amp; src==='biz') ? 'pending_client' : 'confirmed'</code> (server.js:31498).</li>
+<li><code>INSERT beauty_appointments</code> (client_type ברירת מחדל external, deposit_amount ברירת מחדל 0, rfq_id, group_booking_ref).</li>
+<li><code>INSERT beauty_appointment_segments</code> לכל סגמנט (segment_order, segment_type, service_name, service_catalog_id, practitioner_id, resource_id, start/end, duration_minutes, price, gap_notes, backbar_items JSON).</li>
+<li>COMMIT.</li>
+<li>מחוץ לטרנזקציה (fire-and-forget, server.js:31524-31546): אם יש <code>client_phone</code>, מחפשים כרטיס לפי ספרות. אם קיים, וחסר לו family ויש resolvedFamilyId, מעדכנים <code>client_family_id</code>. אם לא קיים ויש שם, מוסיפים <code>INSERT beauty_client_records(name, phone, family)</code>.</li>
+<li>מוחזרת שורת התור.</li>
+</ol></div>
+<div>חישובים</div><div>בלקוח: <code>startTime = date+'T'+time+':00'</code> (זמן מקומי ללא אזור), <code>endTime = new Date(startTime)+dur → toISOString().slice(0,19)</code> (business-app.js:51007-51009). נבנה סגמנט יחיד: <code>{segment_order:1, segment_type:'active', service_name||'טיפול', service_catalog_id, practitioner_id, price}</code> (51011). בחירת שירות ממלאת משך ומחיר מהקטלוג (50970-50982).</div>
+<div>תופעות לוואי</div><div>יצירה או קישור של <code>beauty_client_records</code>. אין התראה ללקוח, גם כשהסטטוס הוא pending_client. אין רישום ב-audit פרט ל-middleware הכללי.</div>
+<div>ממשק</div><div>חיפוש לקוח קיים (מינימום 2 תווים) דרך <code>GET /clients?q</code>, עד 8 תוצאות, 🔗 למקושר (business-app.js:50833-50851). Toast: "תור נשלח ללקוח לאישור ⏳ [F:id]" או "תור נקבע בהצלחה! 💅".</div>
+<div>פערים</div><div><ul>
+<li><b>אזור זמן:</b> start_time נשמר כזמן מקומי נאיבי, ו-end_time כ-UTC. בדפדפן בישראל (UTC+2/+3) end_time יוצא מוקדם מ-start_time בשעתיים או שלוש. אותו דפוס מופיע בשרת ב-PATCH (server.js:31583-31587) ובאישור חנות (23041-23042), שם הוא תלוי ב-TZ של השרת.</li>
+<li>בדיקת ההתנגשות לא מסננת תורים מבוטלים או no_show ולא מוגבלת לעסק. תור מבוטל ממשיך לחסום את המשבצת.</li>
+<li>אין בדיקה ש-bizId הוא עסק מסוג beauty.</li>
+<li>אף ממשק לא מעדכן <code>patch_test_status</code>, כך ששירות המסומן "דורש Patch Test" חוסם לצמיתות כל קביעה פנימית.</li>
+<li>זיהוי הלקוח לפי טלפון עלול לקשר את התור לחשבון משפחה של אדם אחר עם אותו טלפון, ולהעביר את התור ל-pending_client.</li>
+<li>הלקוח שולח שדות שהשרת מתעלם מהם: practitioner_id, start_time, end_time ו-total_price ברמת התור.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar view day week month list loadbeautycalendar render practitioners columns pending banners"><h3>יומן פנימי (תצוגה וטעינה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פתיחת טאב <code>beauty_calendar</code> מריצה את <code>loadBeautyCalendar()</code> (business-app.js:50180-50226) ואת <code>_renderBeautyCalendar()</code> (50228-50608).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טווח לפי תצוגה: day = היום הנבחר; week/list = ראשון עד שבת של השבוע; month = 1 עד סוף החודש.</li>
+<li>4 קריאות במקביל: <code>/practitioners</code>, <code>/practitioners?all=1</code>, <code>/appointments?from&amp;to</code>, <code>/api/calendar/:biz</code> (ללא auth) עבור השירותים ובקשות pending מהחנות.</li>
+<li><code>pendingCancelAppts</code> = התורים בטווח עם <code>pending_cancel</code>. <code>pendingCalEvents</code> = <code>calendar_events.status='pending'</code>.</li>
+<li>GET appointments (server.js:31386-31407): סינון לפי <code>bas.start_time &gt;= from::date</code> ו-<code>&lt; to::date + 1 day</code>, ואופציונלית practitioner_id, resource_id, status. מחזיר <code>ba.*</code> + <code>segments</code> (json_agg לפי segment_order), ממוין לפי MIN(start_time).</li>
+</ol></div>
+<div>חישובים</div><div>תצוגת יום: עמודה לכל מטפלת פעילה, ועוד מטפלות לא פעילות שיש להן תור בטווח, ועוד עמודת "ללא מטפלת" לתורים לא משויכים. שעות 08:00-20:00, 13 שעות × 60px. מיקום הכרטיס: <code>top% = ((h-8)*60+m)/(13*60)*100</code>, <code>height% = max(dur/13h*100, 3)</code> (business-app.js:50260-50261). רוחב עמודה: <code>max(140, floor(320/n))</code>. התג לפי booking_source: storefront 🌐, biz 📅, rfq 📋.</div>
+<div>ממשק</div><div>תצוגות day/week/month/list ("רצף") (business-app.js:50339-50343). ניווט ‹ › זז ±1 יום, ±7 ימים או ±1 חודש (50610-50617). באנר "🚫 בקשות ביטול ממתינות לאישורך" עם אשר ביטול/דחה, ובאנר "📋 בקשות תור ממתינות לאישור" עם ✓ אשר (<code>approveCalendarEvent</code>) ו-✕ (<code>deleteCalendarEvent</code>). הבאנרים מוצגים רק בתצוגות day ו-list. לחיצה על תור פותחת את <code>_beautyOpenAp</code> (50652-50701): שירות, לקוח, תאריך, מטפלת, סטטוס, הערות, מחיר, וכפתורים לפי סטטוס.</div>
+<div>פערים</div><div><ul>
+<li>סינון GET לפי practitioner_id או resource_id מסנן גם את ה-segments המוחזרים בתוך json_agg (ה-WHERE חל על ה-JOIN).</li>
+<li>בתצוגות week ו-month לא מוצגים באנרי הבקשות הממתינות.</li>
+<li>היומן מציג את כל הסטטוסים, כולל cancelled ו-no_show, באותו צבע מטפלת וללא הבחנה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment edit patch status time practitioner service payment_confirmed notes audit"><h3>עריכת תור / שינוי סטטוס / אישור גבייה (PATCH)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✏️ ערוך" (<code>_beautyEditApModal</code>, <code>_beautySubmitEditAp</code>, business-app.js:50703-50798), "✅ אשר תור" (<code>_beautyConfirmApByBiz</code>, 50800), "אשר גביה" (<code>_bcmConfirmPayment</code> 51670, <code>_beautyConfirmPaymentGlobal</code> 51825), ופעולת AI (<code>_aiUpdateApptStatus</code>, 57451). המסלול: <code>PATCH /api/beauty/:bizId/appointments/:id</code> (server.js:31552-31609).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz והתאמת bizId. אין whitelist לסטטוס, אין בדיקת התנגשות בזמן החדש, ואין בדיקה שהתור קיים (UPDATE ללא שורות עדיין מחזיר success).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>UPDATE beauty_appointments</code>: status, notes, internal_notes, deposit_paid עם COALESCE. <code>payment_confirmed</code> מתעדכן רק אם המפתח קיים ב-body. <code>payment_confirmed_at=NOW()</code> רק כשהוא true. <code>updated_at=NOW()</code>.</li>
+<li>אם הועבר status: <code>logBizAction(..., 'UPDATE_APPT_STATUS', 'appointment', id, "תור #id עודכן לסטטוס X")</code> (server.js:31570).</li>
+<li>אם הועבר date, time, duration_minutes, practitioner_id (גם null) או service_name: נטען סגמנט segment_order=1. התאריך והשעה החדשים נגזרים מהמועד הנוכחי כשלא הועברו. <code>dur = parseInt(duration_minutes)||seg.duration_minutes||60</code>. end = start+dur. UPDATE לסגמנט 1 בלבד, כולל practitioner_id אם המפתח קיים, ו-<code>service_name=COALESCE</code>.</li>
+</ol></div>
+<div>חישובים</div><div>end_time = <code>new Date(newStart)+dur → toISOString().slice(0,19)</code> (server.js:31585-31587). ראו פער אזור הזמן.</div>
+<div>ממשק</div><div>בטופס העריכה: שירות מהקטלוג או "אחר" ידני, תאריך, שעה, משך (min 5, step 5), מטפלת (כולל לא פעילות), סטטוס, הערות.</div>
+<div>פערים</div><div><ul>
+<li>עריכה משנה רק את הסגמנט הראשון; בתור עם כמה סגמנטים השאר לא זזים.</li>
+<li>שינוי שירות לא מעדכן מחיר (<code>total_price</code>) ולא <code>service_catalog_id</code>.</li>
+<li>שרת: <code>curStart.toISOString().split('T')[0]</code> לעומת <code>getHours()</code> (server.js:31581-31582) מערבב UTC וזמן מקומי.</li>
+<li><code>_aiUpdateApptStatus</code> שולח בלי Authorization (business-app.js:57456-57459), ולכן תמיד מקבל 401.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointment complete backbar inventory depletion commission visit stats avg interval income"><h3>השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✅ השלם" בחלון התור (<code>_beautyCompleteAp</code>, business-app.js:50813-50821) או פעולת AI (<code>_aiCompleteAppt</code>, 57470). המסלול: <code>POST /api/beauty/:bizId/appointments/:id/complete</code> (server.js:31612-31691).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz והתאמת bizId. אם התור לא נמצא אחרי ה-UPDATE: ROLLBACK ו-404 "Not found". אין בדיקת סטטוס קודם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>BEGIN.</li>
+<li><code>UPDATE beauty_appointments SET status='completed'</code>.</li>
+<li>שליפת התור (total_price, client_family_id).</li>
+<li>לכל סגמנט ולכל <code>backbar_items[]</code>: <code>UPDATE beauty_inventory SET stock_qty=stock_qty-qty_used WHERE id AND business_group_id AND stock_qty&gt;=qty_used</code>. אם אין מספיק מלאי, הניכוי מדולג בשקט (server.js:31633-31638).</li>
+<li>עמלה: לכל סגמנט <code>active</code> עם practitioner_id ו-price&gt;0, <code>INSERT beauty_commissions(commission_type='service', gross_amount=price, commission_rate=commission_rate_svc, commission_amount)</code> (server.js:31639-31651).</li>
+<li>אם יש client_family_id: <code>visit_count+1</code>, <code>last_visit_at=NOW()</code>, <code>total_spent += total_price</code> בכרטיס שתואם client_family_id ו-business (server.js:31655-31662), ואז חישוב מחדש של <code>avg_visit_interval_days</code> (31664-31679).</li>
+<li>COMMIT.</li>
+<li>אחרי COMMIT, אם total_price&gt;0: <code>logBizIncome(biz, total_price, "תור יופי — {client_name||'לקוח'}")</code>, שמוסיף שורה ל-<code>transactions</code> (category='sales', type='income', is_manual=FALSE, user_id = ה-ADMIN הראשון) (server.js:4201-4211, 31683-31687).</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>commission_amount = +(gross × rate / 100).toFixed(2)</code> (server.js:31648).</li>
+<li><code>avg_visit_interval_days = ROUND(AVG(diff),1)</code>, כאשר diff = <code>(ba2.created_at − ba1.created_at)/86400</code> לכל זוג שבו <code>ba2.id &gt; ba1.id</code>, באותו לקוח ועסק, ו-ba1 בסטטוס completed, עם <code>ORDER BY ba1.created_at LIMIT 10</code> (server.js:31666-31676). החישוב מבוסס על מועד יצירת התור, לא מועד הטיפול, ועל כל הזוגות (לא רק עוקבים).</li>
+</ul></div>
+<div>תופעות לוואי</div><div>תנועת הכנסה בתזרים; עמלות ממתינות לתשלום; ירידת מלאי back-bar. Toast: "טיפול הושלם! מלאי ועמלות עודכנו ✅".</div>
+<div>פערים</div><div><ul>
+<li>אין guard נגד השלמה כפולה (ראו מכונת המצבים).</li>
+<li>במסלול ה-403: <code>client.release()</code> נקרא ואחריו שוב ב-finally (שחרור כפול), ו-BEGIN נשאר פתוח (server.js:31616, 31690).</li>
+<li>אף ממשק לא מאכלס <code>backbar_items</code>, כך שניכוי back-bar בפועל לא קורה.</li>
+<li>סטטיסטיקות ביקור מתעדכנות רק כשיש client_family_id. לקוח לא מקושר (טלפון בלבד) לא צובר visit_count, ולכן לא נכנס ל-retention cron.</li>
+<li>עמלה בשיעור המטפלת בלבד; <code>commission_pct</code> של השירות ו-<code>commission_rate_retail</code> לא בשימוש. תור שאושר מהחנות (price=0) לא מייצר עמלה ולא הכנסה.</li>
+<li><code>_aiCompleteAppt</code> שולח בלי Authorization (business-app.js:57474) ונכשל ב-401.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="no-show noshow appointment"><h3>סימון "לא הגיע" (no-show)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"😞 לא הגיע" (<code>_beautyNoShowAp</code>, business-app.js:50823-50831) או AI (<code>_aiNoShowAppt</code>, 57484). המסלול: <code>POST /appointments/:id/no-show</code> (server.js:31693-31702).</div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE status='no_show', updated_at=NOW() WHERE id AND business_group_id</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>נספר ב-<code>no_show_today</code> בדשבורד. המשבצת משתחררת ב-<code>/slots</code> ובתורים הסינתטיים של החנות.</div>
+<div>פערים</div><div>אין התראה ואין חיוב פיקדון. <code>_aiNoShowAppt</code> בלי Authorization ולכן נכשל.</div>
+</div></section>
+
+<section class="proc" data-f="client confirm pending_client family app accept decline"><h3>אישור / דחיית תור ע"י הלקוח באפליקציה המשפחתית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח משפחה רואה בכרטיס העסק, בלשונית "בקשות תור", את התורים בסטטוס <code>pending_client</code> עם התווית "⏳ ממתין לאישורך" (app.js:14979, 15006-15022). הלחיצה מפעילה את <code>_clientConfirmBeautyAppt</code> (app.js:14802-14826) ואת המסלול <code>PUT /api/family/:familyGroupId/beauty/appointments/:id/client-confirm</code> (server.js:32018-32032).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamily; familyGroupId חייב להיות שווה ל-familyAuth.groupId, אחרת 403.</li><li>UPDATE רק אם <code>client_family_id</code> = המשפחה ו-<code>status='pending_client'</code>; אם לא עודכן: 404 "לא נמצא או שהסטטוס שונה כבר".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>newStatus = action==='confirm' ? 'confirmed' : 'cancelled'</code>.</li><li>UPDATE, ותגובה <code>{success, newStatus}</code>.</li><li>הלקוח טוען מחדש את <code>/api/family/business-activity</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>אין התראה לעסק.</div>
+</div></section>
+
+<section class="proc" data-f="cancel by customer storefront pending_cancel approve reject cancel"><h3>בקשת ביטול ע"י לקוח חנות ואישור/דחייה ע"י העסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר בחנות (sc-auth) לוחץ "ביטול תור" על תור עתידי (sc-auth.js:506-513, 870-895), שמפעיל <code>POST /api/beauty/:bizId/appointments/:id/cancel-by-customer</code> (server.js:43549-43569). העסק מאשר או דוחה מהבאנרים ביומן או בדשבורד, או מכרטיס הלקוח: <code>POST approve-cancel</code> (43613-43621) / <code>reject-cancel</code> (43624-43633).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>cancel-by-customer: טוקן חנות תקין, אחרת 401 "לא מחובר"; תור בעסק, אחרת 404 "תור לא נמצא"; בעלות: <code>appt.client_phone === cust.phone</code> או <code>client_family_id === cust.family_group_id</code>, אחרת 403.</li>
+<li>לקוח: כפתור הביטול מוצג רק כשתאריך התור ≥ היום והסטטוס אינו cancelled, pending_cancel, completed או no_show (sc-auth.js:507-508). אישור: "לשלוח בקשת ביטול לעסק?".</li>
+<li>approve-cancel: verifyBiz; התור קיים, אחרת 404. אין בדיקת סטטוס ואין בדיקת bizId מול הטוקן.</li>
+<li>reject-cancel: verifyBiz; קיים, אחרת 404; <code>status==='pending_cancel'</code>, אחרת 400 "הסטטוס אינו בקשת ביטול".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לקוח: <code>status='pending_cancel'</code>.</li><li>אישור: <code>status='cancelled'</code>. דחייה: <code>status='confirmed'</code>.</li></ol></div>
+<div>ממשק</div><div>confirm בדפדפן: "לאשר את בקשת הביטול? התור יבוטל סופית." / "לדחות את בקשת הביטול? התור יחזור להיות פעיל." (business-app.js:50625, 50639). דשבורד מנהל: באנר אדום עם עד 10 בקשות (server.js:32257-32264).</div>
+<div>פערים</div><div><ul>
+<li>שרת cancel-by-customer לא בודק סטטוס או תאריך; הבדיקה היא רק בלקוח.</li>
+<li>בדיקת הבעלות לפי השוואת טלפון כמחרוזת מדויקת, ללא נרמול.</li>
+<li>דחייה מחזירה תמיד ל-<code>confirmed</code>, גם אם הסטטוס המקורי היה <code>pending_client</code> או <code>scheduled</code>.</li>
+<li>אין התראה ללקוח על אישור או דחייה.</li>
+<li>approve-cancel ו-reject-cancel לא מאמתים שה-bizId שייך לטוקן (IDOR בין עסקים).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront booking request sms verify calendar_events pending approve beauty appointment synthetic"><h3>בקשת תור מהחנות הציבורית ואישורה (המרה לתור יופי)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בחנות (storefront.html) פותח את מודאל ההזמנה: נטענים <code>/practitioners/public</code> ו-<code>/services/public</code> (storefront.html:3713-3754), נבחרים שירות, מטפלת ("ללא העדפה"), תאריך ושעה, ונשלחת בקשה.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם, טלפון, תאריך ושעה חובה, "יש למלא שם, טלפון, תאריך ושעה"; נדרשת התחברות (<code>scAuth.requireLogin</code>) (storefront.html:3871-3885).</li>
+<li>request-booking-sms (server.js:33685-33710): אותם שדות חובה, אחרת 400 "חסרים פרטים חובה".</li>
+<li>verify-booking-sms (server.js:33713-33747): קוד באורך 4; temp קיים בסטטוס pending ושייך לעסק, אחרת 404; קוד תואם, אחרת 400 "קוד שגוי"; תוקף 30 דקות, אחרת "קוד פג תוקף".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>request: קוד אקראי בן 4 ספרות, או <code>system_settings.sms_debug_code</code> אם הוא באורך 4. <code>INSERT temp_booking_requests</code> (כולל preferred_practitioner_id). SMS ב-Twilio: "{biz} — בקשת תור ✅ … קוד אישור: X".</li>
+<li>verify: איתור <code>storefront_customers.family_group_id</code> לפי טלפון. <code>INSERT calendar_events(status='pending', title="{name} — {service}", service_id, customer_group_id)</code>. temp מסומן verified. <code>upsertStoreCustomer</code>.</li>
+<li>הבקשה מופיעה בבאנר "בקשות תור ממתינות" ביומן ובדשבורד (<code>calendar_events.status='pending' AND call_type≠'table_reservation'</code>, server.js:32265-32271).</li>
+<li>אישור (<code>approveCalendarEvent</code>, business-app.js:26811-26837) מפעיל <code>PUT /api/calendar/events/:id/status {status:'approved'}</code> (server.js:22977-23081). בעסק beauty (23028-23075):
+<ol><li>dateStr/timeStr (HH:MM, ברירת מחדל 10:00). <code>dur=60</code> ו-serviceName=title, או מהקטלוג אם יש service_id (name, duration_minutes).</li>
+<li><code>INSERT beauty_appointments(booking_source='storefront', status='confirmed', total_price=0, client_family_id=customer_group_id, client_name=title)</code>.</li>
+<li><code>INSERT segment(segment_order=1, 'active', service_name, start, end, dur, price=0, practitioner_id=evt.preferred_practitioner_id)</code>.</li>
+<li>SMS: "{biz} — התור שלך אושר! ✅ תאריך… שעה… שירות… נתראה! 💅 WEFLOWZ"; ו-<code>inbox_messages</code> (sender_name 'הסלון', subject "התור שלך אושר ✅") אם יש customer_group_id.</li></ol></li>
+<li>אחרי האישור הלקוח מנווט ל-beauty_calendar בתאריך התור, בתצוגת יום.</li>
+</ol></div>
+<div>חישובים</div><div>end = start + duration (toISOString, תלוי ב-TZ של השרת).</div>
+<div>תופעות לוואי</div><div>שני SMS (קוד ואישור), הודעת inbox, וכרטיס לקוח בחנות. <code>POST /api/calendar/events</code> (server.js:22928-22950), כשיש customerGroupId וטלפון, מקשר או יוצר <code>beauty_client_records</code>.</div>
+<div>ממשק</div><div>דחייה = <code>deleteCalendarEvent(id,true)</code>.</div>
+<div>פערים</div><div><ul>
+<li><b>preferred_practitioner_id אובד:</b> הוא נשמר ב-temp_booking_requests, אבל ה-INSERT ל-calendar_events ב-verify (server.js:33735-33741) לא מעתיק אותו. כתוצאה, התור שנוצר באישור אינו משויך למטפלת.</li>
+<li>המחיר תמיד 0 גם כשיש שירות קטלוגי עם מחיר, ולכן אין הכנסה ואין עמלה בהשלמה.</li>
+<li><code>client_name</code> בתור = title של האירוע ("שם — שירות").</li>
+<li>אין בדיקת התנגשות ואין בדיקת רגישות באישור. <code>PUT /api/calendar/events/:id/status</code> ללא auth.</li>
+<li>אישור כפול יוצר תור יופי כפול.</li>
+<li>אחרי האישור, האירוע ב-calendar_events נשאר approved וגם תור יופי נוצר. בכרטיס העסק באפליקציה המשפחתית שניהם מוצגים (app.js:14978, 15023-15031), כלומר כפילות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="synthetic calendar events bap- is_beauty_internal api calendar storefront availability"><h3>אירועי יומן סינתטיים (bap-*) וזמינות בחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/calendar/:groupId</code> (server.js:22800-22852, ללא auth) משמש את החנות ואת היומן. בעסק beauty הוא מאחד את תורי היופי עם בקשות ממתינות.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>services = <code>beauty_service_catalog</code> פעילים (id, name, <code>duration_minutes AS duration_mins</code>, price).</li>
+<li>שליפת כל התורים של העסק שאינם cancelled או no_show (סגמנט 1), עם תאריך ושעה <code>AT TIME ZONE 'Asia/Jerusalem'</code> ושם המטפלת.</li>
+<li>כל תור הופך לאירוע: <code>{id:'bap-'+id, title: service_name||client_name, customer_phone: staff_name, event_date, start_time:'HH:MM', status:'approved', is_beauty_internal:true}</code>.</li>
+<li><code>events = [calendar_events עם status='pending', ...synthetic]</code>. אירועי calendar מאושרים לא מוחזרים.</li>
+</ol></div>
+<div>חישובים</div><div>בחנות (storefront.html:3799-3860): משבצות לפי <code>calendar_settings</code> (open/close/interval, ברירת מחדל 30). שעה תפוסה = כל אירוע approved או pending באותו יום שה-start_time שלו <b>זהה</b> (HH:MM). אירוע עם <code>[ALL_DAY]</code> ב-notes סוגר את היום. אם אין הגדרות, משבצות קבועות 09:00-16:00.</div>
+<div>פערים</div><div><ul>
+<li>החסימה בחנות היא לפי שעת התחלה זהה בלבד, ברמת העסק כולו: לא לפי מטפלת, לא לפי משך, ולא לפי <code>work_days</code> או <code>available_days</code>.</li>
+<li>השדה <code>customer_phone</code> בתור הסינתטי מכיל את שם המטפלת (server.js:22839).</li>
+<li>התורים כוללים גם completed ו-pending_cancel וגם תורים מהעבר; אין סינון תאריך.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointments by customer client history storefront activity family business activity linked businesses"><h3>שליפת היסטוריית תורים לפי לקוח (עסק, חנות, משפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כרטיס לקוח (טאבים "תורים" ו"גביה"), מודאל לקוח כללי (business-app.js:11324-11349, 11972-12050), אזור "הפעילות שלי" בחנות, וכרטיס העסק באפליקציה המשפחתית.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /appointments/by-customer?client_id|phone|name</code> (server.js:43572-43610, verifyBiz): אם לא הועבר אף פרמטר, מוחזר <code>[]</code>. עדיפות: client_id → <code>client_family_id</code> של הכרטיס, או <code>client_phone</code> של הכרטיס; phone → התאמה מדויקת; name → ILIKE. מחזיר id, status, client_name/phone, created_at, total_price, payment_confirmed(_at), service_name ו-start_time של הסגמנט הראשון. LIMIT 50, ממוין לפי start_time או created_at בסדר יורד.</li>
+<li><code>GET /api/sc-auth/activity/:bizGroupId</code> (server.js:43708-43748), לקוח חנות: <code>beautyBookings</code> = סטטוס שאינו cancelled, no_show או completed (עד 20, בסדר עולה); <code>beautyHistory</code> = cancelled, no_show, completed או pending_cancel (עד 30, בסדר יורד). התאמה לפי טלפון מדויק או family.</li>
+<li><code>GET /api/family/business-activity/:fam/:biz</code> (server.js:31837-32015), ענף beauty: תורים לפי client_family_id, או, כשאין family לתור, לפי טלפון ראשון של המשפחה, טלפון בכרטיס לקוח מקושר, או טלפון של משתמש במשפחה (עד 30); RFQ; calendar_events; הודעות inbox; ציר זמן מאוחד (עד 50, סוג <code>beauty_appt</code>).</li>
+<li><code>GET /api/family/linked-businesses/:groupId</code> (server.js:31799-31835): כל עסק שיש בו <code>beauty_client_records.client_family_id</code> = המשפחה נחשב "מקושר" (link_type beauty, status active). הוא גובר על <code>member_business_links</code>.</li>
+</ol></div>
+<div>פערים</div><div><ul>
+<li>by-customer לא בודק bizId מול הטוקן.</li>
+<li>שאילתת ה-RFQ ב-business-activity משתמשת ב-<code>beauty_rfq.client_phone</code>, עמודה שלא קיימת (server.js:31880). השאילתה נכשלת ונבלעת ב-catch, ולכן רשימת הייעוץ בכרטיס העסק המשפחתי תמיד ריקה.</li>
+<li>בכרטיס הלקוח הקריאה ל-by-customer היא לפי phone או name, ולא לפי client_id (business-app.js:51451-51458).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="payment collection pending payments payment_confirmed collection center gvia"><h3>גבייה: מרכז גבייה ואישור תשלום לתור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>KPI "ממתין לגביה מלקוחות" בדשבורד פותח את <code>_beautyOpenCollectionCenter</code> (business-app.js:51771-51836). גם טאב "💰 גביה" בכרטיס הלקוח (51628-51688).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>GET /pending-payments</code> (server.js:31369-31384): תורים בסטטוס completed, confirmed או scheduled, עם <code>payment_confirmed</code> FALSE או NULL ו-<code>total_price&gt;0</code>. סגמנט 1, LIMIT 300, לפי start_time בסדר יורד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>"אשר גביה ✓" שולח <code>PATCH /appointments/:id {payment_confirmed:true}</code>, שמגדיר <code>payment_confirmed_at=NOW()</code>.</li><li>רענון הרשימה.</li></ol></div>
+<div>חישובים</div><div>בכרטיס: סה"כ עסקאות = Σ total_price של תורים בסטטוס completed, confirmed או scheduled עם מחיר&gt;0; שולם = Σ של אלה עם payment_confirmed; ממתין = השאר (business-app.js:51630-51635). KPI בשרת: <code>pending_payment_sum/cnt</code> באותו תנאי (server.js:32272-32277).</div>
+<div>פערים</div><div>אישור הגבייה לא כותב תנועה בתזרים; ההכנסה נרשמת רק בהשלמת הטיפול. אין אפשרות לבטל אישור גבייה מהממשק. טאב "פרטים ומאזן" מציג נתונים מ-<code>/api/clients/financial-summary</code> (business-app.js:51534), מקור אחר שאינו מתואם עם טאב הגבייה.</div>
+</div></section>
+
+<h2 class="grp">תיקי לקוחות</h2>
+
+<section class="proc" data-f="clients list search beauty_client_records"><h3>רשימת לקוחות וחיפוש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_clients</code> מריץ <code>loadBeautyClients()</code> (business-app.js:51104-51113) ו-<code>GET /api/beauty/:bizId/clients?q</code> (server.js:31729-31740).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz, verifyBeautyClientAccess, התאמת bizId.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם יש q: <code>ILIKE %q%</code> על client_name, client_phone או client_email.</li><li>מיון לפי <code>last_visit_at DESC NULLS LAST</code>, <b>LIMIT 100</b>.</li></ol></div>
+<div>ממשק</div><div>חיפוש מקומי לפי שם או טלפון על 100 הרשומות שנטענו (business-app.js:51120-51122). תג פאץ׳ (passed, failed, pending, expired). שורת "ממוצע ביקור: כל N יום". כפתור "🔗 WEFLOWZ" (<code>showAddToOneflow</code>). כפתור "טפסי ייעוץ" מוזרק לכותרת (business-app.js:54299-54314). פאנל שדות חובה (<code>_buildCustFieldSettingsPanel</code>).</div>
+<div>פערים</div><div>עסק עם יותר מ-100 לקוחות לא יראה את השאר ברשימה, והחיפוש המקומי לא פונה לשרת. התצוגה משתמשת ב-<code>c.email</code> בעוד העמודה היא <code>client_email</code> (business-app.js:51147, 51422, 51516). <code>_ofwSearch</code> ממפה <code>c.phone</code> במקום <code>client_phone</code> (business-app.js:48886).</div>
+</div></section>
+
+<section class="proc" data-f="client create new required fields customer_required_fields oneflow link"><h3>הוספת לקוח חדש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"לקוח חדש" (<code>_beautyNewClientModal</code>, <code>_beautySubmitNewClient</code>, business-app.js:51187-51408) שולח <code>POST /api/beauty/:bizId/clients</code> (server.js:32034-32057). גם פעולת AI <code>_aiAddBeautyClient</code> (57499).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>שרת: <code>client_name</code> חובה (אחרי trim), "שם לקוח הוא שדה חובה".</li>
+<li>שדות חובה דינמיים לפי <code>store_settings.customer_required_fields</code> (server.js:32039-32048): <code>crf.id</code> → "מספר ת.ז הוא שדה חובה לפי הגדרות העסק"; <code>crf.phone</code> → "טלפון הוא שדה חובה…"; <code>crf.email</code> → "אימייל הוא שדה חובה…".</li>
+<li>לקוח: אותן בדיקות לפי <code>window._customerRequiredFields</code> (business-app.js:51391-51395).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>INSERT beauty_client_records</code> (client_family_id, name trimmed, phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number trimmed). אין בדיקת כפילות.</li><li>אם קושר WEFLOWZ, <code>client_family_id = window._bncLinkedFamilyId</code>.</li></ol></div>
+<div>ממשק</div><div>שדות בטופס: שם, ת.ז (9 ספרות, maxlength), טלפון וכפתור WEFLOWZ, אימייל, תאריך לידה, "הערות / אלרגיות".</div>
+<div>פערים</div><div><ul>
+<li>הלקוח שולח <code>email</code> ו-<code>general_notes</code>, אבל השרת קורא <code>client_email</code> ו-<code>medical_notes</code> (business-app.js:51399 מול server.js:32036). האימייל וההערות (כולל אלרגיות) לא נשמרים. כשאימייל מוגדר כשדה חובה, השרת תמיד מחזיר 400 גם אם המשתמש מילא אותו.</li>
+<li><code>_aiAddBeautyClient</code> שולח <code>{name, phone, notes}</code> (business-app.js:57505), ולכן מקבל 400 "שם לקוח הוא שדה חובה". הוא גם בודק <code>data.success||data.client</code>, בעוד השרת מחזיר את השורה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="check oneflow weflowz lookup create member account whatsapp link family"><h3>בדיקת WEFLOWZ, קישור ויצירת חשבון חבר ללקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "WEFLOWZ" בטופס לקוח חדש (<code>_beautyCheckOneflow</code>, business-app.js:51225-51270) שולח <code>GET /api/beauty/:bizId/check-oneflow?phone|name</code> (server.js:31762-31778).</div>
+<div>תנאים ואימותים</div><div><ul><li>חסר גם טלפון וגם שם: בלקוח "הכנס טלפון או שם לפני הבדיקה"; בשרת <code>{found:false}</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שרת: חיפוש <code>users</code> בקבוצות <code>type='FAMILY'</code> לפי ספרות טלפון מדויקות, או (בלי טלפון) <code>nickname ILIKE</code>. LIMIT 5.</li>
+<li>התאמה יחידה: <code>_beautyLinkOneflow</code> ממלא אוטומטית שדות ריקים בלבד (שם first+last, email, id_number, תאריך לידה = <code>birth_year-01-01</code>) ושומר <code>_bncLinkedFamilyId</code> (business-app.js:51359-51380).</li>
+<li>כמה התאמות: רשימה לבחירה ידנית.</li>
+<li>אין התאמה: "צור חשבון WEFLOWZ וקשר ללקוח", שמפעיל <code>POST /api/member/create-for-business</code> עם business_group_id, name, phone ו-admin_name (business-app.js:51272-51357). דורש טלפון ושם. בהצלחה: מוצג קוד, שם וסיסמה, וקישור wa.me עם הודעת הצטרפות; לחשבון קיים נשלחת הודעה ללא סיסמה.</li>
+</ol></div>
+<div>תופעות לוואי</div><div>נוצר חשבון חבר (לוגיקת <code>/api/member/create-for-business</code> היא מחוץ לתחום הזה). WhatsApp נשלח ידנית דרך קישור wa.me; אין שליחה אוטומטית. מספר הטלפון לקישור: <code>phone.replace(/^0/,'972')</code>.</div>
+<div>פערים</div><div>הסיסמה מוצגת בטקסט גלוי בממשק העסק.</div>
+</div></section>
+
+<section class="proc" data-f="client card modal tabs details appts beauty sub collection"><h3>כרטיס לקוח (מודאל עם טאבים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על לקוח ברשימה מפעילה <code>_beautyOpenClient(clientId, openTab)</code> (business-app.js:51410-51471).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מוצג skeleton עם 5 טאבים: פרטים ומאזן, 📅 תורים, 💅 יופי, 🎁 מנוי, 💰 גביה.</li>
+<li>5 קריאות במקביל: <code>/clients/:id/formulas</code>, <code>/photos</code>, <code>/appointments/by-customer</code> (phone או name), <code>/client-subscriptions/:id</code>, <code>/subscription-types</code>.</li>
+<li><code>_bcmTab</code> (51473-51668) מרנדר את הטאב: פרטים (שדות לעריכה, סטטוס פאץ׳ ותוקפו, "ממוצע ביקור… צפוי: today+avg"), תורים (כולל כפתורי אישור/דחיית ביטול לתור ב-pending_cancel), יופי (פורמולות וגלריה), מנוי, גביה.</li>
+<li>"קבע תור" סוגר את הכרטיס, עובר ליומן, ואחרי 600ms פותח מודאל תור חדש וממלא שם, טלפון ו-family.</li>
+</ol></div>
+<div>חישובים</div><div>מועד ביקור צפוי = <code>Date.now() + avg_visit_interval_days × 86400000</code> (business-app.js:51527). החישוב הוא מהיום, לא מהביקור האחרון.</div>
+<div>פערים</div><div><code>GET /clients/:id</code> (server.js:31742-31760), שמחזיר כרטיס, פורמולות (20), תמונות ותורים לפי client_family_id, לא בשימוש בממשק.</div>
+</div></section>
+
+<section class="proc" data-f="client update patch details general_notes"><h3>עדכון פרטי לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שמור פרטים" בכרטיס (<code>_bcmSaveDetails</code>, business-app.js:51838-51858) שולח <code>PATCH /api/beauty/:bizId/clients/:id</code> (server.js:32059-32071).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם חובה. שרת: whitelist של client_name, client_phone, client_email, medical_notes, general_notes, patch_test_status, patch_test_date, patch_test_expires_at, skin_type, hair_type, preferred_practitioner_id, id_number. אין ולידציה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE של השדות שהועברו (כל ערך שאינו undefined, כולל מחרוזת ריקה), ו-<code>updated_at=NOW()</code>.</li></ol></div>
+<div>פערים</div><div><b>שמירה תמיד נכשלת:</b> הלקוח שולח תמיד <code>general_notes</code> (גם ריק), והעמודה לא קיימת בטבלה (server.js:2088-2110). מתקבל 500 "column general_notes does not exist" ושום שדה לא מתעדכן.</div>
+</div></section>
+
+<section class="proc" data-f="patch test sensitivity patch_test_status passed expired"><h3>בדיקת רגישות (Patch Test)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שירות עם <code>requires_patch_test</code> מחייב, בקביעת תור פנימית, שהלקוח יהיה בסטטוס <code>passed</code> עם תוקף בעתיד.</div>
+<div>מכונת מצבים</div><div>ערכים: <code>none</code> (ברירת מחדל), ובתגים בממשק גם <code>passed</code>, <code>failed</code>, <code>pending</code>, <code>expired</code> (business-app.js:51126-51127). המעבר היחיד האפשרי הוא <code>PATCH /clients/:id {patch_test_status, patch_test_date, patch_test_expires_at}</code>.</div>
+<div>ממשק</div><div>הסטטוס מוצג בלבד (business-app.js:51522-51526, 12007-12014).</div>
+<div>פערים</div><div>אין ממשק שמעדכן את הסטטוס, ו-PATCH הכרטיס נכשל בכל מקרה (general_notes). לכן שירות עם Patch Test לא ניתן לקביעה פנימית. בחנות ובאישור בקשות מהחנות הבדיקה לא מתבצעת כלל. הסטטוס <code>expired</code> לא מחושב אוטומטית.</div>
+</div></section>
+
+<section class="proc" data-f="formulas photos before after consent gallery"><h3>פורמולות ותמונות לפני/אחרי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "💅 יופי" בכרטיס: "+ הוסף" פורמולה (<code>_beautyAddFormulaModal</code>, <code>_beautySubmitFormula</code>, business-app.js:51860-51897) ו-"+ העלה" תמונה (<code>_beautyUploadPhotoModal</code>, <code>_beautySubmitPhoto</code>, 52259-52308). מסלולים: <code>POST/GET /clients/:id/formulas</code>, <code>POST/GET /clients/:id/photos</code> (server.js:32074-32125).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>verifyBiz, verifyBeautyClientAccess, התאמת bizId, וגם שהכרטיס שייך לעסק, אחרת 403 "אין הרשאה" (server.js:32078-32079, 32093, 32105, 32120).</li>
+<li>לקוח: פורמולה, "נא הזן פרטי פורמולה" (חובה); תמונה, "נא הזן URL לתמונה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פורמולה: <code>INSERT beauty_formulas(treatment_type||'כללי' מהלקוח, formula_data={}, application_notes)</code>. appointment_id, practitioner_id ו-processing_time_min אופציונליים.</li>
+<li>תמונה: <code>INSERT beauty_client_photos(photo_type ∈ before|after|consultation|reference, image_url, notes, is_consent_given)</code>.</li>
+<li>אחרי שמירה הכרטיס נסגר ונפתח מחדש.</li>
+</ol></div>
+<div>פערים</div><div>אין העלאת קובץ, רק URL. <code>photo_type</code> הוא VARCHAR(10), כך ש-<code>consultation</code> (12 תווים) יחרוג ויחזיר 500. הסכמה לצילום אינה חובה.</div>
+</div></section>
+
+<section class="proc" data-f="retention cron overdue clients avg visit interval group_notifications"><h3>Cron שימור לקוחות (Retention)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>runRetentionCron()</code> (server.js:32631-32673): ריצה ראשונה 8 דקות אחרי עליית השרת, ואחריה כל 24 שעות (<code>CRON_INTERVAL_MS</code>, server.js:32630, 32675).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח בפיגור: <code>avg_visit_interval_days &gt; 0</code>, <code>last_visit_at</code> קיים, <code>last_visit_at + avg days &lt;= NOW()</code>, ואין לו תור עתידי בסטטוס scheduled או confirmed באותו עסק (התאמה לפי טלפון מדויק).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל לקוח: <code>INSERT group_notifications(type='beauty_retention', title="לקוח/ה {name} לא ביקר/ה זמן מה", body="ממוצע ביקור כל {round(avg)} יום — כדאי ליצור קשר", metadata)</code> עם ON CONFLICT DO NOTHING. שגיאה נבלעת.</li><li>console.log של מספר הלקוחות.</li></ol></div>
+<div>פערים</div><div>הטבלה <code>group_notifications</code> לא נוצרת בשום מקום ב-server.js, כך שה-INSERT נכשל בשקט תמיד והתהליך לא מייצר שום פלט. אין מניעת כפילויות בין ימים. ההערה בקוד אומרת "after 1 min", אבל בפועל 8 דקות.</div>
+</div></section>
+
+<h2 class="grp">מנויים וחבילות</h2>
+
+<section class="proc" data-f="subscription types packages create update deactivate"><h3>ניהול סוגי חבילות (קטלוג מנויים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "מנויים וחבילות" (<code>loadBeautySubscriptions</code>, <code>_beautySubTypeModal</code>, <code>_beautySubmitSubType</code>, <code>_beautyDeactivateSubType</code>, business-app.js:54589-54748). מסלולים: <code>GET/POST /subscription-types</code>, <code>PATCH /subscription-types/:id</code> (server.js:32540-32577).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת POST: <code>!name || !sessions_count</code> מחזיר 400 "name and sessions_count required". לקוח: שם חובה; כניסות ברירת מחדל 5; תוקף ברירת מחדל 365 (min=30 ב-input).</li><li>GET מחזיר רק פעילים, ממוינים לפי price.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT עם <code>price||0</code>, <code>validity_days||365</code>, <code>service_ids</code> JSON (ברירת מחדל []).</li><li>PATCH: whitelist (name, description, sessions_count, price, validity_days, service_ids, is_active); service_ids עובר stringify.</li><li>הסרה = <code>is_active=false</code>.</li></ol></div>
+<div>פערים</div><div>הלקוח לא בודק תגובות. כפתור העריכה מעביר רק id, שם, כניסות, מחיר ותוקף, ולכן התיאור הקיים לא נטען, והשמירה דורסת אותו ב-null. <code>service_ids</code> לא בשימוש. טקסט ההדרכה "בקביעת תור — המערכת מציגה מנויים פעילים ומאפשרת מימוש כניסה" (business-app.js:54650) לא ממומש.</div>
+</div></section>
+
+<section class="proc" data-f="client subscription sell use session redeem depleted expires"><h3>מכירת מנוי ללקוח ומימוש כניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "🎁 מנוי" בכרטיס הלקוח: "+ מכור מנוי חדש" (<code>_bcmSellSubscriptionModal</code>, <code>_bcmSubmitSellSubscription</code>, business-app.js:51705-51768) ו-"סמן כניסה כמנוצלת (−1)" (<code>_bcmUseSubscription</code>, 51690-51703).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST <code>/client-subscriptions</code> (server.js:32595-32610): <code>!client_record_id || !sessions_total</code> מחזיר 400. לקוח: כניסות ≥1, "נא הזן כמות כניסות תקינה".</li>
+<li>PATCH <code>/client-subscriptions/:id/use</code> (server.js:32612-32626): רק אם <code>is_active=TRUE</code> ושייך לעסק, אחרת 404 "subscription not found or depleted".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מכירה: <code>expires_at = today + (validity_days||365) days</code> (תאריך YYYY-MM-DD). <code>INSERT beauty_client_subscriptions(subscription_type_id|null, subscription_name, sessions_total, expires_at)</code>. purchase_date ברירת מחדל CURRENT_DATE.</li>
+<li>מימוש: <code>sessions_used+1</code>; <code>is_active = (sessions_used+1 &gt;= sessions_total) ? FALSE : TRUE</code>.</li>
+</ol></div>
+<div>חישובים</div><div>נותרו = <code>max(0, sessions_total − sessions_used)</code>. תווית: אם is_active=false, "פג תוקף" (כשעבר התאריך) או "נוצל במלואו"; אחרת "פעיל". כפתור המימוש מוצג רק כשהמנוי פעיל, לא פג, ונותרו כניסות (business-app.js:51606-51620).</div>
+<div>תופעות לוואי</div><div>אין תנועה כספית. ההנחיה בממשק: "יש לגבות את התשלום מהלקוחה בנפרד" (business-app.js:51730).</div>
+<div>פערים</div><div>השרת לא בודק <code>expires_at</code> במימוש, כך שאפשר לממש מנוי שפג דרך API. אין ניכוי אוטומטי בהשלמת תור. <code>client_record_id</code> לא נבדק כשייך לעסק.</div>
+</div></section>
+
+<h2 class="grp">מלאי מקצועי</h2>
+
+<section class="proc" data-f="inventory list alerts retail backbar low stock reorder threshold"><h3>רשימת מלאי והתראות מלאי נמוך</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_inventory</code> מריץ <code>loadBeautyInventory()</code> (business-app.js:51902-51915), עם <code>GET /inventory?type</code> (server.js:32128-32139) ו-<code>GET /inventory/alerts</code> (32298-32307).</div>
+<div>שלבי עיבוד</div><div><ol><li>inventory: רק <code>is_active=TRUE</code>, אופציונלית לפי <code>inventory_type</code>, ממוין לפי type ואז name.</li><li>alerts: <code>stock_qty &lt;= reorder_threshold</code>, ממוין לפי stock_qty בסדר עולה.</li></ol></div>
+<div>חישובים</div><div>isLow = <code>stock_qty &lt;= reorder_threshold</code>. פס התקדמות = <code>min(100, round(stock/(threshold×3)×100))</code>, או 50% כש-threshold=0 (business-app.js:51943-51944).</div>
+<div>ממשק</div><div>סינון: הכל / מכירה 🛍️ / Back-bar 🧴. באנר אדום "N מוצרים במלאי נמוך" עם 3 שמות ראשונים. כפתורי + ו-− להתאמה, ו"מכור ללקוחה" לפריט retail בלבד.</div>
+<div>פערים</div><div>ההשוואה בלקוח היא בין מחרוזות DECIMAL שמגיעות מ-pg (<code>item.stock_qty &lt;= item.reorder_threshold</code>), וזו השוואה לקסיקוגרפית: למשל "10.000" &lt;= "5.000" נותן true.</div>
+</div></section>
+
+<section class="proc" data-f="inventory create add product"><h3>הוספת מוצר למלאי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"הוסף מוצר" (<code>_beautyAddInventoryModal</code>, <code>_beautySubmitInventory</code>, business-app.js:52082-52148) שולח <code>POST /inventory</code> (server.js:32141-32153).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם חובה, "שם מוצר הוא שדה חובה". שרת: אין ולידציה (NOT NULL ב-DB יחזיר 500).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT עם ברירות מחדל <code>inventory_type||'retail'</code>, <code>unit||'unit'</code>, <code>stock_qty||0</code>, <code>reorder_threshold||5</code>, <code>cost_price||0</code>, <code>retail_price||0</code>.</li></ol></div>
+<div>ממשק</div><div>ברירות מחדל בטופס: type=backbar, כמות 1, מינימום 2, יחידה "יח׳". שדה הכמות מתויג "כמות בארגז", אבל נשלח כ-<code>stock_qty</code>.</div>
+<div>פערים</div><div>מינימום 0 בטופס הופך ל-2 בלקוח (<code>||2</code>), ול-5 בשרת אם 0 נשלח ישירות. <code>PATCH /inventory/:id</code> (server.js:32155-32166, whitelist ללא inventory_type) לא בשימוש בממשק; אין עריכה ואין מחיקה.</div>
+</div></section>
+
+<section class="proc" data-f="inventory adjust stock delta reason"><h3>התאמת כמות מלאי (+/−)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתורי + ו-− (<code>_beautyAdjustStock</code>, <code>_beautySubmitAdjust</code>, business-app.js:51998-52038) שולחים <code>POST /inventory/:id/adjust</code> (server.js:32168-32179).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>delta</code> חייב להיות מספר סופי, אחרת 400 "נדרש שינוי כמות תקין".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>stock_qty = GREATEST(stock_qty + delta, 0)</code>. מוחזר stock_qty.</li></ol></div>
+<div>ממשק</div><div>סיבות להוספה: purchase/return/correction; להסרה: usage/waste/correction. הסיבה נשלחת בשדה <code>reason</code>.</div>
+<div>פערים</div><div>השרת מתעלם מ-<code>reason</code>; אין יומן תנועות מלאי ואין רישום הוצאה בקנייה.</div>
+</div></section>
+
+<section class="proc" data-f="inventory sell retail income transaction"><h3>מכירת מוצר קמעונאי מהמלאי המקצועי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מכור ללקוחה" (<code>_beautySellInventoryModal</code>, <code>_beautySubmitSellInventory</code>, business-app.js:52040-52080) שולח <code>POST /inventory/:id/sell</code> (server.js:32182-32203).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>qty</code> שלם ≥1, אחרת 400 "נדרשת כמות תקינה".</li>
+<li>פריט בעסק, אחרת 404 "פריט לא נמצא".</li>
+<li><code>stock_qty &lt; qty</code> מחזיר 400 "אין מספיק מלאי לכמות המבוקשת".</li>
+<li>עדכון אטומי עם <code>stock_qty&gt;=qty</code>; אם לא עודכנה שורה, 409 "המלאי השתנה, נסה שוב".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>unitPrice = <code>body.unit_price</code> אם הועבר, אחרת <code>retail_price||0</code>. total = unitPrice × qty.</li><li><code>UPDATE stock_qty = stock_qty − qty</code>.</li><li>אם total&gt;0: <code>logBizIncome(biz, total, "מכירת מוצר — {name} × {qty}")</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>הכנסה ב-<code>transactions</code> (sales/income). אין עמלה קמעונאית למטפלת ואין קישור ללקוח.</div>
+<div>פערים</div><div>הפעולה אינה טרנזקציה (UPDATE ואז INSERT נפרד). <code>commission_rate_retail</code> לא בשימוש. פריט לא פעיל (<code>is_active=false</code>) עדיין נמכר.</div>
+</div></section>
+
+<h2 class="grp">עמלות</h2>
+
+<section class="proc" data-f="commissions list grouped practitioner unpaid"><h3>מסך עמלות (צבירה לפי מטפלת)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_commissions</code> מריץ <code>loadBeautyCommissions()</code> (business-app.js:52153-52239) עם <code>GET /commissions</code> (server.js:32310-32328).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz והתאמת bizId, ללא בדיקת תפקיד. פילטרים אופציונליים: practitioner_id, is_paid ('true'), from, to (על created_at).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>JOIN מטפלות לקבלת practitioner_name, ממוין לפי created_at בסדר יורד.</li><li>בלקוח: קיבוץ לפי practitioner_id; total = Σ commission_amount; unpaid = Σ של רשומות עם <code>paid_at === null</code>.</li></ol></div>
+<div>ממשק</div><div>כרטיס לכל מטפלת עם 3 הפריטים האחרונים (<code>slice(-3).reverse()</code> מרשימה ממוינת בסדר יורד, כלומר 3 הישנים ביותר). כפתור "שלם ₪X". סיכום: סה"כ, לא שולם, מספר מטפלות.</div>
+<div>פערים</div><div><ul><li>"3 אחרונים" הם בפועל 3 הישנים ביותר.</li><li><code>c.color_hex</code> לא מוחזר מהשרת, ולכן כל הכרטיסים בצבע ברירת המחדל.</li><li>אין פילטר תקופה בממשק (המדריך טוען שיש).</li><li>therapist ללא תפקיד senior יכול לקרוא את העמלות של כל הצוות דרך API.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="commissions pay mark paid"><h3>סימון עמלות כשולמו</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שלם ₪X" (<code>_beautyPayCommissions(practitionerId)</code>, business-app.js:52241-52251) שולח <code>POST /commissions/pay</code> (server.js:32330-32350).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz, verifyBeautyPractitionerAccess (ADMIN או senior_therapist), התאמת bizId.</li><li>בלי <code>commission_ids</code> ובלי <code>practitioner_id</code>: 400 "נדרש commission_ids או practitioner_id".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם יש commission_ids: <code>is_paid=TRUE, paid_at=NOW()</code> למזהים שעדיין לא שולמו בעסק. אחרת: לכל העמלות שלא שולמו של המטפלת.</li><li>מוחזר <code>updated</code> = rowCount.</li></ol></div>
+<div>תופעות לוואי</div><div>אין רישום הוצאה בתזרים ואין אישור.</div>
+<div>פערים</div><div>הלחיצה מבוצעת מיד ללא confirm.</div>
+</div></section>
+
+<h2 class="grp">ייעוץ ובקשות (RFQ)</h2>
+
+<section class="proc" data-f="rfq state machine new questionnaire_sent client_responded plan_sent accepted rejected booked photos_requested"><h3>מכונת המצבים של בקשת ייעוץ (beauty_rfq.status)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תהליך ייעוץ בין לקוח משפחה (app.js) לעסק (business-app.js).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(חדש)</td><td>new</td><td>משפחה (POST /api/beauty/rfq)</td><td>client_family_id = המשפחה המחוברת</td><td>—</td></tr>
+<tr><td>כל סטטוס</td><td>questionnaire_sent</td><td>עסק (PATCH questionnaire)</td><td>ה-RFQ שייך לעסק; אין בדיקת סטטוס</td><td>questionnaire_data={questions, sent_at}</td></tr>
+<tr><td>כל סטטוס</td><td>client_responded</td><td>משפחה (client-response)</td><td>ה-RFQ שייך למשפחה</td><td>מיזוג answers, answered_at ו-client_photos</td></tr>
+<tr><td>כל סטטוס</td><td>plan_sent</td><td>עסק (POST plan)</td><td>שייך לעסק</td><td>treatment_plan={title, sessions, total_price, payment_link, sent_at}</td></tr>
+<tr><td>כל סטטוס</td><td>accepted</td><td>משפחה (accept)</td><td>שייך למשפחה</td><td>plan_accepted_at=NOW()</td></tr>
+<tr><td>כל סטטוס פרט ל-accepted</td><td>rejected</td><td>משפחה או עסק (reject)</td><td>הקורא הוא העסק או המשפחה של ה-RFQ</td><td>—</td></tr>
+</table></div>
+<p>ערכים שמוגדרים רק בממשק העסק ואף מסלול לא כותב: <code>photos_requested</code>, <code>booked</code> (business-app.js:54757, 54761). <code>client_responded</code> חסר במפת הסטטוסים של העסק.</p></div>
+<div>פערים</div><div><ul>
+<li><b>תקיעה אחרי תשובת לקוח:</b> כפתור "שלח תוכנית טיפולים" מוצג רק כשהסטטוס הוא <code>questionnaire_sent</code> או <code>photos_requested</code> (business-app.js:54821). אחרי שהלקוח עונה הסטטוס הופך ל-<code>client_responded</code>, והעסק כבר לא יכול לשלוח תוכנית מהממשק.</li>
+<li>אין בדיקות סטטוס בשרת (למשל אפשר accept בלי תוכנית).</li>
+<li>אין המרה אוטומטית לתור. <code>resulting_appointment_ids</code> לא בשימוש, ו-<code>rfq_id</code> בתור נשמר רק אם נשלח.</li>
+<li>אין התראות לאף צד באף מעבר.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq family create list businesses discovery"><h3>יצירת בקשת ייעוץ ע"י לקוח משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>באפליקציה המשפחתית: אזור "שירותי יופי וקוסמטיקה" (<code>loadFamilyBeautyRfqInline</code>, app.js:15502-15598), או פעולה מהירה "💌 ייעוץ מקדים" בכרטיס העסק (app.js:14468, 14501). "שלח פנייה" פותח את <code>_familyNewRfqModal</code> ואת <code>_submitFamilyRfq</code> (app.js:15600-15651).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: תיאור חובה, "נא תארי את הבקשה". שרת (server.js:32366-32376): verifyFamily ו-<code>client_family_id</code> שווה למשפחה, אחרת 403. אין בדיקה ש-<code>business_group_id</code> הוא עסק beauty.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>INSERT beauty_rfq(business_group_id, client_family_id, service_description)</code>, סטטוס new.</li><li>רשימת עסקים לגילוי: <code>GET /api/beauty/businesses</code> (server.js:32462-32469, ללא auth) מחזיר את כל <code>family_groups</code> עם <code>type='BUSINESS'</code> ו-<code>business_type='beauty'</code>.</li><li>הבקשות של המשפחה: <code>GET /api/beauty/rfq/family/:familyId</code> (32472-32483), כולל business_name, ממוין לפי updated_at בסדר יורד.</li></ol></div>
+<div>ממשק</div><div>תג "נדרשת פעולה" כשהסטטוס הוא questionnaire_sent או plan_sent (app.js:15541).</div>
+</div></section>
+
+<section class="proc" data-f="rfq questionnaire send business forms builder templates"><h3>שליחת שאלון ע"י העסק (שתי דרכים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) "📋 שלח שאלון" בכרטיס RFQ בסטטוס new (<code>_beautyRfqSendQuestionnaire</code>, business-app.js:54893-54908). (ב) "טפסי ייעוץ" בכותרת תיקי הלקוחות (<code>_beautyFormsBuilderModal</code> ו-<code>_previewConsultationForm</code>, business-app.js:52313-52441). שתיהן קוראות ל-<code>PATCH /api/beauty/rfq/:id/questionnaire</code> (server.js:32378-32389).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: verifyBiz, וה-RFQ שייך לעסק, אחרת 403.</li><li>(ב): חובה לבחור פנייה, "נא לבחור פנייה", ולפחות שאלה אחת. הרשימה כוללת רק RFQ בסטטוס new (<code>?status=new</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>(א) prompt עם שאלות מופרדות בפסיק, והן נשלחות כ-object <code>{"שאלה 1": "...", ...}</code>. (ב) תבניות color, keratin, nails, skin (4 שאלות כל אחת) או שאלות ידניות, ונשלחות כ-<b>מערך</b>.</li><li>שרת: <code>questionnaire_data = {questions, sent_at}</code>, <code>status='questionnaire_sent'</code>.</li></ol></div>
+<div>פערים</div><div><ul><li>דרך (א) שולחת object. בצד המשפחה (app.js:15661) נבדקים <code>qData.questions.length</code> ו-<code>.map</code>, כך שהשאלון לא מוצג ללקוח והוא לא יכול לענות.</li><li>(א) לא בודקת את תגובת השרת.</li><li>בכרטיס ה-RFQ בעסק, <code>questionnaire_data</code> מוצג כזוגות <code>k: v</code> (business-app.js:54845-54847), כך שיופיעו "questions: [object Object]" ו-"sent_at".</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="rfq client response answers photos"><h3>תשובת לקוח לשאלון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודאל פרטי ה-RFQ במשפחה, כשהסטטוס הוא questionnaire_sent ו-questions הוא מערך: "שלח תשובות" (<code>_submitRfqAnswers</code>, app.js:15726-15742) שולח <code>POST /api/beauty/rfq/:id/client-response</code> (server.js:32391-32405).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamily, וה-RFQ שייך למשפחה, אחרת 403.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>answers = מערך מחרוזות לפי סדר השאלות; photos=[] מהלקוח.</li><li><code>questionnaire_data = {...existing, answers, answered_at}</code>, <code>client_photos</code>, <code>status='client_responded'</code>.</li></ol></div>
+</div></section>
+
+<section class="proc" data-f="rfq treatment plan send accept reject payment link"><h3>תוכנית טיפולים: שליחה, אישור ודחייה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: "📄 שלח תוכנית טיפולים" (<code>_beautyRfqSendPlan</code>, <code>_beautyRfqSubmitPlan</code>, business-app.js:54910-54976) שולח <code>POST /api/beauty/rfq/:id/plan</code> (server.js:32407-32418). משפחה: "אשר תוכנית ✅" (<code>_acceptRfqPlan</code>, app.js:15744) או "דחה ✕" (<code>_rejectRfqPlan</code>, 15755).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>plan: verifyBiz, RFQ של העסק. לקוח: כותרת חובה, "כותרת חובה".</li>
+<li>accept (server.js:32420-32430): verifyFamily ו-RFQ של המשפחה.</li>
+<li>reject (server.js:32432-32443): verifyFamilyOrBiz; הקורא הוא העסק או המשפחה; אם <code>status==='accepted'</code>, 400 "לא ניתן לדחות בקשה שכבר אושרה". אם ה-RFQ לא קיים, 404 "לא נמצא".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>plan: <code>treatment_plan = {title, sessions:[{name: desc||title, price}], total_price, payment_link, sent_at}</code>, <code>status='plan_sent'</code>. אם יש הערה, נשלחת גם הודעה עם <code>from:'biz'</code>.</li><li>accept: <code>status='accepted'</code>, <code>plan_accepted_at=NOW()</code>.</li><li>reject: <code>status='rejected'</code>.</li></ol></div>
+<div>ממשק</div><div>אצל המשפחה: רשימת sessions (name, duration_min, price), סה"כ, וקישור "שלם עכשיו 💳" אם יש <code>payment_link</code> (app.js:15671-15684). הדחייה בעסק מבקשת confirm: "לדחות את הבקשה? הלקוחה תראה שהבקשה נדחתה ולא ניתן יהיה לשנות זאת.".</div>
+<div>פערים</div><div>שדה "מקדמה נדרשת" בטופס העסק (business-app.js:54936-54938) לא נשלח. <code>payment_link</code> לא נשלח מהממשק. הלקוח לא בודק את תגובת השרת לתוכנית. אחרי אישור אין תהליך המשך ("booked" לא נכתב).</div>
+</div></section>
+
+<section class="proc" data-f="rfq messages chat"><h3>הודעות בתוך בקשת ייעוץ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: "💬 צ'אט" (<code>_beautyRfqChat</code>, business-app.js:54978). משפחה: <code>_sendRfqMsg</code> (app.js:15767). מסלול: <code>POST /api/beauty/rfq/:id/message</code> (server.js:32445-32459).</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyFamilyOrBiz; הקורא הוא העסק או המשפחה; אם ה-RFQ לא קיים, 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קריאת <code>messages</code>, הוספת <code>{from, text, ts}</code> בסוף, וכתיבה מחדש של כל המערך.</li></ol></div>
+<div>פערים</div><div>הערך <code>from</code> נלקח מה-body (biz או client) ולא נגזר מסוג הפגישה, כך שצד אחד יכול להתחזות לשני. אין ולידציה ל-text. read-modify-write ללא נעילה, כך ששתי הודעות במקביל יכולות לדרוס זו את זו.</div>
+</div></section>
+
+<section class="proc" data-f="rfq business list stats"><h3>רשימת בקשות ייעוץ בעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>beauty_rfq</code> מריץ <code>loadBeautyRfq()</code> (business-app.js:54764-54879) עם <code>GET /api/beauty/:bizId/rfq?status</code> (server.js:32353-32364).</div>
+<div>חישובים</div><div>פתוחות = סטטוס שאינו accepted, rejected או booked; "ממתינות לתגובה" = questionnaire_sent או photos_requested; "הפכו לתורים" = booked (business-app.js:54777-54781).</div>
+<div>ממשק</div><div>כרטיס RFQ: תג סטטוס, תאריך, תיאור, הודעה אחרונה ("הסלון" אם from=biz, אחרת "לקוחה"), תשובות, עד 4 תמונות.</div>
+<div>פערים</div><div>הכרטיס מציג <code>rfq.client_name</code>, אבל השרת מחזיר <code>client_name_family</code> (server.js:32357), כך ששם הלקוח לא מוצג. "הפכו לתורים" תמיד 0.</div>
+</div></section>
+
+<h2 class="grp">דשבורד, KPIs, דוחות ו-AI</h2>
+
+<section class="proc" data-f="dashboard kpi renderbeautyadmindashboard appt_today revenue unpaid commissions low inventory no show pending payment"><h3>דשבורד מנהל יופי ו-KPIs</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN של עסק beauty שנכנס לדף הבית (business-app.js:5660-5688) מריץ <code>renderBeautyAdminDashboard(dashEl)</code> (45808-45902), שקורא ל-<code>GET /api/beauty/:bizId/dashboard</code> (server.js:32205-32296). רענון אוטומטי כל <b>30 שניות</b> כשהמכל גלוי (business-app.js:5678-5684). דגל <code>_beautyDashRendering</code> מונע ריצה כפולה.</div>
+<div>תנאים ואימותים</div><div><ul><li>verifyBiz והתאמת bizId. בכשל מוצגים אפסים (business-app.js:5811-5815).</li></ul></div>
+<div>חישובים</div><div>(today = 00:00:00.000-23:59:59.999 של שעון השרת; monthStart = ה-1 לחודש; כל המדדים לפי סגמנט 1)
+<ul>
+<li><code>appt_today</code>: תורים שמתחילים היום, סטטוס שאינו cancelled או no_show.</li>
+<li><code>appt_pending</code>: <code>start_time &gt; NOW()</code> ו-<code>status='scheduled'</code>.</li>
+<li><code>revenue_today</code>: Σ total_price של completed שמתחילים היום.</li>
+<li><code>revenue_month</code>: Σ total_price של completed שמתחילים מ-monthStart (ללא גבול עליון).</li>
+<li><code>unpaid_comm_sum/cnt</code>: Σ ו-COUNT של עמלות עם <code>is_paid=FALSE</code>.</li>
+<li><code>low_inventory</code>: פריטים פעילים עם <code>stock_qty&lt;=reorder_threshold</code>.</li>
+<li><code>no_show_today</code>: no_show שמתחילים היום.</li>
+<li><code>total_clients</code>: <code>COUNT(DISTINCT client_family_id)</code> בתורים (לקוחות מקושרים בלבד).</li>
+<li><code>pending_cancel_appts</code>: עד 10, לפי start_time בסדר עולה. <code>pending_booking_requests</code>: עד 10 calendar_events pending שאינם table_reservation.</li>
+<li><code>pending_payment_sum/cnt</code>: תורים בסטטוס completed, confirmed או scheduled שלא אושרה גבייתם ומחירם&gt;0.</li>
+</ul></div>
+<div>ממשק</div><div>7 כרטיסי KPI: תורים היום → יומן; הכנסה היום → sales; תורים עתידיים → יומן; "לקוחות עם חשבון מקושר" → לקוחות; עמלות לתשלום (כתום אם cnt&gt;0) → עמלות; הכנסה החודש → sales; "ממתין לגביה מלקוחות" (אדום אם cnt&gt;0) → מרכז גבייה. באנרים: ביטולים ממתינים, בקשות תור, התראה כתומה (מלאי נמוך או no-show). 8 פעולות מהירות: יומן תורים, לקוחות, מטפלות, שירותים, מנויים, עמלות, קופה, משימות. הפונקציה חושפת גם את כפתורי <code>data-beauty-only</code>.</div>
+<div>פערים</div><div><code>appt_pending</code> תלוי בסטטוס scheduled שכמעט לא נוצר. KPI ההכנסה מנווט ל-<code>sales</code> ולא לעמלות. היום מוגדר לפי TZ של השרת.</div>
+</div></section>
+
+<section class="proc" data-f="staff dashboard therapist reception nail_tech makeup_artist senior"><h3>דשבורד צוות יופי (לפי תפקיד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עובד עם <code>employee_role_type</code> מסוג therapist, senior_therapist, nail_tech, makeup_artist או reception (business-app.js:38080-38084) מקבל <code>renderBeautyStaffDashboard(el, roleType)</code> (39505-39529).</div>
+<div>שלבי עיבוד</div><div><ol><li>CONFIG לפי תפקיד: כותרת ופעולות מהירות. therapist, nail_tech ו-makeup_artist: יומן, לקוחות, משימות. senior_therapist: בנוסף צוות מטפלות ועמלות. reception: יומן, לקוחות, קופה, משימות. תפקיד לא מוכר מקבל את הגדרות therapist.</li><li>עד 6 משימות פתוחות (לא shift, לא done, לא משויכות או משויכות לי).</li></ol></div>
+<div>פערים</div><div>אין KPIs ואין תורים של המטפלת עצמה. המדריך טוען "התורים שלה, העמלות שלה", אבל בפועל אין סינון לפי מטפלת בשום מסך.</div>
+</div></section>
+
+<section class="proc" data-f="reports beauty btype apptbystatus revbypractitioner topservices"><h3>דוחות אחידים — ענף יופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/reports/:groupId?period&amp;btype=beauty</code> (server.js:33754, 33810-33817).</div>
+<div>חישובים</div><div>df = today, week (7 ימים אחורה), month (ברירת מחדל) או year. <code>apptByStatus</code>: COUNT ו-Σtotal_price לפי status של תורים שנוצרו מ-df. <code>revByPractitioner</code>: COUNT סגמנטים ו-Σ price לפי מטפלת. <code>topServices</code>: 10 השירותים המובילים לפי ספירה, עם Σ price.</div>
+<div>פערים</div><div>הסינון לפי <code>created_at</code> ולא לפי מועד הטיפול. ההכנסה לפי מטפלת כוללת תורים בכל סטטוס (כולל cancelled ו-no_show). המסלול ללא auth.</div>
+</div></section>
+
+<section class="proc" data-f="ai chat assistant gemini beauty section actions update_appt_status complete_appt no_show_appt add_beauty_client"><h3>עוזר AI עסקי — הקשר יופי ופקודות פעולה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>צ'אט העוזר העסקי שולח <code>POST /api/biz/chat-assistant</code> (server.js:16038, verifyBiz). מודל: Gemini <code>gemini-2.5-flash</code> (<code>getGenAIInstance().getGenerativeModel</code>). הצריכה נמדדת ב-<code>handleAITokens</code> (מכסה יומית: standard 10, premium 50, enterprise ללא הגבלה; server.js:4170-4199).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח בונה <code>beauty_appointments_today</code> מ-<code>window._beautyState.appointments</code> (רק מה שנטען ביומן) מתוך התורים שמתחילים היום, עד 30 (business-app.js:16269-16271): id, client, phone, service, practitioner, time, status, price.</li>
+<li>הפרומפט מוסיף <code>beautySection</code> (server.js:16142-16165): no_show rate = <code>no_show/(completed+no_show)×100</code> (יעד &lt;10%, &gt;15% נחשב בעיה); מטפלת עם יותר מ-6 תורים ביום = עומס גבוה; פקודות <code>[ACTION:UPDATE_APPT_STATUS|id|confirmed/cancelled|name]</code>, <code>[ACTION:COMPLETE_APPT|id|name]</code>, <code>[ACTION:NO_SHOW_APPT|id|name]</code>, <code>[ACTION:ADD_BEAUTY_CLIENT|name|phone|notes]</code>, <code>[ACTION:OPEN_TAB|beauty_*|pos]</code>.</li>
+<li>הלקוח מפענח את הפקודות ב-regex ומציג כפתורים (business-app.js:16362-16388), שמפעילים את ה-handlers (57451-57513).</li>
+</ol></div>
+<div>פערים</div><div><ul>
+<li>שלושת ה-handlers של התורים שולחים fetch בלי Authorization (business-app.js:57456-57459, 57474, 57489), ומקבלים 401 תמיד.</li>
+<li><code>_aiAddBeautyClient</code> שולח שמות שדות שגויים (ראו "הוספת לקוח").</li>
+<li>אם טאב היומן לא נפתח בסשן, <code>beauty_appointments_today</code> ריק. <code>practitioner</code> תמיד undefined, כי segments לא כוללים practitioner_name.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="backup snapshot restore beauty tables"><h3>גיבוי ושחזור נתוני יופי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירת snapshot של עסק (server.js:6705-6729) ושחזור (server.js:7192-7220).</div>
+<div>שלבי עיבוד</div><div><ol><li>הגיבוי כולל: practitioners, resources, תורים מ-30 הימים האחרונים, client_records, inventory, commissions (<code>status='unpaid'</code>), ו-RFQ מ-30 הימים האחרונים.</li><li>השחזור כולל: practitioners (upsert לפי id), client_records, inventory.</li></ol></div>
+<div>פערים</div><div><ul><li>שאילתת העמלות בגיבוי משתמשת בעמודה <code>status</code>, שלא קיימת (server.js:6710); השגיאה נבלעת ומוחזר מערך ריק.</li><li>שחזור הלקוחות כותב לעמודות <code>full_name, phone, email, notes</code>, שלא קיימות (server.js:7205), ולכן נכשל.</li><li>segments, catalog ו-subscriptions לא מגובים.</li></ul></div>
+</div></section>
+
+<h2 class="grp">אי-התאמות מול beauty-guide.html (הקוד הוא מקור האמת)</h2>
+
+<section class="proc" data-f="guide mismatch beauty-guide documentation"><h3>פערים בין המדריך לקוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>השוואה של public/beauty-guide.html מול הקוד.</div>
+<div>פערים</div><div><ul>
+<li><b>הוספת מטפלת:</b> המדריך מפנה ל"צוות → ניהול צוות ← הוסף עובד" עם טלפון ותפקיד. בפועל מטפלת נוצרת בטאב "💆 מטפלות" (<code>beauty_practitioners</code>) ללא טלפון.</li>
+<li><b>קביעת תור:</b> לפי המדריך יש "בחר… מטפלת וחדר", הלחיצה על משבצת ממלאת את השעה, ויש "הוסף לקוחה חדשה" מהטופס. בפועל אין בחירת חדר, השעה מהמשבצת לא ממולאת, ואין כפתור לקוח חדש בטופס.</li>
+<li>"אם ללקוחה יש חשבון WEFLOWZ — היא מקבלת תזכורת ב-Inbox", ו"תזכורות 24 ו-2 שעות לפני": אין שום קוד תזכורות (<code>reminder_sent_at</code> לא בשימוש). הלקוח המקושר מקבל סטטוס <code>pending_client</code> בלי שום הודעה.</li>
+<li>"סינון לפי מטפלת" ביומן: אין סינון כזה בממשק.</li>
+<li>סטטוסים במדריך (ממתין, הגיע, בטיפול…) לא תואמים לקוד (pending_client, confirmed, scheduled, completed, cancelled, no_show, pending_cancel). "הגיע" ו"בטיפול" לא קיימים.</li>
+<li>"אישור בקשה — התור נוצר… עם המטפלת שנבחרה": המטפלת המועדפת אובדת ב-verify-booking-sms.</li>
+<li>"חסימת משבצות… לא יתאפשר לקוח לבקש אותה שעה": החסימה היא רק לשעת התחלה זהה, לא לפי משך ולא לפי מטפלת.</li>
+<li>כרטיס לקוח: המדריך מתאר "4 טאבים", ובפועל יש 5 (כולל 🎁 מנוי). "אלרגיות… בצבע אדום בכל תור": לא ממומש, ושדה ההערות לא נשמר.</li>
+<li>עמלות: "אם יש שיעורי עמלה שונים לפי שירות — כל שירות יחושב לפי השיעור שהוגדר לו", ו"% עמלה לשירות": <code>commission_pct</code> לא משמש בחישוב. "פילטר תקופה" ו"פירוט לפי תור עם שם לקוחה": לא קיימים. "המטפלת רואה בדיוק…": אין סינון אישי.</li>
+<li>מלאי: "התראות מלאי נמוך מופיעות גם ביומן", "שימוש בטיפול… מנוהל ביומן לכל תור", ו"קמעונאי — מוצג בחנות ציבורית": אף אחד מאלה לא ממומש (backbar_items לא מאוכלס).</li>
+<li>KPIs: המדריך מונה 6, ובפועל יש 7 (נוסף "ממתין לגביה מלקוחות"). "הכנסה → עמלות": בפועל ניווט ל-sales.</li>
+<li>שירותים: "Patch Test… מופיע כתזכורת למטפלת בפרטי התור". בפועל הוא חוסם קביעה פנימית לחלוטין (400 PATCH_TEST_REQUIRED). "מטפלות מאושרות" ו"ימים זמינים" לא נאכפים.</li>
+<li>מנויים: "+ מנוי חדש" (בפועל "+ חבילה חדשה"); "תוקף בחודשים" (בפועל ימים); "שייך לשירות ספציפי" (אין שדה כזה בממשק).</li>
+<li>RFQ: "שלח הצעה עם שירות מוצע, מחיר ומשך", "מבקשת שינוי", "קבע תור ישירות מהבקשה", "סינון לפי תאריך ולקוחה": לא קיימים. לאחר תשובת הלקוח אי אפשר לשלוח תוכנית.</li>
+<li>קופה: "בחר תור שהושלם… עמלה מחושבת אוטומטית" ו"מוצרים… מורידים מהמלאי": אין חיבור בין POS לתורי יופי, לעמלות או למלאי היופי. המדריך עצמו סותר את עצמו בסעיף המלאי.</li>
+<li>ויזארד: "ניתן להגדיר שירותים ראשוניים", ו-AI מייצר "5–10 שירותים". בפועל ה-AI מתבקש ל-6 בדיוק, והשמירה (וגם שמירת המטפלות) נכשלת כי הנתיב <code>/api/beauty/services</code> לא קיים.</li>
+<li>"מחיקת מטפלת": אין מחיקה, רק השבתה.</li>
+<li>מדריך משתמשים: "מטפלת — גישה… מלאי": ב-ROLE_TYPE_TABS אין beauty_inventory לתפקידי הצוות.</li>
+</ul></div>
+</div></section>

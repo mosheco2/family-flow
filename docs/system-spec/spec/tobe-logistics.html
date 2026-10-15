@@ -1,0 +1,946 @@
+<div class="intro">
+<p><b>מפרט TO-BE — לוגיסטיקה ומשלוחים (LOG).</b> המסמך מכסה את כל <b>33 התהליכים</b> שב-<code>rules-logistics.html</code>, בלי השמטות ובלי מיזוגים. מה שעובד היום הועתק כפי שהוא. שינינו רק מה שההחלטות המאושרות מחייבות, בכפוף לכלל העל: כל יכולת ופעולה שהמשתמש מקבל היום נשמרות.</p>
+<p><b>החלטות שהוחלו:</b> 40 פריטי LOG שאינם כפולים: FIX 16, HARDEN 6, CONSISTENCY 5, BEHAVIOR 11, SCOPE 2. שני פריטים כפולים הוחלו דרך הפריט הקנוני: <code>LOG-01</code>→<code>ARC-03</code> (אין fallback בלי טוקן), <code>LOG-08</code>→<code>ARC-21</code> (מע"מ 18% דרך <code>calcVat</code>, עוסק פטור 0%). החלטות ARC מוזכרות לפי מזהה בלבד: אימות וסשן (<code>ARC-01</code>..<code>ARC-06</code>), טרנזקציות (<code>ARC-11</code>), מיגרציות (<code>ARC-12</code>/<code>ARC-13</code>), לקוח אחד (<code>ARC-14</code>), התראות (<code>ARC-16</code>), זכאות וקטלוג מודולים (<code>ARC-17</code>/<code>ARC-18</code>), מע"מ (<code>ARC-21</code>), אזור זמן (<code>ARC-25</code>), העלאות (<code>ARC-26</code>), XSS (<code>ARC-27</code>), Rate limit (<code>ARC-29</code>), AI (<code>ARC-30</code>), PII (<code>ARC-32</code>), שגיאות (<code>ARC-33</code>), ולידציה (<code>ARC-34</code>), נתיבים (<code>ARC-35</code>).</p>
+<p><b>מונחים קבועים במסמך:</b></p>
+<ul>
+<li><b>סטטוסים קנוניים של הזמנה</b> (<code>LOG-06</code>): <code>new, pending_quote, quote_sent, confirmed, assigned, picked_up, in_transit, arrived, delivered, partial, failed_attempt, returned, cancelled</code>. אלה בדיוק 13 עמודות הקנבן של היום. <b>סטטוסים סופיים:</b> <code>delivered, partial, returned, cancelled</code>.</li>
+<li><b>משתמש תפעול</b>: משתמש BIZ עם הרשאת הטאב <code>logistics_orders</code> (<code>ARC-06</code>). זה מי שרואה היום את מודאל ההזמנה. <b>מנהל</b>: ADMIN או MANAGER.</li>
+<li><b>נהג מקושר</b>: משתמש שיש לו שורה ב-<code>logistics_drivers</code> עם <code>user_id = principal.userId</code> באותו group (<code>LOG-22</code>).</li>
+</ul>
+<p><b>פריטים שעודכנו (18)</b>. בכל אחד: מזהה, למה שונה, והכלל הסופי.</p>
+<ul>
+<li><code>LOG-03</code>. <b>למה:</b> מעבר לבדיקת מזהה טאב ו-fail-closed בלי מיגרציה היה חוסם עסקים קיימים (<code>managed_modules</code> ריק או מכיל רק <code>'logistics'</code>), שהיום עוברים. <b>כלל סופי:</b> כל נתיב ממופה למזהה הטאב שלו ונבדק מול <code>tenant_entitlements</code>. שגיאת DB מחזירה 503. מיגרציה חד-פעמית נותנת לכל עסק קיים את כל טאבי <code>logistics_*</code> שנגישים לו היום. מערך ריק או הערך <code>'logistics'</code> מתורגמים לכל 11 הטאבים. <code>logistics_rfq</code> נכלל ב-<code>logistics_all</code>.</li>
+<li><code>LOG-06</code>. <b>למה:</b> לפי ההצעה, רק ADMIN יכול לבצע מעבר מחוץ למטריצה. אבל היום כל משתמש תפעול מעביר הזמנה לכל סטטוס מהמודאל (10 כפתורים), וזו יכולת תיקון שבשימוש. <b>כלל סופי:</b> רשימה קנונית אחת, עם CHECK ב-DB, בכל המסכים. מטריצת מעברים "רגילה" חלה על כולם. משתמש תפעול רשאי גם לבצע <b>תיקון ידני</b> לכל סטטוס קנוני: הממשק מבקש אישור, והפעולה נרשמת כ-<code>override</code> ב-audit ובאירוע. יציאה מ-<code>delivered</code>/<code>partial</code> מותרת למנהל בלבד, כי יש לה השפעה כספית (<code>LOG-07</code>). נהג מוגבל למעברי הנהג (<code>LOG-23</code>).</li>
+<li><code>LOG-07</code>. <b>למה:</b> ההצעה מגבילה יציאה מ-delivered ל-ADMIN בלבד. MANAGER מבצע היום תיקוני סטטוס, ולכן הוא נשאר מורשה. <b>כלל סופי:</b> חשבונית והכנסה נוצרות פעם אחת בלבד, במעבר הראשון ל-<code>delivered</code>/<code>partial</code>, באותה טרנזקציה. יציאה מ-delivered/partial (מנהל בלבד) מבטלת את החשבונית, רושמת תנועה הפוכה ומאפסת את <code>delivered_at</code>.</li>
+<li><code>LOG-13</code>. <b>למה:</b> ברירת מחדל של "פעילות + 7 ימים" הייתה מעלימה מתצוגת "הצג הכל" הזמנות ישנות שמוצגות היום. <b>כלל סופי:</b> ברירת המחדל נשארת כמו היום: כל ההזמנות, עם תצוגת "פעיל בלבד". התקרה הקשיחה של 300 מוחלפת בעימוד (100 בכל עמוד + "טען עוד"). התאריך, הסטטוס, הנהג והחיפוש נשלחים לשרת. גרירה בקנבן מבצעת רק מעברי מטריצה. מעבר אחר עובר דרך המודאל.</li>
+<li><code>LOG-14</code>. <b>למה:</b> לפי ההצעה, שיוך מותר רק מ-new/confirmed/assigned/failed_attempt. זה היה מבטל את היכולת להחליף נהג באמצע מסלול (picked_up/in_transit/arrived). גם חסימה קשיחה של רכב שתוקפו פג משנה פעולה שמותרת היום. <b>כלל סופי:</b> שיוך או החלפה של נהג ורכב מותרים בכל סטטוס לא סופי. הסטטוס עובר ל-<code>assigned</code> רק מ-new/pending_quote/quote_sent/confirmed/failed_attempt. בסטטוסי ביצוע הסטטוס נשמר. סטטוס סופי: 400. "ללא נהג" מחזיר הזמנה שנמצאת ב-assigned ל-<code>confirmed</code>. רק רכבים פעילים מוצעים לבחירה. רכב שהביטוח או הטסט שלו פגו מציג אזהרה וחוסם, אלא אם המשתמש מאשר (<code>confirm_expired=true</code>). האישור נרשם ב-audit.</li>
+<li><code>LOG-15</code>. <b>למה:</b> מעבר אוטומטי ל-<code>returned</code> בניסיון השלישי היה מוציא את ההזמנה מתור הנהג, ומבטל את האפשרות לנסות שוב ואת "השארה בדלת". <b>כלל סופי:</b> לפי החלופה. <code>MAX_DELIVERY_ATTEMPTS</code> (הגדרת עסק, ברירת מחדל 3) מוצג בדף המעקב. כשהמונה מגיע לערך הזה, נשלחת התראה למנהל, בלי מעבר אוטומטי.</li>
+<li><code>LOG-17</code>. <b>למה:</b> חובה לסמן גבייה לפני מסירת הזמנת COD הייתה חוסמת מסירה שבה הלקוח משלם מאוחר יותר. זה בדיוק המצב שמוצג היום כ"להפקדה" או כחוב. <b>כלל סופי:</b> מסירת הזמנת COD בלי סימון גבייה דורשת אישור "נמסר ללא גבייה?". ההזמנה נשארת ברשימת החוב (<code>uncollected</code>). ביטול סימון גבייה מותר ל-ADMIN בלבד, ורק לפני סגירת היום.</li>
+<li><code>LOG-20</code>. <b>למה:</b> התאמה לגרסה המעודכנת של <code>LOG-06</code>/<code>LOG-07</code>. מי שרשאי לבצע תיקון מ-delivered הוא מנהל, לא רק ADMIN. <b>כלל סופי:</b> ביטול רגיל מותר מכל סטטוס לא סופי. ביטול הזמנה שנמסרה מותר למנהל בלבד, ומבטל חשבונית והכנסה. סיבת ביטול (טקסט) נדרשת ונשמרת באירוע <code>cancelled</code>.</li>
+<li><code>LOG-22</code>. <b>למה:</b> חובה לקשר כל נהג למשתמש הייתה מבטלת את היכולת לנהל נהג או שליח חיצוני שלא מתחבר למערכת. נהגים קיימים שמזוהים היום לפי שם היו מאבדים את ממשק הנהג. <b>כלל סופי:</b> <code>user_id</code> אופציונלי וייחודי לכל group. בחירת משתמש צוות מתבצעת במודאל. ממשק הנהג מזהה לפי <code>user_id</code> בלבד. מיגרציה חד-פעמית מקשרת נהגים קיימים לפי התאמת שם מדויקת וחד-ערכית למשתמש צוות. נהג לא מקושר נשאר ניתן לשיוך ולניהול.</li>
+<li><code>LOG-23</code>. <b>למה:</b> ההצעה מגבילה לפי תפקיד. אבל עובד EMPLOYEE עם הרשאת טאב הזמנות (dispatcher) מעדכן היום הזמנות מהמודאל. <b>כלל סופי:</b> ההגבלה נקבעת לפי הרשאה ולא לפי תפקיד. משתמש תפעול שומר על כל היכולות. משתמש בלי הטאב רואה ומעדכן רק את ההזמנות שמשויכות לנהג המקושר שלו, ורק במעברי הנהג. רשימת הנהג כוללת גם <code>arrived</code>.</li>
+<li><code>LOG-25</code>. <b>למה:</b> נגזר מ-<code>LOG-14</code>: רכב שתוקפו פג מוצג באזהרה וחוסם, עם אפשרות אישור, ולא חוסם לגמרי. <b>כלל סופי:</b> שתי רמות: <code>expired</code> (אדום, "פג תוקף") ו-<code>expiring</code> (0–14 ימים, כתום, "פג בעוד N ימים"). הדשבורד מפריד בין השתיים.</li>
+<li><code>LOG-26</code>. <b>למה:</b> לפי ההצעה, "סיים" היה נחסם כשנשארו עצירות pending. היום אפשר לסיים מסלול בכל עת. <b>כלל סופי:</b> סיום עם עצירות pending מבקש אישור ומסמן אותן <code>skipped</code>. הפעלת מסלול משייכת את הנהג והרכב רק להזמנות לא סופיות. new/confirmed עוברות ל-assigned, והשאר שומרות על הסטטוס שלהן.</li>
+<li><code>LOG-27</code>. <b>למה:</b> היום המנהל בוחר כל סטטוס RFQ מתוך select, כולל חזרה ל-new. מכונת מצבים קשיחה הייתה מבטלת את זה. <b>כלל סופי:</b> הערכים מוגבלים לרשימה הקנונית <code>new, quoted, accepted, rejected, completed</code>. המנהל יכול לבחור כל ערך כמו היום. ההמרה להזמנה מתבצעת פעם אחת בלבד, במעבר הראשון ל-accepted (<code>rfq_id</code> ייחודי בהזמנות). ערוץ ללקוח נוסף.</li>
+<li><code>LOG-29</code>. <b>למה:</b> דף המעקב מציג היום את טלפון השליח מרגע השיוך. הגבלה ל-in_transit/arrived בלבד מצמצמת את היכולת של הלקוח להתקשר. <b>כלל סופי:</b> טלפון הנהג מוחזר בסטטוסים <code>assigned, picked_up, in_transit, arrived, failed_attempt</code>, ומוסתר בסטטוס סופי. שאר הצמצום נשאר כמו בהצעה: בלי <code>customer_name</code>, שם פרטי בלבד של הנהג, ומיקום לפי <code>LOG-24</code>. גם תפוגה, ולידציה של leave-at-door ו-rate limit נשארים כמו בהצעה.</li>
+<li><code>LOG-33</code>. <b>למה:</b> "בלי טלפון ובלי אימייל לא נוצר לקוח" היה מבטל יצירת לקוח מליד שיש בו רק שם וכתובת, כפי שקורה היום. <b>כלל סופי:</b> dedupe לפי טלפון מנורמל, אחר כך לפי email (lowercase). בלי שניהם, ההתאמה היא לפי שם מדויק + <code>default_address</code>. אם אין התאמה, הלקוח נוצר כמו היום.</li>
+<li><code>LOG-34</code>. <b>למה:</b> "מחק" נשאר פעולה זמינה, כי ההחלטה רק משנה את המשמעות שלה. כדי שהרשימה תיראה כמו היום, מבוטלות מוסתרות כברירת מחדל. <b>כלל סופי:</b> "מחק" מבטל את החשבונית (<code>cancelled</code>) ורושם תנועה הפוכה. ברירת המחדל של הרשימה מסתירה מבוטלות, ויש מסנן "הצג מבוטלות". שאר ההצעה נשאר: יצירה ידנית חודשית ושליחה במייל.</li>
+<li><code>LOG-35</code>. <b>למה:</b> מעבר להכרה בהכנסה רק בתשלום היה משנה מהותית את תזרים העסק, שבו ההכנסה מופיעה היום ברגע המסירה. <b>כלל סופי:</b> לפי החלופה. ההכנסה נרשמת במסירה, בסכום נטו (<code>delivery_fee</code> לפני מע"מ, כמו היום), עם <code>invoice_id</code>. ביטול חשבונית או יציאה מ-delivered רושמים תנועה הפוכה. תשלום החשבונית לא יוצר תנועה נוספת.</li>
+<li><code>LOG-40</code>. <b>למה:</b> מחיקת טקסט על יכולות שלא מומשו מצמצמת את מה שהמוצר מבטיח. רוב היכולות ממומשות לפי פריטים אחרים. <b>כלל סופי:</b> הטקסט של יכולות שממומשות לפי <code>LOG-09/13/16/24/26/30/34</code> נשאר ומתעדכן לפי ההתנהגות בפועל. יכולות שלא נקבע להן מימוש (אופטימיזציית מסלול "חשב מסלול", פוליגונים על מפה, לינקי תשלום) מסומנות "בקרוב" ונכנסות ל-backlog. הן לא נמחקות ולא מוצגות כקיימות. <code>logistics-guide.html</code> מתעדכן באותו קומיט.</li>
+</ul>
+</div>
+
+<h2 class="grp">לוגיסטיקה — תשתית, הרשאות ונתונים</h2>
+
+<section class="proc" data-f="logistics auth verifybiz requiremodule audit gating module session token entitlements"><h3>אימות, gating מודול ויומן ביקורת לכל נתיבי /api/logistics</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל נתיבי <code>/api/logistics/*</code>, למעט רשימה ציבורית סגורה, וכל קריאה מסביבת BIZ (business-app.js).</div>
+<div>הרשאות</div><div><ul>
+<li><code>authenticate()</code> + <code>requireType('biz')</code>. <code>verifyBizOrLegacy</code> נמחק ואין מצב legacy (<code>ARC-03</code>, שמכסה את <code>LOG-01</code>).</li>
+<li>groupId נלקח רק מ-<code>req.principal.groupId</code>. אם יש <code>:groupId</code> בנתיב או <code>group_id</code> בגוף והם שונים מהסשן: 403. כל שאילתה לפי <code>:id</code> כוללת <code>AND group_id=$session</code>, ואם לא נמצאה שורה: 404. מזהים מקושרים בגוף (<code>driver_id</code>, <code>vehicle_id</code>, <code>order_id</code> בעצירה, <code>pricing_zone_id</code>, <code>customer_id</code>, <code>route_id</code>) חייבים להיות שייכים לאותו group, אחרת 400 (<code>LOG-02</code>, <code>ARC-04</code>).</li>
+<li><code>requireModule(&lt;tab-id&gt;)</code> לפי מיפוי נתיב→טאב (<code>LOG-03</code> בגרסה המעודכנת, <code>ARC-17</code>): <code>/orders*</code>, <code>/driver-orders</code> → <code>logistics_orders</code>. <code>/drivers*</code> → <code>logistics_drivers</code>. <code>/vehicles*</code> → <code>logistics_vehicles</code>. <code>/pricing*</code>, <code>/rate-cards*</code> → <code>logistics_pricing</code>. <code>/cod*</code> → <code>logistics_cod</code>. <code>/rfq*</code> → <code>logistics_rfq</code>. <code>/routes*</code> → <code>logistics_routes</code>. <code>/orders/:id/tracking-token</code> → <code>logistics_orders</code> או <code>logistics_tracking</code>. <code>/reports</code> → <code>logistics_reports</code>. <code>/customers*</code> → <code>logistics_customers</code>. <code>/invoices*</code> → <code>logistics_invoices</code>. <code>/dashboard</code> → כל טאב <code>logistics_*</code>. שגיאת DB מחזירה 503 (fail-closed).</li>
+<li>הרשאות פעולה (<code>ARC-06</code>): משתמש תפעול, מנהל ונהג מקושר, כפי שהוגדרו במבוא. ההרשאות המפורטות מופיעות בכל תהליך.</li>
+<li><b>רשימה ציבורית</b> (<code>ARC-02</code>): <code>GET /track/:token</code> (דף), <code>GET /api/logistics/track/:token</code>, <code>POST /api/logistics/track/:token/leave-at-door</code>, <code>GET /api/logistics/track-lookup/:groupId</code> (<code>LOG-31</code>), נתיבי הלקוח ל-RFQ לפי טוקן (<code>LOG-27</code>), ו-<code>POST /api/store/leads/:groupId</code> (תחום החנות). כל אלה עם rate limit (<code>ARC-29</code>).</li>
+</ul></div>
+<div>קלט ואימותים</div><div><ul>
+<li>בלי טוקן: 401 "נדרשת התחברות". טוקן לא קיים או שפג תוקפו: 401 <code>'token לא תקף'</code> (נשמר). סשן מסוג אחר: 403 <code>'נדרש token מסוג עסקי'</code> (נשמר).</li>
+<li>משתמש לא active: 401. חשבון frozen/archived: 403 "החשבון מוקפא" (<code>ARC-05</code>).</li>
+<li>מודול חסר: 403 <code>'גישה למודול זה אינה כלולה בחבילה שלך'</code> (נשמר).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>זיהוי הסשן לפי hash בטבלת <code>sessions</code>, ועדכון <code>last_seen</code> אסינכרוני (כמו היום) (<code>ARC-01</code>).</li>
+<li>בדיקת זכאות. ה-cache נשמר 60 שניות (<code>_MOD_CACHE_TTL=60000</code>), ומתבטל במפורש בכל שינוי זכאות (<code>ARC-24</code>).</li>
+<li>ה-handler מקבל <code>ctx={principal, groupId}</code>.</li>
+<li>middleware יומן הביקורת הגנרי (server.js:121–144) ממשיך לפעול על <code>res.on('finish')</code> לכל POST/PUT/PATCH/DELETE עם 2xx–3xx, עם עד 12 שדות גוף ובלי מפתחות <code>password|token|secret|signature</code>. עכשיו יש תמיד <code>group_id</code> ו-<code>user_id</code> מהסשן, ולכן כל כתיבה לוגיסטית נרשמת (<code>LOG-04</code>).</li>
+<li>הנתיבים שיש להם רישום ייעודי לא נרשמים ברישום הגנרי, כדי שלא יהיה רישום כפול. הרשימה מתרחבת מ-<code>orders/:id/status</code> ו-<code>invoices/:id/status</code> ל: <code>assign</code>, <code>failed-attempt</code>, <code>pod</code>, <code>cod</code>, <code>cod/close</code>, <code>DELETE orders/:id</code>, <code>DELETE invoices/:id</code>. כל אחד מהם רושם <code>logBizAction</code> ייעודי עם old/new value (<code>LOG-04</code>).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div><code>biz_audit_log</code> (server.js:4160–4168). הכתיבה נשארת fire-and-forget, וכשל נרשם בלוג (<code>ARC-33</code>).</div>
+<div>ממשק</div><div>כל קריאות הלוגיסטיקה ב-business-app.js עוברות דרך עטיפת fetch אחת שמוסיפה <code>Authorization: Bearer</code> (<code>ARC-03</code>). זה כולל הזמנות, נהגים, רכבים, מחירון, COD, RFQ, מסלולים, מעקב, דוחות וממשק הנהג, שהיום נשלחים בלי טוקן. הנתיבים מוגדרים בלי <code>:groupId</code>. מוצגת הצלחה רק בתגובת 2xx, ואחרת הודעת השרת (<code>ARC-33</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-03</code> — (מכסה את <code>LOG-01</code>) אין יותר גישה בלי טוקן.</li>
+<li><code>LOG-02</code> — groupId מהסשן, סינון group בכל נתיב <code>:id</code>, ובדיקת שייכות של מזהים מקושרים.</li>
+<li><code>LOG-03</code> — gating לפי מזהה טאב, fail-closed, ומיגרציה ששומרת לעסקים קיימים את כל מה שנגיש להם היום.</li>
+<li><code>LOG-04</code> — כל כתיבה נרשמת ב-audit, ופעולות כסף וסטטוס נרשמות ברישום ייעודי עם old/new.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics schema tables columns migrations check constraints transactions unique"><h3>מבנה נתונים ומיגרציות (הקשר לכללים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הסכמה מוגדרת במיגרציות מגורסות שרצות ב-deploy, ולא ב-<code>CREATE TABLE IF NOT EXISTS</code> בעליית השרת (<code>ARC-12</code>).</div>
+<div>הרשאות</div><div>מיגרציות רצות רק בשלב ה-deploy. אין נתיב HTTP שמריץ DDL (<code>ARC-10</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>כל הטבלאות והעמודות הקיימות נשמרות עם ברירות המחדל של היום. <code>logistics_orders</code>: <code>status 'new'</code>, <code>package_count 1</code>, <code>cod_amount</code>/<code>delivery_fee</code> 0, <code>cod_collected false</code>, <code>tracking_token UNIQUE</code>, <code>failed_attempts_count 0</code>, <code>leave_at_door false</code> וכו'. <code>logistics_drivers</code>, <code>logistics_vehicles</code> (<code>type 'van'</code>), <code>logistics_cod_sessions</code>, <code>logistics_rfq</code>, <code>logistics_routes</code>/<code>logistics_route_stops</code>, <code>logistics_rate_cards</code>, <code>logistics_customers</code>, <code>logistics_invoices</code>, והאינדקסים הקיימים.</li>
+<li><b>CHECK על סטטוסים</b> (<code>LOG-41</code>, <code>LOG-06</code>): orders: 13 הערכים הקנוניים. routes: <code>planned, active, completed</code>. stops: <code>pending, done, failed, skipped</code>. rfq: <code>new, quoted, accepted, rejected, completed</code>. invoices: <code>pending, sent, paid, cancelled</code>. cod_sessions: <code>open, closed</code>. drivers.status: <code>active, on_route, break, offline</code>. vehicles.type: <code>motorcycle, van, truck, bicycle, electric</code>. customers.customer_type: <code>private, business, subscription, monthly_billing</code>. rate_cards.rule_type: <code>express, floor, weight_over, zone, time_window</code>.</li>
+<li>מיגרציית נתונים לפני ה-CHECK: <code>failed</code>→<code>failed_attempt</code>, <code>pending</code>→<code>new</code>, <code>no_answer</code>→<code>failed_attempt</code>, <code>rescheduled</code>→<code>confirmed</code>. כל שינוי נרשם ב-<code>logistics_order_events</code> מסוג <code>migration</code>.</li>
+<li><b>עמודות חדשות</b>: <code>logistics_orders</code>: <code>customer_id</code> (FK, <code>LOG-12</code>), <code>rfq_id</code> UNIQUE (<code>LOG-27</code>), <code>distance_km</code>, <code>price_overridden</code> (<code>LOG-09</code>), <code>cod_collected_at</code>, <code>cod_collected_by</code> (<code>LOG-17</code>), <code>cancel_reason</code> (<code>LOG-20</code>). <code>logistics_invoices</code>: <code>vat_rate</code> (<code>ARC-21</code>). <code>logistics_cod_sessions</code>: <code>cod_date</code>, <code>expected_amount</code>, <code>deposited_amount</code>, <code>variance</code>, <code>reopened_by</code> (<code>LOG-18</code>). <code>logistics_rfq</code>: <code>customer_id</code>, <code>weight_kg</code>, <code>urgent</code>, <code>public_token</code> (<code>LOG-27</code>, <code>LOG-32</code>). הגדרות עסק: <code>max_delivery_attempts</code> (3), <code>pod_required</code> (false), <code>auto_send_tracking</code> (true), <code>driver_location_sharing</code> (<code>LOG-15/16/24/30</code>).</li>
+<li><b>אילוצי ייחודיות:</b> <code>UNIQUE(group_id, order_number)</code> (<code>LOG-05</code>). חשבונית single: UNIQUE חלקי על <code>order_id</code> כש-<code>status&lt;&gt;'cancelled'</code> (<code>LOG-07</code>). <code>UNIQUE(group_id, driver_id, cod_date)</code> ב-cod_sessions (<code>LOG-18</code>). <code>UNIQUE(group_id, user_id)</code> חלקי ב-drivers כש-<code>user_id</code> אינו NULL (<code>LOG-22</code>).</li>
+<li>FK חשבונית→הזמנה <code>ON DELETE RESTRICT</code>. אין מחיקה קשה של הזמנות (<code>LOG-41</code>).</li>
+<li>הזמנות קיימות עם <code>order_number</code> כפול באותו group: הכפילות המאוחרת מקבלת סיומת <code>-2</code>, <code>-3</code> לפני יצירת ה-UNIQUE. מספרים קיימים לא משתנים מעבר לזה (<code>LOG-05</code>).</li>
+<li>העמודה <code>oneflow_user_id</code>, שאינה בשימוש, מוסרת (<code>LOG-12</code>, <code>ARC-39</code>). <code>express_surcharge</code>/<code>floor_surcharge</code>/<code>floor_number</code> נכתבות עכשיו בחישוב המחיר (<code>LOG-09</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>תהליכים שכותבים לכמה טבלאות רצים ב-<code>withTransaction</code> (<code>ARC-11</code>, <code>LOG-41</code>): שינוי סטטוס + אירוע + חשבונית + הכנסה, סגירת COD, המרת RFQ להזמנה, הפעלת מסלול, ביטול חשבונית + תנועה הפוכה.</li></ol></div>
+<div>חישובים</div><div>כל עמודות הזמן הן TIMESTAMPTZ. יום עסקי מחושב ב-Asia/Jerusalem (<code>ARC-25</code>).</div>
+<div>מכונת מצבים</div><div>הערכים הקנוניים מופיעים למעלה. המעברים מוגדרים בכל תהליך.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-41</code> — טרנזקציות, CHECK על כל עמודת סטטוס, ו-FK עם RESTRICT.</li>
+<li><code>LOG-05</code> — UNIQUE על מספר הזמנה, עם תיקון כפילויות קיימות.</li>
+<li><code>LOG-06</code> — רשימה קנונית ומיגרציה של ערכים לא קנוניים.</li>
+<li><code>LOG-07</code>, <code>LOG-09</code>, <code>LOG-12</code>, <code>LOG-17</code>, <code>LOG-18</code>, <code>LOG-20</code>, <code>LOG-22</code>, <code>LOG-27</code>, <code>LOG-32</code> — עמודות ואילוצים שנוספו.</li>
+<li><code>ARC-12</code>/<code>ARC-13</code> — מיגרציות מגורסות במקום DDL בזמן ריצה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">הזמנות משלוח — מחזור חיים</h2>
+
+<section class="proc" data-f="logistics order create new order_number LOG- kanban customer pricing"><h3>יצירת הזמנת משלוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל בטאב <code>logistics_orders</code> לוחץ "משלוח חדש", ואז "צור משלוח" → <code>POST /api/logistics/orders</code>. נקודות כניסה נוספות: המרת RFQ (<code>LOG-27</code>), ובקשה מהחנות עם תוכנית מחיר קבועה (<code>LOG-32</code>).</div>
+<div>הרשאות</div><div>משתמש תפעול. groupId מהסשן (<code>LOG-02</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>בלקוח, כמו היום: שם וכתובת מסירה חובה (טוסט <code>'שם וכתובת מסירה חובה'</code>).</li>
+<li>שרת (<code>LOG-11</code>, <code>ARC-34</code>): <code>customer_name</code> ו-<code>delivery_address</code> חובה. אם חסרים: 400 עם אותה הודעה. <code>cod_amount</code>, <code>delivery_fee</code>, <code>weight_kg</code> ≥ 0. <code>package_count</code> ≥ 1. <code>driver_id</code>, <code>vehicle_id</code>, <code>pricing_zone_id</code> ו-<code>customer_id</code> חייבים להיות שייכים לעסק. נהג חייב להיות <code>is_active</code>. רכב שתוקפו פג מטופל לפי כלל השיוך (<code>LOG-14</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אם נבחר לקוח (<code>customer_id</code>), שם, טלפון, כתובת והוראות מסירה מתמלאים מהלקוח, וניתנים לעריכה. אם אין <code>customer_id</code> ויש טלפון: חיפוש לקוח לפי group וטלפון מנורמל. אם לא נמצא, נוצר לקוח חדש והוא מקושר להזמנה (<code>LOG-12</code>).</li>
+<li>אם נבחר אזור מחיר, מחושב <code>suggested_fee</code> (ראו חישובים). אם <code>delivery_fee</code> שנשלח שונה מהמחיר המחושב: <code>price_overridden=true</code>. אם לא נבחר אזור, <code>delivery_fee</code> ידני כמו היום (<code>LOG-09</code>).</li>
+<li>בטרנזקציה אחת (<code>ARC-11</code>): הקצאת <code>order_number</code>, <code>INSERT logistics_orders</code> (ערך ריק→NULL, <code>package_count||1</code>, <code>cod_amount||0</code>, <code>delivery_fee||0</code>), יצירת <code>tracking_token</code> (<code>LOG-30</code>), ו-<code>INSERT logistics_order_events(event_type='created')</code> (<code>LOG-11</code>, <code>LOG-21</code>).</li>
+<li>סטטוס התחלתי, כמו היום: <code>driver_id ? 'assigned' : 'new'</code>. אם נבחר נהג, נרשם גם אירוע <code>assigned</code>.</li>
+<li>אחרי commit: אם ההזמנה נוצרה ב-<code>assigned</code>, נשלח לינק מעקב לפי <code>LOG-30</code>.</li>
+<li>השרת מחזיר את השורה.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>order_number = 'LOG-' + lpad(seq, 6, '0')</code>. ה-seq רץ לכל עסק (<code>MAX+1</code> בטרנזקציה עם נעילה, או sequence לכל group). הלקוח לא קובע את המספר (<code>LOG-05</code>).</li>
+<li>הצעת מחיר (<code>LOG-09</code>): <code>base = max(min_fee, base_price + price_per_km×distance_km + price_per_kg×weight_kg)</code>. <code>surcharges = Σ (surcharge_amount + base×surcharge_pct/100)</code> על כרטיסי תעריף פעילים שהתנאי שלהם מתקיים. <code>express_surcharge</code> ו-<code>floor_surcharge</code> נשמרים בנפרד. <code>fee = round2((base + surcharges) × (1 − discount_pct/100))</code>, כאשר <code>discount_pct</code> הוא של הלקוח המקושר. <code>distance_km</code> הוא שדה קלט ידני, כי אין שירות מרחקים.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>new</td><td>משתמש תפעול / המרת RFQ (confirmed) / חנות</td><td>אין נהג</td><td>event created, טוקן מעקב</td></tr>
+<tr><td>(אין)</td><td>assigned</td><td>משתמש תפעול</td><td>נבחר נהג פעיל</td><td>event created + assigned, שליחת לינק (<code>LOG-30</code>)</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>אירועי הזמנה, audit ייעודי, לקוח שנוצר אוטומטית, והודעת מעקב ללקוח.</div>
+<div>ממשק</div><div>כל שדות הטופס של היום נשמרים: שם לקוח*, טלפון, כתובת מסירה*, כתובת איסוף, תאריך (ברירת מחדל היום לפי שעון ישראל), שעה/חלון (טקסט חופשי), COD ₪, דמי משלוח ₪, משקל ק"ג, שיוך נהג, הערות לנהג. נוספים (<code>LOG-11</code>, <code>LOG-12</code>, <code>LOG-09</code>): בחירת לקוח (autocomplete), אימייל, מספר חבילות, הערות פנימיות, אזור מחיר, מרחק ק"מ, ותוספות אקספרס/קומה. המחיר המחושב מוצג כהצעה ונשאר ניתן לעריכה. בדיקת <code>r.ok</code>: שגיאת שרת מוצגת כטוסט, והמודאל נשאר פתוח. אחרי הצלחה: רענון הקנבן, כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-05</code> — מספור רץ לכל עסק עם UNIQUE.</li>
+<li><code>LOG-11</code> — ולידציה בשרת, אירוע created, שדות נוספים בטופס, ובדיקת r.ok.</li>
+<li><code>LOG-12</code> — קישור ללקוח ויצירה אוטומטית לפי טלפון.</li>
+<li><code>LOG-09</code> — הצעת מחיר אוטומטית מהמחירון, מכרטיסי תעריף ומהנחת לקוח, עם אפשרות לדרוס.</li>
+<li><code>LOG-30</code> — טוקן מעקב נוצר אוטומטית, ושליחה ב-assigned.</li>
+<li><code>LOG-02</code>, <code>ARC-11</code> — group מהסשן ובדיקת שייכות, בטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics orders list kanban filter search driver date status pagination drag drop"><h3>רשימת הזמנות, קנבן וסינון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>switchTab('logistics_orders')</code> → <code>loadLogisticsOrders</code> → <code>GET /api/logistics/orders</code> + <code>GET /api/logistics/drivers</code>.</div>
+<div>הרשאות</div><div>משתמש תפעול. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>query, כמו היום: <code>status</code> (מתעלם מ-<code>'all'</code>), <code>driver_id</code>, <code>date</code> (מול <code>scheduled_date</code>), <code>search</code> (ILIKE על שם, טלפון, כתובת מסירה, <code>order_number</code>). נוספים: <code>limit</code> (ברירת מחדל 100, מקסימום 300), <code>offset</code>, ו-<code>view=active|all</code> (<code>LOG-13</code>).</li>
+<li>מיון <code>created_at DESC</code>. join לשם הנהג ולשם הרכב, כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח שולח לשרת את התאריך הנבחר, הנהג, הסטטוס והחיפוש. בלי תאריך נטענות כל ההזמנות, כמו היום (<code>LOG-13</code>).</li>
+<li>התשובה כוללת <code>total</code>, ואם יש עוד הזמנות מוצג כפתור "טען עוד".</li>
+<li><code>_renderLogisticsKanban</code> מחלק לעמודות לפי <code>status</code>.</li>
+<li>גרירה של כרטיס לעמודה אחרת מבצעת <code>PATCH /orders/:id/status</code>, רק אם המעבר נמצא במטריצה הרגילה (<code>LOG-06</code>). אם לא: טוסט "מעבר זה מתבצע מתוך פרטי ההזמנה" והכרטיס חוזר למקומו.</li>
+</ol></div>
+<div>חישובים</div><div>מצב "פעיל" (ברירת מחדל): <code>new…arrived</code> + <code>failed_attempt</code>, כמו היום.</div>
+<div>מכונת מצבים</div><div>13 עמודות קנוניות, כמו היום. מעברי הגרירה הם מעברי המטריצה הרגילה שמוגדרים בתהליך "עדכון סטטוס הזמנה".</div>
+<div>תופעות לוואי</div><div>אין, מלבד מה שגרירה מפעילה בעדכון הסטטוס.</div>
+<div>ממשק</div><div>הכרטיס כמו היום: מספר הזמנה או <code>#id</code>, 🔗 כשיש טוקן, שם, כתובת, חלון זמן, badge COD (✅ או 💵), "⚠️ ניסיון N", "🚪 אישר השארה", שם נהג, Waze. כפתור "הצג הכל"/"פעיל בלבד" ושדה תאריך, שעכשיו מסנן בפועל. סינון הנהג נשלח לשרת. כל טקסט שמוזרק עובר <code>esc()</code> (<code>ARC-27</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-13</code> — הסינונים נשלחים לשרת, עימוד במקום תקרה של 300, וגרירה בתוך המטריצה. ברירת המחדל לא השתנתה.</li>
+<li><code>LOG-06</code> — עמודות ותוויות מהרשימה הקנונית האחת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics order status change transition delivered partial invoice income event audit state machine override"><h3>עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/orders/:id/status</code>. מופעל מ: (א) מודאל פרטי הזמנה, 10 כפתורי סטטוס, כמו היום. (ב) גרירה בקנבן (<code>LOG-13</code>). (ג) ממשק נהג (<code>_driverUpdateStatus</code>). (ד) פעולת AI (<code>LOG-38</code>). (ה) המרת RFQ ומסלולים (פנימי).</div>
+<div>הרשאות</div><div><ul>
+<li>משתמש תפעול: כל מעבר במטריצה הרגילה, וגם <b>תיקון ידני</b> לכל סטטוס קנוני (<code>override=true</code>).</li>
+<li>יציאה מ-<code>delivered</code>/<code>partial</code> לכל סטטוס אחר: מנהל בלבד. אחרת 403 "רק מנהל רשאי לשנות משלוח שנמסר" (<code>LOG-07</code>, <code>LOG-06</code>).</li>
+<li>נהג מקושר בלי הטאב: רק להזמנות שמשויכות אליו, ורק במעברי נהג. אחרת 403 (<code>LOG-23</code>).</li>
+</ul></div>
+<div>קלט ואימותים</div><div><ul>
+<li>ההזמנה חייבת להתקיים באותו group. אחרת 404 <code>'not found'</code>.</li>
+<li><code>status</code> חייב להיות אחד מ-13 הערכים. אחרת 400 "סטטוס לא חוקי" (<code>LOG-06</code>).</li>
+<li>מעבר שאינו במטריצה הרגילה, בלי <code>override=true</code>: 400 "מעבר לא חוקי מ-X ל-Y". המודאל שולח <code>override</code> אחרי <code>_uiConfirm</code>.</li>
+<li>מעבר ל-<code>cancelled</code> מפנה לכללי הביטול (<code>LOG-20</code>). מעבר ל-<code>failed_attempt</code> מפנה לנתיב הניסיון הכושל (<code>LOG-15</code>).</li>
+<li>מעבר ל-<code>delivered</code>/<code>partial</code> של הזמנה עם <code>cod_amount&gt;0</code> ו-<code>!cod_collected</code>: נדרש <code>cod_uncollected_ack=true</code>, אחרת 409 "לא סומנה גבייה" (<code>LOG-17</code>). אם <code>pod_required</code>, נדרש לפחות קובץ POD אחד (<code>LOG-16</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>withTransaction</code> (<code>ARC-11</code>, <code>LOG-41</code>): <code>SELECT ... FOR UPDATE</code> על ההזמנה (סטטוס ישן).</li>
+<li><code>UPDATE status, updated_at=NOW()</code>. מעבר ל-delivered/partial: <code>delivered_at=NOW()</code>. יציאה מ-delivered/partial: <code>delivered_at=NULL</code> (<code>LOG-07</code>). חזרה ל-assigned/in_transit: <code>leave_at_door=false</code> (<code>LOG-29</code>).</li>
+<li><code>INSERT logistics_order_events(event_type='status_change', old_status, new_status, actor_name, actor_user_id, notes, is_override)</code>.</li>
+<li><b>מסירה ראשונה</b> (מעבר ל-delivered/partial, בלי חשבונית single פעילה להזמנה): <code>INSERT logistics_invoices(status 'pending', invoice_type 'single', vat_rate)</code> ו-<code>logBizIncome</code> עם <code>invoice_id</code> (<code>LOG-07</code>, <code>LOG-35</code>). אם כבר יש חשבונית פעילה, לא נוצר דבר.</li>
+<li><b>יציאה מ-delivered/partial</b> (מנהל): החשבונית הפעילה עוברת ל-<code>cancelled</code>, ונרשמת תנועת הכנסה הפוכה (<code>type 'income'</code> עם סכום שלילי, או <code>expense</code> עם הפניה, לפי <code>ARC-15</code>) (<code>LOG-07</code>).</li>
+<li>עדכון עצירת מסלול פעילה: delivered/partial→<code>done</code>, failed_attempt→<code>failed</code> (<code>LOG-26</code>).</li>
+<li>COMMIT. כשל בכל שלב: ROLLBACK ו-500, בלי עדכון חלקי. התשובה <code>{success:true}</code> נשלחת <b>אחרי</b> COMMIT.</li>
+<li>אחרי commit: <code>logBizAction(group, user, actor, 'UPDATE_DELIVERY_STATUS' | 'OVERRIDE_DELIVERY_STATUS', 'delivery_order', id, 'משלוח #id עודכן מ-X ל-Y')</code>, והודעות לפי <code>LOG-30</code> (ARC-16).</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>invoice_number</code>: מספור רציף לכל עסק בפורמט <code>INV-{group_id}-{seq}</code> (<code>ARC-22</code>). חשבוניות קיימות שומרות על המספר שלהן.</li>
+<li><code>amount = delivery_fee</code>. <code>vat_rate = calcVat(...)</code>: 18% מ-<code>system_settings</code>, ו-0 לעוסק פטור (<code>ARC-21</code>, שמכסה את <code>LOG-08</code>). <code>vat_amount = round2(amount × vat_rate/100)</code>. <code>total_amount = amount + vat_amount</code>.</li>
+<li>הכנסה: <code>logBizIncome(group_id, amount, 'משלוח נמסר — שם (#order_number)')</code>, בסכום נטו לפני מע"מ, כמו היום. מדלג אם amount ≤ 0. <code>user_id</code> הוא המשתמש מהסשן (או ה-ADMIN הראשון לפעולת מערכת) (<code>LOG-35</code> בגרסה המעודכנת).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>
+<p>מטריצה רגילה (<code>LOG-06</code>). כל מעבר אחר הוא תיקון ידני של משתמש תפעול.</p>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>new / assigned</td><td>משתמש תפעול (יצירה)</td><td>assigned אם נבחר נהג</td><td>event created</td></tr>
+<tr><td>new</td><td>pending_quote / confirmed</td><td>משתמש תפעול</td><td>—</td><td>event</td></tr>
+<tr><td>pending_quote</td><td>quote_sent</td><td>משתמש תפעול</td><td>—</td><td>event</td></tr>
+<tr><td>quote_sent</td><td>confirmed</td><td>משתמש תפעול</td><td>—</td><td>event</td></tr>
+<tr><td>new / confirmed / failed_attempt</td><td>assigned</td><td>משתמש תפעול (assign) / הפעלת מסלול</td><td>יש נהג</td><td>event assigned, לינק מעקב</td></tr>
+<tr><td>assigned</td><td>confirmed</td><td>משתמש תפעול (הסרת נהג)</td><td>—</td><td>event</td></tr>
+<tr><td>assigned</td><td>picked_up</td><td>נהג / משתמש תפעול</td><td>—</td><td>event + audit</td></tr>
+<tr><td>picked_up</td><td>in_transit</td><td>נהג / משתמש תפעול</td><td>—</td><td>event + audit, הודעה ללקוח</td></tr>
+<tr><td>in_transit</td><td>arrived</td><td>נהג / משתמש תפעול</td><td>—</td><td>event + audit</td></tr>
+<tr><td>arrived</td><td>delivered / partial</td><td>נהג / משתמש תפעול</td><td>אישור COD לא נגבה, ו-POD אם נדרש</td><td>delivered_at, חשבונית + הכנסה (פעם אחת), עצירה done</td></tr>
+<tr><td>in_transit / arrived</td><td>failed_attempt</td><td>נהג / משתמש תפעול (נתיב failed-attempt)</td><td>—</td><td>מונה +1, event, עצירה failed</td></tr>
+<tr><td>failed_attempt</td><td>assigned / in_transit / returned</td><td>משתמש תפעול (נהג: in_transit)</td><td>—</td><td>event. leave_at_door מתאפס ב-assigned/in_transit</td></tr>
+<tr><td>כל סטטוס לא סופי</td><td>cancelled</td><td>משתמש תפעול</td><td>סיבת ביטול</td><td>event cancelled</td></tr>
+<tr><td>כל סטטוס קנוני (לא delivered/partial)</td><td>כל סטטוס קנוני</td><td>משתמש תפעול (תיקון ידני)</td><td>confirm + <code>override</code></td><td>event is_override, audit OVERRIDE</td></tr>
+<tr><td>delivered / partial</td><td>כל סטטוס קנוני</td><td>מנהל בלבד (תיקון ידני)</td><td>confirm + <code>override</code></td><td>ביטול חשבונית, הכנסה הפוכה, delivered_at=NULL</td></tr>
+<tr><td>כל</td><td>assigned/in_transit/delivered/failed_attempt/cancelled</td><td>AI (באישור המשתמש)</td><td>אותה מטריצה והרשאות של המשתמש</td><td>actor 'AI Assistant'</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div><code>biz_audit_log</code>, אירוע הזמנה, חשבונית, תנועת הכנסה או תנועה הפוכה, עדכון עצירה, והודעה ללקוח לפי <code>LOG-30</code>.</div>
+<div>ממשק</div><div>כמו היום: אחרי עדכון מוצג טוסט עם תווית הסטטוס, המודאל נסגר והקנבן מתרענן. בממשק הנהג מתבצע רינדור מחדש. כפתורי סטטוס שאינם במטריצה הרגילה מסומנים "תיקון", ולחיצה עליהם פותחת <code>_uiConfirm</code>. כפתורי היציאה מ-delivered מוצגים למנהל בלבד. שגיאת שרת מוצגת כטוסט.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-06</code> — רשימה קנונית, מטריצה רגילה, ותיקון ידני מתועד שנשאר זמין לכל משתמש תפעול.</li>
+<li><code>LOG-07</code> — חשבונית והכנסה פעם אחת, בטרנזקציה. יציאה מ-delivered מבטלת ומקזזת.</li>
+<li><code>LOG-35</code> — ההכנסה נשארת במסירה, בסכום נטו ועם קישור לחשבונית. ביטול רושם תנועה הפוכה.</li>
+<li><code>ARC-21</code> (מכסה את <code>LOG-08</code>) — מע"מ 18% דרך calcVat, עוסק פטור 0, ו-vat_rate נשמר על החשבונית.</li>
+<li><code>LOG-17</code> — מסירת COD שלא נגבה דורשת אישור מפורש.</li>
+<li><code>LOG-16</code> — POD נשמר באותו מעבר ל-delivered.</li>
+<li><code>LOG-23</code> — הנהג מוגבל להזמנות שלו ולמעברי הנהג.</li>
+<li><code>LOG-41</code>, <code>LOG-21</code>, <code>LOG-26</code> — טרנזקציה, אירוע מלא, וסנכרון עצירה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics assign driver vehicle reassign expired insurance"><h3>שיוך נהג ורכב להזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל פרטי הזמנה, "שייך נהג ורכב" → <code>_logisticsAssign</code> → <code>PATCH /api/logistics/orders/:id/assign</code>. גם הפעלת מסלול מבצעת שיוך (<code>LOG-26</code>).</div>
+<div>הרשאות</div><div>משתמש תפעול.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>ההזמנה באותו group, בסטטוס לא סופי. אחרת 400 "לא ניתן לשייך משלוח שהסתיים" (<code>LOG-14</code>).</li>
+<li><code>driver_id</code> (או null, "— ללא —") חייב להיות נהג פעיל של העסק. <code>vehicle_id</code> חייב להיות רכב <code>is_active</code> של העסק.</li>
+<li>רכב שהביטוח או הטסט שלו פגו (<code>&lt; היום</code>), בלי <code>confirm_expired=true</code>: 409 "לרכב פג ביטוח/טסט". הממשק מבקש אישור ושולח שוב (<code>LOG-14</code>/<code>LOG-25</code> בגרסה המעודכנת).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: <code>UPDATE driver_id, vehicle_id (||null), updated_at=NOW()</code>.</li>
+<li>סטטוס: אם יש נהג והסטטוס ∈ {new, pending_quote, quote_sent, confirmed, failed_attempt}, הסטטוס עובר ל-<code>assigned</code>. אם יש נהג והסטטוס ∈ {assigned, picked_up, in_transit, arrived}, הסטטוס נשמר (החלפת נהג). אם אין נהג והסטטוס הוא <code>assigned</code>, הסטטוס עובר ל-<code>confirmed</code>.</li>
+<li><code>INSERT event(event_type='assigned' | 'unassigned', notes = שם נהג/רכב)</code> (<code>LOG-14</code>, <code>LOG-21</code>). אם אושר רכב שתוקפו פג: audit <code>ASSIGN_EXPIRED_VEHICLE</code>.</li>
+<li>אחרי commit: התראה לנהג המקושר (<code>ARC-16</code>), ולינק מעקב ללקוח לפי <code>LOG-30</code>.</li>
+</ol></div>
+<div>חישובים</div><div>רכב פג: <code>insurance_expires_at &lt; todayIL()</code> או <code>inspection_expires_at &lt; todayIL()</code>.</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>new / pending_quote / quote_sent / confirmed / failed_attempt</td><td>assigned</td><td>משתמש תפעול</td><td>יש נהג</td><td>event assigned, התראה לנהג, לינק ללקוח</td></tr>
+<tr><td>assigned / picked_up / in_transit / arrived</td><td>(ללא שינוי)</td><td>משתמש תפעול</td><td>החלפת נהג/רכב</td><td>event assigned</td></tr>
+<tr><td>assigned</td><td>confirmed</td><td>משתמש תפעול</td><td>"ללא נהג"</td><td>event unassigned</td></tr>
+<tr><td>סופי</td><td>—</td><td>—</td><td>נחסם (400)</td><td>—</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>אירוע, audit, והתראות.</div>
+<div>ממשק</div><div>select נהגים (פעילים בלבד) ו-select רכבים (פעילים בלבד). רכב שתוקפו פג מסומן "⛔ פג" ופותח אישור. רכב שתוקפו יפוג בקרוב מסומן "⚠️ פג בעוד N ימים".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-14</code> — שיוך והחלפת נהג נשמרים בכל סטטוס לא סופי. "ללא נהג" כבר לא מעביר ל-assigned. רכבים פעילים בלבד. רכב שתוקפו פג דורש אישור. אירוע נרשם.</li>
+<li><code>LOG-25</code> — הבחנה בין פג לבין עומד לפוג.</li>
+<li><code>LOG-02</code> — בדיקת שייכות של נהג ורכב.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics failed attempt no answer לא ענה gps max attempts"><h3>ניסיון מסירה כושל ("לא ענה")</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "📵 לא ענה" במודאל הזמנה או בכרטיס הנהג (מוצג ב-<code>in_transit</code>/<code>arrived</code>) → <code>_logisticsFailedAttempt</code> → <code>POST /api/logistics/orders/:id/failed-attempt</code>.</div>
+<div>הרשאות</div><div>משתמש תפעול, או נהג מקושר להזמנה שמשויכת אליו (<code>LOG-23</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הזמנה לא קיימת באותו group: 404 (<code>LOG-15</code>).</li>
+<li>הסטטוס חייב להיות <code>in_transit</code> או <code>arrived</code>. אחרת 400 "ניסיון כושל אפשרי רק בדרך או בהגעה" (<code>LOG-15</code>).</li>
+<li><code>notes</code> אופציונלי. <code>gps</code> אופציונלי <code>{lat,lng}</code> בטווח חוקי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: <code>SELECT ... FOR UPDATE</code> של <code>status, failed_attempts_count</code>.</li>
+<li><code>cnt = (failed_attempts_count||0)+1</code>.</li>
+<li><code>UPDATE status='failed_attempt', failed_attempts_count=cnt, failed_attempt_gps, failed_attempt_at=NOW()</code>.</li>
+<li><code>INSERT event('failed_attempt', old_status=הסטטוס בפועל, new_status 'failed_attempt', actor_name||'מערכת', notes)</code> (<code>LOG-15</code>). עצירת מסלול עוברת ל-<code>failed</code> (<code>LOG-26</code>).</li>
+<li>אחרי commit: audit <code>FAILED_DELIVERY_ATTEMPT</code> (<code>LOG-04</code>). אם <code>cnt ≥ max_delivery_attempts</code>: התראה למנהל "משלוח #X הגיע ל-N ניסיונות", בלי שינוי סטטוס (<code>LOG-15</code> בגרסה המעודכנת).</li>
+<li>תשובה <code>{ok:true, attempts:cnt}</code>, כמו היום.</li>
+</ol></div>
+<div>חישובים</div><div><code>max_delivery_attempts</code> הוא הגדרת עסק, ברירת מחדל 3. דף המעקב מציג "ניסיון N מתוך {max}". המונה לא מוגבל ואין חסימה בשרת.</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>in_transit / arrived</td><td>failed_attempt</td><td>נהג / משתמש תפעול</td><td>—</td><td>מונה +1, event, התראה בהגעה לתקרה</td></tr>
+</tbody></table></div>
+היציאה מ-failed_attempt מוגדרת במטריצה של עדכון הסטטוס: assigned/in_transit/returned.</div>
+<div>תופעות לוואי</div><div>אירוע, audit, והתראה למנהל בתקרה. כשההזמנה ב-failed_attempt, דף המעקב מאפשר ללקוח לאשר השארה בדלת.</div>
+<div>ממשק</div><div>prompt "הערות לניסיון כושל (אופציונלי)", כמו היום. אם הנהג אישר מיקום, הלקוח שולח <code>gps</code> מ-<code>navigator.geolocation</code>. אחרי הצלחה נסגר המודאל הנכון (<code>log-order-modal</code>), וכפתורי ההרחבה מוזרקים למזהה הנכון (<code>LOG-15</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-15</code> — מותר רק מ-in_transit/arrived, 404 להזמנה שלא קיימת, old_status אמיתי, תקרה כהגדרת עסק שמפעילה התראה בלי מעבר אוטומטי, תיקון מזהה המודאל, ושליחת GPS.</li>
+<li><code>LOG-04</code> — audit ייעודי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics pod proof of delivery photo signature barcode upload"><h3>אישור מסירה (POD)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הנהג לוחץ "נמסר ✓" בממשק הנהג, או משתמש תפעול מסמן מסירה במודאל, ונפתח מסך POD: צילום, חתימה וברקוד. <code>PATCH /api/logistics/orders/:id/pod</code> נשמר כנתיב, ומבצע את אותה לוגיקת מעבר ל-delivered (<code>LOG-16</code>).</div>
+<div>הרשאות</div><div>נהג מקושר להזמנה שלו, או משתמש תפעול.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>pod_photo_url</code>, <code>pod_signature_url</code>, <code>pod_barcode</code>. קבצים עולים דרך שירות ההעלאה עם סשן (<code>ARC-26</code>): png/jpg/webp, עד 8MB.</li>
+<li><code>pod_required=true</code> בהגדרות העסק: לפחות צילום או חתימה, אחרת 400 "נדרש אישור מסירה". ברירת המחדל היא <code>false</code>, ולכן מסירה בלחיצה אחת נשארת כמו היום.</li>
+<li>הסטטוס הנוכחי חייב לאפשר מעבר ל-delivered לפי המטריצה (<code>LOG-06</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: <code>UPDATE pod_photo_url, pod_signature_url, pod_barcode</code>.</li>
+<li>ביצוע של אותה פונקציית מעבר ל-<code>delivered</code> שמשמשת את עדכון הסטטוס: <code>delivered_at</code>, אירוע, חשבונית והכנסה פעם אחת, ועצירה done (<code>LOG-16</code>, <code>LOG-07</code>).</li>
+<li>אחרי commit: audit <code>POD_DELIVERED</code>.</li>
+</ol></div>
+<div>חישובים</div><div>כמו בעדכון הסטטוס (חשבונית ומע"מ).</div>
+<div>מכונת מצבים</div><div>arrived (או מעבר מותר אחר במטריצה) → <code>delivered</code>. אין יותר מעבר מכל סטטוס.</div>
+<div>תופעות לוואי</div><div>חשבונית, הכנסה, אירוע ו-audit, בדיוק כמו בנתיב הסטטוס.</div>
+<div>ממשק</div><div>מסך POD בממשק הנהג: מצלמה, משטח חתימה, ושדה ברקוד. במודאל ההזמנה מוצגים תמונת ה-POD והחתימה אחרי מסירה. אחרי מסירה, הלקוח רואה את תמונת ה-POD בדף המעקב, כפי שהמדריך מתאר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-16</code> — נתיב POD אחד שמבצע את לוגיקת delivered המלאה. נוסף ממשק צילום, חתימה וברקוד, וחובה אופציונלית לפי הגדרת עסק.</li>
+<li><code>ARC-26</code> — העלאה מאובטחת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics cod collect cash credit qr transfer field undo"><h3>גביית COD בשטח (סימון הזמנה כנגבתה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודאל הזמנה עם <code>cod_amount&gt;0</code> ו-<code>!cod_collected</code> מוצג בלוק "גבייה בשטח" (כמו היום). בממשק הנהג מוצגים כפתורי גבייה בשלב <code>arrived</code> (<code>LOG-17</code>). הכפתור קורא ל-<code>_logisticsCODCollect</code> → <code>PATCH /api/logistics/orders/:id/cod</code>. ביטול סימון: <code>PATCH /orders/:id/cod</code> עם <code>{collected:false}</code>.</div>
+<div>הרשאות</div><div>סימון: משתמש תפעול, או נהג מקושר להזמנה שלו. ביטול סימון: ADMIN בלבד (<code>LOG-17</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>cod_amount&gt;0</code>. אחרת 400 "אין סכום לגבייה".</li>
+<li><code>cod_method ∈ {cash, credit, transfer, qr}</code>. אחרת 400.</li>
+<li>ביטול סימון: אם יום ה-COD של הנהג (<code>cod_date</code> של <code>cod_collected_at</code>) כבר נסגר, מוחזר 409 "יום הגבייה כבר נסגר".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>סימון: <code>UPDATE cod_collected=true, cod_method, cod_collected_at=NOW(), cod_collected_by=principal.userId, updated_at=NOW()</code>.</li>
+<li>ביטול: <code>UPDATE cod_collected=false, cod_method=NULL, cod_collected_at=NULL, cod_collected_by=NULL</code>.</li>
+<li><code>INSERT event('cod_collected' | 'cod_uncollected')</code> (<code>LOG-21</code>), ו-audit ייעודי (<code>LOG-04</code>).</li>
+</ol></div>
+<div>חישובים</div><div>ה-KPI "COD נגבה היום" מבוסס על <code>cod_collected_at</code> ביום ישראלי (<code>LOG-19</code>).</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>לא נגבה</td><td>נגבה</td><td>משתמש תפעול / נהג</td><td>cod_amount&gt;0, שיטה חוקית</td><td>חותמת זמן, מבצע, event, audit</td></tr>
+<tr><td>נגבה</td><td>לא נגבה</td><td>ADMIN</td><td>היום לא נסגר</td><td>event, audit</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>אין תנועה כספית. הכסף נספר בסגירת היום (<code>LOG-18</code>).</div>
+<div>ממשק</div><div>3 הכפתורים של היום (מזומן, אשראי, QR), ונוסף כפתור "העברה". בממשק הנהג: אותם כפתורים בכרטיס כשההזמנה ב-arrived. "נמסר ✓" על הזמנת COD שלא נגבתה פותח אישור "נמסר ללא גבייה?" (<code>LOG-17</code> בגרסה המעודכנת). ל-ADMIN יש כפתור "בטל סימון גבייה".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-17</code> — ולידציה, חותמת זמן ומבצע, ביטול סימון ל-ADMIN, וגבייה מממשק הנהג. מסירה בלי גבייה נשארת אפשרית עם אישור.</li>
+<li><code>LOG-21</code>, <code>LOG-04</code> — אירוע ו-audit.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics order edit patch fields whitelist"><h3>עריכת פרטי הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/orders/:id</code>. הנתיב נשמר, ונקרא גם מכפתור "ערוך" במודאל ההזמנה שמשתמש באותו טופס של יצירת הזמנה (<code>LOG-11</code>; לנתיב יש עכשיו קורא, לפי <code>ARC-35</code>).</div>
+<div>הרשאות</div><div>משתמש תפעול. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>whitelist של היום: <code>customer_name, customer_phone, customer_email, pickup_address, delivery_address, scheduled_date, scheduled_time_window, weight_kg, package_count, cod_amount, delivery_fee, delivery_notes, internal_notes</code>. נוספים: <code>customer_id, pricing_zone_id, distance_km, express_surcharge, floor_surcharge, floor_number</code> (<code>LOG-09</code>, <code>LOG-12</code>), עם אותה ולידציה כמו ביצירה.</li>
+<li>שדה <code>undefined</code> מדולג. גוף ריק מחזיר <code>{success:true}</code> בלי כתיבה, כמו היום.</li>
+<li>הזמנה בסטטוס סופי: מותר לערוך רק <code>internal_notes</code>, <code>delivery_notes</code> ופרטי קשר. שינוי <code>delivery_fee</code> או <code>cod_amount</code> מחזיר 400 "לא ניתן לשנות מחיר אחרי מסירה — בטלו ותקנו". כך נשמר הסנכרון עם החשבונית (<code>LOG-07</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE דינמי עם <code>updated_at=NOW()</code> ו-<code>AND group_id</code>.</li><li><code>INSERT event('edited', notes=רשימת השדות)</code> (<code>LOG-21</code>).</li></ol></div>
+<div>חישובים</div><div>אם השתנו אזור, משקל או מרחק, מחושבת מחדש הצעת המחיר (<code>LOG-09</code>). אם המחיר לא נדרס ידנית, <code>delivery_fee</code> מתעדכן.</div>
+<div>מכונת מצבים</div><div>אין שינוי סטטוס.</div>
+<div>תופעות לוואי</div><div>אירוע edited.</div>
+<div>ממשק</div><div>כפתור "ערוך" במודאל ההזמנה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-02</code> — סינון group.</li>
+<li><code>LOG-09</code>, <code>LOG-12</code> — שדות מחיר ולקוח.</li>
+<li><code>LOG-07</code> — שינוי מחיר נחסם אחרי מסירה.</li>
+<li><code>LOG-21</code> — אירוע.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics order cancel delete soft reason"><h3>ביטול הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל הזמנה, "ביטול הזמנה" → <code>_uiConfirm('לבטל הזמנה זו?')</code> עם שדה סיבה → <code>DELETE /api/logistics/orders/:id</code>.</div>
+<div>הרשאות</div><div>משתמש תפעול, לסטטוס לא סופי. ביטול של <code>delivered</code>/<code>partial</code>: מנהל בלבד, כתיקון ידני (<code>LOG-20</code>, <code>LOG-06</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>reason</code> (טקסט) חובה. אחרת 400 "נדרשת סיבת ביטול".</li>
+<li>סטטוס <code>returned</code> או <code>cancelled</code>: 400 "המשלוח כבר הסתיים". סטטוס <code>delivered</code>/<code>partial</code> בלי מנהל: 400 <code>'לא ניתן לבטל משלוח שנמסר'</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: מחיקה רכה, <code>UPDATE status='cancelled', cancel_reason, updated_at=NOW()</code>.</li>
+<li><code>INSERT event('cancelled', old_status, notes=reason)</code>.</li>
+<li>אם ההזמנה נמסרה (מנהל): ביטול החשבונית ותנועה הפוכה, לפי <code>LOG-07</code>.</li>
+<li>הסרה מעצירת מסלול פעילה (העצירה עוברת ל-<code>skipped</code>).</li>
+<li>אחרי commit: audit <code>CANCEL_DELIVERY</code>.</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>כל סטטוס לא סופי</td><td>cancelled</td><td>משתמש תפעול</td><td>סיבה</td><td>event, audit, עצירה skipped</td></tr>
+<tr><td>delivered / partial</td><td>cancelled</td><td>מנהל</td><td>סיבה + confirm</td><td>ביטול חשבונית, הכנסה הפוכה</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>אירוע, audit, ותיקון כספי במקרה הצורך.</div>
+<div>ממשק</div><div>אותו כפתור ואותו אישור, עם שדה סיבה. למשתמש שאינו מנהל, הכפתור מוסתר כשההזמנה בסטטוס סופי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-20</code> — סיבת ביטול ואירוע. ביטול של הזמנה שנמסרה מותר למנהל בלבד, עם קיזוז.</li>
+<li><code>LOG-07</code> — ביטול חשבונית והכנסה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics order events timeline history"><h3>ציר אירועי הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/logistics/orders/:id/events</code>: כל האירועים של הזמנה, <code>ORDER BY created_at DESC</code>. עכשיו נקרא מהמודאל (<code>LOG-21</code>).</div>
+<div>הרשאות</div><div>משתמש תפעול, או נהג מקושר להזמנה שלו. סינון group (<code>LOG-02</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>ההזמנה באותו group, אחרת 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT על האירועים, עם join לשם המבצע.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><code>event_type</code>: <code>status_change</code>, <code>failed_attempt</code> (כמו היום), ונוספים <code>created, assigned, unassigned, edited, cod_collected, cod_uncollected, cancelled, leave_at_door, tracking_sent, migration</code> (<code>LOG-21</code>).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>מקטע "היסטוריה" במודאל ההזמנה. דף המעקב הציבורי מציג רק אירועי סטטוס עם זמן, בלי שם עובד והערות (<code>LOG-21</code>, <code>LOG-29</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-21</code> — כל שינוי נרשם. הציר מוצג במודאל, ובגרסה מצומצמת בדף המעקב.</li>
+<li><code>LOG-02</code> — סינון group.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">נהגים, צי ומסלולים</h2>
+
+<section class="proc" data-f="logistics drivers crud status active_orders deactivate user link"><h3>ניהול נהגים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_drivers</code> → <code>loadLogisticsDrivers</code>. CRUD: <code>GET/POST /api/logistics/drivers</code>, <code>PATCH/DELETE /api/logistics/drivers/:id</code>.</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_drivers</code>. קריאת הרשימה (לבחירה בשיוך) מותרת גם למשתמש תפעול.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם חובה, כמו היום (<code>'שם חובה'</code>), עכשיו גם בשרת (400).</li>
+<li><code>user_id</code> אופציונלי. אם נשלח, הוא חייב להיות משתמש פעיל של אותו group, שעדיין לא מקושר לנהג אחר. אחרת 409 "המשתמש כבר מקושר לנהג אחר" (<code>LOG-22</code>).</li>
+<li>whitelist ל-PATCH: <code>name, phone, email, vehicle_id, status, is_active, notes</code>, ונוסף <code>user_id</code>. <code>status</code> מתוך הרשימה הסגורה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: נהגי ה-group עם <code>is_active=true</code> כברירת מחדל. <code>?include_inactive=1</code> מחזיר גם לא פעילים, והטאב משתמש בו עם סימון "הוסר". join לשם וסוג הרכב, תת-שאילתה <code>active_orders</code>, ומיון לפי שם (<code>LOG-22</code>).</li>
+<li>POST: <code>INSERT (group_id מהסשן, name, phone, email, vehicle_id, notes, user_id)</code>.</li>
+<li>DELETE: מחיקה רכה, <code>is_active=false</code>, כמו היום.</li>
+<li>מיגרציה חד-פעמית: נהג קיים בלי <code>user_id</code>, ששמו זהה לשם של משתמש צוות יחיד באותו group, מקושר אליו (<code>LOG-22</code> בגרסה המעודכנת).</li>
+</ol></div>
+<div>חישובים</div><div><code>active_orders = COUNT(orders WHERE driver_id=ld.id AND status IN ('assigned','picked_up','in_transit','arrived','failed_attempt'))</code> (<code>LOG-22</code>).</div>
+<div>מכונת מצבים</div><div><code>status</code>: <code>active</code> (ברירת מחדל), <code>on_route</code>, <code>break</code>, <code>offline</code>. נבחר ידנית, כמו היום. <code>is_active</code>: true→false בלחיצה על "הסר". אפשר להחזיר ל-true מתצוגת "הצג מוסרים".</div>
+<div>תופעות לוואי</div><div>audit גנרי.</div>
+<div>ממשק</div><div>כרטיס נהג כמו היום: אות ראשונה, טלפון, רכב ואייקון, badge סטטוס, "📦 N פעיל", חיוג ועריכה. במודאל: שם*, טלפון, אימייל, רכב ברירת מחדל, סטטוס, הערות, ונוסף select "קישור למשתמש צוות" (אופציונלי, עם רמז "נדרש לממשק הנהג"). "הסר" בעריכה. טוגל "הצג מוסרים".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-22</code> — קישור אופציונלי ייחודי למשתמש, מיגרציית קישור לפי שם, ברירת מחדל של פעילים בלבד, ו-active_orders כולל arrived/failed_attempt.</li>
+<li><code>LOG-02</code> — group מהסשן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics driver location gps lat lng live map consent"><h3>עדכון מיקום נהג</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/logistics/drivers/:id/location</code>, body <code>{lat,lng}</code>. עכשיו נקרא מממשק הנהג כל 60 שניות (<code>LOG-24</code>).</div>
+<div>הרשאות</div><div>הנהג המקושר בלבד, ל-<code>:id</code> של עצמו. אחרת 403.</div>
+<div>קלט ואימותים</div><div><ul><li><code>lat ∈ [-90,90]</code>, <code>lng ∈ [-180,180]</code>. שליחה מותרת רק כשלנהג יש הזמנה ב-<code>picked_up/in_transit/arrived</code>, ורק אחרי שהנהג נתן הסכמה בממשק (נשמר בהגדרת משתמש).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE current_lat, current_lng, location_updated_at=NOW()</code>, כמו היום.</li></ol></div>
+<div>חישובים</div><div>מיקום "חי" במפת המנהל: <code>location_updated_at ≥ NOW() − 10 דקות</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>המיקום מוצג במפת המנהל. בדף המעקב הציבורי הוא מוחזר רק כשההזמנה <code>in_transit</code>/<code>arrived</code> (<code>LOG-29</code>).</div>
+<div>ממשק</div><div>בממשק הנהג: טוגל "שתף מיקום בזמן משלוח", שליחה כל 60 שניות כל עוד יש הזמנה פעילה. בדשבורד המנהל: מפה עם המיקום האחרון של כל נהג שהמיקום שלו חי ("מפה חיה", כמו שהמדריך מתאר).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-24</code> — מימוש שליחת המיקום בהסכמה ומפת מנהל. החשיפה הציבורית מוגבלת.</li>
+<li><code>LOG-02</code> — רק הנהג עצמו, באותו group.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics driver companion employee dashboard driver-orders"><h3>ממשק נהג (Driver Companion)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ב-<code>renderDashboard</code>: עסק <code>business_type==='logistics'</code> עם תפקיד <code>MEMBER/EMPLOYEE/MANAGER/SENIOR</code> → <code>renderLogisticsDriverDashboard</code> בתוך <code>content-role-dashboard</code>, עם רענון כל 60 שניות (כמו היום). ADMIN מקבל את דשבורד המנהל.</div>
+<div>הרשאות</div><div>נהג מקושר. <code>GET /api/logistics/driver-orders?date=</code>: ה-driverId נגזר מהסשן (<code>logistics_drivers.user_id=principal.userId</code>). משתמש תפעול רשאי לשלוח <code>driver_id</code> כדי לצפות בתור של נהג אחר. משתמש אחר ששולח driver_id אחר: 403 (<code>LOG-23</code> בגרסה המעודכנת).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>זיהוי נהג לפי <code>user_id</code> בלבד, בלי התאמת שם (<code>LOG-22</code>). לא נמצא: "לא נמצא פרופיל נהג — פנה למנהל לקישור חשבונך", כמו היום.</li>
+<li><code>date</code> ברירת מחדל: היום לפי שעון ישראל (<code>LOG-19</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>השרת מחזיר את הזמנות הנהג שבהן <code>scheduled_date=date</code> <b>או</b> <code>status IN ('assigned','picked_up','in_transit','arrived','failed_attempt')</code> (נוסף <code>arrived</code>, <code>LOG-23</code>), במיון <code>scheduled_time_window, id</code>.</li>
+<li>חלוקה, כמו היום: פעיל = <code>in_transit</code>/<code>arrived</code>, ואחר כך <code>assigned/picked_up</code>. "לא ענה" = <code>failed_attempt</code>. הושלמו = <code>delivered/partial</code>.</li>
+<li>עדכוני הסטטוס עוברים דרך נתיב הסטטוס, עם הרשאת נהג (רק הזמנות משויכות ומעברי נהג).</li>
+</ol></div>
+<div>חישובים</div><div>כותרת: סה"כ, נמסרו, "COD גבייה" = Σ <code>cod_amount</code> שטרם נגבה (כמו היום).</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>assigned</td><td>picked_up</td><td>נהג ("נאסף")</td><td>הזמנה משויכת אליו</td><td>event, audit</td></tr>
+<tr><td>picked_up</td><td>in_transit</td><td>נהג ("בדרך")</td><td>—</td><td>event, הודעה ללקוח</td></tr>
+<tr><td>in_transit</td><td>arrived</td><td>נהג ("הגעתי")</td><td>—</td><td>event</td></tr>
+<tr><td>arrived</td><td>delivered</td><td>נהג ("נמסר ✓")</td><td>POD לפי הגדרה. אישור אם COD לא נגבה</td><td>חשבונית + הכנסה (פעם אחת)</td></tr>
+<tr><td>in_transit / arrived</td><td>failed_attempt</td><td>נהג (📵)</td><td>—</td><td>מונה +1</td></tr>
+<tr><td>failed_attempt</td><td>in_transit</td><td>נהג ("נסה שוב")</td><td>—</td><td>event, leave_at_door מתאפס</td></tr>
+</tbody></table></div>
+actor_name = <code>currentUser.name||'נהג'</code>, וגם <code>actor_user_id</code> מהסשן.</div>
+<div>תופעות לוואי</div><div>כמו בעדכון הסטטוס. שליחת מיקום לפי <code>LOG-24</code>.</div>
+<div>ממשק</div><div>הכרטיס כמו היום: שם, מספר, סטטוס, כתובת, חלון, badge COD, חיוג, Waze. נוספים: כפתורי גבייה ב-arrived (<code>LOG-17</code>), מסך POD (<code>LOG-16</code>), "נסה שוב" ב-failed_attempt, טוגל שיתוף מיקום, ו-badge "🚪 אישר השארה". הקוד המת <code>_patchRenderDashboard</code> מוסר, והפונקציונליות לא משתנה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-23</code> — driverId מהסשן. הנהג מעדכן רק את שלו. arrived נוסף לרשימה. משתמש תפעול שומר על צפייה מלאה.</li>
+<li><code>LOG-22</code> — זיהוי לפי user_id בלבד, אחרי מיגרציית קישור.</li>
+<li><code>LOG-17</code>, <code>LOG-16</code>, <code>LOG-24</code> — גבייה, POD ומיקום בממשק הנהג.</li>
+<li><code>LOG-19</code> — "היום" לפי שעון ישראל.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics vehicles fleet insurance inspection alert 14 days expired expiring"><h3>ניהול צי רכבים והתראות ביטוח/טסט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_vehicles</code> → <code>loadLogisticsVehicles</code>. CRUD: <code>GET/POST /api/logistics/vehicles</code>, <code>PATCH/DELETE /api/logistics/vehicles/:id</code>.</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_vehicles</code>. קריאת הרשימה (לשיוך) מותרת גם למשתמש תפעול. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם רכב חובה (<code>'שם רכב חובה'</code>), גם בשרת.</li>
+<li>POST: <code>type||'van'</code>, מתוך הרשימה הסגורה. whitelist ל-PATCH: <code>name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, is_active, notes</code>.</li>
+<li>DELETE: מחיקה רכה, <code>is_active=false</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET מחזיר את כל הרכבים, כמו היום. הלקוח מציג רק <code>is_active</code>.</li></ol></div>
+<div>חישובים</div><div>(<code>LOG-25</code>, לפי <code>todayIL()</code>)<ul>
+<li><code>expired</code>: <code>insurance_expires_at &lt; היום</code> או <code>inspection_expires_at &lt; היום</code>.</li>
+<li><code>expiring</code>: לא expired, וגם אחד התאריכים <code>≤ היום+14</code>. <code>days_left = min(תאריך) − היום</code>.</li>
+<li>בשרת: <code>vehicle_alerts = {expired, expiring}</code> לרכבים פעילים.</li>
+</ul></div>
+<div>מכונת מצבים</div><div><code>type</code>: <code>motorcycle, van, truck, bicycle, electric</code>. <code>is_active</code> true→false.</div>
+<div>תופעות לוואי</div><div>רכב expired דורש אישור בשיוך (<code>LOG-14</code>).</div>
+<div>ממשק</div><div>כרטיס: "⛔ פג תוקף" (אדום) או "⚠️ פג בעוד N ימים" (כתום), במקום "⚠️ בקרוב" האחיד. המונה ברשימה סופר רכבים פעילים, כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-25</code> — שתי רמות התראה.</li>
+<li><code>LOG-14</code> — שיוך רכב שתוקפו פג דורש אישור. רכבים לא פעילים לא מוצעים בשיוך.</li>
+<li><code>LOG-19</code> — "היום" לפי שעון ישראל.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics routes stops planned active completed route_date eta skipped"><h3>מסלולי חלוקה ועצירות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_routes</code> → <code>loadLogisticsRoutes</code>. נתיבים: GET מסלולים לתאריך, GET עצירות, POST מסלול, POST עצירה, PATCH סטטוס, DELETE. נוסף DELETE עצירה.</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_routes</code>. group מהסשן. כל עצירה נבדקת דרך המסלול שלה (<code>LOG-02</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם מסלול חובה (<code>'נדרש שם מסלול'</code>), גם בשרת. נהג ורכב, אם נבחרו, חייבים להיות שייכים לעסק.</li>
+<li>עצירה: <code>order_id</code> חובה (<code>'נדרש מזהה הזמנה'</code>). ההזמנה חייבת להיות של העסק, בסטטוס לא סופי, ולא נמצאת בעצירה <code>pending</code> של מסלול אחר שאינו completed. אחרת 400 "ההזמנה כבר משויכת למסלול פעיל" (<code>LOG-26</code>).</li>
+<li>PATCH סטטוס: ערך מתוך <code>planned, active, completed</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET מסלולים: <code>route_date = date||todayIL()</code>, join לנהג ולרכב, <code>stop_count</code>, ונוסף <code>done_count</code>. מיון <code>created_at DESC</code>.</li>
+<li>POST מסלול: <code>INSERT (group_id מהסשן, driver_id, vehicle_id, route_date, name, notes)</code>.</li>
+<li>POST עצירה: <code>stop_order = COALESCE(MAX(stop_order),0)+1</code> בשרת, אלא אם נשלח מפורשות. <code>INSERT (route_id, order_id, stop_order, eta)</code>.</li>
+<li>GET עצירות: join להזמנה, כמו היום.</li>
+<li><b>הפעלה</b> (planned→active), בטרנזקציה: לכל עצירה pending שההזמנה שלה לא סופית מוגדרים <code>driver_id</code>/<code>vehicle_id</code> של המסלול. הזמנות ב-new/confirmed/failed_attempt עוברות ל-<code>assigned</code> (אירוע assigned). השאר שומרות על הסטטוס שלהן (<code>LOG-26</code>).</li>
+<li><b>סיום</b> (active→completed): אם יש עצירות pending, נדרש <code>confirm=true</code> והן מסומנות <code>skipped</code>. בלי האישור מוחזר 409 עם מספר העצירות (<code>LOG-26</code> בגרסה המעודכנת).</li>
+<li>סנכרון עצירה מעדכון ההזמנה: delivered/partial→<code>done</code>, failed_attempt→<code>failed</code>, cancelled→<code>skipped</code>.</li>
+<li>DELETE מסלול: מחיקה קשה, והעצירות נמחקות ב-CASCADE (כמו היום). ההזמנות לא משתנות.</li>
+</ol></div>
+<div>חישובים</div><div><code>stop_order</code> מחושב בשרת (MAX+1). <code>route_date</code> הוא היום לפי שעון ישראל (<code>LOG-19</code>).</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>planned</td><td>משתמש מסלולים</td><td>שם</td><td>—</td></tr>
+<tr><td>planned</td><td>active</td><td>"הפעל"</td><td>—</td><td>שיוך נהג ורכב להזמנות, assigned למה שלא שויך</td></tr>
+<tr><td>active</td><td>completed</td><td>"סיים"</td><td>אישור אם יש pending</td><td>עצירות pending→skipped</td></tr>
+<tr><td colspan="5">עצירה: pending → done / failed / skipped, אוטומטית לפי ההזמנה או בסיום המסלול.</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>שיוך הזמנות בהפעלה, וסנכרון סטטוס עצירות.</div>
+<div>ממשק</div><div>כרטיס מסלול כמו היום: שם, badge, נהג, רכב, "📍 N עצירות", ונוסף "✓ M הושלמו". כפתורים: פרטים, הפעל, סיים, מחק (confirm). בורר התאריך נשלח לשרת ומסנן בפועל. במודאל העצירות, הוספה מתבצעת מתוך רשימת ההזמנות הפתוחות של העסק (חיפוש לפי מספר הזמנה או שם), במקום הקלדת id. השדה ETA נשאר טקסט. הסטטוס של כל עצירה מוצג. "חשב מסלול" מסומן "בקרוב" (<code>LOG-40</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-26</code> — תאריך שעובד, בחירת הזמנה, עצירה פעילה אחת לכל הזמנה, stop_order בשרת, שיוך בהפעלה, סנכרון עצירות, וסיום עם אישור.</li>
+<li><code>LOG-02</code>, <code>LOG-19</code>, <code>LOG-41</code> — שייכות, שעון ישראל, וטרנזקציה בהפעלה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">תמחור</h2>
+
+<section class="proc" data-f="logistics pricing zones base price per km kg min fee calc"><h3>אזורי מחיר (מחירון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_pricing</code> → <code>loadLogisticsPricing</code>. CRUD לאזורים, כמו היום. נוסף <code>POST /api/logistics/pricing/quote</code> לחישוב הצעת מחיר בטופס ההזמנה (<code>LOG-09</code>).</div>
+<div>הרשאות</div><div>ניהול: משתמש עם הטאב <code>logistics_pricing</code>. חישוב quote: משתמש תפעול. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם אזור חובה (<code>'שם אזור חובה'</code>), גם בשרת. ערכים מספריים: <code>parseFloat||0</code>, ≥ 0 (<code>ARC-34</code>).</li>
+<li>POST: ברירות מחדל 0 ל-<code>base_price, price_per_km, price_per_kg, min_fee</code>. whitelist ל-PATCH כולל <code>is_active</code>.</li>
+<li>DELETE: מחיקה קשה, כמו היום. אם האזור מקושר להזמנות, <code>pricing_zone_id</code> בהן מתאפס ל-NULL והמחיר השמור בהן לא משתנה. confirm מסוג danger.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>quote: קלט <code>pricing_zone_id, distance_km, weight_kg, customer_id, flags{express, floor_number, scheduled_time_window}</code>, ופלט <code>{base, surcharges[], discount, fee}</code>.</li></ol></div>
+<div>חישובים</div><div><code>base = max(min_fee, base_price + price_per_km×distance_km + price_per_kg×weight_kg)</code>. תוספות כרטיסי תעריף והנחת לקוח מחושבות כמו בתהליך "יצירת הזמנת משלוח". עיגול ל-2 ספרות.</div>
+<div>מכונת מצבים</div><div><code>is_active</code> true↔false.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>הטבלה כמו היום: אזור, בסיס ₪, ₪/ק"מ, ₪/ק"ג, מינימום. מוצגים רק אזורים פעילים, ונוסף טוגל "הצג לא פעילים". המונה סופר עכשיו את מה שמוצג. מקטע כרטיסי התעריף נמצא באותו טאב (<code>LOG-10</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-09</code> — המחירון משפיע בפועל על הצעת המחיר בהזמנה, עם אפשרות לדרוס.</li>
+<li><code>LOG-02</code> — group מהסשן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics rate cards surcharge rules express floor"><h3>כרטיסי תעריף (חוקי תוספות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נתיבים: GET (פעילים), POST, PATCH, ו-DELETE רך. עכשיו יש גם ממשק: מקטע "כרטיסי תעריף" בטאב <code>logistics_pricing</code> (<code>LOG-10</code>).</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_pricing</code>. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>name</code> ו-<code>rule_type</code> חובה (400 בשרת, ו-NOT NULL ב-DB). <code>rule_type ∈ {express, floor, weight_over, zone, time_window}</code>.</li>
+<li>POST: <code>surcharge_amount||0</code>, <code>surcharge_pct||0</code>, שניהם ≥ 0.</li>
+<li>whitelist ל-PATCH: <code>name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes, is_active</code>. גוף בלי שדות לעדכון: 400 <code>'אין שדות לעדכון'</code> (<code>LOG-10</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>CRUD רגיל עם <code>AND group_id</code>.</li></ol></div>
+<div>חישובים</div><div>תנאי ההחלה בחישוב המחיר (<code>LOG-09</code>): <code>express</code> → ההזמנה מסומנת אקספרס (נשמר ב-<code>express_surcharge</code>). <code>floor</code> → <code>floor_number ≥ condition_value</code> (נשמר ב-<code>floor_surcharge</code>). <code>weight_over</code> → <code>weight_kg &gt; condition_value</code>. <code>zone</code> → <code>pricing_zone_id = condition_value</code>. <code>time_window</code> → <code>scheduled_time_window</code> מכיל <code>condition_value</code>.</div>
+<div>מכונת מצבים</div><div><code>is_active</code> true→false (מחיקה רכה).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>טבלת כרטיסים, ומודאל עם שם, סוג חוק (select), ערך תנאי, תוספת ₪, תוספת % והערות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-10</code> — PATCH ריק מחזיר 400, ונוסף ממשק עם רשימת סוגים סגורה.</li>
+<li><code>LOG-09</code> — החוקים מוחלים בחישוב המחיר.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">גבייה (COD)</h2>
+
+<section class="proc" data-f="logistics cod daily summary driver close day session deposit variance reopen"><h3>סיכום COD יומי לפי נהג וסגירת יום</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_cod</code> → <code>loadLogisticsCOD</code> → <code>GET /api/logistics/cod?date=היום</code>. "סגור יום" → <code>_logisticsCloseCOD</code> → <code>POST /api/logistics/cod/close</code>. נוסף <code>POST /api/logistics/cod/reopen</code>.</div>
+<div>הרשאות</div><div>צפייה וסגירה: משתמש עם הטאב <code>logistics_cod</code>. פתיחה מחדש: ADMIN בלבד (<code>LOG-18</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>date</code> ברירת מחדל: היום לפי Asia/Jerusalem, בלקוח ובשרת (<code>LOG-19</code>).</li>
+<li>סגירה: <code>driver_id</code> של העסק. <code>deposited_amount ≥ 0</code> מגיע מה-prompt "סכום שהופקד ₪" (ביטול יוצא מהפעולה, כמו היום). אם כבר קיימת סגירה ל-(group, driver, cod_date): 409 "היום כבר נסגר לנהג זה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: לכל נהג פעיל, מחושבים המדדים הבאים, וגם סטטוס הסגירה של היום (אם נסגר: הסכום שהופקד וההפרש).</li>
+<li>Close, בטרנזקציה: חישוב <code>expected_amount</code> (מסונן לפי group), ואז <code>INSERT logistics_cod_sessions(group_id, driver_id, cod_date, expected_amount, deposited_amount, variance, status 'closed')</code>. ה-UNIQUE מונע כפילות.</li>
+<li>אם <code>variance ≠ 0</code>: התראה למנהל "אי-התאמה בהפקדת COD — נהג X: ₪variance" (<code>ARC-16</code>).</li>
+<li>Reopen: <code>status='open'</code>, <code>reopened_by</code> ו-audit. אחרי פתיחה, סגירה חוזרת מעדכנת את אותה שורה.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>total_orders</code> = מספר ההזמנות עם <code>cod_amount&gt;0</code> ו-<code>scheduled_date=date</code> (כמו היום).</li>
+<li><code>total_due</code> ("לגבות") = Σ <code>cod_amount</code> (&gt;0) לפי <code>scheduled_date=date</code> (כמו היום).</li>
+<li><code>expected_cash</code> ("נגבה") = Σ <code>cod_amount</code> של הזמנות הנהג שבהן <code>cod_collected</code> ו-<code>toILDate(cod_collected_at)=date</code> (<code>LOG-18</code>).</li>
+<li><code>to_deposit</code> ("להפקדה") = <code>expected_cash</code> − סכום שכבר הופקד בסגירה של אותו יום.</li>
+<li><code>uncollected</code> ("לא נגבה — חוב לקוח") = Σ <code>cod_amount</code> &gt;0, לא נגבה, <code>status IN ('delivered','partial')</code>. זה המדד שנקרא היום "להפקדה", ועכשיו הוא מוצג בנפרד בשם הנכון.</li>
+<li><code>variance = deposited_amount − expected_amount</code>.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>closed</td><td>משתמש COD</td><td>לא קיימת סגירה ליום</td><td>expected, deposited, variance. התראה אם variance≠0</td></tr>
+<tr><td>closed</td><td>open</td><td>ADMIN</td><td>—</td><td>audit. ביטול סימון גבייה מתאפשר</td></tr>
+<tr><td>open</td><td>closed</td><td>משתמש COD</td><td>—</td><td>עדכון השורה</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>שורת session, התראת אי-התאמה ו-audit ייעודי (<code>LOG-04</code>). אין תנועה כספית, כמו היום.</div>
+<div>ממשק</div><div>כרטיס לכל נהג: "לגבות", "נגבה", "להפקדה" (כתום אם &gt;0), ונוסף "לא נגבה (חוב)". אחרי סגירה מוצגים badge "נסגר", הסכום שהופקד וההפרש (אדום אם ≠0). כפתור "פתח מחדש" מוצג ל-ADMIN. הסיכום העליון: Σ נגבה, Σ להפקדה, Σ חוב.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-18</code> — UNIQUE לכל נהג ויום, יום לפי מועד הגבייה, "להפקדה" מחושב נכון, החוב מוצג בנפרד, variance עם התראה, ופתיחה מחדש ל-ADMIN.</li>
+<li><code>LOG-19</code> — יום לפי שעון ישראל.</li>
+<li><code>LOG-02</code>, <code>LOG-41</code> — סינון group וטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">הצעות מחיר (RFQ)</h2>
+
+<section class="proc" data-f="logistics rfq quote request messages deposit status convert order customer link"><h3>בקשות הצעת מחיר (RFQ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_rfq</code> → <code>loadLogisticsRFQ</code>. נתיבי BIZ: GET, POST, PATCH message, PATCH quote, PATCH status. נוספו נתיבים ציבוריים ללקוח לפי <code>public_token</code>: <code>GET /api/logistics/rfq-public/:token</code>, <code>POST .../message</code>, <code>POST .../accept</code>, <code>POST .../reject</code> (<code>LOG-27</code>). יצירה גם מהחנות הציבורית (<code>LOG-32</code>).</div>
+<div>הרשאות</div><div>BIZ: משתמש עם הטאב <code>logistics_rfq</code>. group מהסשן. ציבורי: בעל הטוקן, עם rate limit של 30 בקשות לדקה ל-IP (<code>ARC-29</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם חובה (<code>'שם חובה'</code>), גם בשרת. הצעת מחיר: <code>quote_amount &gt; 0</code>, ו-<code>deposit_amount</code> בין 0 ל-quote.</li>
+<li>GET: סינון <code>status</code> אופציונלי (מתעלם מ-<code>all</code>), <code>LIMIT 100</code>, <code>created_at DESC</code>, כמו היום.</li>
+<li>message: 404 <code>'not found'</code> אם אין RFQ. טקסט לא ריק, עד 2000 תווים.</li>
+<li>status: ערך מתוך <code>new, quoted, accepted, rejected, completed</code>. אחרת 400 (<code>LOG-27</code> בגרסה המעודכנת).</li>
+<li>ציבורי accept/reject: מותר רק כש-<code>status='quoted'</code>. אחרת 409.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>יצירה: <code>INSERT (group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date, customer_id, weight_kg, urgent, public_token=randomBytes(24))</code>.</li>
+<li>הודעה: append אטומי, <code>messages = messages || jsonb_build_array({from, text, at})</code>, במקום read-modify-write. <code>from='biz'</code> מ-BIZ, <code>from='customer'</code> מהנתיב הציבורי (<code>LOG-27</code>).</li>
+<li>הצעה: <code>UPDATE quote_amount, deposit_amount||0, status='quoted'</code> (כמו היום). אחרי commit נשלח ללקוח קישור ציבורי <code>/rfq/&lt;token&gt;</code> ב-SMS/WhatsApp, אם יש טלפון (<code>ARC-16</code>).</li>
+<li>מעבר ל-<code>accepted</code> (מהמנהל או מהלקוח), בטרנזקציה: אם עדיין אין הזמנה עם <code>rfq_id</code>, נוצרת <code>logistics_orders</code> בסטטוס <code>confirmed</code> עם <code>rfq_id</code>, <code>customer_id</code>, שם וטלפון, הכתובות, <code>scheduled_date=preferred_date</code>, <code>delivery_fee=quote_amount</code>, מספור לפי <code>LOG-05</code>, ואירוע created. מעבר חוזר ל-accepted לא יוצר הזמנה נוספת.</li>
+<li>סטטוס: <code>UPDATE status</code> לכל ערך קנוני, כמו היום. אין מחיקה של הזמנה שכבר נוצרה.</li>
+</ol></div>
+<div>חישובים</div><div>אין. <code>deposit_paid</code> מסומן ידנית על ידי המנהל ("סמן מקדמה שולמה").</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>new</td><td>מנהל / חנות ציבורית</td><td>שם</td><td>התראה לעסק (מהחנות)</td></tr>
+<tr><td>כל</td><td>quoted</td><td>מנהל ("קבע מחיר")</td><td>quote&gt;0</td><td>quote_amount, deposit_amount, קישור ללקוח</td></tr>
+<tr><td>quoted</td><td>accepted / rejected</td><td>לקוח (קישור ציבורי)</td><td>—</td><td>accepted: יצירת הזמנה confirmed (פעם אחת). התראה לעסק</td></tr>
+<tr><td>כל</td><td>new / quoted / accepted / completed / rejected</td><td>מנהל (select במודאל, כמו היום)</td><td>ערך קנוני</td><td>accepted: יצירת הזמנה אם עדיין אין</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>הזמנה חדשה ב-accepted, הודעות ללקוח ולעסק, ו-audit.</div>
+<div>ממשק</div><div>הצ'אט כמו היום: הודעות <code>from==='biz'</code> בצד ימין באפור, הודעות לקוח בכתום (עכשיו קיימות בפועל). כל הטקסטים עוברים <code>esc()</code> (<code>LOG-28</code>). פתיחת פרטים קוראת את ה-RFQ לפי id ולא טוענת את כל הרשימה. אחרי accepted מוצג קישור "פתח הזמנה #LOG-…". דף ציבורי <code>/rfq/:token</code>: פרטי הבקשה, המחיר והמקדמה, אשר/דחה, וצ'אט. עמודות הקנבן <code>pending_quote/quote_sent</code> נשמרות כסטטוסי הזמנה ידניים, כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-27</code> — רשימת סטטוסים סגורה (המנהל עדיין בוחר כל ערך), המרה להזמנה פעם אחת, ערוץ לקוח ציבורי, ו-append אטומי.</li>
+<li><code>LOG-28</code> — escape.</li>
+<li><code>LOG-32</code> — יצירה מהחנות.</li>
+<li><code>LOG-02</code> — group מהסשן.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">מעקב ציבורי</h2>
+
+<section class="proc" data-f="logistics tracking token create link copy send sms whatsapp"><h3>יצירת לינק מעקב</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) אוטומטית ביצירת הזמנה (<code>LOG-30</code>). (ב) ידנית: "🔗 צור לינק מעקב" במודאל או בטאב <code>logistics_tracking</code> → <code>POST /api/logistics/orders/:id/tracking-token</code>, כמו היום. (ג) נוסף "📤 שלח לינק" → <code>POST /api/logistics/orders/:id/tracking-send</code>.</div>
+<div>הרשאות</div><div>משתמש תפעול או משתמש עם הטאב <code>logistics_tracking</code>. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>ההזמנה באותו group, אחרת 404. שליחה דורשת <code>customer_phone</code>, אחרת 400 "אין טלפון ללקוח".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אם יש להזמנה <code>tracking_token</code>, מוחזר הקיים (אידמפוטנטי, כמו היום).</li>
+<li>אחרת: <code>crypto.randomBytes(24).toString('hex')</code> (48 תווי hex) ו-<code>UPDATE tracking_token</code>.</li>
+<li>שליחה אוטומטית: במעבר הראשון ל-<code>assigned</code>, אם <code>auto_send_tracking=true</code> (ברירת מחדל) ויש טלפון, נשלחת הודעת SMS/WhatsApp עם <code>origin/track/&lt;token&gt;</code> דרך שירות ההתראות (<code>ARC-16</code>). אחר כך נרשם אירוע <code>tracking_sent</code>. בשליחה ידנית: אותה פעולה, ללא תנאי.</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין. תפוגת הטוקן מוגדרת בדף המעקב.</div>
+<div>תופעות לוואי</div><div>הודעה ללקוח ואירוע.</div>
+<div>ממשק</div><div>הטאב כמו היום: כל ההזמנות (המונה "פעילים" = לא delivered/cancelled/returned), הנתיב <code>/track/&lt;token&gt;</code>, העתקה ל-clipboard (ואם לא אפשרי, טוסט עם ה-URL), ופתיחה בלשונית חדשה. נוספו כפתור "שלח לינק" וכפתור wa.me. הטקסט "יישלח ללקוח" נכון עכשיו. אחרי יצירה מהמודאל, המודאל מתרענן ומציג את הלינק. בהגדרות העסק יש טוגל "שליחת לינק מעקב אוטומטית".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-30</code> — טוקן אוטומטי, שליחה ב-assigned או בלחיצה, ורענון המודאל.</li>
+<li><code>LOG-02</code> — סינון group.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics public track page token leave at door polling expiry privacy rate limit"><h3>דף מעקב ציבורי ואישור "השארה בדלת"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח קצה פותח <code>/track/:token</code>, והשרת מגיש <code>public/track.html</code>. הדף קורא ל-<code>GET /api/logistics/track/:token</code> ומתרענן כל 30 שניות (כמו היום).</div>
+<div>הרשאות</div><div>ציבורי, בעל הטוקן. Rate limit של 60 בקשות לדקה ל-IP (<code>LOG-29</code>, <code>ARC-29</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן לא קיים: 404 <code>'לא נמצא'</code> (כמו היום).</li>
+<li>טוקן של הזמנה בסטטוס <code>delivered/cancelled/returned</code> שעודכנה לפני יותר מ-7 ימים: 410. הדף מציג "הלינק אינו תקין או שפג תוקפו" (הטקסט כבר קיים ב-track.html:39) (<code>LOG-29</code>).</li>
+<li>leave-at-door: טוקן לא קיים: 404. סטטוס שאינו <code>failed_attempt</code>: 409 "אפשרי רק אחרי ניסיון מסירה" (<code>LOG-29</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT של רשימת שדות מפורשת (<code>ARC-32</code>): <code>order_number, status, delivery_address, scheduled_date, scheduled_time_window, delivered_at, failed_attempts_count, max_delivery_attempts, leave_at_door</code>, שם פרטי של הנהג, <code>driver_phone</code> (רק בסטטוסים assigned/picked_up/in_transit/arrived/failed_attempt), <code>current_lat/lng</code> (רק ב-in_transit/arrived ורק אם המיקום חי, <code>LOG-24</code>), אירועי סטטוס עם זמן (<code>LOG-21</code>), ו-<code>pod_photo_url</code> אחרי מסירה (<code>LOG-16</code>). <code>customer_name</code>, <code>pickup_address</code> ו-<code>id</code> לא מוחזרים (<code>LOG-29</code> בגרסה המעודכנת).</li>
+<li><code>UPDATE tracking_last_seen=NOW()</code> בכל צפייה (כמו היום).</li>
+<li>אישור דלת, בטרנזקציה: <code>UPDATE leave_at_door=true, updated_at=NOW()</code> ו-<code>INSERT event('leave_at_door')</code>. אחרי commit: התראה לנהג המשויך (<code>ARC-16</code>).</li>
+<li>איפוס: <code>leave_at_door=false</code> כשההזמנה חוזרת ל-assigned או in_transit (בתהליך עדכון הסטטוס).</li>
+</ol></div>
+<div>חישובים</div><div>תפוגה: <code>status ∈ סופי-מסירה AND updated_at &lt; NOW() − 7 days</code>. "ניסיון N מתוך {max_delivery_attempts}".</div>
+<div>מכונת מצבים</div><div>הדף ממפה את כל 13 הסטטוסים הקנוניים לתווית, אייקון וצבע (כמו היום). ציר הזמן מבוסס על אירועי הסטטוס עם הזמן שלהם. כשאין אירועים (הזמנות ישנות), הדף חוזר ל-<code>FLOW_ORDER</code> הסטטי של היום. leave_at_door: false→true (לקוח, ב-failed_attempt) ו-true→false (חזרה ל-assigned/in_transit).</div>
+<div>תופעות לוואי</div><div>אירוע והתראה לנהג. כרטיס הקנבן מציג "🚪 אישר השארה", כמו היום.</div>
+<div>ממשק</div><div>כמו היום: כתובת מסירה, חלון זמן, שליח וטלפון (בסטטוסים שהוגדרו), אזהרה "לא הצלחנו להגיע", "ניסיון N מתוך M", וכפתור "✅ אשר השארה בדלת" כש-<code>status==='failed_attempt'</code>. נוספו מפה קטנה עם מיקום השליח כשהוא בדרך, תמונת POD אחרי מסירה, וציר זמן עם שעות. אחרי האישור מוצגת הודעת תודה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-29</code> — מזעור שדות (טלפון הנהג נשמר בכל השלבים הפעילים), תפוגה של 7 ימים, ולידציה ואירוע ל-leave-at-door, איפוס, ו-rate limit.</li>
+<li><code>LOG-24</code> — מיקום רק בשלבי הדרך.</li>
+<li><code>LOG-21</code> — ציר זמן מאירועים.</li>
+<li><code>LOG-15</code>, <code>LOG-16</code> — תקרת ניסיונות מהגדרת העסק, ותמונת POD.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics storefront track shipment number search lookup phone"><h3>חיפוש משלוח מחלון החנות הציבורית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>storefront-logistics.html</code> → <code>trackShipment()</code>. אם הקלט הוא טוקן (48 תווי hex), נקרא <code>GET /api/logistics/track/&lt;token&gt;</code>, כמו היום. אם הקלט הוא מספר הזמנה (<code>LOG-…</code>), נקרא <code>GET /api/logistics/track-lookup/:groupId?order_number=&amp;phone_last4=</code> (<code>LOG-31</code>).</div>
+<div>הרשאות</div><div>ציבורי. Rate limit של 10 ניסיונות ל-10 דקות ל-IP בנתיב lookup (<code>ARC-29</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>קלט ריק: פוקוס (כמו היום). מספר הזמנה: נדרשות גם 4 הספרות האחרונות של הטלפון.</li>
+<li>אין התאמה (מספר, group ו-4 ספרות): 404 עם הודעה כללית, בלי לחשוף איזה פרט שגוי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>התאמה מחזירה את אותו מבנה ציבורי של דף המעקב (<code>LOG-29</code>) ואת <code>tracking_url</code>. אם להזמנה אין טוקן, הוא נוצר.</li><li>404 או שגיאה: "מספר המעקב … לא נמצא" (כמו היום). אחרת <code>renderTrackResult</code>.</li></ol></div>
+<div>חישובים</div><div><code>phone_last4</code> מושווה ל-4 הספרות האחרונות של <code>regexp_replace(customer_phone,'\D','','g')</code>.</div>
+<div>מכונת מצבים</div><div>החלון משתמש בתוויות הקנוניות (13 ערכים) מאותו מקור כמו דף המעקב, במקום <code>transit/pending/failed</code> (<code>LOG-31</code>, <code>LOG-06</code>).</div>
+<div>תופעות לוואי</div><div>חיפוש מוצלח מעדכן <code>tracking_last_seen</code> (כמו היום).</div>
+<div>ממשק</div><div>שדה מספר משלוח, ושדה "4 ספרות אחרונות של הטלפון" שמופיע כשהקלט מתחיל ב-LOG. התוצאה מציגה יעד (<code>delivery_address</code>), חלון זמן כ-ETA, וציר אירועים. כל הערכים עוברים <code>esc()</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-31</code> — חיפוש לפי מספר הזמנה ו-4 ספרות, תוויות קנוניות, ושדות שהחלון מצפה להם.</li>
+<li><code>LOG-29</code> — אותו מבנה ציבורי מצומצם.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">לקוחות וחשבוניות</h2>
+
+<section class="proc" data-f="logistics customers b2b private discount store leads upsert dedupe"><h3>לקוחות לוגיסטיקה (מזמינים ונמענים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_customers</code> → <code>loadLogisticsCustomers</code>. CRUD: GET פעילים, POST, PATCH, ו-DELETE רך. יצירה אוטומטית מלידים של החנות (כמו היום) ומהזמנות עם טלפון חדש (<code>LOG-12</code>).</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_customers</code>. חיפוש לקוח לטופס הזמנה מותר גם למשתמש תפעול. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>בלקוח, כמו היום: שם חובה (<code>'שם הוא שדה חובה'</code>). טלפון ואימייל חובה לפי <code>window._customerRequiredFields</code>, עם אותן הודעות.</li>
+<li>שרת: <code>customer_type||'private'</code> מתוך הרשימה. <code>discount_pct||0</code>, בטווח 0–100, אחרת 400 (<code>LOG-33</code>). whitelist ל-PATCH כמו היום, עם <code>updated_at</code>.</li>
+<li>ליד מחנות: רק כש-<code>business_type==='logistics'</code> ויש <code>name</code> (כמו היום). dedupe: טלפון מנורמל (בלי <code>-</code>, רווחים ותווים שאינם ספרות). אם אין טלפון: email (lowercase). אם אין שניהם: שם מדויק + כתובת. כשאין התאמה, הלקוח נוצר (<code>LOG-33</code> בגרסה המעודכנת).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>ליד: <code>INSERT logistics_customers (group_id, name, phone, email, default_address = pickup_address||address, notes = notesParts.join(' | '))</code>, כמו היום. שגיאה נרשמת בלוג (<code>ARC-33</code>).</li>
+<li>מחיקה: <code>is_active=false</code>. הזמנות מקושרות נשארות.</li>
+<li>אחרי טעינה: <code>window._logisticsCustomersCache = rows</code> לחיפוש WEFLOWZ (<code>LOG-33</code>).</li>
+</ol></div>
+<div>חישובים</div><div><code>discount_pct</code> מוחל בהצעת המחיר של הזמנה שמקושרת ללקוח (<code>LOG-09</code>).</div>
+<div>מכונת מצבים</div><div><code>customer_type</code>: <code>private, business, subscription, monthly_billing</code>. <code>is_active</code> true→false.</div>
+<div>תופעות לוואי</div><div>אין, מלבד מה שמתואר למעלה.</div>
+<div>ממשק</div><div>הכרטיס כמו היום (אות, שם, טלפון·אימייל, כתובת, badge, "%X הנחה", הוראות מסירה, עריכה/התקשר/מחק). נוסף "📦 N משלוחים" עם מעבר לקנבן מסונן ללקוח. פאנל "הגדרות שדות חובה" נשמר. כל הערכים עוברים <code>esc()</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-12</code> — קישור הזמנה↔לקוח, יצירה אוטומטית מהזמנה, והסרת oneflow_user_id. בהמשך, מיפוי לישות לקוח מאוחדת לפי <code>ARC-14</code> (טבלת הרחבה).</li>
+<li><code>LOG-33</code> — dedupe משופר שעדיין יוצר לקוח בלי טלפון ואימייל, טווח הנחה, והזנת ה-cache.</li>
+<li><code>LOG-02</code> — group מהסשן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics invoices vat 18 numbering pending sent paid cancelled monthly email"><h3>חשבוניות לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נוצרות אוטומטית במסירה ראשונה (ראו "עדכון סטטוס"). טאב <code>logistics_invoices</code> → <code>loadLogisticsInvoices</code>. נתיבים: GET, PATCH status, DELETE (שמשמעותו עכשיו ביטול). נוספו: <code>POST /api/logistics/invoices/monthly</code> ו-<code>POST /api/logistics/invoices/:id/send</code> (<code>LOG-34</code>). פעולת AI <code>_aiUpdateInvoiceStatus</code> (באישור).</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_invoices</code>. ביטול חשבונית <code>paid</code>: ADMIN בלבד. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>GET: join ל-<code>order_number, delivery_address</code>, <code>created_at DESC</code>, <code>LIMIT 200</code> (כמו היום). נוסף <code>?include_cancelled=1</code>.</li>
+<li>PATCH status, מעברים מותרים: pending→sent, pending/sent→paid, pending/sent/paid→cancelled. מעבר אחר: 400 (<code>LOG-34</code>).</li>
+<li>monthly: <code>customer_id</code> מסוג <code>monthly_billing</code>, <code>month</code> (YYYY-MM). אם אין הזמנות שנמסרו ולא חויבו: 400 "אין משלוחים לחיוב".</li>
+<li>send: הלקוח חייב אימייל (מההזמנה או מהלקוח המקושר). אחרת 400.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>PATCH: <code>UPDATE status</code>. <code>paid</code> → <code>paid_at=NOW()</code>. <code>sent</code> → <code>sent_at=NOW()</code> (כמו היום). <code>logBizAction(..., 'UPDATE_INVOICE_STATUS', ...)</code>, כמו היום, עם המשתמש מהסשן.</li>
+<li>DELETE / ביטול, בטרנזקציה: <code>status='cancelled'</code>, ותנועת הכנסה הפוכה לסכום ההכנסה שנרשמה במסירה (<code>LOG-34</code>, <code>LOG-35</code>). אין מחיקה קשה. audit <code>CANCEL_INVOICE</code>.</li>
+<li>monthly, בטרנזקציה: <code>INSERT logistics_invoices(invoice_type='monthly', customer_id, amount=Σ delivery_fee, vat_rate, vat_amount, total_amount)</code>, ושיוך ההזמנות (טבלת <code>logistics_invoice_items</code>). חשבוניות single פעילות של אותן הזמנות מבוטלות ומוחלפות בחשבונית החודשית, בלי שינוי בהכנסה שכבר נרשמה.</li>
+<li>send: יצירת PDF ושליחת מייל ללקוח, ואז <code>status='sent'</code>, <code>sent_at</code>.</li>
+</ol></div>
+<div>חישובים</div><div>מספור רציף לכל עסק (<code>ARC-22</code>). <code>amount=delivery_fee</code> (או סכום ההזמנות בחודשית). <code>vat_rate</code> לפי <code>calcVat</code>: 18%, ו-0 לעוסק פטור (<code>ARC-21</code>, שמכסה את <code>LOG-08</code>). <code>vat=round2(amount×vat_rate/100)</code>. <code>total=amount+vat</code>. בלקוח, כמו היום: "גבוי" = Σ <code>total_amount</code> של <code>paid</code>. "ממתינות" = מספר <code>pending</code>.</div>
+<div>מכונת מצבים</div><div>
+<div class="tbl-wrap"><table><thead><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr></thead><tbody>
+<tr><td>(אין)</td><td>pending</td><td>מערכת</td><td>מסירה ראשונה (delivered/partial)</td><td>הכנסה נטו ב-transactions</td></tr>
+<tr><td>(אין)</td><td>pending</td><td>משתמש חשבוניות (חודשית)</td><td>לקוח monthly_billing</td><td>ביטול חשבוניות single שהוחלפו</td></tr>
+<tr><td>pending</td><td>sent</td><td>"סמן כנשלח" / "שלח במייל"</td><td>—</td><td>sent_at, audit, מייל</td></tr>
+<tr><td>pending / sent</td><td>paid</td><td>"סמן כשולם" / AI (באישור)</td><td>—</td><td>paid_at, audit. אין תנועה נוספת</td></tr>
+<tr><td>pending / sent</td><td>cancelled</td><td>"מחק"/"בטל" (confirm danger)</td><td>—</td><td>תנועה הפוכה, audit</td></tr>
+<tr><td>paid</td><td>cancelled</td><td>ADMIN</td><td>confirm danger</td><td>תנועה הפוכה, audit</td></tr>
+<tr><td>(כל)</td><td>cancelled</td><td>מערכת</td><td>יציאה מ-delivered (<code>LOG-07</code>)</td><td>תנועה הפוכה</td></tr>
+</tbody></table></div></div>
+<div>תופעות לוואי</div><div>audit, תנועות כספיות (רק ביצירה ובביטול), ומייל. הקשר ה-AI (<code>invoices_all</code>, <code>pending_invoices</code>) נשאר.</div>
+<div>ממשק</div><div>כמו היום: רשימה, "סמן כנשלח", "סמן כשולם", ו"מחק" (שמבטל עכשיו). מבוטלות מוסתרות כברירת מחדל, ויש טוגל "הצג מבוטלות" (<code>LOG-34</code> בגרסה המעודכנת). נוספו "שלח במייל", "צור חשבונית חודשית" (בחירת לקוח וחודש), ועמודת מע"מ % לכל חשבונית.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-34</code> — מכונת מצבים, "מחק" שמבטל (מוסתר כברירת מחדל), חשבונית חודשית ידנית ושליחה במייל.</li>
+<li><code>LOG-35</code> — ההכנסה נשארת במסירה. ביטול מקזז. אין תנועה בתשלום.</li>
+<li><code>LOG-07</code> — חשבונית single אחת לכל הזמנה.</li>
+<li><code>ARC-21</code> (מכסה את <code>LOG-08</code>), <code>ARC-22</code> — מע"מ 18% / פטור, ומספור רציף.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">דשבורד, דוחות, ייצוא ו-AI</h2>
+
+<section class="proc" data-f="logistics admin dashboard kpi revenue cod pending vehicle alerts refresh map"><h3>דשבורד מנהל לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN בעסק לוגיסטיקה → <code>renderLogisticsAdminDashboard</code> → <code>GET /api/logistics/dashboard</code>. רענון כל 30 שניות כל עוד הדשבורד גלוי (כמו היום).</div>
+<div>הרשאות</div><div>ADMIN (כמו היום), עם זכאות לאחד מטאבי <code>logistics_*</code>. group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>אין קלט.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שאילתת KPI אחת על <code>logistics_orders</code> של ה-group, שאילתת נהגים ורכבים, ומיקומי נהגים חיים (<code>LOG-24</code>).</li></ol></div>
+<div>חישובים</div><div>(כל "היום" ו"החודש" לפי Asia/Jerusalem, <code>LOG-19</code>)<ul>
+<li><code>new_orders</code> = status ∈ {new, pending_quote, quote_sent}.</li>
+<li><code>assigned_orders</code> = {confirmed, assigned}.</li>
+<li><code>in_transit</code> = {picked_up, in_transit, arrived}.</li>
+<li><code>delivered_today</code> = delivered/partial עם <code>toILDate(delivered_at)=todayIL()</code>.</li>
+<li><code>no_answer</code> = failed_attempt.</li>
+<li><code>revenue_today</code> / <code>revenue_month</code> = Σ <code>delivery_fee</code> של הזמנות שנמסרו היום / החודש. זו הכנסה תפעולית, כמו היום.</li>
+<li><code>cod_today</code> = Σ <code>cod_amount</code> שבו <code>toILDate(cod_collected_at)=היום</code> (<code>LOG-17</code>).</li>
+<li><code>cod_pending</code> = Σ <code>cod_amount</code> &gt;0, לא נגבה, delivered/partial (כמו היום).</li>
+<li><code>active_drivers</code> = נהגים <code>is_active</code>.</li>
+<li><code>vehicle_alerts</code> = <code>{expired, expiring}</code> (<code>LOG-25</code>).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>6 ה-KPI של היום נשמרים, עם אותם יעדי ניווט: חדשים, נמסרו היום, בדרך, לא ענו (אדום אם &gt;0), הכנסה היום → cashflow, COD ממתין → logistics_cod. נוספו (<code>LOG-37</code>): "ממתינים לאיסוף", "הכנסה החודש", "COD נגבה היום" ו"נהגים פעילים". באנר התראות ל-no_answer ולרכבים, שמפריד בין פג לעומד לפוג. מפת נהגים חיה (<code>LOG-24</code>). הפעולות המהירות נשארות כמו היום. שגיאת טעינה מציגה הודעת שגיאה וכפתור "נסה שוב" במקום אפסים (<code>LOG-37</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-37</code> — כל המדדים מוצגים, והודעת שגיאה במקום אפסים.</li>
+<li><code>LOG-19</code> — שעון ישראל.</li>
+<li><code>LOG-25</code>, <code>LOG-24</code>, <code>LOG-17</code> — התראות רכב בשתי רמות, מפה חיה, ו-COD לפי מועד הגבייה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics reports period today week month year by driver cod avg hours contract"><h3>דוחות לוגיסטיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>logistics_reports</code> → <code>loadLogisticsReports</code> → <code>GET /api/logistics/reports?period=</code>. בנוסף, הדוח הכללי <code>GET /api/reports</code> כולל סעיף לוגיסטיקה (business-app.js:2643–2666), כמו היום.</div>
+<div>הרשאות</div><div>משתמש עם הטאב <code>logistics_reports</code> (בדוח הכללי: הטאב <code>reports</code>). group מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li><code>period ∈ {today, week, month, year}</code>, ברירת מחדל <code>month</code>. ערך אחר: 400 (<code>LOG-36</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח שולח את התקופה הנבחרת (<code>window._logisticsReportPeriod</code>).</li><li>שני הנתיבים מחזירים חוזה תגובה אחד (<code>LOG-36</code>).</li></ol></div>
+<div>חישובים</div><div><ul>
+<li>טווח לפי Asia/Jerusalem (<code>LOG-19</code>): today = היום. week = 7 ימים אחרונים (כמו ה-fallback של היום). month = <code>DATE_TRUNC('month')</code>. year = <code>DATE_TRUNC('year')</code>. הסינון לפי <code>created_at</code> (כמו היום).</li>
+<li><code>total_orders</code>, <code>delivered_orders</code> (delivered+partial), <code>failed_attempt_orders</code> (<code>failed_attempts_count&gt;0</code>), <code>cancelled_orders</code>, <code>revenue</code> (Σ fee של שנמסרו), <code>avg_delivery_hours</code> = ממוצע <code>(delivered_at−created_at)/3600</code>.</li>
+<li><code>by_driver[]</code>: <code>{driver_name, total_orders, delivered_orders, revenue}</code> לנהגים פעילים, במיון delivered DESC.</li>
+<li><code>cod</code>: <code>{collected, pending}</code>.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ה-KPIs של היום: סה"כ, נמסרו (%), הכנסה, COD שנגבה. נוספו "ניסיונות כושלים" ו"זמן מסירה ממוצע (שעות)". טבלת נהגים עם אחוז הצלחה <code>round(a/b×100)</code>, והתראת COD ממתין. בורר התקופה (היום, שבוע, חודש, שנה) עובד בפועל.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-36</code> — חוזה שדות אחיד לשני הנתיבים, period שנשלח ונתמך (כולל today), failed_attempt במקום no_answer, וכל המדדים מוצגים.</li>
+<li><code>LOG-19</code> — שעון ישראל.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics export csv excel orders drivers revenue vehicles"><h3>ייצוא CSV לוגיסטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/biz/export-report?type=…</code> (verifyBiz), מופעל מכפתור "הורד דוח" שנוצר מתג AI <code>[ACTION:EXPORT_EXCEL|logistics-*]</code> → <code>window.downloadBizReport</code>. כמו היום.</div>
+<div>הרשאות</div><div>סשן BIZ, group מהסשן, והרשאת הטאב המתאים: orders/drivers/vehicles, ו-revenue לפי <code>logistics_invoices</code> או <code>cashflow</code> (<code>ARC-06</code>).</div>
+<div>קלט ואימותים</div><div><ul><li><code>type ∈ {logistics-orders, logistics-drivers, logistics-revenue, logistics-vehicles}</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT עד 5000 שורות, תרגום עברי, והחזרת CSV.</li></ol></div>
+<div>חישובים</div><div><ul>
+<li><code>logistics-orders</code>: מפת הסטטוסים נגזרת מהרשימה הקנונית (13 ערכים). שם הנהג מ-<code>logistics_drivers.name</code> (<code>LOG-42</code>).</li>
+<li><code>logistics-drivers</code>: <code>ld.name</code>, ומפת סטטוס <code>active/on_route/break/offline</code>.</li>
+<li><code>logistics-revenue</code>: status ∈ {delivered, partial}. מפת <code>cod_method</code>: cash=מזומן, credit=אשראי, transfer=העברה, qr=QR/ביט (<code>LOG-42</code>).</li>
+<li><code>logistics-vehicles</code>: מפת סוג רכב (כמו היום).</li>
+<li>שם קובץ: <code>&lt;שם&gt;_לוגיסטיקה_YYYY-MM-DD.csv</code> (תאריך ישראלי).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-42</code> — שם נהג מ-logistics_drivers, תרגום qr, ומפת סטטוסים קנונית.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics ai assistant gemini chat context actions update delivery status confirm"><h3>עוזר AI לוגיסטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>override של <code>window.submitGlobalAI</code> לעסקי לוגיסטיקה → <code>POST /api/biz/chat-assistant</code>, דרך <code>aiGateway</code> (<code>ARC-30</code>).</div>
+<div>הרשאות</div><div>סשן BIZ עם זכאות AI ומכסה (<code>ARC-30</code>). פעולות שהעוזר מציע מתבצעות בהרשאות של המשתמש המחובר, באותם נתיבים ובאותן בדיקות (<code>LOG-38</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>תג <code>UPDATE_DELIVERY_STATUS|id|status|name</code>: <code>status</code> חייב להיות אחד מהערכים הקנוניים <code>assigned, in_transit, delivered, failed_attempt, cancelled</code>. ערך אחר לא מוצג ככפתור (<code>LOG-38</code>). <code>failed_attempt</code> נשלח לנתיב failed-attempt, ו-<code>cancelled</code> לנתיב הביטול (שדורש סיבה).</li>
+<li>כל פעולת שינוי סטטוס מבקשת אישור (<code>_uiConfirm</code>). היום האישור נדרש רק ל-cancelled/failed.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>במקביל, כמו היום: dashboard, orders (עכשיו <code>?limit=200</code> נתמך בשרת), cod (היום), customers, invoices.</li>
+<li>בניית <code>logisticsContext</code>, כמו היום. סיכום ה-COD מחושב מ-<code>Σ drivers[].total_due</code> ו-<code>Σ drivers[].total_collected</code> (<code>LOG-38</code>).</li>
+<li>שרת: Gemini <code>gemini-2.5-flash</code> עם "כללי ברזל" ותגי פעולה (כמו היום). רשימת התגים מעודכנת לסטטוסים הקנוניים.</li>
+<li>פענוח תגים בלקוח: <code>EXPORT_EXCEL</code>, <code>ADD_TASK</code>, <code>OPEN_TAB</code>, <code>UPDATE_DELIVERY_STATUS</code>, <code>CREATE_TASK</code>, <code>CREATE_ALERT_RULE</code> (כמו היום).</li>
+</ol></div>
+<div>חישובים</div><div>כמו היום: <code>successRate = round((delivered+partial) / לא-מבוטלות × 100)</code>. <code>trend_pct = ((month−prev)/prev×100).toFixed(1)</code> או null. ספי ההנחיה ל-AI: הצלחה &lt;85% קריטי, COD ממתין &gt;3 ימים, נהג עם &gt;3 failed ביום, ביטוח/טסט שפג, COD שלא הופקד &gt;2 ימים, SLA &lt;80%, חשבונית pending &gt;7 ימים.</div>
+<div>מכונת מצבים</div><div>הפעולות כפופות למטריצה של "עדכון סטטוס הזמנה" ולהרשאות המשתמש. actor: <code>'AI Assistant'</code>, עם <code>actor_user_id</code> של המשתמש שאישר.</div>
+<div>תופעות לוואי</div><div>צריכת מכסת AI (<code>ARC-30</code>). פעולת סטטוס מפעילה את כל התופעות של הנתיב (אירוע, audit, חשבונית).</div>
+<div>ממשק</div><div>כמו היום. כפתורי פעולה מוצגים רק לתגים חוקיים. כל פעולת סטטוס מבקשת אישור. תשובת ה-AI מוצגת דרך <code>esc()</code> ופורמט מוגבל (<code>ARC-27</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-38</code> — סיכום COD מהשדות האמיתיים, סטטוסים קנוניים בלבד, אישור לכל שינוי סטטוס, ואותו נתיב ואותן בדיקות.</li>
+<li><code>ARC-30</code> — gateway ומכסה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">חנות ציבורית ושילוב WEFLOWZ</h2>
+
+<section class="proc" data-f="storefront logistics shipment request lead login urgent plans coverage rfq order"><h3>חנות ציבורית לוגיסטית — בקשת משלוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מבקר ב-<code>storefront-logistics.html</code> (נבחר כשה-template הוא <code>logistics</code>) ממלא טופס ושולח → <code>submitShipment</code> → <code>POST /api/store/leads/:groupId</code> (כמו היום).</div>
+<div>הרשאות</div><div>לקוח מחובר (sc-auth). אחרת <code>requireLogin</code> עם ההודעה "🔒 כדי לשלוח בקשת משלוח יש להתחבר או להירשם.", והמשך אוטומטי אחרי ההתחברות (כמו היום). השרת מאמת את סשן ה-storefront (<code>ARC-01</code>) ומחיל rate limit (<code>ARC-29</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>groupId לא מספרי או <code>'general'</code>: <code>{success:true}</code> בלי שמירה (כמו היום). חסרים גם שם וגם טלפון: 400 <code>'חסרים פרטים'</code> (כמו היום).</li>
+<li><code>weight</code> ≥ 0, ו-<code>urgent</code> בוליאני. <code>plan_id</code> אופציונלי, ואם נשלח הוא חייב להיות מוצר פעיל של העסק.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>payload כמו היום: <code>type:'shipment_request', name, phone, pickup_address, delivery_address, package_description, weight, urgent, source:'storefront-logistics', timestamp</code>. נוסף <code>plan_id</code> כשהבקשה נשלחת מכרטיס תוכנית.</li>
+<li>השרת בונה notes ("מקור", "תיאור", "איסוף", "מסירה", "דחוף") → <code>upsertStoreCustomer</code>, ויוצר <code>logistics_customers</code> לפי כללי ה-dedupe. כל זה נשמר כמו היום (<code>LOG-33</code>).</li>
+<li>נוסף (<code>LOG-32</code>), בטרנזקציה: אם נשלח <code>plan_id</code> של תוכנית עם מחיר קבוע לכל משלוח (למשל "שליחות בודדת"), נוצרת <code>logistics_orders</code> בסטטוס <code>new</code> עם <code>customer_id</code>, הכתובות, <code>weight_kg</code>, <code>delivery_fee</code> מהתוכנית, הערות, ואירוע created. בכל מקרה אחר נוצר <code>logistics_rfq</code> בסטטוס <code>new</code> עם <code>client_name/phone</code>, הכתובות, התיאור, <code>weight_kg</code>, <code>urgent</code> ו-<code>customer_id</code>.</li>
+<li>אחרי commit: התראה לעסק "בקשת משלוח חדשה מהחנות" (<code>ARC-16</code>).</li>
+</ol></div>
+<div>חישובים</div><div>כמו היום: תוכניות מחיר מ-<code>/api/store/products/:gid</code>. ברירת מחדל: "שליחות בודדת" ₪29 למשלוח, "חבילה חודשית" ₪649 לחודש, "דחופה" ו"עסקי" עם "צרו קשר". סטטיסטיקות ברירת מחדל: 200+, 50+, "90 דק׳". כיסוי ברירת מחדל: 8 ערי אקספרס ו-9 רגילות.</div>
+<div>מכונת מצבים</div><div>RFQ: (אין)→<code>new</code>. הזמנה: (אין)→<code>new</code>.</div>
+<div>תופעות לוואי</div><div>לקוח חנות, לקוח לוגיסטיקה, RFQ או הזמנה, והתראה לעסק.</div>
+<div>ממשק</div><div>כמו היום: כפתור דחוף (toggle), WhatsApp ל-<code>972</code>+מספר בלי ה-0 המוביל, מבצעים (עד 4) וביקורות (עד 6). ביקורות ומבצעים עוברים <code>esc()</code> (<code>LOG-28</code>). אחרי שליחה מוצגת הודעת תודה. אם נוצרה הזמנה, מוצג גם מספר הזמנה ולינק מעקב.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-32</code> — הבקשה יוצרת RFQ, או הזמנה כשנבחרה תוכנית במחיר קבוע, עם התראה לעסק. יצירת הליד והלקוח נשמרת.</li>
+<li><code>LOG-28</code> — escape לביקורות ולמבצעים.</li>
+<li><code>LOG-33</code> — dedupe של לקוח.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="weflowz family business activity logistics orders lookup phone"><h3>פעילות לוגיסטית בכרטיס עסק במשפחה (WEFLOWZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/family/business-activity/:familyGroupId/:bizGroupId</code> (verifyFamily). לעסק לוגיסטיקה מוחזר <code>activity.logisticsOrders</code>.</div>
+<div>הרשאות</div><div>סשן family. familyGroupId חייב להתאים ל-<code>req.familyAuth.groupId</code>, אחרת 403 <code>'אין הרשאה'</code> (כמו היום). בהמשך groupId מהסשן (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul><li><code>bizGroupId</code> חייב להיות עסק לוגיסטיקה קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>SELECT order_number, status, scheduled_date, tracking_token FROM logistics_orders WHERE group_id=:bizGroupId AND (regexp_replace(customer_phone,'\D','','g') IN (טלפוני בני המשפחה המנורמלים) OR customer_id IN (לקוחות שמקושרים למשפחה)) ORDER BY created_at DESC LIMIT 20</code> (<code>LOG-39</code>).</li><li>שגיאת שאילתה נרשמת בלוג, ולא נבלעת בשקט (<code>ARC-33</code>).</li></ol></div>
+<div>חישובים</div><div>נרמול טלפון: ספרות בלבד, וקידומת 972 מומרת ל-0.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כרטיס העסק במשפחה מציג עד 20 משלוחים עם מספר, סטטוס (תווית קנונית), תאריך, ולינק "עקוב" ל-<code>/track/&lt;token&gt;</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-39</code> — שאילתה על העמודות האמיתיות, התאמה לפי טלפון מנורמל או לקוח מקושר, ולינק מעקב.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="logistics navigation tabs modules business type onboarding guide help"><h3>ניווט, מודולים והדרכה בצד הלקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>סוג עסק <code>logistics</code> עם המודולים <code>feed, logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, logistics_rfq, logistics_routes, logistics_tracking, logistics_reports, logistics_customers, logistics_invoices, members, timeclock, cashflow, tasks, biz-ads, reports</code>, כמו היום. הרשימה מגיעה עכשיו מקטלוג השרת (<code>ARC-18</code>, <code>LOG-03</code>).</div>
+<div>הרשאות</div><div>הצגת טאב לפי זכאות (<code>tenant_entitlements</code>) והרשאת טאב (<code>ARC-06</code>). השרת אוכף אותן. סוג העסק נבחר רק בויזארד או על ידי SA (<code>ARC-37</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>אין.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>switchTab</code> ממפה כל טאב לפונקציית טעינה (כמו היום).</li><li>שמות הטאבים ב-<code>ALL_TABS</code> (כמו היום). חבילת <code>logistics_all</code> כוללת את <code>logistics_rfq</code> (<code>LOG-03</code>).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>נשמרים: טור האונבורדינג לפי תפקיד ADMIN/MANAGER/EMPLOYEE, המדריך <code>logistics-guide.html</code>, כרטיסי עזרה לכל טאב, המונחים (לקוח = "לקוח B2B", תור = "חלון מסירה"), תפקידי התוסף (field_tech ₪29, delivery ₪19, warehouse ₪19, shift_manager ₪29, branch_manager ₪39), ושירות עצמי <code>ss_storefront, ss_rfq, ss_message</code>. <b>עדכון טקסטים</b> (<code>LOG-40</code> בגרסה המעודכנת): גרירה בקנבן (<code>LOG-13</code>), POD עם צילום וחתימה (<code>LOG-16</code>), מפה חיה (<code>LOG-24</code>), SMS עם לינק מעקב (<code>LOG-30</code>), חישוב מחיר אוטומטי (<code>LOG-09</code>), חשבונית ידנית ושליחה במייל (<code>LOG-34</code>) — הטקסט נשאר ומתואם להתנהגות בפועל, כולל הגדרות העסק (pod_required, auto_send_tracking, max_delivery_attempts). אופטימיזציית מסלול ("חשב מסלול"), אזורים כפוליגונים על מפה, לינקי תשלום ו-Push לאפליקציה מסומנים "בקרוב" וממתינים ב-backlog. <code>logistics-guide.html</code> מתעדכן באותו קומיט עם כל שינוי בפיצ'ר, בדומה לכלל 6 ב-CLAUDE.md.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>LOG-40</code> — מדריך ועזרה מתואמים למציאות. יכולות שלא מומשו מסומנות "בקרוב" ולא נמחקות.</li>
+<li><code>LOG-03</code>, <code>ARC-18</code> — קטלוג מודולים אחד בשרת, ו-logistics_rfq בחבילה.</li>
+</ul></div>
+</div></section>

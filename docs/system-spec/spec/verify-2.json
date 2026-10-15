@@ -1,0 +1,92 @@
+[
+ {
+  "id": 16,
+  "domain": "store",
+  "process": "ניהול לקוחות חנות (store_customers)",
+  "claim": "GET: type=order — לקוחות עם הזמנה status 'new' שלא מהצעה; type=quote — עם הצעה או approved; ברירת מחדל — כולם + account_status + is_ofl_customer (קיים ב-storefront_customers) (server.js:15158-15181)."
+ },
+ {
+  "id": 17,
+  "domain": "store",
+  "process": "טעינת חנות ציבורית (GET /api/storefront/:code)",
+  "claim": "לקוח: is_active null נחשב פתוח; false → \"החנות סגורה כרגע\" (storefront.html:907-913)."
+ },
+ {
+  "id": 18,
+  "domain": "store",
+  "process": "מחזור חיי הצעת מחיר ושליחה ללקוח",
+  "claim": "WA: prepare-send יוצר confirm_token (24 בתים hex) ומחזיר {APP_URL}/c/q/{id}/{token}; הלקוח פותח wa.me עם טקסט ההצעה ומסמן סטטוס 'sent' (business-app.js:9578-9618)."
+ },
+ {
+  "id": 19,
+  "domain": "store",
+  "process": "תבניות תוספות (Modifier Presets) וויזארד תבניות",
+  "claim": "לקוח: קבוצה חייבת שם ולפחות אפשרות אחת \"מלא שם וגם לפחות אפשרות אחת לפני השמירה\" (28563); בתבנית \"יש להוסיף לפחות קבוצת תוספות אחת עם שם ואפשרות\" (28622); כפילות שם → \"התבנית ... כבר קיימת\" (28546)."
+ },
+ {
+  "id": 20,
+  "domain": "store",
+  "process": "מחזור חיי הצעת מחיר ושליחה ללקוח",
+  "claim": "link-only: מעדכן family_group_id רק אם ריק/זהה; אם קישור פעיל — linkStatus 'active'; אחרת UPSERT pending + התראת \"בקשת שיוך חדשה\" (server.js:15011-15043)."
+ },
+ {
+  "id": 21,
+  "domain": "restaurant",
+  "process": "ייבוא Excel \"חכם\" (EXCEL_BIZ_TYPES) לאשף ההקמה / לקטלוג",
+  "claim": "EXCEL_BIZ_TYPES (20101): restaurant 🍽️ [ראשונות, עיקריות, קינוחים, שתיה, תוספות, רטבים]; shop 🛍️; service 🔧. סוגי שורה EXCEL_ROW_TYPES: פריט, תוספת, רוטב, ירק, שתיה, נלווה, אחר."
+ },
+ {
+  "id": 22,
+  "domain": "restaurant",
+  "process": "תבנית תפריט — יצירה, עריכה, מחיקה רכה",
+  "claim": "POST (server.js:42138): שם חובה \"שם התבנית נדרש\"; min/max_guests ≥1 ו-max≥min; base_price_per_person ≥0; pricing_mode ∈ {per_person, per_item} אחרת per_person."
+ },
+ {
+  "id": 23,
+  "domain": "restaurant",
+  "process": "תבנית תפריט — יצירה, עריכה, מחיקה רכה",
+  "claim": "כל ה-endpoints: verifyBizOrLegacy + requireModule('menu_templates'); req.bizAuth.groupId חסר → 401 \"נדרש token\". requireModule: legacy או עסק ללא managed_modules → מותר; אחרת 403 \"גישה למודול זה אינה כלולה בחבילה שלך\" (server.js:43126)."
+ },
+ {
+  "id": 24,
+  "domain": "restaurant",
+  "process": "מצב שולחנות (Grid) וסנכרון בין מכשירים",
+  "claim": "Polling: startTablePolling כל 4000ms (business-app.js:39945) קורא GET states + GET bills; אם ה-JSON זהה לאחרון — מדלג; אחרת מיזוג Object.assign(local, server) (השרת גובר) ורינדור מחדש של .table-grid-card (business-app.js:39917)."
+ },
+ {
+  "id": 25,
+  "domain": "restaurant",
+  "process": "שיוך מלצרים לשולחנות (משמרת יומית)",
+  "claim": "רשימת המלצרים: חברי צוות שאינם ADMIN ו-employee_role_type==='waiter' או ללא תפקיד (business-app.js:41382)."
+ },
+ {
+  "id": 26,
+  "domain": "sport",
+  "process": "עוזר AI עסקי לספורט, פעולות AI, כתיבת הודעה ותובנות",
+  "claim": "התשובה נסרקת לתגיות: EXPORT_EXCEL, ADD_TASK, OPEN_TAB, FREEZE_MEMBER|id|סיבה, UNFREEZE_MEMBER|id|שם, CHECKIN_MEMBER|id|שם, REGISTER_CLASS|class|member|שם, CREATE_TASK, CREATE_ALERT_RULE, וכל אחת הופכת לכפתור שמבצע את הנתיב המקביל (business-app.js:46605–46671, 57388–57446)."
+ },
+ {
+  "id": 27,
+  "domain": "sport",
+  "process": "ניהול סוגי מנויים (sport_membership_types)",
+  "claim": "GET /membership-types/:groupId — כל הסוגים (כולל לא פעילים/לא ציבוריים) ממוינים לפי מחיר עולה (server.js:29258)."
+ },
+ {
+  "id": 28,
+  "domain": "sport",
+  "process": "הוספת חבר חדש (BIZ)",
+  "claim": "אם paymentAmount > 0: INSERT sport_payments (payment_method||'cash', notes='הצטרפות מנוי חדש') ואז logBizIncome עם תיאור \"הצטרפות מנוי חדש — שם\" (server.js:29367–29371)."
+ },
+ {
+  "id": 29,
+  "domain": "sport",
+  "process": "בקרת גישה, בעלות ומבנה כללי של מודול הספורט",
+  "claim": "מודולי BIZ לסוג ספורט: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports'] (business-app.js:37536). מסכי הספורט עצמם אינם טאבים אלא מודאל #sport-modal בתוך content-feed (_ensureSportModal, business-app.js:45591)."
+ },
+ {
+  "id": 30,
+  "domain": "sport",
+  "process": "הגדרות ספורט בחנות (store_settings.sport_settings)",
+  "claim": "POST /api/sport/store-settings ← UPSERT store_settings(group_id, sport_settings) — החלפה מלאה של ה-JSON (server.js:29299–29303)."
+ }
+]

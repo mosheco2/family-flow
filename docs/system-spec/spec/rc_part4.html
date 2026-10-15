@@ -1,0 +1,120 @@
+<h2 class="grp">באנרים בתשלום (Banner Ads, FLOW + מזומן)</h2>
+
+<section class="proc" data-f="banner slots pricing communities location_key sa seed"><h3>הגדרת שטחי פרסום ומחירון</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מנהל שטחים: <code>sa-app.js:loadBannerSlotsPanel</code> (10454), <code>saveBannerSlot</code> (10598).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה (34545): name + location_key חובה ("שם ומיקום חובה").</li><li>pricing (34586): מערך חובה ("pricing must be array").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>זריעה כשאין שטחים (34498): community_top (500 coins / ₪250), storefront_top (300/₪150), community_feed_card (400/₪200); לכל שטח מחירון community_count=0: 7 ימים 100/₪50, 14 → 180/₪90, 30 → 350/₪175, 60 → 600/₪300, 90 → 800/₪400.</li><li>עדכון שטח (34559): כל השדות נדרסים; is_active = <code>!== false</code>.</li><li>שיוך קהילות (34571): DELETE + INSERT ל-banner_slot_communities; מערך ריק = כל הקהילות.</li><li>מחירון: DELETE כל המחירון לשטח + INSERT לפי (duration_days, community_count) — UNIQUE.</li></ol></div>
+<div>חישובים</div><div>מפתח מחיר: (slot, duration_days, community_count). <code>base_price_*</code> בשטח לא משמש בחישוב הזמנה.</div></div></section>
+
+<section class="proc" data-f="banner order business submit coins cash flow_rate payment pending_approval"><h3>הזמנת באנר ע"י עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "פרסום" בעסק: <code>business-app.js:renderBizAdsTab</code> (57827), <code>_loadBizAdSlots</code> (57847) → <code>GET /api/biz/banner/slots?communityId</code> (34823); מחשבון <code>bizAdsCalc</code> (57874); שליחה <code>submitBizAdOrder</code> (57979) → <code>POST /api/biz/banner/orders</code> (34865, <code>verifyBiz, verifyBizAdminOnly</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>slot_id + duration_days חובה ("שדות חסרים").</li><li>מחירון: התאמה מדויקת ל-community_count = אורך community_ids; אחרת fallback ל-community_count 0/NULL; אין → "מחירון לא נמצא".</li><li>coins_used &gt; יתרת ארנק FLOW העסקי → 400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li></ul></div>
+<div>חישובים</div><div>
+<code>flow_rate = flow_config.flow_to_ils_rate || 100</code> (X מטבעות = ₪10).<br>
+<code>coins_used = max(0, clientCoins)</code>; אם <code>coins_used/flow_rate·10 &gt; total</code> → <code>coins_used = floor(total/10 · flow_rate)</code>.<br>
+<code>cash_amount = max(0, total − coins_used/flow_rate·10)</code> (34897). דוגמה: ₪50, rate 100 → מקסימום 500 מטבעות.<br>
+לקוח מחשב אותו דבר (<code>coinValueIls</code>, <code>maxCoinsCanUse</code>), תצוגת "✅ תשלום מלא במטבעות!" כש-cash=0.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT banner_orders (status DEFAULT <code>pending_approval</code>, start/end NULL, payment_method ברירת מחדל 'mixed'). המטבעות <b>אינם</b> מנוכים בשלב זה.</li></ol></div>
+<div>ממשק</div><div>שטחים ללא שיוך קהילות מציגים את כל הקהילות לבחירה. רשימת הזמנות <code>_loadBizAdOrders</code> → <code>GET /api/biz/banner/orders</code> (34910).</div></div></section>
+
+<section class="proc" data-f="banner order approve sa deduct coins billing record conflict schedule active cancel expired cron"><h3>אישור הזמנת באנר, תזמון, חיוב ותפוגה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA: <code>loadBannerOrders</code> (10650), <code>openBannerScheduleModal</code>/<code>confirmBannerSchedule</code> (10712/10778) → <code>PUT /api/sa/banner/orders/:id/approve</code> (34664, טרנזקציה BEGIN/COMMIT על client ייעודי).</div>
+<div>תנאים ואימותים</div><div><ul><li>הזמנה קיימת ("הזמנה לא נמצאה") ב-pending_approval ("הזמנה לא ממתינה לאישור").</li><li>coins_used&gt;0: יתרה ≥ coins → אחרת ROLLBACK 400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li><li>התנגשות: הזמנה אחרת <b>active</b> באותו slot עם <code>start &lt; newEnd AND end &gt; newStart</code> → 409 "תפוס ע"י: ..." (ללא בדיקת חפיפת קהילות).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ניכוי: UPDATE flow_wallets business −coins; INSERT flow_transactions action_key 'banner_purchase' "רכישת שטח פרסום" reference_id=order.</li><li>start = <code>body.start_date</code> או עכשיו; <code>end = start + duration_days</code> ימים.</li><li>בדיקת התנגשות (אחרי הניכוי — ROLLBACK מחזיר).</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'unpaid', due_date = היום+7).</li><li>COMMIT; מחזיר billing_id.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>עסק admin</td><td>—</td><td>—</td></tr>
+<tr><td>pending_approval</td><td>active</td><td>SA</td><td>approve</td><td>ניכוי מטבעות, billing_record</td></tr>
+<tr><td>*</td><td>cancelled</td><td>SA</td><td><code>PUT .../cancel</code> (34751) — ללא תנאי</td><td>אין החזר מטבעות</td></tr>
+<tr><td>active</td><td>expired</td><td>cron</td><td><code>runBannerCron</code> (21505): <code>end_date &lt; CURRENT_DATE</code>; רץ באתחול וכל 6 שעות</td><td>—</td></tr></table></div>
+עריכת SA (34735): community_ids / slot_id / notes בכל סטטוס.</div>
+<div>תופעות לוואי</div><div>תצוגה: approved-banners (21482) — active, <code>start ≤ today ≤ end</code>, <code>community_ids @&gt; communityId</code>. זמינות <code>GET /api/sa/banner/slots/:id/availability</code> (34627, כולל pending_approval); ציר זמן <code>/api/sa/banner/timeline</code> (34647).</div>
+<div>פערים</div><div>ביטול הזמנה active לא מחזיר מטבעות ולא מבטל billing. כרון מסמן expired רק כש-end_date &lt; היום → הבאנר מוצג גם ביום end_date (start+N), כלומר N+1 ימים. ערכי NUMERIC מגיעים כמחרוזות ומושווים בכפייה (<code>ord.coins_used &gt; 0</code>).</div></div></section>
+
+<section class="proc" data-f="billing records payment confirmation signature paid pending_confirm ledger"><h3>חיוב, אישור תשלום בחתימה דיגיטלית וסימון "שולם"</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק: <code>_loadBizBilling</code> (58057) → <code>GET /api/biz/billing</code> (34924); <code>openBizPaymentConfirm</code>/<code>confirmBizPayment</code> (58090/58098) → <code>POST /api/biz/billing/:id/confirm</code> (34941, admin only). SA: <code>GET /api/sa/billing</code> (34763), <code>PUT /api/sa/billing/:id/paid</code> (34787), יומן לקוח <code>/api/sa/clients/:bizId/ledger</code> (34799).</div>
+<div>תנאים ואימותים</div><div><ul><li>confirm: signature_data חובה ("חתימה דיגיטלית חסרה"); רשומה של העסק ("רשומה לא נמצאה"); לא paid ("כבר מסומן כשולם"); אין אישור קודם ("אישור כבר קיים").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT payment_confirmations (signature_data, ip מ-x-forwarded-for/socket, user_agent).</li><li>UPDATE billing_records.payment_status='pending_confirm'.</li><li>SA paid: payment_status='paid', paid_at=NOW, sa_note.</li></ol></div>
+<div>מכונת מצבים</div><div>billing_records.payment_status: unpaid → pending_confirm (עסק) → paid (SA; גם ישירות מ-unpaid).</div>
+<div>חישובים</div><div>SA totals: total_unpaid = Σ cash_amount של unpaid; paid_this_month = Σ cash_amount של paid בחודש הנוכחי (pending_confirm לא נכלל באף אחד).</div></div></section>
+
+<section class="proc" data-f="legacy system banners settings ad_banner top bottom business family public system-banner"><h3>באנרי מערכת סטטיים (הגדרות SA)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA שומר באנר עליון/תחתון למשפחות ולעסקים: <code>sa-app.js:saveAllBanners</code> (2139) → <code>POST /api/superadmin/banners</code> (9963). תצוגה: <code>GET /api/banners?type=BUSINESS</code> (9024), <code>GET /api/public/system-banner</code> (25235).</div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT ל-system_settings: ad_banner_{text,link,img}_{top,bottom} ו-business_ad_banner_*; אופציונלי global_ai_logo, login_slides, member_welcome_*, member_module_settings, pwa_install_prompt_enabled, smtp_from_*, admin_notification_email.</li><li>/api/banners ממפה למפתחות banner_top_text וכו' (תמונות base64 כפי שהן).</li></ol></div>
+<div>ממשק</div><div><code>app.js:fetchBanners</code>/<code>applyBannersToDOM</code> (243/205), <code>business-app.js</code> (518/470).</div>
+<div>פערים</div><div>BEGIN/COMMIT נשלחים דרך <code>pool.query</code> (9984) — כל שאילתה עשויה לרוץ על חיבור אחר; אין טרנזקציה אמיתית.</div></div></section>
+
+<h2 class="grp">משחקים חיים (טריוויה) וספריית קווסטים</h2>
+
+<section class="proc" data-f="live games create edit questions sponsor images game_code sa"><h3>יצירה ועריכה של משחק טריוויה חי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA: <code>sa-app.js:loadSALiveGames</code> (12062), עורך שאלות <code>_renderLGQuestions</code>/<code>_lgAddQuestion</code>, העלאת לוגו/דמות → <code>POST /api/live-games</code> (38765) / <code>PUT /api/live-games/:id</code> (38800).</div>
+<div>תנאים ואימותים</div><div><ul><li>title חובה ("כותרת חובה"). PUT: id מספרי ("מזהה משחק לא תקין").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>generateGameCode</code> (38757): 6 תווים מ-<code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code>, עד 10 ניסיונות ייחודיות.</li><li>INSERT live_games status 'waiting'; תמונות (data URI) נשמרות בעמודות sponsor_logo/character_image, img_version=1.</li><li>שאלות: INSERT live_game_questions (opts JSON, correct_index, time_seconds ברירת מחדל 20, order_num=אינדקס).</li><li>PUT: דורס title…community_id (כולל is_public, is_hidden); תמונה חדשה → img_version+1; שאלות מוחלפות רק אם נשלח מערך לא ריק.</li></ol></div>
+<div>תופעות לוואי</div><div>תמונות מוגשות <code>/api/live-games/:code/image/logo|char</code> (38997) עם Cache-Control no-store; URL כולל <code>?v=img_version</code>.</div></div></section>
+
+<section class="proc" data-f="live game status waiting active ended disabled next question restart delete visibility"><h3>הפעלת משחק — סטטוסים ושאלות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל בקרה SA: <code>_lgSetStatus</code> (12776), <code>_lgNextQuestion</code> (12788), <code>_lgRestartGame</code> (12136), <code>_lgToggleHidden</code> (12732); polling בקרה כל 2 שניות (<code>_lgControlPoll</code> 12748).</div>
+<div>תנאים ואימותים</div><div><ul><li>status ∈ waiting/active/ended/disabled ("סטטוס לא תקין"). active ללא שאלות → 400 "לא נמצאו שאלות במשחק זה. יש להוסיף שאלות לפני ההתחלה."</li></ul></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>waiting</td><td>SA</td><td>—</td><td>—</td></tr>
+<tr><td>*</td><td>active</td><td>SA</td><td>יש שאלות</td><td>current_question_index=0, ניקוי cache</td></tr>
+<tr><td>active</td><td>ended</td><td>SA / next-question</td><td><code>next ≥ total</code> (38888)</td><td>index=next</td></tr>
+<tr><td>*</td><td>ended / disabled / waiting</td><td>SA</td><td>status</td><td>—</td></tr>
+<tr><td>*</td><td>waiting</td><td>SA</td><td>restart (38911)</td><td>מחיקת תשובות, score=0, index=0</td></tr></table></div>
+is_hidden (PUT 38800 / PATCH visibility 39211) עצמאי — משחק מוסתר חוסם join/state (403 "המשחק אינו זמין").</div>
+<div>תופעות לוואי</div><div>cache מצב 200ms (<code>_lgStateCache</code>, 277) מבוטל בכל שינוי סטטוס/שאלה. מחיקה (38899): תשובות, משתתפים, שאלות, משחק (ללא טרנזקציה).</div></div></section>
+
+<section class="proc" data-f="live game join participant approve waiting room answer score leaderboard state polling notify"><h3>השתתפות שחקן — הצטרפות, אישור, תשובה וניקוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שחקן ב-<code>/game/:code</code> (game.html). כניסה/הרשמה (<code>/api/login</code>, <code>/api/groups</code> עם registrationSource <code>game:CODE</code>), ואז <code>joinAndStart</code> → <code>POST /api/live-games/:code/join</code> (38924). Polling <code>/state?userId</code> כל שנייה (game.html:450, 488).</div>
+<div>תנאים ואימותים</div><div><ul><li>join: משחק קיים; לא hidden; לא disabled/ended ("המשחק הסתיים"). ללא אימות — userId/displayName/groupId מהגוף.</li><li>answer (38947): שאלה שייכת למשחק; כפילות (question+user) → <code>already_answered</code>; answerIndex −1 = timeout (לא נשמר).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>join: INSERT participant approved=false, join_source (inbox/whatsapp/telegram/direct-internal/external/utm/direct לפי referrer, game.html:291); ON CONFLICT (game,user) DO NOTHING; מחזיר approved הנוכחי.</li><li>SA מאשר בחדר המתנה (<code>/waiting-room</code> 39099, <code>/approve</code> 39114 עם participantIds+approved, <code>/approve-all</code> 39127).</li><li>state: חלק אישי (my_approved; עדכון last_seen_at למאושרים) + חלק משותף ב-cache: סטטוס, שאלה נוכחית (ללא correct_index), answered_count, מאושרים, סה"כ שאלות, חסות, notify_sent_at.</li><li>answer נכון: <code>score += round(100 + (max(0, T·1000 − responseTimeMs) / (T·1000)) · 900)</code>, T=time_seconds (ברירת מחדל 20) — טווח 100–1000.</li><li>notify-start (39135): לכל משתתף מאושר עם group_id → alert_notifications (trigger 'live_game') + inbox_messages "⏰ ... עומד להתחיל!"; notify_sent_at=NOW (הלקוח מזהה דרך polling).</li><li>leaderboard (39083, ציבורי): TOP 50 לפי score; <code>?sa=1</code> כולל לא-מאושרים.</li></ol></div>
+<div>פערים</div><div>answer לא בודק סטטוס active, אישור המשתתף, או שזו השאלה הנוכחית; <code>responseTimeMs</code> מהלקוח → ניקוד מקסימלי בשליחת 0. join/answer ללא אימות זהות — התחזות לפי userId. leaderboard ?sa=1 ציבורי וכולל מספרי טלפון.</div></div></section>
+
+<section class="proc" data-f="live game assign groups notification inbox community public family list"><h3>הפצת משחק למשפחות וקהילות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA משייך משחק לקבוצות (<code>_lgAssignVisible</code>/<code>_lgSendInbox</code>) → <code>POST /api/live-games/:id/assign</code> (38701). משפחה רואה משחקים ב-<code>GET /api/community/:id/live-games?groupId</code> (39161) ו-<code>/api/family/live-games/:groupId</code> (38743, ציבורי).</div>
+<div>תנאים ואימותים</div><div><ul><li>assign: groupIds לא ריק ("חסרות קבוצות"); משחק קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל קבוצה: INSERT live_game_assignments ON CONFLICT; alert_notifications (reference_key <code>game:CODE</code>); inbox_messages "הוזמנת למשחק: …"; הודעה ברירת מחדל עם קישור <code>https://weflowz.co.il/game/CODE</code> ופרס.</li><li>רשימת משחקי קהילה: waiting/active, לא מוסתרים; (is_public וקהילה NULL או אחת מקהילות המשפחה — approved + family_groups.community_id) או משויך ישירות; LIMIT 10.</li></ol></div>
+<div>ממשק</div><div><code>app.js:loadCommHomeGames</code> (נקרא מ-fetchCommunityData).</div></div></section>
+
+<section class="proc" data-f="quest library share use rate report hide seed builtin community public kid quests"><h3>ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה משתף קווסט שיצר לילד ולוקח קווסטים מהמאגר: <code>app.js:showQuestShareDialog</code> (17472), <code>openQuestLibrary</code> (17529), <code>useLibQuest</code> (17620). SA: <code>sa-app.js:loadSAQuestLib</code>/<code>saEditQuest</code>/<code>runQuestLibSeed</code> (11357–11651).</div>
+<div>תנאים ואימותים</div><div><ul><li>share (3952): הקווסט קיים עם <code>created_by=userId</code> (מהגוף).</li><li>כל הנתיבים הציבוריים ללא אימות (userId/familyGroupId מהגוף).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>רשימה (3906): visibility public/builtin, או community עם <code>community_id = groupId</code> (פרמטר); לא מוסתר; מסננים subject, ageMin (age_max ≥), ageMax (age_min ≤), search; מיון builtin, featured, ואז rating/popular/newest; LIMIT 100.</li>
+<li>share: INSERT quest_library (age 6–16 קבוע, flw_reward, pass_score, visibility, community_id רק ל-community, tags=subject) + העתקת שאלות; <code>kid_quests.shared_to_library = visibility</code>.</li>
+<li>use (3992): יצירת kid_quests חדש (status 'active', library_source_id) + העתקת שאלות; use_count+1.</li>
+<li>rate (4028): UPSERT דירוג; ממוצע ו-count; <code>is_hidden = avg &lt; 2.5 AND count ≥ 5</code>.</li>
+<li>report (4052): INSERT; ≥3 דיווחים → is_hidden=true.</li>
+<li>SA seed (3893): מוחק builtin ושאלותיהם ומריץ <code>runQuestLibrarySeed</code>; עריכה מלאה (4087) מחליפה שאלות (answer_type 'multiple_choice').</li></ol></div>
+<div>פערים</div><div><code>PATCH /api/sa/quest-library/:id/visibility</code> (4114) <b>ללא verifySA</b>. rate מחשב is_hidden מחדש ועלול לבטל הסתרה שנעשתה בגלל דיווחים/SA. פרמטר <code>groupId</code> משמש כ-community_id.</div></div></section>
+
+<h2 class="grp">אפליקציית חבר (Member) ו-Events Hub</h2>
+
+<section class="proc" data-f="member account create for business link pending approve reject solo password"><h3>יצירת חשבון חבר ע"י עסק ושיוך עסק-חבר</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק (למשל ספורט/שירות) יוצר ללקוח חשבון "חבר WEFLOWZ": <code>POST /api/member/create-for-business</code> (30950). החבר מאשר/דוחה שיוך: <code>POST /api/member/link/:linkId/respond</code> (31016).</div>
+<div>תנאים ואימותים</div><div><ul><li>business_group_id, name, phone חובה ("חסרים שדות חובה"); עסק קיים ("עסק לא נמצא").</li><li>זיהוי חבר קיים <code>_findMemberByIdentifier</code> (30912): קוד בפורמט <code>M\d+</code> → group_code; אחרת טלפון של ADMIN בקבוצה member_type='member'.</li><li>respond: decision ∈ approve/reject.</li><li><b>אין אימות בכלל</b> בשני הנתיבים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה. חדש: INSERT family_groups (name "{name} - WEFLOWZ", group_code <code>'M' + 6 ספרות אחרונות של Date.now()</code>, type FAMILY, member_type 'member', plan 'solo', account_status 'pending_activation', created_by_business_group_id); סיסמה אקראית 8 תווים base36; INSERT users ADMIN active, permissions <code>{"tabs":["feed","members","bank","tasks"]}</code>, must_change_password=true.</li><li>UPSERT member_business_links (status 'pending'; נשאר 'active' אם כבר active), is_active=true.</li><li>COMMIT; מחזיר password (רק לחדש), group_code, link_status.</li><li>approve: status 'active' + alert_notifications לעסק "שיוך אושר ✅". reject: status 'rejected', is_active=false.</li></ol></div>
+<div>מכונת מצבים</div><div>member_business_links.status: pending → active | rejected. family_groups.account_status לחבר חדש: pending_activation.</div>
+<div>תופעות לוואי</div><div>שינוי סטטוס הזמנה אצל עסק מקושר (active) → <code>_sendMemberBizNotif</code> (30937) עם reference_key ייחודי <code>mbiz_order_{id}_{status}</code> (14709).</div>
+<div>פערים</div><div>הסיסמה נשמרת ב-<code>password_hash</code> כטקסט גלוי; <code>solo_temp_password</code> מוכנס NULL כי rawPassword נקבע רק אחרי ה-INSERT (30978–30981). group_code על בסיס זמן עלול להתנגש. ה-INSERT להתראה ב-approve משתמש בעמודות type/title/reference_id — שאינן קיימות ב-alert_notifications (schema: group_id, rule_id, trigger_type, message, is_read, created_at, reference_key) → ההתראה לעסק לעולם לא נשמרת (נבלע ב-catch).</div></div></section>
+
+<section class="proc" data-f="member app modules unlock request locks my-businesses my-orders upgrade sa"><h3>מודולים נעולים לחבר, בקשות פתיחה ותצוגת עסקים/הזמנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>באפליקציית המשפחה כש-<code>member_type==='member'</code> (app.js:1802): <code>applyMemberLocks</code> (13512) נועל כל טאב מלבד <code>feed</code>, <code>myorders</code> ומודולים ב-<code>unlocked_modules</code>; לחיצה → <code>showMemberModuleUpgrade</code> → <code>POST /api/member/request-module</code> (31042).</div>
+<div>שלבי עיבוד</div><div><ol><li>request-module: groupId+moduleKey חובה; הוספה ל-<code>module_requests</code> JSONB (DISTINCT) עם requested_at.</li><li>SA: <code>PATCH /api/sa/groups/:id/modules</code> (31073) — קובע unlocked_modules ומנקה בקשות תואמות; <code>/unlock-module</code> (31093) — פתיחת מודול בודד; <code>/upgrade-member</code> (31063) — member_type family↔member.</li><li><code>GET /api/member/my-businesses/:groupId</code> (31116): קישורים is_active + unlocked_modules.</li><li><code>GET /api/member/my-orders/:biz/:member</code> (31135): רק לקישור active; לפי business_type — sport: מנויים (sport_memberships לפי ref/טלפון); maintenance_repair: service_calls (family_group_id/טלפון/שם); restaurant ואחר: store_orders לפי טלפון/שם (LIMIT 50).</li></ol></div>
+<div>ממשק</div><div>Member Feed: <code>fetchMemberFeedOrders</code>, <code>switchMemberFeedTab</code>, תקלות והצעות מחיר (app.js:13553–13700). אם unlocked_modules משתנה ב-fetchData → applyMemberLocks מחדש (2241).</div>
+<div>פערים</div><div>כל נתיבי <code>/api/member/*</code> ו-<code>PATCH /api/sa/groups/:id/(modules|unlock-module|upgrade-member)</code> ללא middleware אימות. התאמת הזמנות לפי שם לקוח עלולה לחשוף הזמנות של אחרים עם אותו שם.</div></div></section>
+
+<section class="proc" data-f="events hub new event from menu template quote restaurant guests per person"><h3>Events Hub — אירוע חדש מתבנית תפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק מסעדה יוצר הצעת מחיר לאירוע מתבנית תפריט: כפתור "אירוע חדש מתפריט" → <code>business-app.js:openNewEventFromMenuModal</code> (42716) → <code>submitNewEventFromMenu</code> → <code>POST /api/store/quotes/from-template</code> (27001, <code>verifyBiz</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: אין תבניות → הצעה לעבור ל-<code>menu_templates</code>; שם לקוח חובה; חריגה מ-min/max_guests → אישור "מספר הסועדים חורג מטווח התבנית — להמשיך בכל זאת?".</li><li>שרת: templateId + customerName ("חסרים נתוני תבנית/לקוח"); תבנית של העסק ("תבנית לא נמצאה").</li></ul></div>
+<div>חישובים</div><div><code>guests = max(1, guestCount || min_guests || 1)</code>. פריט = <code>custom_price</code> של menu_item, כמות guests אם <code>pricing_mode='per_person'</code> אחרת 1; per_person עם base_price_per_person → שורת "מחיר בסיס לסועד" × guests. <code>total = Σ price × qty</code>. לקוח: הערכה <code>base_price_per_person × guests</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT store_orders status 'quote', is_event=TRUE, event_guest_count, target_datetime=eventDate, menu_template_id, items JSON.</li><li><code>quote_number = 'QT-' + id מרופד ל-6</code>.</li><li>לקוח מרענן פקודות עבודה והצעות מחיר.</li></ol></div>
+<div>ממשק</div><div>הכפתור מוצג רק כש-<code>business_type==='restaurant'</code> (business-app.js:2956), כשאז טאב פקודות העבודה מתויג "אירועים 🥂".</div>
+<div>פערים</div><div>לעסק מסוג <code>events</code> טאב התפריטים מוצג (menuRelevantTypes כולל 'events', 2969) אך כפתור Events Hub לא. פריטים לא זמינים מסוננים (<code>is_available IS NOT FALSE</code>) אך מחיר 0 אם אין custom_price.</div></div></section>
+
+<h2 class="grp">גישה ואימות בסביבת הקהילה</h2>
+
+<section class="proc" data-f="community bootstrap-token family token session auth communityfetch"><h3>הנפקת טוקן משפחה לפיצ'רי קהילה (bootstrap-token)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כל קריאות הקהילה באפליקציית המשפחה עוברות דרך <code>communityFetch</code> (app.js:846) עם <code>Bearer ofl_family_token</code>. אם אין טוקן, <code>ensureFamilyToken</code> (app.js:832) קורא <code>POST /api/community/bootstrap-token</code> (server.js:10721) עם groupId+userId מ-<code>ofl_session</code> ב-localStorage.</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId+userId חובה ("missing params"); המשתמש active בקבוצה מסוג FAMILY → אחרת 403 "אין הרשאה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>createFamilySession(groupId, userId, userAgent[0..100], 'family')</code> → מחזיר token; הלקוח שומר ב-<code>ofl_family_token</code>.</li></ol></div>
+<div>פערים</div><div><b>חמור:</b> אין סיסמה/הוכחת זהות — כל מי שיודע (groupId, userId) מספריים מקבל טוקן סשן משפחה תקף (עוקף את כל בדיקות <code>verifyFamily</code> בתחום הקהילה, הפולים והפיד).</div></div></section>

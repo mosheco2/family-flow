@@ -1,0 +1,1125 @@
+[
+{
+"id": "SA-01",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "תחזוקה",
+"category": "security",
+"severity": "critical",
+"title": "נקודות קצה תחזוקה/דיבאג פתוחות ללא אימות (כולל /setup-db שמוחק את ה-DB)",
+"as_is": "GET /setup-db (server.js:6439) מריץ DROP TABLE ... CASCADE על כל טבלאות הליבה, GET /api/force-upgrade (6391) משנה סכמה ומסיר אילוצים, GET /api/test-email (6360) שולח מייל ומחזיר שגיאות SMTP, ונתיבי /api/debug/* (25782, 25790, 34982-35018) — כולם ללא שום middleware.",
+"proposal": "להסיר מהקוד את /setup-db ו-/api/force-upgrade (מיגרציות רק בסקריפט פריסה). נתיבי debug ו-test-email: קיימים רק כש-NODE_ENV!=='production', ובכל מקרה דורשים verifySA עם הרשאה 'devops'. בדיקה: בקשה אנונימית לכל אחד מהם מחזירה 404 בפרודקשן.",
+"alternatives": [
+"להשאיר את הנתיבים אך להגן ב-verifySA + permissions 'all' + כותרת אישור כפול (X-Confirm: <db name>)."
+],
+"refs": [
+"server.js:6439",
+"server.js:6391",
+"server.js:6360",
+"server.js:25782",
+"server.js:34982",
+"rules-sa.html#נקודות קצה תחזוקה מסוכנות",
+"s1-rbac.html#מערכת / תחזוקה / דיבאג"
+],
+"dup_of": "ARC-10"
+},
+{
+"id": "SA-02",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אימות SA",
+"category": "security",
+"severity": "critical",
+"title": "אין אכיפת הרשאות צוות SA בשרת — כל טוקן SA = Master",
+"as_is": "verifySA (server.js:6661-6676) בודק רק שהטוקן קיים ב-sa_sessions ולא מצמיד זהות; sa_sessions אינו מכיל user_id, req.saUser לעולם לא מוגדר (שימושים ב-4985, 5115, 18718 נופלים לברירת מחדל). ההרשאות נשמרות ב-localStorage.ofl_sa_user וניתנות לעריכה מקומית (sa-app.js:40-55); 353 נתיבים פתוחים לכל חבר צוות.",
+"proposal": "להוסיף sa_sessions.sa_user_id (NULL=Master) ו-verifySA יצמיד req.saUser={id,name,permissions} שנטענים מה-DB בכל בקשה. להוסיף middleware requireSAPerm(perm) לכל קבוצת נתיבים לפי אותה מפה של הלשוניות (support, devops, stats, comm, biz, content, users, marketing; masterconfig/partners/credentials/impersonation/delete-permanent = 'all'). חבר צוות בלי ההרשאה מקבל 403 גם בקריאה ישירה ל-API.",
+"alternatives": [],
+"refs": [
+"server.js:6661",
+"server.js:568",
+"server.js:4985",
+"server.js:5115",
+"server.js:18718",
+"sa-app.js:40",
+"s1-rbac.html#SUPER-ADMIN — API ניהול",
+"rules-sa.html#התחברות מנהל-על (סיסמה / OTP) ואימות בקשות SA"
+],
+"dup_of": "ARC-07"
+},
+{
+"id": "SA-03",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אימות SA",
+"category": "security",
+"severity": "critical",
+"title": "נתיבי /api/sa/* ללא verifySA (פתיחת מודולים, member_type, אישור פוסטים)",
+"as_is": "PATCH /api/sa/groups/:id/upgrade-member (server.js:31063), /modules (31073), /unlock-module (31093), quest-library visibility (4114), community biz-posts approve/reject/hide (16733, 16740, 16748) — ללא אימות: כל אחד יכול לפתוח מודולים בתשלום או לשנות member_type.",
+"proposal": "כל נתיב שמתחיל ב-/api/sa/ או /api/superadmin/ חייב לעבור verifySA (רצוי app.use('/api/sa', verifySA) גלובלי עם allow-list מפורש לנתיבים ציבוריים, אם יש). בדיקה אוטומטית: סריקת נתיבים שמוודאת שאין נתיב /api/sa ללא verifySA.",
+"alternatives": [],
+"refs": [
+"server.js:31063",
+"server.js:31073",
+"server.js:31093",
+"server.js:4114",
+"server.js:16733",
+"rules-sa.html#מודולים לחשבונות \"חבר WEFLOWZ\" ושדרוג למשפחה",
+"s1-rbac.html#SUPER-ADMIN — API ניהול"
+]
+},
+{
+"id": "SA-04",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אימות SA",
+"category": "security",
+"severity": "critical",
+"title": "סיסמת Master בטקסט גלוי עם ברירת מחדל admin/123456",
+"as_is": "login משווה מול system_settings.sa_username/sa_password בטקסט גלוי, עם ברירת מחדל 'admin'/'123456' כשאין שורה (server.js:8591-8598); POST /api/superadmin/credentials שומר sa_password גלוי (8621); PUT /api/settings/tour מאמת ש-Bearer שווה ל-sa_password (8944-8949); sa_users עם hash שאינו $2 מושווה גלוי (8572-8574).",
+"proposal": "sa_password נשמר רק כ-bcrypt (cost≥10); אין ברירת מחדל — אם אין סיסמה מוגדרת, כניסת Master בסיסמה חסומה ואפשרית רק ב-OTP ל-SUPERADMIN_PHONE או bootstrap מ-env (SA_BOOTSTRAP_PASSWORD) שמחייב החלפה בכניסה הראשונה. השוואה גלויה ל-sa_users מבוטלת (מיגרציה חד-פעמית ל-bcrypt). /api/settings/tour עובר ל-verifySA. סיסמה חדשה: ≥10 תווים.",
+"alternatives": [],
+"refs": [
+"server.js:8591",
+"server.js:8621",
+"server.js:8944",
+"server.js:8572",
+"rules-sa.html#עדכון פרטי מנהל-על ראשי",
+"s1-docsvscode.html#סיסמת SA ברירת מחדל"
+]
+},
+{
+"id": "SA-05",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אימות SA",
+"category": "security",
+"severity": "high",
+"title": "אין הגבלת ניסיונות ב-login/OTP של SA ו-OTP נשמר בזיכרון",
+"as_is": "POST /api/superadmin/login (8558) ו-/verify-otp (8523) ללא rate limit; ה-OTP נוצר ב-Math.random (8506) ונשמר ב-otpCache (Map) שנמחק באתחול; אין הגבלת ניסיונות שגויים לקוד.",
+"proposal": "login: מקסימום 5 כישלונות ל-IP+code ב-15 דקות ואז 429 לנעילה של 15 דקות. OTP: crypto.randomInt, נשמר כ-SHA-256 בטבלה (כמו business_otp, purpose='sa_login'), תוקף 5 דקות, 3 ניסיונות שגויים מוחקים את הקוד, עד 3 שליחות בשעה.",
+"alternatives": [],
+"refs": [
+"server.js:8558",
+"server.js:8523",
+"server.js:8506",
+"rules-sa.html#התחברות מנהל-על (סיסמה / OTP) ואימות בקשות SA"
+]
+},
+{
+"id": "SA-06",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אימות SA",
+"category": "security",
+"severity": "high",
+"title": "סשן SA לא מבוטל ביציאה/חסימה ותקף 30 יום",
+"as_is": "logoutSA מוחק רק את הטוקן מ-localStorage (sa-app.js:418) — השורה ב-sa_sessions נשארת; חסימת נציג (status!='active') או מחיקתו לא מבטלת סשנים קיימים (server.js:8739-8754); תוקף סשן 30 יום (8545).",
+"proposal": "להוסיף POST /api/superadmin/logout שמוחק את שורת הסשן. שינוי status/סיסמה/צוות של sa_user או מחיקתו מוחק את כל הסשנים שלו (דורש sa_user_id מ-SA-02). verifySA בודק גם ש-sa_users.status='active'. תוקף: 12 שעות חוסר פעילות (sliding) ומקסימום 7 ימים.",
+"alternatives": [
+"תוקף קבוע 24 שעות ללא sliding."
+],
+"refs": [
+"sa-app.js:418",
+"server.js:8545",
+"server.js:8739",
+"rules-sa.html#ניהול צוותים ונציגי SA"
+]
+},
+{
+"id": "SA-07",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "לוג ביקורת",
+"category": "security",
+"severity": "high",
+"title": "לוג ביקורת SA ללא זהות מבצע ועם פערי כיסוי",
+"as_is": "logAudit (server.js:7499) אינו שומר מי ביצע (העמודה בתצוגה נופלת ל-'super-admin'); אין רישום לכניסות, התחזות, שינוי פרטי Master, הענקות FLW, סימון חיוב כשולם, שינוי תמחור; CREATE_GROUP/CREATE_USER מוגדרים ב-AUDIT_LABELS אך לא נרשמים; רוב הסוגים שנרשמים חסרים תווית (sa-app.js:11005).",
+"proposal": "להוסיף sa_audit_log.actor_id, actor_name, ip. חובה לרשום: SA_LOGIN/SA_LOGIN_FAILED/SA_LOGOUT, IMPERSONATE, UPDATE_SA_CREDENTIALS, STAFF_CREATE/UPDATE/DELETE, FLOW_GRANT, BILLING_MARK_PAID, PRICING_UPDATE, BILLING_CONFIG_UPDATE, MODULE_REQUEST_APPROVE/DENY, EDIT_GROUP, SA_AI_<action>. כשל ברישום audit נרשם ללוג השרת (לא נבלע בשקט). AUDIT_LABELS מכסה כל סוג שנרשם.",
+"alternatives": [],
+"refs": [
+"server.js:7499",
+"sa-app.js:11005",
+"rules-sa.html#לוג ביקורת SA"
+]
+},
+{
+"id": "SA-08",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "התחזות",
+"category": "security",
+"severity": "high",
+"title": "התחזות לסביבת לקוח ללא audit, ללא הרשאה וללא משתמש אמיתי",
+"as_is": "POST /api/sa/biz-impersonate-token (server.js:44011) יוצר family_sessions לשעה לכל קבוצה עבור כל טוקן SA; לא נרשם ב-audit; אם אין משתמש בעסק נבחר user_id=0 והלקוח מזייף {id:99999} (sa-app.js:5891).",
+"proposal": "התחזות דורשת הרשאת 'all' או 'support'; נרשמת IMPERSONATE עם actor, group_id, user_id; לסשן נוסף שדה impersonated_by_sa_user_id שמוצג כבאנר בסביבה ונרשם בפעולות. אם אין משתמש ADMIN בקבוצה — 409 'אין משתמש מנהל לסביבה' (לא מזייפים מזהה).",
+"alternatives": [],
+"refs": [
+"server.js:44011",
+"sa-app.js:5891",
+"rules-sa.html#כניסה לסביבת לקוח (התחזות)",
+"s1-rbac.html#התחזות (Impersonation)"
+]
+},
+{
+"id": "SA-09",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "ניווט SA",
+"category": "ux",
+"severity": "medium",
+"title": "שתי מפות הרשאות לשוניות סותרות בלקוח; לשוניות לא ממופות נגישות",
+"as_is": "applyUserPermissions (sa-app.js:91) ו-checkTabAccess (sa-app.js:126) סותרות (partners: פתוח מול all; legal: פתוח מול content); לשוניות לא ממופות (whatsapp, pricing, ai-builder, feed, games, archive) מוסתרות בכפתור אך נפתחות דרך ?tab= או חיפוש; שבב fam_joins מנווט ל-'families' שאינה קיימת (sa-app.js:344).",
+"proposal": "מפה יחידה SA_TAB_PERMS {tab: perm|'open'|'all'} שמשמשת גם להסתרה וגם לגישה, ובה deny-by-default ללשונית לא ממופה; אותה מפה משמשת בשרת (SA-02). ההרשאות נטענות מהשרת (GET /api/superadmin/me) ולא מ-localStorage. שבב fam_joins מנווט ללשונית comm.",
+"alternatives": [],
+"refs": [
+"sa-app.js:91",
+"sa-app.js:126",
+"sa-app.js:344",
+"rules-sa.html#ניווט SA (SA_GROUPS) והרשאות לפי צוות (צד לקוח בלבד)"
+]
+},
+{
+"id": "SA-10",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "רישוי וסוג עסק",
+"category": "security",
+"severity": "critical",
+"title": "שינוי סוג עסק ורישיונות ללא אימות (מפר כלל 5)",
+"as_is": "PATCH /api/groups/:id/business-settings (server.js:26373) משנה business_type ללא אימות; POST /api/groups/:id/licenses (26472) כותב group_licenses ו-licensed_features ללא אימות; POST /api/member/create-for-business (30950) ובקשת מודול של חבר (31042) ללא אימות. האשף כותב group_licenses אך לא מסנכרן licensed_features (8412).",
+"proposal": "business_type משתנה רק ב-PATCH /api/biz/wizard/complete (verifyBiz, ADMIN, פעם אחת כשה-wizard_completed=false) או ב-PUT /api/sa/groups/:id (verifySA). licenses: כתיבה רק ב-verifySA או בתוך האשף; כל כתיבה ל-group_licenses מסנכרנת licensed_features באותה טרנזקציה. member/create-for-business דורש verifyBiz וה-groupId מהסשן.",
+"alternatives": [],
+"refs": [
+"server.js:26373",
+"server.js:26472",
+"server.js:30950",
+"server.js:31042",
+"server.js:8412",
+"rules-sa.html#רישיונות פיצ'רים (group_licenses)",
+"s1-rbac.html#רישוי, סוג עסק וחשבונות חבר"
+]
+},
+{
+"id": "SA-11",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מכסת AI",
+"category": "money",
+"severity": "high",
+"title": "פתיחת פאנל SA וכניסת משתמש מאפסות טוקני AI ל-10 גם ל-premium",
+"as_is": "GET /api/superadmin/data מריץ UPDATE family_groups SET ai_tokens=10, last_token_reset=CURRENT_DATE לכל הקבוצות (server.js:9048), וכניסת משתמש עושה אותו דבר לקבוצה (10766); לכן האיפוס ל-50 של premium ב-handleAITokens (4182-4187) לא מתרחש באותו יום.",
+"proposal": "איפוס המכסה מתבצע רק בתוך handleAITokens (lazy, לפי last_token_reset<היום) עם המכסה לפי plan: standard/solo/member=10, premium=50, enterprise=ללא הגבלה (ערכים מוגדרים ב-system_settings ai_daily_quota_*). GET לעולם לא כותב; להסיר את ה-UPDATE מ-9048 ו-10766.",
+"alternatives": [],
+"refs": [
+"server.js:9048",
+"server.js:10766",
+"server.js:4182",
+"rules-sa.html#טעינת כל הסביבות והמשתמשים (רשימת \"סביבות\")",
+"s1-prompts.html#סוללת AI — handleAITokens ו-ai_usage_log"
+]
+},
+{
+"id": "SA-12",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מכסת AI",
+"category": "security",
+"severity": "critical",
+"title": "GEMINI_API_KEY נחשף לציבור דרך /api/guide-config",
+"as_is": "GET /api/guide-config (server.js:12795-12797) מחזיר את process.env.GEMINI_API_KEY ללא אימות, ו-biz-setup-guide.html:8818 קורא ל-Gemini ישירות מהדפדפן עם המפתח — כל אחד יכול לנצל את המפתח ללא מכסה.",
+"proposal": "למחוק את /api/guide-config. עוזר המדריך עובר דרך POST /api/guide/chat בשרת (עם guideType), עם rate limit של 20 שאלות לשעה ל-IP אנונימי או מכסת AI של הקבוצה כשמחובר. לאחר התיקון — לסובב (rotate) את מפתח Gemini.",
+"alternatives": [],
+"refs": [
+"server.js:12795",
+"biz-setup-guide.html:8818",
+"s1-prompts.html#עוזר מדריך ההקמה — קריאת Gemini ישירה מהדפדפן"
+]
+},
+{
+"id": "SA-13",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מכסת AI",
+"category": "security",
+"severity": "high",
+"title": "נתיבי AI ללא אימות ו/או ללא מכסה (proxy AI פתוח)",
+"as_is": "ללא middleware: POST /api/ai/generate (13907, גם ללא handleAITokens), /api/ai/generate-catalog (18308), /api/store/ai-desc (15884), /api/store/ai-long-desc (15898), /api/ai/sport/training-plan (30756), /api/ai/parse-pdf (33874), /api/ai/generate-image (12346), /api/store/catalog/generate-image (13658, ללא מכסה), /api/guide/chat (12799), /api/family/chat-assistant (23615, groupId/userId מהגוף). /api/biz/chat-assistant (16038) לוקח groupId מהגוף ולא מ-req.bizAuth.",
+"proposal": "כל נתיב AI של לקוח: verifyFamilyOrBiz (או verifyBiz), groupId ו-userId נלקחים רק מהסשן, ו-handleAITokens(groupId, '<feature-key>') נקרא לפני הקריאה למודל; חריגה → HTTP 429 {error:'BATTERY_EMPTY'}. /api/guide/chat ציבורי רק עם rate limit לפי IP (ראה SA-12).",
+"alternatives": [],
+"refs": [
+"server.js:13907",
+"server.js:18308",
+"server.js:15884",
+"server.js:30756",
+"server.js:33874",
+"server.js:12346",
+"server.js:13658",
+"server.js:23615",
+"server.js:16038",
+"s1-prompts.html#טבלת סיכום",
+"s1-rbac.html#AI ו-העלאות"
+]
+},
+{
+"id": "SA-14",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מכסת AI",
+"category": "money",
+"severity": "medium",
+"title": "חיוב טוקנים לא עקבי ותיעוד שימוש חלקי",
+"as_is": "טוקן נצרך גם כשמוחזר FALLBACK (shopping/ai-generate-list) או כשהלוגו לא מפעיל Gemini (generate-image); סבב NEED_DATA כפול נספר כ-1; כמעט כל הקריאות נרשמות כ-endpoint 'general' (4170); BATTERY_EMPTY מוחזר ב-HTTP 200 ברוב הנתיבים ו-429 בשניים; קריאות AI של SA ו-ZM וה-Copilot של קול העם לא נרשמות ב-ai_usage_log; GET /api/sa/ai-usage מסכם רק BUSINESS (18059).",
+"proposal": "כלל: יחידת חיוב אחת לכל בקשת משתמש שהסתיימה בתשובת מודל מוצלחת (fallback/שגיאה = לא נחייב; חיוב אחרי הצלחה או החזר בכשל). כל קריאה נרשמת ב-ai_usage_log עם feature_key ייחודי, actor_type (family|biz|sa|zm|kh), provider, model, הצלחה/כשל. מכסה חסרה תמיד 429. דוח ai-usage מציג את כל סוגי הסביבות עם סינון.",
+"alternatives": [
+"לחייב גם על fallback כדי למנוע ניצול, אך לא על שגיאת ספק."
+],
+"refs": [
+"server.js:4170",
+"server.js:4195",
+"server.js:18059",
+"s1-prompts.html#סוללת AI — handleAITokens ו-ai_usage_log"
+]
+},
+{
+"id": "SA-15",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "שער AI",
+"category": "architecture",
+"severity": "medium",
+"title": "שכבת AI מפוזרת: callGeminiDirect כפול, מודלים קשיחים ושני ספקים",
+"as_is": "callGeminiDirect מוגדר פעמיים (server.js:6054 מוצלל ע\"י 6260); הגרסה הפעילה שולחת GET לרשימת המודלים בכל קריאה ובוחרת דינמית (flash-lite קודם) ללא generationConfig; במקומות אחרים מודלים קשיחים שונים (gemini-1.5-flash ב-24023, 2.0-flash-lite ב-12715/12608/13673, 2.5-flash ברוב); @google/genai מותקן ולא בשימוש; Claude (claude-sonnet-4-6) נקרא בשני מקומות בנפרד (36928, 45820).",
+"proposal": "מודול aiGateway יחיד: callModel({feature, prompt, json, vision}) שבוחר ספק ומודל לפי תצורה ב-system_settings (ai_model_text, ai_model_lite, ai_model_vision, ai_model_claude) עם רשימת מודלים שמורה במטמון 24 שעות, timeout של 30 שניות, retry על 429/503 בלבד, וכתיבת לוג שימוש (SA-14). להסיר את ההגדרה הכפולה ואת @google/genai אם אינו בשימוש. SA יכול לשנות מודל בלי פריסה.",
+"alternatives": [],
+"refs": [
+"server.js:6054",
+"server.js:6260",
+"server.js:24023",
+"server.js:12715",
+"server.js:36928",
+"server.js:45820",
+"s1-prompts.html#callGeminiDirect — הגדרה כפולה (הגרסה המאוחרת גוברת)"
+]
+},
+{
+"id": "SA-16",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "FLOW AI",
+"category": "security",
+"severity": "high",
+"title": "FLOW AI מבצע פעולות כתיבה מיידית על סמך פלט מודל",
+"as_is": "executeSAAction (server.js:4872) מבצע מיד CLOSE_TICKET, MARK_BILLING_PAID, APPROVE_ZM, APPROVE_BIZ_COMMUNITY, APPROVE_COMMUNITY_JOIN, APPROVE_PROMO, APPROVE_MODULE_REQUEST (חלקם מעניקים FLW); רק פעולות REJECT/DENY/REMOVE ב-SA_AI_SENSITIVE_ACTIONS דורשות אישור (4869); saUserName תמיד 'סופר אדמין'.",
+"proposal": "כל פעולת EXECUTE שכותבת ל-DB מוחזרת כ-pending_action ומבוצעת רק אחרי POST /api/sa/ai/confirm-action של משתמש SA עם ההרשאה המתאימה לפעולה (SA-02). האישור נרשם ב-audit עם actor אמיתי. ניווט (TAB/SUBTAB) נשאר מיידי.",
+"alternatives": [
+"להשאיר מיידי רק CLOSE_TICKET; כל פעולה עם השפעה כספית/FLW דורשת אישור."
+],
+"refs": [
+"server.js:4872",
+"server.js:4869",
+"server.js:5091",
+"rules-sa.html#FLOW AI — עוזרת מנהל-על (שליפה וביצוע פעולות)"
+]
+},
+{
+"id": "SA-17",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "בקשות מודול",
+"category": "data-integrity",
+"severity": "medium",
+"title": "אישור בקשת מודול: נתונים מהלקוח, פורמט billing מעורב, ביטול לא מבוצע",
+"as_is": "באישור, managed_modules = המערך שהלקוח שלח (server.js:5971); billingConfig.modules.push(moduleId) מוסיף מחרוזת למערך אובייקטים; _modCache לא מנוקה; 'אישור ביטול' (CANCEL_) רק מוחק את הבקשה ולא סוגר את המודול (sa-app.js:2669-2678); APPROVE_MODULE_REQUEST של FLOW AI לא מעדכן features/billing_config (4936-4958).",
+"proposal": "פונקציית שרת אחת approveModuleRequest(groupId, moduleId, actor): מוסיפה את moduleId ל-managed_modules מה-DB (לא מהלקוח), מוסיפה {id, open:true, billing:true} ל-billing_config.modules, מדליקה features לפי MODULE_ID_TO_FEATURE_KEY, מנקה _modCache ומסירה את הבקשה. בקשת CANCEL_<id> מאושרת → המודול מוסר מ-managed_modules ומ-billing_config.modules. ידני ו-FLOW AI קוראים לאותה פונקציה.",
+"alternatives": [],
+"refs": [
+"server.js:5971",
+"server.js:4936",
+"sa-app.js:2669",
+"rules-sa.html#בקשות פתיחת מודול מעסקים"
+]
+},
+{
+"id": "SA-18",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "חיוב מודולים",
+"category": "money",
+"severity": "high",
+"title": "מבנה billing_config לא אחיד ושבירת מודאל החיוב",
+"as_is": "openSABillingModal משתמש ב-extraUsersCost לפני הגדרתו (sa-app.js:15296 מול 15300) → ReferenceError; SA שומר extra_users (כמות) והאשף extra_users_cost (סכום); bundle_id של SA = groupId ושל האשף = מזהה מודול; bundle_maintenance≠bundle_maintenance_repair; החבילה לא נכנסת ל-managed_modules (8779-8786, 5739-5755); תג ₪ בשורה לא כולל חבילה והנחה (sa-app.js:2582-2590).",
+"proposal": "סכמה קנונית: billing_config={bundle_id:<module id בקטלוג>, modules:[{id,open,billing,custom_price?}], extra_users:int, discount_type:'pct'|'fixed'|null, discount_value, monthly_total, updated_at}. monthly_total מחושב בשרת בלבד בנוסחה: subtotal = מחיר חבילה + Σמודולים בחיוב + 9×extra_users; הנחה pct=round(subtotal×v/100), fixed=min(v,subtotal); total=max(0,subtotal−discount). managed_modules = bundle_id + מודולי החבילה + modules.open. מיגרציה ממירה ערכים ישנים; כל התצוגות קוראות monthly_total.",
+"alternatives": [],
+"refs": [
+"sa-app.js:15296",
+"sa-app.js:3740",
+"sa-app.js:2582",
+"server.js:5732",
+"server.js:8779",
+"rules-sa.html#תצורת חיוב והרשאות מודולים לעסק (billing_config → managed_modules)"
+]
+},
+{
+"id": "SA-19",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אשף עסק",
+"category": "money",
+"severity": "high",
+"title": "תמחור באשף: מודולי 'למכור/צוות' נרשמים ב-₪0 ומיפוי חבילות שגוי",
+"as_is": "מודולי MANAGE_OPTIONS (pos, sales, shop, members, cashflow...) נרשמים במחיר 0 כשאינם extra_modules (server.js:8403-8411) — מודולים בתשלום ניתנים בחינם; professional ממופה ל-bundle_services ולא ל-bundle_professional (biz-onboarding BIZ_BUNDLE_MAP:1750).",
+"proposal": "מחיר מודול באשף: אם המודול כלול בחבילה שנבחרה (bundle_included_modules של bundle_id) → 0; אחרת מחיר קטלוג. MANAGE_OPTIONS ללא חבילה מחויבים במחיר קטלוג ומוצגים כך בסיכום לפני האישור. מיפוי סוג→חבילה נגזר מטבלה אחת בשרת (BUSINESS_TYPES[].bundle_id) ולא מקבוע לקוח.",
+"alternatives": [
+"להשאיר MANAGE_OPTIONS חינם כ'חבילת בסיס' ולתעד זאת במחירון כמדיניות מכוונת."
+],
+"refs": [
+"server.js:8403",
+"biz-onboarding.html:1750",
+"biz-onboarding.html:2398",
+"rules-sa.html#אשף הקמת עסק — בחירת סוג עסק, מודולים ותמחור"
+]
+},
+{
+"id": "SA-20",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "סוגי עסק",
+"category": "data-integrity",
+"severity": "medium",
+"title": "ערכי business_type לא אחידים בין האשף, SA ומחולל ה-AI",
+"as_is": "האשף משתמש ב-'health'/'consulting' (biz-onboarding:1750) בעוד SA מציע healthcare/professional (sa.html:4165); מחולל ה-AI שומר 'events' ונישות אחרות שאין להן עץ תבנית (server.js:5463-5468); גריד האשף מציג 7 סוגים ו-SA 13.",
+"proposal": "enum קנוני אחד ב-DB/שרת (BUSINESS_TYPES): restaurant, retail, professional, maintenance_repair, beauty, sport, logistics, construction, healthcare, education, events, food_production, other. השרת דוחה (400) כל ערך אחר ב-wizard/complete, PUT /api/sa/groups/:id וב-ai-create-business; מיגרציה: health→healthcare, consulting→professional.",
+"alternatives": [],
+"refs": [
+"biz-onboarding.html:1750",
+"sa.html:4165",
+"server.js:5463",
+"rules-sa.html#אשף הקמת עסק — בחירת סוג עסק, מודולים ותמחור",
+"rules-sa.html#עריכת פרטי סביבה ע\"י SA (כולל שיוך סוג עסק)"
+]
+},
+{
+"id": "SA-21",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "הטבת חינם",
+"category": "money",
+"severity": "medium",
+"title": "חודשי ניסיון: ברירות מחדל סותרות ו-trial_until תצוגתי בלבד",
+"as_is": "wizard_free_months: GET SA מחזיר parseInt (NaN אפשרי), הקטלוג הציבורי ||0, האשף 3 כשאין שורה ו-0 כשיש לא-מספרית (8433), ai-create-business ||3; trial_until לא משמש לשום חיוב/חסימה (5761-5769) ו-PATCH מריץ ALTER TABLE בכל קריאה.",
+"proposal": "מקור יחיד getFreeMonths(): system_settings.wizard_free_months כמספר שלם 0–12, ברירת מחדל 3 כשאין שורה, 0 כשערך לא תקין. trial_until נקבע בכל יצירת עסק (אשף, AI builder, SA). כלל חיוב: עד trial_until החיוב החודשי = 0 והתג מציג 'הטבה'; ביום שאחרי — monthly_total נכנס לגבייה. העמודה נוצרת במיגרציה ולא ב-PATCH.",
+"alternatives": [
+"trial_until תצוגתי בלבד כל עוד אין מנגנון גבייה אוטומטי — לתעד זאת כמכוון."
+],
+"refs": [
+"server.js:8433",
+"server.js:5761",
+"server.js:5796",
+"rules-sa.html#ניהול הטבת חינם (trial_until)",
+"rules-sa.html#מחירון מודולים, חבילות והטבת חודשי ניסיון"
+]
+},
+{
+"id": "SA-22",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מצב חשבון",
+"category": "security",
+"severity": "high",
+"title": "הקפאה/ארכוב לא נאכפים בכניסת עסק ובחנות",
+"as_is": "/api/biz/login (server.js:8172) לא בודק account_status — עסק מוקפא/בארכיון ממשיך להתחבר; storefront חוסם frozen בלבד ולא archived (15304); הודעת 'הוקפא לאחר איחוד משפחות' מוצגת גם להקפאה ידנית (10573); freeze לא בודק קיום קבוצה (2930); cron הארכוב רק ב-setInterval (36802).",
+"proposal": "account_status ∈ {active, pending_activation, frozen, archived}. frozen/archived: חסומים בכל כניסה (family, biz, OTP, demo) עם הודעה לפי frozen_reason (מיזוג → הודעת איחוד; אחרת 'החשבון הוקפא. פנה לתמיכה'); חסומים ב-storefront, מרקטפלייס וקמפיינים. freeze/unfreeze מחזירים 404 לקבוצה לא קיימת. cron הארכוב רץ גם בעליית השרת; ארכוב נרשם ב-audit. unfreeze מארכיון מותר ל-SA בלבד עם audit.",
+"alternatives": [],
+"refs": [
+"server.js:8172",
+"server.js:15304",
+"server.js:10573",
+"server.js:2930",
+"server.js:36802",
+"rules-sa.html#מצב חשבון: הקפאה, הפשרה וארכוב אוטומטי"
+]
+},
+{
+"id": "SA-23",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מחיקה",
+"category": "data-integrity",
+"severity": "medium",
+"title": "מחיקה רכה: הבטחת 30 יום לא ממומשת ומשתמשים לא נחסמים",
+"as_is": "האישור מציג 'ניתן לשחזרו תוך 30 יום' (sa-app.js:2869) אך אין מחיקה אוטומטית; soft delete לא משנה account_status ומשתמשי עסק מחוק נחסמים רק בשאילתות שמסננות is_deleted; שחזור לא מחזיר את store_alias שנמחק (7264).",
+"proposal": "is_deleted=true חוסם כניסה בכל המסלולים. cron יומי מוחק לצמיתות (אותה לוגיקה כמו /permanent) קבוצות עם deleted_at < NOW()-30 days, אחרי שמירת snapshot pre_delete, ורושם PERMANENT_DELETE עם actor='system'. בשחזור — store_alias מוחזר מה-snapshot אם הכינוי פנוי.",
+"alternatives": [
+"לשנות את הטקסט ל'ניתן לשחזר עד מחיקה ידנית לצמיתות' ולא לממש מחיקה אוטומטית."
+],
+"refs": [
+"sa-app.js:2869",
+"server.js:8848",
+"server.js:7264",
+"rules-sa.html#מחיקה רכה, ארכיון מחוקים, שחזור ומחיקה לצמיתות"
+]
+},
+{
+"id": "SA-24",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מיזוג",
+"category": "data-integrity",
+"severity": "high",
+"title": "מיזוג חשבונות נכשל כשיש ארנק FLW לילדים ולא מעביר ארנק FLOW",
+"as_is": "ב-merge-duplicate ה-UPDATE בשורות 2692-2696 (וגם 2621 בזרימת link-request) כולל LIMIT 1 שאינו חוקי ב-PostgreSQL → כל המיזוג נעשה ROLLBACK; ה-UPDATE מתבצע אחרי העברת המשתמשים (2683); flow_wallets entity_type='family' של הכפול לא מועבר. במיזוג משתמש — עמודות שמצביעות על users בלי FK (למשל tasks.assigned_to) לא מועברות (2809-2834).",
+"proposal": "להחליף ב-UPDATE ... WHERE id=(SELECT id ... LIMIT 1). סדר: חישוב ארנקי ילדים לפני העברת משתמשים. ארנק flow_wallets של הכפול מתווסף לראשי (balance, lifetime) ונמחק, עם flow_transactions 'merge'. מיזוג משתמש: רשימה מפורשת של עמודות user-ref ללא FK (assigned_to, created_by, וכו') מעודכנת בנוסף לגילוי FK.",
+"alternatives": [],
+"refs": [
+"server.js:2692",
+"server.js:2621",
+"server.js:2683",
+"server.js:2809",
+"rules-sa.html#מיזוג חשבון משפחה כפול לחשבון ראשי",
+"rules-sa.html#מיזוג משתמש כפול"
+]
+},
+{
+"id": "SA-25",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "גיבויים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "שחזור snapshot חלקי ו-pre_restore נלקח אחרי השחזור",
+"as_is": "takeGroupSnapshot(...,'pre_restore') נקרא אחרי COMMIT (server.js:7230) ולכן לא מייצג את המצב שלפני; השחזור לא מוחק שורות שנוספו אחרי הגיבוי ולא משחזר הזמנות/תורים/יומן; audit מסווג FAMILY לפי business_type==='FAMILY' (7226) — תמיד BUSINESS.",
+"proposal": "pre_restore נלקח לפני BEGIN. השחזור מוגדר במפורש כ'שחזור הגדרות וקטלוג' (group, users, store_settings, store_catalog, beauty_practitioners/client_records/inventory) — הממשק מציין שהזמנות/תורים/יומן לא משוחזרים. upsert לפי id בלבד (ללא מחיקה) נשאר, ומוצג בתצוגה המקדימה. audit target_type לפי family_groups.type.",
+"alternatives": [
+"שחזור מלא: מחיקת כל השורות של הקבוצה בטבלאות שבגיבוי והכנסה מחדש (כמו demo reset)."
+],
+"refs": [
+"server.js:7230",
+"server.js:7226",
+"server.js:7132",
+"rules-sa.html#גיבויי סביבה (Snapshots) ושחזור"
+]
+},
+{
+"id": "SA-26",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "עריכת סביבה",
+"category": "functional",
+"severity": "medium",
+"title": "דגלי features במודאל עריכת SA לא נשמרים",
+"as_is": "תיבות flag-* מוצגות ונטענות במודאל אך saveSAEditGroup לא שולח features (sa-app.js:3825), למרות ש-PUT /api/sa/groups/:id תומך בהם (server.js:8761).",
+"proposal": "saveSAEditGroup שולח features={key:bool} מכל תיבות flag-*; השרת ממזג (jsonb ||) ולא מחליף, ומנקה _modCache. בדיקה: שינוי דגל ורענון — הדגל נשמר.",
+"alternatives": [],
+"refs": [
+"sa-app.js:3825",
+"server.js:8761",
+"rules-sa.html#עריכת פרטי סביבה ע\"י SA (כולל שיוך סוג עסק)"
+]
+},
+{
+"id": "SA-27",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "משתמשים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "עריכת/מחיקת משתמש ע\"י SA ללא ולידציה; מחיקת ADMIN יחיד אפשרית",
+"as_is": "PATCH /api/superadmin/users/:id (8878) מקבל role ו-status חופשיים; DELETE (8868) מוחק פיזית גם את ה-ADMIN היחיד או owner_user_id של הקבוצה.",
+"proposal": "role ∈ {ADMIN, MEMBER, CHILD, MANAGER, SENIOR} ו-status ∈ {active, invited, blocked}, אחרת 400. מחיקה/הורדת תפקיד של ה-ADMIN האחרון בקבוצה או של owner_user_id → 409 'יש להגדיר מנהל אחר קודם'. מחיקה נרשמת ב-audit (קיים).",
+"alternatives": [],
+"refs": [
+"server.js:8878",
+"server.js:8868",
+"server.js:8819",
+"rules-sa.html#עריכה/מחיקה של משתמש ע\"י SA"
+]
+},
+{
+"id": "SA-28",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "תוכנית",
+"category": "data-integrity",
+"severity": "low",
+"title": "שינוי plan ל-member לא מעדכן member_type; נתיב /premium ישן ללא audit",
+"as_is": "POST /api/superadmin/groups/:id/plan (8922) לא משנה member_type, בעוד הלקוח מעדכן מקומית member_type='member' (sa-app.js:3427); POST /premium (8913) משנה plan ללא audit.",
+"proposal": "plan ו-member_type מופרדים: בחירת plan='member' בשרת מעדכנת גם member_type='member' (ו-plan אחר לא משנה member_type), באותה שאילתה + audit. נתיב /premium נמחק (או ממופה ל-/plan עם audit).",
+"alternatives": [],
+"refs": [
+"server.js:8922",
+"server.js:8913",
+"sa-app.js:3427",
+"rules-sa.html#שינוי תוכנית (plan) ומכסת AI"
+]
+},
+{
+"id": "SA-29",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אשף עסק",
+"category": "functional",
+"severity": "medium",
+"title": "עסק שנטש את האשף מסומן אוטומטית כמי שהשלים",
+"as_is": "register מגדיר is_onboarded=TRUE (server.js:8134), ו-/api/biz/login קובע wizardDone = wizard_completed!==false || is_onboarded===true ומעדכן wizard_completed=true (8207-8210) — עסק שנטש נשאר עם business_type='other' בלי אשף.",
+"proposal": "register מגדיר is_onboarded=FALSE ו-wizard_completed=FALSE. wizardDone = wizard_completed===true בלבד; כניסה עם wizard_completed=false מפנה ל-biz-onboarding.html?wizard=1. סימון ידני נשאר דרך SA mark-wizard-completed.",
+"alternatives": [],
+"refs": [
+"server.js:8134",
+"server.js:8207",
+"server.js:8172",
+"rules-sa.html#קביעת \"האשף הושלם\" בכניסה לעסק ואשף דשבורד קל"
+]
+},
+{
+"id": "SA-30",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "טרנזקציות",
+"category": "data-integrity",
+"severity": "high",
+"title": "פעולות רב-שלביות ללא טרנזקציה אמיתית",
+"as_is": "register (8096) — כשל ב-INSERT users משאיר קבוצה יתומה; wizard/complete (8331) — עדכונים ורישוי ללא טרנזקציה וכשלים נבלעים; /api/superadmin/banners (9987) ו-/api/sa/inbox/broadcast (23256) מריצים pool.query('BEGIN') על חיבורים שונים; POST /api/groups מחזיר 400 לפני ROLLBACK (10125-10126) ומשאיר חיבור עם טרנזקציה פתוחה; awardFlow ו-/api/sa/flow/grant — שני INSERT נפרדים (21709, 21875).",
+"proposal": "כל פעולה רב-שלבית משתמשת ב-client=await pool.connect() עם BEGIN/COMMIT/ROLLBACK ו-release ב-finally. החזרות שגיאה בתוך טרנזקציה עוברות דרך ROLLBACK. כשל ברישוי/חיוב באשף מכשיל את כל הבקשה (500) במקום להיבלע. בדיקה: הזרקת שגיאה בשלב השני משאירה את ה-DB ללא שינוי.",
+"alternatives": [],
+"refs": [
+"server.js:8096",
+"server.js:8331",
+"server.js:9987",
+"server.js:23256",
+"server.js:10125",
+"server.js:21709",
+"server.js:21875",
+"rules-sa.html#הרשמת עסק חדש (OTP + יצירת חשבון)",
+"rules-sa.html#אשף הקמת משפחה (OTP, יצירת סביבה, הזמנת בני משפחה)"
+],
+"dup_of": "ARC-11"
+},
+{
+"id": "SA-31",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אשף משפחה",
+"category": "security",
+"severity": "high",
+"title": "pre-invite ללא אימות ו-TypeError בטלפון חסר",
+"as_is": "POST /api/family/pre-invite (7757) ללא אימות — ניתן להוסיף משתמשים ל-groupId כלשהו; ב-POST /api/groups, phone.replace כשאין טלפון (10147) זורק TypeError → 500.",
+"proposal": "pre-invite דורש verifyFamily ו-groupId מהסשן, עד 8 מוזמנים לבקשה. POST /api/groups מוודא קיום טלפון לפני נרמול ומחזיר 400 'טלפון חובה' כשנדרש (גיל ≥10).",
+"alternatives": [],
+"refs": [
+"server.js:7757",
+"server.js:10147",
+"rules-sa.html#אשף הקמת משפחה (OTP, יצירת סביבה, הזמנת בני משפחה)"
+]
+},
+{
+"id": "SA-32",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "סיסמאות",
+"category": "security",
+"severity": "high",
+"title": "סיסמאות נשלחות/נשמרות בטקסט גלוי",
+"as_is": "מייל ברוכים הבאים כולל את הסיסמה שהמשתמש בחר (server.js:10204, EM-05); עסקי דמו שומרים demo_password_plain (17965-18056); ai-create-business מחזיר adminPassword גלוי (5449); חשבונות SOLO נשלחים עם סיסמה זמנית ב-WhatsApp (WM-13/14).",
+"proposal": "לעולם לא לשלוח סיסמה שהמשתמש בחר. חשבון שנוצר ע\"י מערכת/עסק/SA מקבל קישור הפעלה חד-פעמי (טוקן מגובב, תוקף 72 שעות) במקום סיסמה. demo: הסיסמה מוצגת פעם אחת ונשמרת רק כ-bcrypt; SA יכול 'לאפס' ולקבל חדשה. מייל ברוכים הבאים כולל רק קוד סביבה ושם משתמש.",
+"alternatives": [
+"להשאיר סיסמה זמנית אך לחייב החלפה בכניסה הראשונה."
+],
+"refs": [
+"server.js:10204",
+"server.js:17965",
+"server.js:5449",
+"s1-messages.html#EM-05 · יצירת סביבה: ברוכים הבאים למנהל (כולל סיסמה)",
+"s1-messages.html#WM-13 · חשבון SOLO חדש ללקוח (כולל סיסמה זמנית)"
+]
+},
+{
+"id": "SA-33",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מחולל עסקים AI",
+"category": "data-integrity",
+"severity": "medium",
+"title": "מחולל עסקים AI: ערכי 0 נדרסים, טלפון אוטומטי מתנגש, הכל פתוח",
+"as_is": "delivery_fee/min_order/eta משתמשים ב-|| ולכן 0 הופך ל-15/50 (server.js:5494-5496); טלפון ADMIN אוטומטי '05'+padStart(groupId,8) עלול להתנגש בטלפון אמיתי (5449); billing_config נשאר NULL = כל המודולים פתוחים (5591); כשלי promotions/coupons/sport נבלעים מחוץ לטרנזקציה; כל השגיאות ב-HTTP 200.",
+"proposal": "שימוש ב-?? לכל ברירת מחדל מספרית. אם אין profile.phone תקין — המשתמש נוצר עם phone=NULL ו-SA חייב להזין טלפון לפני מסירה (אין טלפון סינתטי). העסק נוצר עם billing_config לפי bundle של business_type (כמו SA-18) ו-trial_until לפי getFreeMonths. כל ההכנסות בטרנזקציה אחת; שגיאות מוחזרות עם HTTP 4xx/5xx.",
+"alternatives": [],
+"refs": [
+"server.js:5494",
+"server.js:5449",
+"server.js:5591",
+"server.js:5183",
+"rules-sa.html#מחולל עסקים AI — יצירת העסק בפועל"
+]
+},
+{
+"id": "SA-34",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "FLW",
+"category": "functional",
+"severity": "high",
+"title": "קוד מימוש FL לעולם לא מאומת ב-storefront",
+"as_is": "POST /api/flow/redeem יוצר flow_redemptions בסטטוס 'active' (ברירת מחדל), בעוד /api/flow/redeem/validate מקבל רק status NULL/'pending' (server.js:22029) — קוד FL נדחה תמיד בשדה הקופון.",
+"proposal": "סטטוסים קנוניים ל-flow_redemptions: active → used | expired. validate מקבל רק active שלא פג תוקף, ו-/use מעביר ל-used אטומית (WHERE status='active'). מיגרציה: NULL/pending → active.",
+"alternatives": [],
+"refs": [
+"server.js:22029",
+"server.js:21950",
+"server.js:22119",
+"rules-sa.html#מימוש FLW להנחה (נוסחאות שנשלטות מהתצורה)"
+]
+},
+{
+"id": "SA-35",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "FLW",
+"category": "data-integrity",
+"severity": "medium",
+"title": "הענקה/ניכוי ידני של FLW: חריגה מיתרה מחזירה 500 ומדד 'הונפקו' נטו",
+"as_is": "POST /api/sa/flow/grant (21875) מאפשר amount שלילי; ניכוי מעבר ליתרה מפר CHECK balance>=0 → 500 ללא הודעה; שני ה-INSERT לא בטרנזקציה; totalIssued = Σamount כולל שליליים (21762); referral_join חסר ב-FLOW_CONFIG_LABELS (sa-app.js:9805).",
+"proposal": "ניכוי: UPDATE ... WHERE balance >= |amount|, אחרת 400 'היתרה (X) נמוכה מהניכוי'. upsert+transaction בטרנזקציה אחת + audit FLOW_GRANT. מדדים: issued = Σ חיוביים, redeemed = Σ|שליליים| ממימוש, adjustments = Σ ניכויי SA בנפרד. להוסיף תווית ל-referral_join.",
+"alternatives": [],
+"refs": [
+"server.js:21875",
+"server.js:21762",
+"sa-app.js:9805",
+"rules-sa.html#הענקה/ניכוי ידני של FLW ולוח בקרה",
+"rules-sa.html#תצורת FLW (flow_config) ופונקציית הענקה awardFlow"
+]
+},
+{
+"id": "SA-36",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "כספים",
+"category": "money",
+"severity": "high",
+"title": "מדדי חיוב ועמלות ממקורות סותרים ושאילתות על עמודות חסרות",
+"as_is": "/api/sa/billing סוכם cash_amount (34763) והדשבורדים amount_ils; pending_confirm לא בחוב אחד ובחוב בשני; שאילתות על billing_records.record_type/reference_id (9277, 9431) נכשלות ומחזירות 0 (כולל KPI zm_commissions); 'עמלות' בדשבורד מ-billing_records ובטאב הכספים מ-business_platform_dues; GET rates מציג 0 כ-3/30 (|| ב-18621) בעוד החישוב משתמש ב-0 (18571).",
+"proposal": "הגדרות: חוב פתוח = Σcash_amount WHERE payment_status IN ('unpaid','pending_confirm'); נגבה החודש = Σcash_amount WHERE paid ובחודש הנוכחי (Asia/Jerusalem). עמלות פלטפורמה = business_platform_dues בלבד; עמלות ZM = zone_manager_commissions. להסיר שאילתות על record_type/reference_id. rates: ?? במקום ||, ו-0 נשמר ומוצג כ-0. כל הדשבורדים משתמשים באותן פונקציות שרת.",
+"alternatives": [],
+"refs": [
+"server.js:34763",
+"server.js:9277",
+"server.js:9431",
+"server.js:18621",
+"server.js:18571",
+"rules-sa.html#רשומות חיוב, אישור תשלום בחתימה דיגיטלית וכרטסת לקוח",
+"rules-sa.html#עמלות פלטפורמה, קאשבק לקהילה וגבייה מעסקים"
+]
+},
+{
+"id": "SA-37",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "קריאות שירות",
+"category": "security",
+"severity": "high",
+"title": "נתיבי קריאות שירות ללא אימות ודליפת הערות פנימיות ללקוח",
+"as_is": "POST /api/support/ticket (4349), /api/tickets (23402), /api/support/tickets/my/:groupId (5155), /api/tickets/:groupId (23432) ו-/api/support/tickets/:id/reply (4381) ללא אימות; /api/tickets/:groupId מחזיר כ-admin_reply את רשומת הצוות האחרונה כולל isInternal ו-[SYSTEM_AUDIT] (23446).",
+"proposal": "נתיבי לקוח דורשים verifyFamilyOrBiz, groupId מהסשן, ו-reply רק לקריאה של הקבוצה (אחרת 404). כל תגובה ללקוח מסננת רשומות log עם isInternal=true או SYSTEM_AUDIT. לאחד לנתיב יצירה אחד (/api/support/ticket) עם מייל ל-SA.",
+"alternatives": [],
+"refs": [
+"server.js:4349",
+"server.js:23402",
+"server.js:5155",
+"server.js:23432",
+"server.js:4381",
+"server.js:23446",
+"rules-sa.html#פתיחת קריאת שירות ע\"י לקוח"
+]
+},
+{
+"id": "SA-38",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "קריאות שירות",
+"category": "functional",
+"severity": "medium",
+"title": "מדדי קריאות תמיד 0, 'דחוף' לא כולל critical ו-SLA רק בלקוח",
+"as_is": "שאילתות הדשבורד והמסך הגדול משתמשות ב-support_tickets.updated_at שאינו קיים (9146, 9247) → כל מדדי הקריאות 0; urgent סופר רק priority='high' בעוד AI מחזיר critical; SLA מחושב רק בלקוח (sa-app.js:1570) ו-'closed' נחשב חורג (1526-1530).",
+"proposal": "להשתמש ב-status_updated_at (או להוסיף updated_at עם trigger). urgent = priority IN ('high','critical'). חישוב SLA בשרת (חריגה = שעות מאז status_updated_at||created_at ≥ max לפי sla-matrix, רק לסטטוסים open/in_progress), וחשיפה כשדה sla_breached; אופציונלית התראה ל-SA על חריגה.",
+"alternatives": [],
+"refs": [
+"server.js:9146",
+"server.js:9247",
+"sa-app.js:1570",
+"sa-app.js:1526",
+"rules-sa.html#ניהול קריאות שירות ב-SA (סיווג, מענה, SLA, AI, סגירת מעגל)"
+]
+},
+{
+"id": "SA-39",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "ALM",
+"category": "security",
+"severity": "medium",
+"title": "ALM: חסימת 'בוצע' ניתנת לעקיפה, PUT מאפס שדות ונתיבי QA פתוחים",
+"as_is": "מעבר ל-done דורש רק systemOverride:true מהלקוח (23787); בגרירה הלקוח מעדכן מקומית ולא בודק 403 (sa-app.js:6402-6411); PUT /dev/tasks/:id מאפס ל-NULL שדות שלא נשלחו; נתיבים כפולים מוצללים (23766, 24337-24384, 24230-24246) עם סכמה סותרת; /api/qa/update (24472) ו-/api/qa/assignments (24492-24529) ללא אימות.",
+"proposal": "done מותר רק מסטטוס qa ורק דרך POST /api/sa/dev/tasks/:id/complete עם הרשאת devops (אין דגל מהלקוח). הלקוח מחזיר את הכרטיס למקומו כשהשרת דוחה. PUT הופך ל-PATCH חלקי. למחוק את בלוקי הנתיבים הכפולים. /api/qa/update דורש מפתח שירות (QA_API_KEY בכותרת) ו-assignments דורש verifySA.",
+"alternatives": [],
+"refs": [
+"server.js:23787",
+"sa-app.js:6402",
+"server.js:23766",
+"server.js:24337",
+"server.js:24472",
+"server.js:24492",
+"rules-sa.html#משימות פיתוח (Kanban/ALM) ותתי-משימות",
+"rules-sa.html#גרסאות, ספר המוצר ותוצאות QA (qa-book.html)"
+]
+},
+{
+"id": "SA-40",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "צ'אט צוות",
+"category": "functional",
+"severity": "low",
+"title": "צ'אט פנימי מציג את 50 ההודעות הישנות ביותר",
+"as_is": "GET /api/sa/chat/:room מריץ ORDER BY created_at ASC LIMIT 50 (server.js:8663-8664) — הודעות חדשות לא מוצגות אחרי 50; setInterval גלובלי (sa-app.js:7750) משתמש במשתנים ללא window.; senderName ניתן לזיוף מהלקוח.",
+"proposal": "שליפת 50 האחרונות (ORDER BY created_at DESC LIMIT 50 והיפוך לתצוגה) עם טעינת ישנות בגלילה (before=<id>). sender_name/sender_id נלקחים מ-req.saUser. polling אחד בלבד (10 שניות כשפתוח).",
+"alternatives": [],
+"refs": [
+"server.js:8663",
+"sa-app.js:7750",
+"sa-app.js:7549",
+"rules-sa.html#צ'אט פנימי לצוות SA"
+]
+},
+{
+"id": "SA-41",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "functional",
+"severity": "high",
+"title": "שמירת תבניות WhatsApp לעסק מכבה את WhatsApp",
+"as_is": "saveSAWhatsAppTemplates (sa-app.js:13371) שולח PATCH /api/sa/whatsapp-settings/:gid ללא enabled, והשרת מבצע upsert enabled=!!s.enabled → false (server.js:44432-44436).",
+"proposal": "PATCH חלקי: enabled מתעדכן רק אם השדה נשלח במפורש (typeof boolean); תבניות מתעדכנות רק אם נשלחו. בדיקה: שמירת תבנית לעסק פעיל משאירה enabled=true.",
+"alternatives": [],
+"refs": [
+"sa-app.js:13371",
+"server.js:44436",
+"rules-sa.html#הגדרות WhatsApp: הפעלה לעסק, ברירות מחדל גלובליות, עקיפות ותבניות"
+]
+},
+{
+"id": "SA-42",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "functional",
+"severity": "high",
+"title": "הגדרות WhatsApp (עסק/גלובלי/עקיפות) לא משפיעות על השליחה; שתי סכמות לטבלה",
+"as_is": "קיימות שתי הגדרות CREATE ל-whatsapp_settings: initDB (4409) עם notify_owner_* ו-ensureWhatsAppTables (44304) עם owner_*; ה-cron קורא owner_* (4561-4651) בעוד ה-BIZ PUT כותב notify_* (44258); ה-cron לא קורא כלל את ov_* ואת 12 הבוליאנים הגלובליים (44462) — ברירות מחדל ועקיפות של SA הן תצוגה בלבד.",
+"proposal": "סכמה אחת: whatsapp_settings עם enabled, 12 עמודות לפי WA_TYPE_KEYS (owner_checkin ... customer_review), ov_<key> ו-tpl_<key>; מיגרציה מעתיקה notify_* → owner_*. כלל אפקטיבי לכל סוג (גם ב-cron וגם במסך העסק): ov_<key> ?? whatsapp_settings.<key> ?? global.<key> ?? true, ושליחה רק אם enabled=true. ה-BIZ PUT כותב לאותן עמודות.",
+"alternatives": [
+"עקיפות SA מוחלטות (force_on/force_off) גוברות, וללא עקיפה — הגדרת העסק בלבד (ללא שכבה גלובלית לבוליאנים)."
+],
+"refs": [
+"server.js:4409",
+"server.js:44304",
+"server.js:44258",
+"server.js:44462",
+"server.js:4561",
+"s1-messages.html#WA-RESOLVE · סדר בחירת תבנית ו-applyWATpl",
+"rules-sa.html#Cron התראות WhatsApp (runWhatsAppCron)"
+]
+},
+{
+"id": "SA-43",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "functional",
+"severity": "high",
+"title": "הודעות WhatsApp קבועות ודינמיות לא נשלחות בגלל שאילתות על עמודות לא קיימות",
+"as_is": "checkin (4555-4558) משתמש ב-users.full_name ו-tasks.assignee_id; task_due (4616) ב-tasks.due_date/assignee_id; סוגים דינמיים (4688) ב-users.full_name — כולם לא קיימים בסכמה (קיימים nickname/first_name, assigned_to, deadline) והשגיאה נבלעת ב-catch ריק (4582, 4625, 4717). התוצאה: WA-01, WA-02, WA-05 וכל WA-08 לא נשלחים לעולם.",
+"proposal": "שאילתות לפי הסכמה: שם = COALESCE(first_name||' '||last_name, nickname), assigned_to, deadline. כל catch ב-cron כותב console.error עם group_id וסוג ההודעה (אין catch ריק). בדיקה: עסק עם משמרת היום ועובד ללא החתמה מקבל WA-01 ב-08:00.",
+"alternatives": [],
+"refs": [
+"server.js:4555",
+"server.js:4616",
+"server.js:4688",
+"server.js:4582",
+"s1-messages.html#WA-01 · owner_checkin — \"שכחת שעון כניסה\"",
+"s1-messages.html#WA-08 · סוגי התראה דינמיים (whatsapp_notification_types)"
+]
+},
+{
+"id": "SA-44",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "functional",
+"severity": "high",
+"title": "מניעת כפילות WhatsApp לא עובדת — הודעות נשלחות שוב",
+"as_is": "checkAlreadySent (services/whatsapp.js:19-27) משווה את הטלפון הגולמי (05...) מול הטלפון המנורמל שנרשם ב-whatsapp_log (9725...) — אין התאמה, ולכן כל הזמנה נשלחת פעמיים בחלון 2 הדקות וסוגי every_minute נשלחים כל דקה.",
+"proposal": "checkAlreadySent מנרמל את הטלפון באותה formatPhone לפני ההשוואה, ומתחשב רק בשורות status='sent'. להוסיף אינדקס (group_id, message_type, phone, created_at). בדיקה: הזמנה חדשה מייצרת הודעה אחת לבעלים בדיוק.",
+"alternatives": [],
+"refs": [
+"services/whatsapp.js:19",
+"services/whatsapp.js:4",
+"rules-sa.html#Cron התראות WhatsApp (runWhatsAppCron)"
+]
+},
+{
+"id": "SA-45",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "functional",
+"severity": "medium",
+"title": "תזמון WhatsApp לפי שעון השרת ותוכן/נמענים חלקיים",
+"as_is": "השעה נלקחת מ-new Date().getHours() של השרת ללא אזור זמן (4719) — בשרת UTC ההודעות יוצאות 2–3 שעות מוקדם; plan_tomorrow נשלח גם כשיש 0 משמרות; customer_order נשלח רק כש-owner_order דולק (4586); סוגים דינמיים תמיד נשלחים לבעלים גם כשנבחר employee/customer (4701-4704); POST /api/biz/whatsapp/order-notify (44277) לא נקרא מאף לקוח.",
+"proposal": "כל חישובי שעה ב-cron לפי Asia/Jerusalem (Intl / AT TIME ZONE). plan_tomorrow נשלח רק כשיש ≥1 משמרת. customer_order תלוי רק בהגדרה שלו. recipient_type של סוג דינמי: owner נתמך; employee/customer מוסתרים מהבורר עד שימומשו (או נדחים 400). order-notify: לחבר לשינוי סטטוס הזמנה ל-ready, או למחוק.",
+"alternatives": [],
+"refs": [
+"server.js:4719",
+"server.js:4586",
+"server.js:4701",
+"server.js:44277",
+"s1-messages.html#WA-07 · plan_tomorrow — תזכורת תכנון מחר",
+"s1-messages.html#WA-09 · order-notify: אישור הזמנה / הזמנה מוכנה"
+]
+},
+{
+"id": "SA-46",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "WhatsApp",
+"category": "ux",
+"severity": "low",
+"title": "חתימת WhatsApp עם המותג הישן Oneflow Life",
+"as_is": "buildMessage מוסיף '_הודעה זו נשלחה דרך מערכת Oneflow Life_' לכל הודעה (services/whatsapp.js:15), בעוד שאר המערכת ממותגת WEFLOWZ.",
+"proposal": "החתימה נלקחת מ-system_settings.wa_signature עם ברירת מחדל '_נשלח דרך WEFLOWZ_'; SA יכול לערוך בלשונית whatsapp.",
+"alternatives": [],
+"refs": [
+"services/whatsapp.js:15",
+"s1-messages.html#WA-INFRA · sendWhatsApp / buildMessage (מעטפת לכל הודעת WhatsApp משרת)"
+]
+},
+{
+"id": "SA-47",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "דוא\"ל",
+"category": "architecture",
+"severity": "medium",
+"title": "תצורת מייל: כתובת אישית קשיחה, טרנספורטים עוקפים ותבניות משוכפלות",
+"as_is": "admin_notification_email נופל ל-'mcgames1978@gmail.com' קשיח (server.js:4281-4290); /api/test-email (6369), pantry/bulk-update (11303) ו-b2b/orders (18148, 18209) יוצרים transport ישיר שעוקף getEmailConfig; תבניות /api/sa/test-email (6529-6648) הן העתק ידני של התבניות האמיתיות; sendSystemEmail מחזיר false בשקט כשחסר SMTP.",
+"proposal": "כל שליחת מייל עוברת דרך sendSystemEmail בלבד. אין כתובת קשיחה: אם admin_notification_email ריק — מיילי SA לא נשלחים ונרשמת אזהרה בדופק המערכת. תבניות מייל מוגדרות פעם אחת (מודול emailTemplates עם פונקציית render), והבדיקה ב-SA משתמשת באותן פונקציות עם נתוני דוגמה. כשל SMTP נרשם בטבלת email_log (to, subject, status, error).",
+"alternatives": [],
+"refs": [
+"server.js:4281",
+"server.js:6369",
+"server.js:11303",
+"server.js:18148",
+"server.js:6529",
+"rules-sa.html#תצורת מייל ושליחת מיילים מערכתיים",
+"s1-messages.html#EM-INFRA · sendSystemEmail / getEmailConfig"
+]
+},
+{
+"id": "SA-48",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "דוא\"ל",
+"category": "security",
+"severity": "medium",
+"title": "מיילים יוצאים: הערות פנימיות נשלחות לנמען חיצוני ו-HTML לא מנוקה",
+"as_is": "מסמך מקצועי (EM-21) כולל את doc.notes ('הערות פנימיות') במייל לנמען חיצוני ללא escaping (server.js:28916); sendAlertEmail משבץ message כ-HTML לא מנוקה (4328-4347).",
+"proposal": "שדות פנימיים (notes, internal_*) לעולם לא נכללים בתבנית חיצונית. כל משתנה שמוזרק לתבנית HTML עובר escapeHtml, למעט בלוקים שנבנו בשרת במפורש כ-HTML בטוח.",
+"alternatives": [],
+"refs": [
+"server.js:28916",
+"server.js:4328",
+"s1-messages.html#EM-21 · מסמך מקצועי (תוכן מלא)",
+"s1-messages.html#EM-ALERT · sendAlertEmail: מעטפת התראה למנהל העסק"
+]
+},
+{
+"id": "SA-49",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "SMS",
+"category": "security",
+"severity": "high",
+"title": "sms_debug_code שולח קוד אישור קבוע בפרודקשן",
+"as_is": "כשמוגדר system_settings.sms_debug_code באורך 4, הזמנת שולחן ציבורית ובקשת תור שולחות את הקוד הקבוע במקום אקראי (server.js:33578-33584, 33705); ה-SA מגדיר אותו בממשק (sa-app.js:7782, server.js:8906) ללא הגבלת סביבה.",
+"proposal": "קוד debug פעיל רק כש-NODE_ENV!=='production' (או לטלפונים ברשימת sms_test_phones בלבד). בפרודקשן נשלח תמיד קוד אקראי crypto.randomInt; ה-UI מסמן את ההגדרה כ'סביבת בדיקות בלבד'.",
+"alternatives": [
+"להשאיר את הקוד הקבוע אך להגבילו לטלפון אחד מוגדר (sms_debug_phone)."
+],
+"refs": [
+"server.js:33578",
+"server.js:33705",
+"server.js:8906",
+"sa-app.js:7782",
+"s1-messages.html#SMS-08 · הזמנת שולחן ציבורית: קוד אישור"
+]
+},
+{
+"id": "SA-50",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "SMS ו-rate limit",
+"category": "security",
+"severity": "medium",
+"title": "נתיבים ציבוריים ששולחים הודעות או כותבים ללא rate limit",
+"as_is": "POST /api/sc-auth/forgot-pin (43442) שולח SMS ללא הגבלה; POST /api/pilot-waitlist (7534) ציבורי ללא הגבלה; smsService (server.js:55-85) הוא קוד מת.",
+"proposal": "rate limit אחיד לכל נתיב ציבורי ששולח SMS/מייל: 3 בקשות ל-10 דקות לכל טלפון/מייל ו-20 לשעה לכל IP (כמו sc-auth/send-otp). pilot-waitlist: 5 לשעה ל-IP וכפילות טלפון מעדכנת שורה קיימת. למחוק את smsService.",
+"alternatives": [],
+"refs": [
+"server.js:43442",
+"server.js:7534",
+"server.js:55",
+"s1-messages.html#SMS-06 · איפוס PIN לקוח חנות",
+"rules-sa.html#רשימת המתנה לפיילוט (לידים)"
+]
+},
+{
+"id": "SA-51",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "אחסון טוקנים",
+"category": "security",
+"severity": "medium",
+"title": "טוקנים זמניים נשמרים בזיכרון התהליך",
+"as_is": "otpCache של SA (8507), zmPasswordResets של מנהלי אזור (18786) וסשני ZM (Map, 6498) נשמרים בזיכרון — נמחקים בכל פריסה/אתחול, ואינם עובדים עם יותר ממופע אחד.",
+"proposal": "כל טוקן/OTP/סשן נשמר ב-DB כ-hash עם expires_at ו-purpose (טבלה משותפת auth_tokens או business_otp), עם ניקוי תקופתי של פגי תוקף. בדיקה: קישור איפוס ZM עובד אחרי אתחול שרת.",
+"alternatives": [],
+"refs": [
+"server.js:8507",
+"server.js:18786",
+"server.js:6498",
+"s1-messages.html#EM-13 · איפוס סיסמת מנהל אזור"
+]
+},
+{
+"id": "SA-52",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "התראות בתוך המערכת",
+"category": "functional",
+"severity": "high",
+"title": "התראות פנימיות (alert_notifications, group_notifications) לא נוצרות לעולם",
+"as_is": "9 מקורות (IN-01..IN-09: הצעות מחיר, שיוך, פקודות עבודה, קריאות שירות) מכניסים ל-alert_notifications עם עמודות type, title, reference_id שאינן קיימות (סכמה: id, group_id, rule_id, trigger_type, message, is_read, created_at, reference_key, server.js:760) — השגיאה נבלעת; group_notifications (התראת שימור יופי, 32664) לא נוצרת בשום מקום.",
+"proposal": "פונקציית עזר יחידה notify(groupId, triggerType, message, referenceKey) שכותבת ל-alert_notifications לפי הסכמה (title נשמר כחלק מ-message או כעמודה חדשה title במיגרציה). runRetentionCron כותב לאותה טבלה עם trigger_type='beauty_retention'. אסור catch שבולע בלי לוג.",
+"alternatives": [
+"להוסיף לטבלה את העמודות type, title, reference_id במקום לשנות את הקוראים."
+],
+"refs": [
+"server.js:760",
+"server.js:14851",
+"server.js:32664",
+"s1-messages.html#IN-01 · הצעת מחיר אושרה (ללקוח המשפחתי)",
+"s1-messages.html#CH-05 · התראת שימור לקוחות יופי (group_notifications)"
+]
+},
+{
+"id": "SA-53",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "שידור Inbox",
+"category": "functional",
+"severity": "low",
+"title": "שידור הודעות לסביבות כולל מחוקות/מוקפאות",
+"as_is": "POST /api/sa/inbox/broadcast (23256) בוחר נמענים לפי is_premium/type בלבד, כולל is_deleted/frozen/archived ו-is_test_env; sender_contact קשיח 'admin@weflowz.co.il'.",
+"proposal": "נמענים: is_deleted=false AND account_status IN ('active','pending_activation'); סביבות טסט נכללות רק בסימון 'כלול טסט'. targetType pro/free לפי plan (premium/enterprise = pro) ולא is_premium. השידור נרשם ב-audit עם מספר נמענים.",
+"alternatives": [],
+"refs": [
+"server.js:23256",
+"rules-sa.html#שידור הודעות Inbox לסביבות"
+]
+},
+{
+"id": "SA-54",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "הגדרות מערכת",
+"category": "security",
+"severity": "medium",
+"title": "הגדרות מערכת: כתיבה גנרית לכל מפתח ושמירת באנרים מאפסת ערכים",
+"as_is": "POST /api/sa/settings (9015) כותב כל key ל-system_settings (כולל sa_password וכו'); POST /api/superadmin/banners (9963) מאפס ל-'' כל באנר שלא נשלח ושומר גם smtp/admin email באותו נתיב.",
+"proposal": "/api/sa/settings מקבל רק מפתחות מ-allow-list (preloader_text, cloudinary_cloud_name, cloudinary_upload_preset, ...); מפתחות רגישים (sa_*, smtp_*, sms_debug_code, admin_notification_email) רק בנתיבים ייעודיים עם הרשאת 'all'. banners מעדכן רק מפתחות שנשלחו (undefined = ללא שינוי, '' = ניקוי).",
+"alternatives": [],
+"refs": [
+"server.js:9015",
+"server.js:9963",
+"rules-sa.html#הגדרות מערכת כלליות (system_settings)"
+]
+},
+{
+"id": "SA-55",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "תוכן משפטי",
+"category": "security",
+"severity": "medium",
+"title": "מסמכים משפטיים נשמרים ומוגשים כ-HTML ללא סניטציה",
+"as_is": "PUT /api/sa/legal/:key (25299) שומר HTML מה-contentEditable כמות שהוא ו-/api/public/legal/:key (25275) מגיש אותו לכל המשתמשים — XSS מאוחסן אם טוקן SA נפרץ או מוזרק תוכן.",
+"proposal": "סניטציה בשרת בשמירה (allow-list תגיות: p, h1-h4, ul, ol, li, b, i, u, a[href http/https/mailto], br, table) והצגה בלקוח דרך DOMPurify. שמירת גרסאות (legal_versions) עם תאריך וזהות עורך.",
+"alternatives": [],
+"refs": [
+"server.js:25299",
+"server.js:25275",
+"rules-sa.html#מסמכים משפטיים (תקנונים, פרטיות, נגישות)"
+]
+},
+{
+"id": "SA-56",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "עסקי דמו",
+"category": "security",
+"severity": "medium",
+"title": "עסק דמו: ביטול לא חוסם כניסה וסיסמה גלויה",
+"as_is": "disable רק מכבה is_demo_business (18056) — /api/biz/login מאשר כל עסק BUSINESS ולכן פרטי הדמו ממשיכים לעבוד; demo_password_plain בטקסט גלוי; עסק דמו ללא snapshot לא מאופס ע\"י ה-cron (44909).",
+"proposal": "disable מסיר את משתמש 'לקוח דמו' (או status='blocked') ומוחק את כל הסשנים שלו. הסיסמה נשמרת כ-bcrypt בלבד ומוצגת פעם אחת (ראה SA-32). enable דורש snapshot קיים או לוקח אחד אוטומטית, כדי שה-cron יאפס תמיד.",
+"alternatives": [],
+"refs": [
+"server.js:18056",
+"server.js:17965",
+"server.js:44909",
+"rules-sa.html#עסקי דמו לכניסה ציבורית ואיפוס אוטומטי"
+]
+},
+{
+"id": "SA-57",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "תבניות עסקים",
+"category": "functional",
+"severity": "low",
+"title": "הסתרת אלמנט אב בתבנית עסק לא מסתירה את הילדים",
+"as_is": "toggleVizElement (sa-app.js:9106) שומר רק את המפתח שנלחץ ב-biz_type_visibility; ילדים מוצגים בהיר (opacity) אך נשארים גלויים ב-business-app.js; business_type='other' ו-'events' לא נתמכים בעץ.",
+"proposal": "ב-business-app.js: אלמנט מוסתר אם הוא או אחד מאבותיו בעץ BIZ_TEMPLATE_TREE מוסתר (העץ מוגש מהשרת כ-JSON משותף). להוסיף עצים ל-events ולשאר הסוגים הקנוניים, או לסמן במפורש שאינם נתמכים.",
+"alternatives": [],
+"refs": [
+"sa-app.js:9106",
+"sa-app.js:8610",
+"server.js:25325",
+"business-app.js:57263",
+"rules-sa.html#תבניות עסקים — הסתרת לשוניות/פיצ'רים לפי סוג עסק"
+]
+},
+{
+"id": "SA-58",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "יציבות",
+"category": "architecture",
+"severity": "low",
+"title": "נתיבי SA ללא טיפול שגיאות ושגיאות שמוחזרות ב-HTTP 200",
+"as_is": "GET /api/sa/sc-customers (43752) ו-POST /:id/reset-pin (43773) ללא try/catch — שגיאת DB משאירה בקשה תלויה/קורסת; נתיבי AI builder ו-business-templates (5183, 5668-5699) מחזירים שגיאות ב-200 עם success:false.",
+"proposal": "כל handler עטוף ב-asyncHandler שמחזיר 500 {error} ורושם ללוג. שגיאות ולידציה → 400, לא נמצא → 404, ספק חיצוני → 502; success:false עם 200 לא בשימוש.",
+"alternatives": [],
+"refs": [
+"server.js:43752",
+"server.js:43773",
+"server.js:5183",
+"server.js:5668",
+"rules-sa.html#לקוחות storefront רשומים (איפוס PIN)",
+"rules-sa.html#תבניות עסק שמורות וטיוטות מחולל"
+]
+},
+{
+"id": "SA-59",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "מפת מערכת",
+"category": "architecture",
+"severity": "low",
+"title": "רענון מסמכי מערכת כותב לדיסק השרת בזמן ריצה",
+"as_is": "POST /api/sa/docs/refresh/:doc (38605) סורק קבצי קוד ומשכתב קבצי Markdown בדיסק — נמחק בכל פריסה ואינו עקבי בין מופעים; patchPricingCatalogForRoutines (3817) משנה ושומר את הקטלוג בתוך GET.",
+"proposal": "מסמכים שנוצרים בזמן ריצה נשמרים ב-DB (system_docs: key, content, generated_at) ומוגשים משם; קבצי docs/ בריפו מתעדכנים רק ב-CI. מיגרציות נתונים (כמו תיקון קטלוג routines) רצות פעם אחת בעליית השרת/סקריפט — GET לעולם לא כותב.",
+"alternatives": [],
+"refs": [
+"server.js:38605",
+"server.js:37296",
+"server.js:3817",
+"rules-sa.html#מסמכי מערכת (מפת מערכת) — רענון אוטומטי",
+"rules-sa.html#מחירון מודולים, חבילות והטבת חודשי ניסיון"
+]
+},
+{
+"id": "SA-60",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "שיווק",
+"category": "scope",
+"severity": "low",
+"title": "קמפיינים שיווקיים ב-SA ללא שליחה מהשרת",
+"as_is": "saMarketingWaSend בונה טקסט ומשתף ידנית דרך navigator.share או wa.me (sa-app.js:12818-12995); אין שליחה המונית, תיעוד או opt-out.",
+"proposal": "להחליט: המסך נשאר 'מחולל תוכן לשיתוף ידני' (ולתעד כך), ללא שליחה המונית מהשרת. אם תידרש שליחה — רק לנמענים עם הסכמה מתועדת (marketing_opt_in) דרך ספק WhatsApp מאושר, עם whatsapp_log.",
+"alternatives": [
+"לממש שליחה מהשרת דרך UltraMsg לרשימת מנויים עם opt-out."
+],
+"refs": [
+"sa-app.js:12818",
+"server.js:44198",
+"rules-sa.html#תבניות קמפיינים שיווקיים (WhatsApp) ושקפים"
+]
+},
+{
+"id": "SA-61",
+"domain": "Super Admin ותפעול פלטפורמה",
+"area": "תיעוד",
+"category": "docs",
+"severity": "low",
+"title": "מסמך SA_ENV_SPEC לא תואם לקוד (נתיבים, לשוניות, RBAC, תוקף סשן)",
+"as_is": "docs/SA_ENV_SPEC.md מתעד GET /api/sa/live-pulse, /api/sa/finance, /api/sa/config, /api/sa/email-settings, /api/sa/kol-haam-queue שאינם קיימים (בפועל /api/sa/finance-summary, /api/sa/settings/<keys>, /api/kol-haam/sa/queue); לא מציין שאין RBAC בשרת; SYSTEM_SPEC מתאר לשונית families ו-POST /api/sa/create-business שאינם קיימים, וסשן 30 דקות לעומת 30 יום בפועל.",
+"proposal": "המפרט החדש הוא מקור האמת: רשימת נתיבי SA, מפת לשוניות↔הרשאות (SA-09), תוקף סשן (SA-06) ומכסות AI (SA-11) מתועדים בו; קבצי docs ישנים (spec-super-admin.md) מסומנים כמבוטלים.",
+"alternatives": [],
+"refs": [
+"s1-docsvscode.html#docs/SA_ENV_SPEC.md — Super-Admin",
+"sa-app.js:14322",
+"sa-app.js:8353",
+"sa-app.js:442"
+]
+}
+]

@@ -1,0 +1,998 @@
+[
+{
+"id": "COM-01",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "אימות משפחה",
+"category": "security",
+"severity": "critical",
+"title": "bootstrap-token מנפיק סשן משפחה ללא הוכחת זהות",
+"as_is": "POST /api/community/bootstrap-token מקבל groupId+userId מהגוף ומנפיק סשן משפחה תקף אם המשתמש active בקבוצת FAMILY — ללא סיסמה/OTP (server.js:10721-10737). ensureFamilyToken בלקוח קורא לו כש-ofl_family_token חסר (app.js:832).",
+"proposal": "להסיר את הנתיב. טוקן משפחה מונפק רק ב-/api/login (או OTP) ומוחזר ללקוח בתשובת הכניסה; כשהטוקן חסר/פג הלקוח מנתב למסך כניסה. בדיקה: קריאה עם groupId+userId בלבד מחזירה 404/401.",
+"alternatives": [
+"להשאיר את הנתיב אך לדרוש טוקן סשן קיים (רענון) — refresh token בלבד."
+],
+"refs": [
+"server.js:10721",
+"app.js:832",
+"app.js:846",
+"s1-docsvscode.html#סשן משפחה ללא סיסמה",
+"rules-community.html#הנפקת טוקן משפחה לפיצ'רי קהילה"
+],
+"dup_of": "AUTH-01"
+},
+{
+"id": "COM-02",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "אימות מנהל אזור",
+"category": "security",
+"severity": "critical",
+"title": "טוקן מנהל אזור ניתן לזיוף (ZM_{id}_x) וסשנים לא פגים",
+"as_is": "verifyZoneManager מקבל כל מחרוזת שמתחילה ב-ZM_{id}_ עבור מנהל active כשהטוקן לא ב-Map (server.js:6507-6520). הסשנים ב-Map בזיכרון ללא תפוגה; מנהל שהושהה ממשיך לעבור כל עוד הטוקן ב-cache; טוקני איפוס סיסמה בזיכרון בלבד (18777-18804).",
+"proposal": "סשני ZM נשמרים בטבלת zone_manager_sessions (token hash sha256, manager_id, expires_at = +30 יום, revoked) כמו family_sessions; אין fallback לפי קידומת. כל בקשה בודקת גם zone_managers.status='active'. השהיית מנהל/שינוי סיסמה מבטלים את כל סשניו. טוקני איפוס נשמרים ב-DB (hash, תוקף 60 דק', שימוש חד-פעמי).",
+"alternatives": [],
+"refs": [
+"server.js:6498",
+"server.js:6507",
+"server.js:18816",
+"server.js:18777",
+"s1-rbac.html#verifyZoneManager",
+"rules-community.html#הרשמה, כניסה, סשן ואיפוס סיסמה של מנהל אזור"
+],
+"dup_of": "ARC-08"
+},
+{
+"id": "COM-03",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "נתיבי SA ללא אימות",
+"category": "security",
+"severity": "critical",
+"title": "נתיבי ניהול SA שאינם דורשים verifySA",
+"as_is": "PATCH /api/sa/community/biz-posts/:id/approve|reject|hide (server.js:16733-16748), PATCH /api/sa/quest-library/:id/visibility (4114), PATCH /api/sa/groups/:id/modules, /unlock-module, /upgrade-member (31063-31110) — רשומים ללא middleware; כל אנונימי יכול לאשר פוסטים, לפתוח מודולים ולשנות member_type.",
+"proposal": "כל נתיב תחת /api/sa/* מחייב verifySA (אכיפה גורפת: app.use('/api/sa', verifySA) לפני הרישום, עם whitelist מפורש לנתיבי login בלבד). בדיקה אוטומטית: סריקת רישום נתיבים — אף /api/sa/* ללא verifySA.",
+"alternatives": [],
+"refs": [
+"server.js:16733",
+"server.js:16740",
+"server.js:16748",
+"server.js:4114",
+"server.js:31063",
+"server.js:31073",
+"server.js:31093",
+"s1-rbac.html#SUPER-ADMIN — API ניהול"
+],
+"dup_of": "SA-03"
+},
+{
+"id": "COM-04",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "קאשבק",
+"category": "security",
+"severity": "critical",
+"title": "שינוי סטטוס הזמנה (שמפעיל קאשבק ועמלות) ללא אימות",
+"as_is": "POST /api/store/orders/status ללא אימות (server.js:14666); מעבר ל-delivered/completed מריץ triggerCashbackForOrder שיוצר business_platform_dues, זיכוי community_wallets ועמלת ZM (18548-18610).",
+"proposal": "שינוי סטטוס הזמנה מחייב verifyBiz ושההזמנה שייכת ל-req.bizAuth.groupId (store_orders.group_id). קאשבק/עמלה נוצרים רק במעבר ראשון ל-completed/delivered (אידמפוטנטי לפי order_id, כבר קיים).",
+"alternatives": [],
+"refs": [
+"server.js:14666",
+"server.js:18548",
+"rules-community.html#קאשבק קהילתי ועמלות בעת השלמת הזמנה"
+],
+"dup_of": "STR-04"
+},
+{
+"id": "COM-05",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חשבון חבר",
+"category": "security",
+"severity": "high",
+"title": "נתיבי /api/member/* ללא אימות",
+"as_is": "POST /api/member/create-for-business (30950), /link/:linkId/respond (31016), /request-module (31042), GET /my-businesses (31116), /my-orders/:biz/:member (31135) — ללא middleware; עסק אנונימי יוצר חשבונות, וכל אחד מאשר שיוך או קורא הזמנות.",
+"proposal": "create-for-business: verifyBiz, business_group_id = req.bizAuth.groupId. respond/request-module/my-businesses/my-orders: verifyFamily וה-group מהסשן (החבר הוא הבעלים של הקישור). my-orders מתאים הזמנות רק לפי family_group_id או טלפון מאומת — לא לפי שם לקוח.",
+"alternatives": [],
+"refs": [
+"server.js:30950",
+"server.js:31016",
+"server.js:31042",
+"server.js:31116",
+"server.js:31135",
+"rules-community.html#יצירת חשבון חבר ע\"י עסק ושיוך עסק-חבר"
+]
+},
+{
+"id": "COM-06",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "סיסמאות",
+"category": "security",
+"severity": "high",
+"title": "סיסמאות נשמרות בטקסט גלוי (קהילה, חבר, מנהל אזור)",
+"as_is": "communities.manager_password נשמר גלוי ואינו בשימוש (17494); חשבון חבר נשמר עם password_hash = סיסמה גלויה ו-solo_temp_password=NULL (30978-30981); כניסת ZM משווה טקסט גלוי ל-hash שאינו מתחיל ב-$2 (18816).",
+"proposal": "להסיר את העמודות manager_email/manager_password מ-communities. כל סיסמה נשמרת ב-bcrypt (10 rounds) בלבד; סיסמה זמנית לחבר מוחזרת פעם אחת בתשובה ולא נשמרת גלויה; must_change_password=true. מיגרציה חד-פעמית שמגבבת ערכים גלויים קיימים ומבטלת את ענף ההשוואה הגלויה.",
+"alternatives": [],
+"refs": [
+"server.js:17494",
+"server.js:30978",
+"server.js:18816",
+"rules-community.html#יצירת קהילה ע\"י סופר-אדמין",
+"rules-community.html#יצירת חשבון חבר ע\"י עסק ושיוך עסק-חבר"
+]
+},
+{
+"id": "COM-07",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "בעלות עסק",
+"category": "security",
+"severity": "high",
+"title": "נתיבי עסק-קהילה ללא בדיקת בעלות על bizId",
+"as_is": "GET /api/biz/communities/match/:bizId (21194), /available/:bizId (16755), /via-biz/:bizCode/:myBizId (16770); POST /api/biz/community/feed-posts לא משווה businessId ל-req.bizAuth (37036); לגאסי /api/biz/feed/posts ללא בעלות (16685); GET כפול /api/biz/community/promotions/:bizId (21153) ללא בעלות.",
+"proposal": "בכל נתיב /api/biz/* מזהה העסק נגזר מ-req.bizAuth.groupId; פרמטר bizId בנתיב/גוף שאינו תואם → 403. נתיבים כפולים/לגאסי נמחקים.",
+"alternatives": [],
+"refs": [
+"server.js:21194",
+"server.js:16755",
+"server.js:16770",
+"server.js:37036",
+"server.js:16685",
+"server.js:21153"
+]
+},
+{
+"id": "COM-08",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "תחום מנהל אזור",
+"category": "security",
+"severity": "high",
+"title": "פעולות מנהל אזור שאינן מוגבלות לאזור שלו",
+"as_is": "POST /api/zm/articles מקבל community_id כלשהו (15827); GET/PUT /api/zone-manager/leads/:id ו-actions לא בודקים שהליד שייך לקמפיין של ה-ZM (20068-20111); הודעה חדשה מ-ZM לא מאמתת groupId/communityId באזורו, ו-thread חדש לא מעדכן last_message_at (inbox).",
+"proposal": "כל פעולת ZM על משאב מאמתת שייכות: קהילה → communities.zone_id ∈ manager_zones של המנהל; ליד → zm_campaigns.zone_manager_id = המנהל; משפחה → חברה בקהילה באזורו. אחרת 403 'אין הרשאה'. מאמר גלובלי (community_id NULL) — SA בלבד.",
+"alternatives": [],
+"refs": [
+"server.js:15827",
+"server.js:20068",
+"server.js:20081",
+"server.js:20104",
+"s1-rbac.html#ZONE MANAGER — מסכים",
+"rules-community.html#תיבת הודעות מנהל אזור ↔ מנהלי קהילה ותבניות"
+]
+},
+{
+"id": "COM-09",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "נתיבי קריאה ציבוריים",
+"category": "security",
+"severity": "medium",
+"title": "נתיבי קהילה ציבוריים שזהות הצופה בהם נלקחת מ-query",
+"as_is": "פוסט ציבורי (36375) פותח את התוכן לפי familyId ב-query לא מאומת; רשימת קבוצות (36408) וחברים (36551) קובעים is_member/addable לפי familyId ב-query; likers/sharers/comments ציבוריים; /api/family/live-games/:groupId ציבורי (38743); search-business ציבורי (16821).",
+"proposal": "נתיבי קהילה המחזירים מידע תלוי-משפחה דורשים verifyFamily והמשפחה נגזרת מהסשן. נתונים ציבוריים במכוון (דף פוסט משותף) מחזירים רק תוכן מצומצם (gated) ללא רשימות חברים/מגיבים.",
+"alternatives": [],
+"refs": [
+"server.js:36375",
+"server.js:36408",
+"server.js:36551",
+"server.js:36259",
+"server.js:38743",
+"server.js:16821"
+]
+},
+{
+"id": "COM-10",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מנהל קהילה",
+"category": "security",
+"severity": "medium",
+"title": "מינוי והרשאת מנהל קהילה לא בודקים חברות מאושרת",
+"as_is": "set-manager (SA 18640 / ZM 19962) מעדכן is_community_manager גם לשורה pending ומחזיר success גם על 0 שורות; verifyCommunityManagerAccess (20545) לא בודק fc.status, בעוד resolveCommunityJoinStatus מתחשב רק ב-CM approved (16790).",
+"proposal": "מינוי מותר רק למשפחה עם family_communities.status='approved' (אחרת 400 'המשפחה אינה חברה מאושרת'); 0 שורות → 404. verifyCommunityManagerAccess דורש is_community_manager=TRUE AND status='approved'. מספר מנהלים לקהילה — מותר.",
+"alternatives": [],
+"refs": [
+"server.js:18640",
+"server.js:19962",
+"server.js:20545",
+"server.js:16790",
+"rules-community.html#מינוי/הסרת מנהל קהילה"
+]
+},
+{
+"id": "COM-11",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "קוד מבצע",
+"category": "security",
+"severity": "medium",
+"title": "אימות קוד מבצע קהילה ציבורי ללא בדיקת חברות",
+"as_is": "GET /api/community/promotions/validate (21112) ציבורי; מחזיר נתוני מבצע לכל מי שמכיר code+communityId, ללא בדיקה שהמשפחה חברה.",
+"proposal": "האימות מתבצע רק בהקשר הזמנה (verifyFamily או sc-auth) ומוודא שהמשפחה approved בקהילת המבצע; קופה עסקית מאמתת דרך verifyBiz ובודקת שהמבצע של העסק.",
+"alternatives": [],
+"refs": [
+"server.js:21112",
+"rules-community.html#אימות ומימוש קוד מבצע קהילה"
+]
+},
+{
+"id": "COM-12",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מנוע FLOW",
+"category": "money",
+"severity": "critical",
+"title": "תגמולי FLOW ניתנים שוב ושוב — אין אידמפוטנטיות",
+"as_is": "awardFlow (21709) לא בודק כפילות. מימוש מבצע חוזר (22132-22152), הצטרפות חוזרת לפול (34065, ללא rowCount), select-bid חוזר על פול סגור (34135), אישור ZM עם 0 שורות (18987), אישור שגריר חוזר (21277) — כל אחד מזכה שוב.",
+"proposal": "awardFlow מקבל מפתח אידמפוטנטיות (entity_type, entity_id, action_key, reference_id) עם UNIQUE חלקי על flow_transactions; קריאה חוזרת = no-op. בנוסף כל קורא מעניק רק אם ה-UPDATE/INSERT שקדם לו שינה שורה (rowCount>0). action_key ללא reference (daily_login) — פעם ביום.",
+"alternatives": [],
+"refs": [
+"server.js:21709",
+"server.js:22132",
+"server.js:34065",
+"server.js:34135",
+"server.js:18987",
+"server.js:21277",
+"rules-community.html#מנוע FLOW (awardFlow) וארנק FLOW קהילתי"
+]
+},
+{
+"id": "COM-13",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מימוש מבצע",
+"category": "money",
+"severity": "high",
+"title": "מימוש מבצע קהילה ללא רישום וללא מגבלת שימוש",
+"as_is": "POST /api/community/promotions/:id/redeem מעניק 3 שלבי FLOW (משפחה 3+2, עסק 5+5, קהילה 5) בכל לחיצה ואינו רושם מימוש (22132-22152).",
+"proposal": "טבלת community_promo_redemptions (promo_id, family_group_id, order_id NULL, redeemed_at, UNIQUE(promo_id,family_group_id)). מימוש מותר פעם אחת למשפחה למבצע (או עד max_uses_per_family אם יוגדר), רק כשהמבצע approved ובתוקף; FLOW ניתן רק ביצירת השורה.",
+"alternatives": [
+"לבטל את כפתור המימוש הידני ולאפשר מימוש רק דרך הזמנה בחנות עם promoCode."
+],
+"refs": [
+"server.js:22132",
+"server.js:14601",
+"rules-community.html#אימות ומימוש קוד מבצע קהילה"
+]
+},
+{
+"id": "COM-14",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חבילות קהילה",
+"category": "money",
+"severity": "high",
+"title": "רכישת חבילת קהילה היא לחיצה שמייצרת FLOW ללא תשלום",
+"as_is": "POST /api/community/bundles/:id/purchase (22191) מעניק bundle_purchase (18+7), biz_bundle_sold לכל עסק (10+20) ו-bundle_community (0+20) — ללא הזמנה, תשלום או מניעת כפילות. יצירת חבילה לא בודקת שהעסקים חברים בקהילה; PATCH status ללא ולידציה (21574, 21624).",
+"proposal": "רכישת חבילה יוצרת הזמנה אמיתית (store_orders לכל עסק או הזמנת-חבילה) והתגמולים ניתנים רק בהשלמת התשלום/ההזמנה, פעם אחת לכל רכישה. יצירה: כל businessIds חייבים community_businesses.status='approved' בקהילה. status ∈ {active, paused, archived}.",
+"alternatives": [
+"להשבית את פיצ'ר החבילות עד שיוגדר תהליך תשלום."
+],
+"refs": [
+"server.js:22191",
+"server.js:21574",
+"server.js:21624",
+"rules-community.html#חבילות קהילה (Bundles)"
+]
+},
+{
+"id": "COM-15",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מנוע FLOW",
+"category": "money",
+"severity": "medium",
+"title": "תגמולי FLOW מוגדרים בקונפיג אך לא מוענקים (או נכשלים)",
+"as_is": "join_community, referral, referral_join מוגדרים ב-flow_config אך לא נקראים (21681, 36797); promo_used נקרא בסגירת הזמנה אך לא קיים (14694); בונוס פוסט (3/1) ו'פוסט פופולרי' מכניסים flow_transactions.community_id שאינה קיימת ואינם מעדכנים flow_wallets (36068, 36239).",
+"proposal": "רשימת תגמולים סגורה ומתועדת: join_community — באישור המשפחה בקהילה (פעם אחת לזוג); referral_join — למפנה כשהמשפחה המופנית מאושרת; community_post ו-post_popular_bonus — דרך awardFlow בלבד (הוספה ל-flow_config). מפתח שלא קיים בקונפיג → שגיאה בלוג בעת עלייה (validation), לא no-op שקט.",
+"alternatives": [
+"להסיר מהקונפיג מפתחות שלא ימומשו (join_community/referral) ולהשאיר רק את המוענקים בפועל."
+],
+"refs": [
+"server.js:21681",
+"server.js:14694",
+"server.js:36068",
+"server.js:36239",
+"server.js:36797",
+"rules-community.html#קוד הפניה משפחתי"
+]
+},
+{
+"id": "COM-16",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מימוש FLOW",
+"category": "money",
+"severity": "high",
+"title": "אימות קוד מימוש FLOW תמיד נכשל (סטטוס לא תואם)",
+"as_is": "/api/flow/redeem/validate (22029) מחפש קודים בסטטוס NULL/'pending' בעוד קודי מימוש נוצרים 'active' — האימות תמיד נכשל.",
+"proposal": "מחזור חיים אחיד לקוד מימוש: active → used | expired | cancelled. validate מקבל רק active שלא פג; מימוש מעביר ל-used באופן אטומי (UPDATE ... WHERE status='active' RETURNING).",
+"alternatives": [],
+"refs": [
+"server.js:22029",
+"server.js:21950",
+"rules-community.html#מנוע FLOW (awardFlow) וארנק FLOW קהילתי"
+],
+"dup_of": "SA-34"
+},
+{
+"id": "COM-17",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "שגריר קהילה",
+"category": "money",
+"severity": "high",
+"title": "בונוס שגריר: אישור ללא קשר לעסק, מטבע מעורבב ואין דחייה",
+"as_is": "SA approve (21277) מזכה 50 'נקודות' ל-community_wallets (ארנק ₪ של קאשבק) + awardFlow 35+15, ללא תנאי סטטוס (אישור חוזר מזכה שוב), לא תלוי באישור העסק בקהילה, ואין מעבר rejected.",
+"proposal": "הפניה: pending → approved | rejected. אישור מותר רק מ-pending ורק כש-community_businesses של העסק המופנה בקהילה הוא approved. התגמול ניתן ב-FLOW בלבד (ambassador_approved); community_wallets (₪) נשאר לקאשבק בלבד. rejected דורש סיבה.",
+"alternatives": [
+"אישור אוטומטי של ההפניה ברגע שהעסק מאושר בקהילה (ללא פעולת SA)."
+],
+"refs": [
+"server.js:21277",
+"server.js:18453",
+"rules-community.html#שגריר קהילה — הפניית עסק ע\"י משפחה"
+]
+},
+{
+"id": "COM-18",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "קאשבק",
+"category": "money",
+"severity": "high",
+"title": "חישוב קאשבק: קהילה ראשונה אקראית, חברות לא מאושרת, אחוז 0 הופך ל-3",
+"as_is": "triggerCashbackForOrder בוחר LIMIT 1 קהילה משותפת כשהמשפחה בכל סטטוס (גם pending); parseFloat(value||3) הופך 0 שמור ל-3 (וכן ל-30/5); ללא טרנזקציה — dues/ארנק/עמלה עלולים להיווצר חלקית (18548-18610).",
+"proposal": "קהילה זכאית: המשפחה approved והעסק approved; אם יש כמה — לפי סדר מוגדר (הקהילה בה ההזמנה בוצעה אם ידוע, אחרת הוותיקה ביותר לפי joined_at). ערכי אחוז נקראים כ-null→ברירת מחדל, 0 נשמר כ-0. כל הכתיבות (dues, wallet, transaction, ZM commission) בטרנזקציה אחת.",
+"alternatives": [
+"לפצל את הקאשבק שווה בשווה בין כל הקהילות המשותפות."
+],
+"refs": [
+"server.js:18548",
+"server.js:18571",
+"server.js:18603",
+"rules-community.html#קאשבק קהילתי ועמלות בעת השלמת הזמנה"
+]
+},
+{
+"id": "COM-19",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "ארנק קהילה",
+"category": "scope",
+"severity": "medium",
+"title": "ארנק הקהילה (₪) צובר בלבד — אין שימוש/משיכה",
+"as_is": "community_wallets מקבל זיכויי קאשבק ובונוסי שגריר אך אין שום נתיב שמנכה/מושך/משתמש ביתרה (18738, 20446).",
+"proposal": "להגדיר את ייעוד הארנק: מנהל קהילה מגיש בקשת שימוש (סכום, מטרה) → SA מאשר → debit עם community_wallet_transactions type='debit'; יתרה לא יורדת מתחת ל-0.",
+"alternatives": [
+"להמיר את ארנק ה-₪ ל-FLOW קהילתי ולאחד עם flow_wallets('community')."
+],
+"refs": [
+"server.js:18738",
+"server.js:20446",
+"rules-community.html#ארנק קהילה (₪ קאשבק) — צפייה"
+]
+},
+{
+"id": "COM-20",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חובות פלטפורמה",
+"category": "money",
+"severity": "medium",
+"title": "business_platform_dues נשאר pending לנצח; גבייה בטבלה נפרדת",
+"as_is": "שורות dues נוצרות 'pending' ואין מעבר סטטוס; גבייה נרשמת ב-business-collections (18712) ללא קישור לשורות dues.",
+"proposal": "סטטוסים: pending → invoiced → paid | written_off. רישום גבייה מקצה סכום לשורות dues (FIFO) ומעדכן סטטוס; יתרת חוב עסק = Σ dues לא-paid − הקצאות.",
+"alternatives": [],
+"refs": [
+"server.js:18712",
+"server.js:18692",
+"rules-community.html#קאשבק קהילתי ועמלות בעת השלמת הזמנה"
+]
+},
+{
+"id": "COM-21",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "באנרים בתשלום",
+"category": "money",
+"severity": "high",
+"title": "ביטול הזמנת באנר לא מחזיר מטבעות ולא מבטל חיוב; משך N+1 ימים",
+"as_is": "PUT /api/sa/banner/orders/:id/cancel (34751) ללא תנאי סטטוס וללא החזר coins/ביטול billing_records; cron מסמן expired רק כש-end_date < היום → מוצג N+1 ימים (21505); בדיקת התנגשות מתעלמת מחפיפת קהילות (34664).",
+"proposal": "ביטול מ-pending_approval: ללא חיוב. ביטול מ-active: החזר יחסי של מטבעות לימים שלא נוצלו + billing_record → cancelled (או זיכוי). end_date = start + N − 1 (כולל), תצוגה עד end_date כולל. התנגשות = אותו slot וחפיפת תאריכים וחפיפת community_ids (מערך ריק = כל הקהילות).",
+"alternatives": [],
+"refs": [
+"server.js:34751",
+"server.js:21505",
+"server.js:34664",
+"rules-community.html#אישור הזמנת באנר, תזמון, חיוב ותפוגה"
+]
+},
+{
+"id": "COM-22",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חיוב באנרים",
+"category": "money",
+"severity": "low",
+"title": "סיכומי חיוב SA מתעלמים מ-pending_confirm",
+"as_is": "total_unpaid סופר רק unpaid ו-paid_this_month רק paid — רשומות pending_confirm לא נכללות באף סיכום (34763).",
+"proposal": "להציג שלוש קטגוריות: unpaid, pending_confirm (ממתין לאימות SA), paid; total_outstanding = unpaid + pending_confirm.",
+"alternatives": [],
+"refs": [
+"server.js:34763",
+"rules-community.html#חיוב, אישור תשלום בחתימה דיגיטלית וסימון \"שולם\""
+]
+},
+{
+"id": "COM-23",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חברות משפחה",
+"category": "data-integrity",
+"severity": "high",
+"title": "ספירות חברות לפי family_groups.community_id הלגאסי",
+"as_is": "my-initiatives (16619), /api/biz/communities/my (16635), /api/sa/business/:bizId/communities ורשימת משחקי קהילה (39161) סופרים/מסננים לפי family_groups.community_id ולא family_communities — מונה היזמות כמעט תמיד 0. /api/community/info מחזיר גם קהילה שיצרה המשפחה אחרי שעזבה (UNION, 18370).",
+"proposal": "family_communities הוא מקור האמת היחיד לחברות (status='approved' לספירה). להסיר את family_groups.community_id אחרי מיגרציה. info מחזיר רק שורות family_communities של המשפחה.",
+"alternatives": [],
+"refs": [
+"server.js:16619",
+"server.js:16635",
+"server.js:18370",
+"server.js:39161",
+"rules-community.html#יזמות קהילתית — יצירת קהילה ע\"י משפחה"
+]
+},
+{
+"id": "COM-24",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חברות משפחה",
+"category": "data-integrity",
+"severity": "high",
+"title": "פעולות קהילה מותרות למשפחה בסטטוס pending",
+"as_is": "family-feed מציג מבצעים/קודים לכל הקהילות כולל pending (18400); יצירת פוסט (36068), פתיחת פול (33982), הפניית עסק (18453) וזכאות קאשבק מקבלים חברות בכל סטטוס; feed עם communityId לא בודק חברות כלל (36008).",
+"proposal": "כלל אחד: רק family_communities.status='approved' נחשב חבר — לקריאת פיד/מבצעים/באנרים, פרסום, פולים, הפניות, קאשבק ומשחקים. משפחה pending רואה רק כרטיס 'ממתין לאישור'. helper יחיד assertApprovedMember(groupId, communityId).",
+"alternatives": [],
+"refs": [
+"server.js:18400",
+"server.js:36008",
+"server.js:36068",
+"server.js:33982",
+"server.js:18453",
+"rules-community.html#תצוגת הקהילות והעסקים למשפחה"
+]
+},
+{
+"id": "COM-25",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "קישור עסק-קהילה",
+"category": "data-integrity",
+"severity": "high",
+"title": "בקשת הצטרפות חוזרת של עסק מאושר מחזירה אותו להמתנה",
+"as_is": "POST /api/biz/communities/join (16807) עושה UPSERT ללא בדיקת שורה קיימת — עסק approved חוזר ל-pending_cm_review/zm_pending/pending ומאבד חברות. גם SA approve (17654) ו-approve-direct (17738) ללא תנאי סטטוס, ו-approve-direct/קישור ידני אינם מעניקים biz_join_approved.",
+"proposal": "join מותר רק כשאין שורה או שהיא rejected/removed (אחרת 409 'העסק כבר חבר/בתהליך'). כל מעבר אישור מוגדר עם WHERE status IN (מצבי מקור מותרים) ו-rowCount>0. biz_join_approved ניתן בכל מעבר ראשון ל-approved, בכל מסלול, פעם אחת.",
+"alternatives": [],
+"refs": [
+"server.js:16807",
+"server.js:17654",
+"server.js:17738",
+"server.js:17615",
+"rules-community.html#מכונת המצבים של חיבור עסק לקהילה"
+]
+},
+{
+"id": "COM-26",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "ניהול קהילה SA",
+"category": "data-integrity",
+"severity": "medium",
+"title": "עריכה/מחיקה של קהילה: 500 על code חסר, דריסת שדות, אין טרנזקציה",
+"as_is": "PUT /api/sa/communities/:id קורא code.toUpperCase() ללא בדיקה ודורס את כל השדות (17515); DELETE מבצע 3 פעולות ללא טרנזקציה (17531).",
+"proposal": "עריכה: name/city/code חובה (400), ייחודיות code (400 כמו ביצירה), עדכון חלקי לשדות שנשלחו. מחיקה בטרנזקציה; מותרת רק לקהילה ללא משפחות approved, או soft-delete (status='archived').",
+"alternatives": [
+"מחיקה קשה תמיד, אך בטרנזקציה ועם אישור כפול בלקוח."
+],
+"refs": [
+"server.js:17515",
+"server.js:17531",
+"rules-community.html#ניהול קהילה ע\"י SA — עריכה, אישור, מחיקה, פרטים"
+]
+},
+{
+"id": "COM-27",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "טרנזקציות",
+"category": "architecture",
+"severity": "medium",
+"title": "פעולות מרובות-שלבים ללא טרנזקציה אמיתית",
+"as_is": "באנרי מערכת שולחים BEGIN/COMMIT דרך pool.query (9984) — לא אותו חיבור; awardFlow (ארנק+תנועה), מחיקת משחק חי (38899), cashback, יצירת קהילה+seed — ללא טרנזקציה ושגיאות נבלעות.",
+"proposal": "כל פעולה שכותבת ליותר מטבלה אחת רצה על client ייעודי (pool.connect) עם BEGIN/COMMIT/ROLLBACK; שגיאות נרשמות ומוחזרות 500 — לא נבלעות.",
+"alternatives": [],
+"refs": [
+"server.js:9984",
+"server.js:21709",
+"server.js:38899",
+"server.js:18548",
+"rules-community.html#באנרי מערכת סטטיים (הגדרות SA)"
+],
+"dup_of": "ARC-11"
+},
+{
+"id": "COM-28",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "FlowPool",
+"category": "data-integrity",
+"severity": "medium",
+"title": "GET /api/biz/my-pool-bids נופל על עמודה שאינה קיימת",
+"as_is": "השאילתה בוחרת fpb.created_at בעוד העמודה ב-flow_pool_bids היא submitted_at → 500 (34306).",
+"proposal": "להשתמש ב-submitted_at (או להוסיף created_at במיגרציה) ולהוסיף בדיקת סכמה לשאילתות בבדיקות אינטגרציה.",
+"alternatives": [],
+"refs": [
+"server.js:34306",
+"server.js:33931",
+"rules-community.html#הגשת הצעה מעסק לפול"
+]
+},
+{
+"id": "COM-29",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "חשבון חבר",
+"category": "data-integrity",
+"severity": "medium",
+"title": "חשבון חבר: group_code לפי זמן והתראת אישור לא נשמרת",
+"as_is": "group_code = 'M' + 6 ספרות אחרונות של Date.now() — עלול להתנגש (30950); אישור שיוך מכניס alert_notifications עם עמודות type/title/reference_id שאינן קיימות — נבלע (31016).",
+"proposal": "group_code מיוצר אקראית עם בדיקת ייחודיות (ניסיונות חוזרים) או sequence. התראת אישור נכתבת בעמודות הקיימות (group_id, trigger_type='member_link', message, reference_key).",
+"alternatives": [],
+"refs": [
+"server.js:30950",
+"server.js:31016",
+"rules-community.html#יצירת חשבון חבר ע\"י עסק ושיוך עסק-חבר"
+]
+},
+{
+"id": "COM-30",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "אישור משפחות",
+"category": "functional",
+"severity": "medium",
+"title": "אישור משפחה לקהילה: שלושה מאשרים במקביל וללא היררכיה",
+"as_is": "CM (20464), ZM (19103, רק pending) ו-SA (17767, ללא תנאי) יכולים לאשר באותו זמן; SA reject מוחק גם שורות approved (17779), בשונה מעסקים שם יש מסלול CM → ZM → SA.",
+"proposal": "מאשר ראשון: CM מאושר אם קיים; אחרת ZM פעיל של האזור; אחרת SA. SA רשאי override תמיד. approve/reject רק מ-pending; הסרת חבר approved היא פעולה נפרדת 'remove' עם סיבה.",
+"alternatives": [
+"כל אחד מהשלושה רשאי לאשר (מצב קיים), אך reject רק מ-pending."
+],
+"refs": [
+"server.js:20464",
+"server.js:19103",
+"server.js:17767",
+"server.js:17779",
+"rules-community.html#הצטרפות משפחה לקהילה (קוד) ואישורה"
+]
+},
+{
+"id": "COM-31",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "התראות",
+"category": "ux",
+"severity": "medium",
+"title": "אין התראות על מעברי חברות ואישורים בקהילה",
+"as_is": "אישור/דחיית משפחה, מעברי community_businesses, אישור מבצע ובקשת הסרה — אינם שולחים שום התראה (rules-community: תופעות לוואי).",
+"proposal": "כל מעבר סטטוס של family_communities/community_businesses/community_promotions יוצר inbox_message לצד המושפע (משפחה/עסק) ו-badge למאשר הבא בשרשרת; reference_key ייחודי למניעת כפילות.",
+"alternatives": [],
+"refs": [
+"rules-community.html#הצטרפות משפחה לקהילה (קוד) ואישורה",
+"rules-community.html#מכונת המצבים של חיבור עסק לקהילה"
+]
+},
+{
+"id": "COM-32",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "יזמות קהילתית",
+"category": "functional",
+"severity": "medium",
+"title": "קהילת יזמות לא מופעלת אוטומטית ב-30 משפחות; ספי מינימום לא נאכפים",
+"as_is": "קהילת משפחה נוצרת pending עם min_families=30 אך אין מעבר אוטומטי (16593); מיגרציה מאפסת min_families ל-0 לקהילות SA (16587); ההגדרות zone_min_communities, community_min_families, community_min_businesses נשמרות בלבד (19312-19323). תג 'פעיל' לעסק ויזואלי בלבד (app.js:6359).",
+"proposal": "קהילה pending עוברת ל-active אוטומטית כשמספר המשפחות approved ≥ community_min_families (ערך מ-system_settings, ברירת מחדל 30), או ידנית ע\"י SA. min_families לכל קהילה נקרא מההגדרה אם NULL. הספים האחרים מוצגים כיעד בלבד ומתועדים ככאלה.",
+"alternatives": [
+"ללא מעבר אוטומטי — SA מאשר תמיד, והמונה הוא אינדיקציה בלבד."
+],
+"refs": [
+"server.js:16593",
+"server.js:16587",
+"server.js:19312",
+"app.js:6922",
+"app.js:6359",
+"rules-community.html#יזמות קהילתית — יצירת קהילה ע\"י משפחה"
+]
+},
+{
+"id": "COM-33",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "הזמנת עסק",
+"category": "functional",
+"severity": "medium",
+"title": "הזמנת עסק ע\"י משפחה רגילה מדלגת על אישור מנהל",
+"as_is": "כל משפחה approved יכולה להזמין עסק (16833); אחרי accept העסק ב-comm_mgr_pending וכל CM/ZM מאשר ישירות (16891, 18907) — גם כשהמזמין לא CM.",
+"proposal": "הזמנה ע\"י CM/ZM: accept → approved ישירות (המזמין כבר אישר). הזמנה ע\"י משפחה רגילה: accept → resolveCommunityJoinStatus (pending_cm_review/zm_pending/pending) כמו בקשה עצמית. שמירת invited_by_type/invited_by_id בשורה.",
+"alternatives": [],
+"refs": [
+"server.js:16833",
+"server.js:16865",
+"server.js:16891",
+"server.js:18907",
+"rules-community.html#הזמנת עסק לקהילה ותגובת העסק"
+]
+},
+{
+"id": "COM-34",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "הנחה קהילתית",
+"category": "functional",
+"severity": "medium",
+"title": "אחוז ההנחה הקהילתי מוצג בלבד ולא נאכף בהזמנה; אין טווח בשרת",
+"as_is": "discount_pct נשמר ב-community_businesses ומוצג באפליקציית המשפחה, אך יישום בהזמנה לא מוגדר; השרת מקבל כל ערך parseFloat||0 (19074, 19062, 17646, 16807).",
+"proposal": "discount_pct ∈ [0, 100] נאכף בשרת (400 מחוץ לטווח). בהזמנת חנות של משפחה approved בקהילה שבה העסק approved — ההנחה מוחלת אוטומטית על סכום ההזמנה ונשמרת בשורת ההזמנה (community_id, discount_pct).",
+"alternatives": [
+"ההנחה ידנית בקופה — להציג אותה ללקוח בלבד ולתעד זאת."
+],
+"refs": [
+"server.js:19074",
+"server.js:19062",
+"server.js:17646",
+"server.js:16807",
+"rules-community.html#עדכון אחוז הנחה קהילתי"
+]
+},
+{
+"id": "COM-35",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מבצעי קהילה",
+"category": "functional",
+"severity": "high",
+"title": "אישור מבצע בנתיב השני לא יוצר promo_code; שני נתיבי אישור",
+"as_is": "POST /api/sa/community-promo/approve יוצר promo_code (17785) אך POST /api/sa/community/promotions/:id/status (21165, משמש את saApprovePromo) משאיר NULL → המבצע לא ניתן למימוש. אין תנאי סטטוס ואין דרישה ש-valid_until עתידי.",
+"proposal": "נתיב אישור יחיד: pending → approved | rejected (רק מ-pending). אישור יוצר promo_code ייחודי (PROMO+5 base36) ומעניק biz_promo_approved פעם אחת. הגשה דורשת valid_until ≥ היום (או NULL = ללא תפוגה). הנתיב הכפול מוסר.",
+"alternatives": [],
+"refs": [
+"server.js:17785",
+"server.js:21165",
+"server.js:17799",
+"sa-app.js:9180",
+"rules-community.html#מבצע קהילה — הגשה ואישור"
+]
+},
+{
+"id": "COM-36",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "באנרים קהילתיים",
+"category": "architecture",
+"severity": "medium",
+"title": "שתי מערכות באנרים קהילתיים; הלגאסי מוצג בכל הקהילות",
+"as_is": "community_banner_requests (לגאסי, על בסיס מבצע) מוצג ב-approved-banners ללא סינון communityId (21472), במקביל ל-banner_orders בתשלום (34865).",
+"proposal": "מערכת אחת: banner_orders. בקשת באנר ממבצע הופכת להזמנה בשטח community_top במחיר 0/לפי מדיניות. עד המיגרציה — הלגאסי מסונן ל-community_id של המבצע.",
+"alternatives": [],
+"refs": [
+"server.js:21437",
+"server.js:21458",
+"server.js:21472",
+"server.js:34865",
+"rules-community.html#בקשת באנר קהילתי (מערכת לגאסי, על בסיס מבצע)"
+]
+},
+{
+"id": "COM-37",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "ביקורת ופנייה",
+"category": "functional",
+"severity": "medium",
+"title": "ביקורת ופנייה לעסק הן מנגנוני FLOW בלבד — הטקסט נזרק",
+"as_is": "POST /api/community/reviews (22155) ו-/biz-contact (22176) מעניקים FLOW אך לא שומרים את טקסט הביקורת/ההודעה ולא שולחים לעסק.",
+"proposal": "ביקורת נשמרת ב-business_reviews (family, business, rating 1–5, text ≤1000, created_at; אחת לחודש לזוג) ומוצגת לעסק; פנייה נשמרת כ-inbox_message/ליד אצל העסק. FLOW ניתן רק אחרי שמירה מוצלחת.",
+"alternatives": [
+"להסיר את שני הכפתורים ואת התגמולים."
+],
+"refs": [
+"server.js:22155",
+"server.js:22176",
+"rules-community.html#ביקורת על עסק ופנייה לעסק דרך הקהילה"
+]
+},
+{
+"id": "COM-38",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "פיד קהילה",
+"category": "functional",
+"severity": "high",
+"title": "פוסט עסקי pending מופיע בפיד המשפחות לפני אישור",
+"as_is": "שאילתת /api/community/feed (36017) לא מסננת biz_post_status — פוסט עסקי pending/rejected מוצג.",
+"proposal": "פיד משפחות מציג פוסט עסקי רק כש-biz_post_status='approved' ו-is_hidden=false ו-(biz_valid_until NULL או ≥ היום).",
+"alternatives": [],
+"refs": [
+"server.js:36017",
+"server.js:37036",
+"rules-community.html#שליפת פיד קהילה ודירוג"
+]
+},
+{
+"id": "COM-39",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "פוסטים עסקיים",
+"category": "architecture",
+"severity": "high",
+"title": "שתי מערכות פוסטים עסקיים; לקוח קורא לנתיבים ועמודות שאינם קיימים",
+"as_is": "קיימות /api/biz/community/feed-posts (37036) ולגאסי /api/biz/feed/posts (16685, נשמר עם author_family_id NULL ולא מוצג). הלקוח שולח ל-/api/biz/feed/post (יחיד); feed/biz-promos ו-GET 37111 בוחרים fg.logo_url שאינה קיימת; GET 37111 מוצל ע\"י 16706; לקוח SA שולח PATCH ללא Authorization ומציג הצלחה.",
+"proposal": "מערכת אחת: /api/biz/community/feed-posts (POST/GET/DELETE) + /api/sa/community/biz-posts/:id (PATCH status עם verifySA, rejectionReason חובה בדחייה). הלגאסי נמחק; לוגו מ-store_settings.logo_url; הלקוח מציג הצלחה רק על 2xx.",
+"alternatives": [],
+"refs": [
+"server.js:16685",
+"server.js:16706",
+"server.js:37036",
+"server.js:37111",
+"server.js:37146",
+"server.js:37164",
+"business-app.js:58316",
+"rules-community.html#פוסטים עסקיים בפיד — הגשה, אישור, קרוסלה"
+]
+},
+{
+"id": "COM-40",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "פיד קהילה",
+"category": "functional",
+"severity": "medium",
+"title": "דיווח/שיתוף בפיד: ספירה כפולה ושיתוף לקהילה זרה",
+"as_is": "דיווח מגדיל reports_count גם על דיווח כפול (36301); שיתוף ל-targetCommunityId שאינה של המשפחה מותר (36318); אין בדיקת חברות בלייק/תגובה; groupId של פוסט לא נבדק שייך לקהילה (36068).",
+"proposal": "reports_count = COUNT(DISTINCT reporter) (מתעדכן רק כשה-INSERT הצליח); הסתרה אוטומטית ב-3 מדווחים שונים. שיתוף/לייק/תגובה רק לחבר approved בקהילת הפוסט/היעד. group_id חייב להשתייך ל-community_id.",
+"alternatives": [],
+"refs": [
+"server.js:36301",
+"server.js:36318",
+"server.js:36220",
+"server.js:36275",
+"server.js:36068",
+"rules-community.html#לייק, תגובה, שיתוף, דיווח והתראות פיד"
+]
+},
+{
+"id": "COM-41",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "פיד קהילה",
+"category": "ux",
+"severity": "low",
+"title": "מונה פוסטים שלא נקראו מציג 0 למשפחה שלא סימנה קריאה",
+"as_is": "unread-counts (36134) מחזיר 0 כשאין שורת community_feed_reads.",
+"proposal": "אין שורה → last_read_at = מועד אישור החברות (joined/approved_at); סופרים פוסטים מאז, עם תקרת תצוגה 99+.",
+"alternatives": [],
+"refs": [
+"server.js:36134",
+"rules-community.html#ספירת פוסטים שלא נקראו"
+]
+},
+{
+"id": "COM-42",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "ניהול פיד SA",
+"category": "architecture",
+"severity": "low",
+"title": "שתי מערכות ניהול פיד ב-SA וטיפול שגיאות AI חסר",
+"as_is": "/api/sa/community/* (36817-36895) ו-/api/sa/feed/* (36946-37026) מקבילות; ai-analyze לא מטפל בשגיאת Anthropic (מחזיר 'לא ניתן לנתח כרגע' בלי פירוט).",
+"proposal": "לשמור רק /api/sa/community/*; לבטל /api/sa/feed/*. ai-analyze מחזיר קוד שגיאה מובחן (502 + הודעה) ונרשם בלוג.",
+"alternatives": [],
+"refs": [
+"server.js:36817",
+"server.js:36946",
+"server.js:36895",
+"rules-community.html#ניהול פיד ע\"י SA וניתוח AI"
+]
+},
+{
+"id": "COM-43",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "גילוי קהילות",
+"category": "functional",
+"severity": "low",
+"title": "ציון התאמת קהילה לעסק: ענף גאוגרפי מת ועמודות חסרות",
+"as_is": "חישוב match (21220-21248) משתמש ב-communities.lat/lng שאינן קיימות וב-family_groups.address_city שאינה קיימת — רק התאמת עיר/תגיות פועלות.",
+"proposal": "להוסיף lat/lng ל-communities (נקבע ב-SA לפי עיר) או להסיר את ענף הגאו ולהשאיר: עיר 0–40, עסקים 0–20, משפחות 0–30, תגית +10. עיר העסק מ-store_settings.city.",
+"alternatives": [],
+"refs": [
+"server.js:21194",
+"server.js:21220",
+"rules-community.html#תחומי עניין, סוג קהילה, גילוי קהילות ודירוג התאמה לעסק"
+]
+},
+{
+"id": "COM-44",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "מאמרי קהילה",
+"category": "functional",
+"severity": "low",
+"title": "לקוח ZM קורא ל-/api/zm/zones שאינו קיים",
+"as_is": "zmLoadContent קורא ל-/api/zm/zones (zone-manager-app.js:2182) — 404, ולכן בחירת קהילה למאמר לא נטענת.",
+"proposal": "להשתמש ב-/api/zone-manager/dashboard (מחזיר zones+communities) או להוסיף GET /api/zm/zones המחזיר את אזורי המנהל וקהילותיהם.",
+"alternatives": [],
+"refs": [
+"zone-manager-app.js:2182",
+"rules-community.html#מאמרי קהילה (SA / מנהל אזור / מנהל קהילה)"
+]
+},
+{
+"id": "COM-45",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "FlowPool",
+"category": "functional",
+"severity": "medium",
+"title": "כללי פתיחת פול: initiatorType חופשי, min_families לא נאכף, תוקף עד סוף היום",
+"as_is": "initiatorType חופשי (גם 'business' דרך verifyFamily); min_families נשמר ולא נאכף; expires_at = היום 23:59:59 שעון שרת (33993); CHILD נחסם.",
+"proposal": "initiatorType נקבע בשרת ('family' בנתיב משפחה). תוקף ברירת מחדל 7 ימים (כמו renew) עד 23:59:59 שעון Asia/Jerusalem. min_families: בחירת הצעה (select-bid) מותרת רק כש-member_count ≥ min_families, אחרת 400 'הפול טרם הגיע למינימום משפחות'.",
+"alternatives": [
+"min_families הוא יעד תצוגה בלבד; תוקף ברירת מחדל נקבע ע\"י היוזם (1–30 ימים)."
+],
+"refs": [
+"server.js:33982",
+"server.js:33993",
+"server.js:34135",
+"rules-community.html#פתיחת פול"
+]
+},
+{
+"id": "COM-46",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "FlowPool",
+"category": "functional",
+"severity": "medium",
+"title": "מכונת המצבים של פול מאפשרת סגירה/בחירה חוזרת וחידוש מסגור",
+"as_is": "select-bid פועל גם על פול closed/archived ומאפשר בחירה חוזרת (34135); renew מחזיר ל-open_r1 גם מ-closed (34206); CM יכול לבחור הצעה בכל פול בקהילה.",
+"proposal": "מעברים מותרים: open_r1→open_r2 (יוזם); open_r1/open_r2→closed (יוזם; select-bid או closeOnly); open_*/expired→archived (יוזם); expired→open_r1 (renew); archived→open_r1 (restore, רק אם לא נבחר זוכה). closed סופי. CM רשאי רק archive/close לניהול מודרציה, לא לבחור הצעה.",
+"alternatives": [],
+"refs": [
+"server.js:34135",
+"server.js:34163",
+"server.js:34181",
+"server.js:34206",
+"server.js:34243",
+"rules-community.html#מכונת מצבים של פול"
+]
+},
+{
+"id": "COM-47",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "FlowPool",
+"category": "scope",
+"severity": "low",
+"title": "מסלול 'עסק אורח' (סיבוב 2) לא נגיש מה-UI; ניקוי פולים מוחק הודעות",
+"as_is": "השרת תומך ב-isGuest בסיבוב 2 (34084) אך הלקוח לא שולח isGuest ורשימת הפולים לעסק מציגה רק קהילות approved (34332); cleanup SA מוחק את כל הודעות הפול (34320).",
+"proposal": "להחליט: (א) להציג לעסקים פולים ב-open_r2 בעיר/תחום שלהם עם הגשה כאורח, או (ב) להסיר את open_r2/isGuest. פול שפג — הודעות נשמרות לארכיון; מחיקה רק אחרי 90 יום.",
+"alternatives": [],
+"refs": [
+"server.js:34084",
+"server.js:34332",
+"server.js:34320",
+"rules-community.html#הגשת הצעה מעסק לפול"
+]
+},
+{
+"id": "COM-48",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "שוקה",
+"category": "functional",
+"severity": "medium",
+"title": "הגדרות קמפיין שוקה: status חופשי, אי אפשר לנקות שדות, start/end לא נאכפים",
+"as_is": "ZM/CM PATCH מקבלים status חופשי (COALESCE) ולא ניתן לרוקן טקסט (19516, 20600); start_at/end_at/recurrence לא נאכפים בהזמנה (15450) — רק בסינון רדאר.",
+"proposal": "status ∈ {active, suspended} בכל המסלולים. שדה שנשלח כ-'' או null מתנקה (נבדל מ'לא נשלח'). הזמנה נחסמת (403 marketClosed reason 'period') כש-now < start_at או now > end_at; recurrence מוסר עד שימומש.",
+"alternatives": [],
+"refs": [
+"server.js:19516",
+"server.js:20600",
+"server.js:19770",
+"server.js:15450",
+"rules-community.html#הגדרות קמפיין והשעיה"
+]
+},
+{
+"id": "COM-49",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "שוקה",
+"category": "security",
+"severity": "medium",
+"title": "שוקה: מנהל מאשר בעצמו הזמנה ששלח; SA מוסיף עסק ללא חברות",
+"as_is": "נתיבי respond של מנהל (ZM 19908, CM 20764, SA 19847) לא בודקים direction — מנהל יכול לאשר manager_invite במקום העסק. SA add (19795) ו-SA invite (19865) לא בודקים חברות בקהילה/קיום בקמפיין.",
+"proposal": "מנהל מגיב רק ל-direction='business_request'; עסק מגיב רק ל-'manager_invite' שלו. כל הוספה/הזמנה (כולל SA) דורשת community_businesses.status='approved' בקהילת הקמפיין ושהעסק עוד לא בקמפיין.",
+"alternatives": [],
+"refs": [
+"server.js:19908",
+"server.js:20764",
+"server.js:19847",
+"server.js:19795",
+"server.js:19865",
+"rules-community.html#שיוך עסקים לקמפיין — הוספה ישירה, בקשות והזמנות"
+]
+},
+{
+"id": "COM-50",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "שוקה",
+"category": "money",
+"severity": "high",
+"title": "הזמנת שוקה: כמות שלילית/ללא תקרה ומחיר מהלקוח",
+"as_is": "POST /api/campaign/:code/order מקבל quantity ללא תקרה וגם שלילי; serverTotal = Σ clientPrice×quantity עם טולרנס ±(1%+₪1) (15535); my-orders לא מסנן campaign_id (15575); לוח זמנים לפי שעון שרת.",
+"proposal": "quantity שלם 1–50 (400 מחוץ לטווח). מחיר שורה מחושב בשרת מבסיס (COALESCE(price_override, catalog.price)) + מחירי האפשרויות שנבחרו (option ids, לא מחיר כולל מהלקוח). my-orders מסונן לפי campaign_id. כל חישובי זמן ב-Asia/Jerusalem.",
+"alternatives": [],
+"refs": [
+"server.js:15450",
+"server.js:15535",
+"server.js:15575",
+"server.js:15466",
+"rules-community.html#חנות הקמפיין הציבורית והזמנה"
+]
+},
+{
+"id": "COM-51",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "שוקה",
+"category": "data-integrity",
+"severity": "low",
+"title": "SA review למוצר שוקה לא מחזיר 404 כשאין שורה",
+"as_is": "SA review (19822) מעדכן approval_status ומחזיר success גם על 0 שורות.",
+"proposal": "review מחזיר 404 'מוצר לא נמצא בקמפיין' כש-rowCount=0; מעבר מותר רק מ-pending (או approved↔rejected במפורש).",
+"alternatives": [],
+"refs": [
+"server.js:19822",
+"server.js:19658",
+"rules-community.html#מוצרי קמפיין — הקצאה ע\"י העסק ואישור מנהל"
+]
+},
+{
+"id": "COM-52",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "קמפייני גיוס",
+"category": "security",
+"severity": "medium",
+"title": "טופס ליד ציבורי ללא rate-limit וולידציית שדות",
+"as_is": "POST /api/public/campaign/:token/submit (20052) שומר את כל ה-body כ-data JSON ללא ולידציה מול fields_config וללא הגבלת קצב.",
+"proposal": "השרת שומר רק שדות המוגדרים ב-fields_config (טיפוס/אורך ≤500), שדות חובה נאכפים, rate-limit 5 שליחות לשעה ל-IP לקמפיין, ו-honeypot/captcha.",
+"alternatives": [],
+"refs": [
+"server.js:20052",
+"server.js:20040",
+"rules-community.html#קמפייני גיוס (טפסי לידים) ו-CRM לידים"
+]
+},
+{
+"id": "COM-53",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "משחקים חיים",
+"category": "security",
+"severity": "high",
+"title": "משחק טריוויה: מענה ללא אימות זהות, סטטוס או זמן — וניקוד מהלקוח",
+"as_is": "join/answer מקבלים userId מהגוף (38924, 38947); answer לא בודק סטטוס active, אישור המשתתף או שזו השאלה הנוכחית; responseTimeMs מהלקוח (0 = 1000 נק'); leaderboard?sa=1 ציבורי וכולל טלפונים (39083).",
+"proposal": "join/answer דורשים סשן משפחה (verifyFamily) — userId מהסשן. answer מתקבל רק כשהמשחק active, המשתתף approved, questionId = השאלה הנוכחית. זמן התגובה = now − question_started_at בשרת (שמירת question_started_at במעבר שאלה). ?sa=1 דורש verifySA; טלפונים לא מוחזרים בציבורי.",
+"alternatives": [
+"לאפשר שחקן אורח עם טוקן משתתף חתום שמונפק ב-join (במקום סשן משפחה)."
+],
+"refs": [
+"server.js:38924",
+"server.js:38947",
+"server.js:38888",
+"server.js:39083",
+"rules-community.html#השתתפות שחקן — הצטרפות, אישור, תשובה וניקוד"
+]
+},
+{
+"id": "COM-54",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "ספריית קווסטים",
+"category": "security",
+"severity": "medium",
+"title": "ספריית קווסטים: נתיבים ציבוריים ודירוג שמבטל הסתרה",
+"as_is": "share/use/rate/report מקבלים userId/familyGroupId מהגוף ללא אימות (3906-4052); rate מחשב is_hidden מחדש ועלול לבטל הסתרה של SA/דיווחים (4028); groupId משמש כ-community_id (3906).",
+"proposal": "כל הנתיבים verifyFamily; זהות מהסשן. is_hidden מפוצל: hidden_by_sa, hidden_by_reports (≥3 מדווחים שונים), hidden_by_rating (avg<2.5 && count≥5) — מוסתר אם אחד מהם true; rate משנה רק את שלו. סינון community לפי קהילות approved של המשפחה.",
+"alternatives": [],
+"refs": [
+"server.js:3906",
+"server.js:3952",
+"server.js:4028",
+"server.js:4052",
+"server.js:4114",
+"rules-community.html#ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח"
+]
+},
+{
+"id": "COM-55",
+"domain": "קהילות, מנהלי אזור וכלכלת FLOW",
+"area": "Events Hub",
+"category": "scope",
+"severity": "low",
+"title": "Events Hub זמין רק למסעדה; לעסק events מוצגים תפריטים בלי הכפתור",
+"as_is": "כפתור 'אירוע חדש מתפריט' מוצג רק ל-business_type==='restaurant' (business-app.js:2956) בעוד menuRelevantTypes כולל 'events' (2969); פריט ללא custom_price מתומחר 0 (27001).",
+"proposal": "להציג את Events Hub גם ל-business_type='events' (ולעדכן מדריך מקביל). פריט ללא custom_price מתומחר לפי מחיר הקטלוג; אם אין — נחסם עם הודעה 'לפריט X אין מחיר'.",
+"alternatives": [
+"להשאיר למסעדה בלבד ולהסיר 'events' מ-menuRelevantTypes."
+],
+"refs": [
+"business-app.js:2956",
+"business-app.js:2969",
+"server.js:27001",
+"rules-community.html#Events Hub — אירוע חדש מתבנית תפריט"
+]
+}
+]

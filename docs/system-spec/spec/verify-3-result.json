@@ -1,0 +1,17 @@
+[
+ {"id":31,"verdict":"CORRECT","evidence_lines":"server.js:31639-31651 (if בשורה 31640, INSERT 31645-31649)","correction":""},
+ {"id":32,"verdict":"CORRECT","evidence_lines":"server.js:4201-4211, 31682 (COMMIT), 31683-31687","correction":""},
+ {"id":33,"verdict":"CORRECT","evidence_lines":"business-app.js:54532-54534","correction":""},
+ {"id":34,"verdict":"CORRECT","evidence_lines":"server.js:31446-31469","correction":""},
+ {"id":35,"verdict":"CORRECT","evidence_lines":"server.js:41965-41971; שימושים 31294, 31321, 32330","correction":""},
+ {"id":36,"verdict":"CORRECT","evidence_lines":"server.js:32750","correction":""},
+ {"id":37,"verdict":"CORRECT","evidence_lines":"business-app.js:2152 (טקסט 'גרור כרטיסיות'); 52516-52610 (_renderLogisticsKanban — onclick בלבד, ללא draggable/drop)","correction":""},
+ {"id":38,"verdict":"CORRECT","evidence_lines":"business-app.js:53265-53266, 53303-53304","correction":""},
+ {"id":39,"verdict":"CORRECT","evidence_lines":"server.js:2443-2461","correction":""},
+ {"id":40,"verdict":"CORRECT","evidence_lines":"server.js:32768-32769","correction":""},
+ {"id":41,"verdict":"CORRECT","evidence_lines":"server.js:26509-26513","correction":""},
+ {"id":42,"verdict":"SHIFTED","evidence_lines":"public/business-app.js:43036-43093","correction":"התוכן נכון, אך הקוד נמצא ב-public/business-app.js ולא ב-server.js, והטווח מתחיל ב-43036 (טעינת /work-orders/users), suggest-staff ב-43043, קטלוג 43052, תבניות תפריט 43059, ו-maintenance_repair/available-quotes ב-43076-43093."},
+ {"id":43,"verdict":"CORRECT","evidence_lines":"server.js:43492, 43525-43537","correction":""},
+ {"id":44,"verdict":"CORRECT","evidence_lines":"server.js:26126-26133; status DEFAULT 'pending' ב-1132","correction":""},
+ {"id":45,"verdict":"CORRECT","evidence_lines":"server.js:22898-22919","correction":""}
+]

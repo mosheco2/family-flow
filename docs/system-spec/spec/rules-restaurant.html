@@ -1,0 +1,568 @@
+<h2 class="grp">מסעדה — ניהול שולחנות ושירות (מלצר / מנהל)</h2>
+
+<section class="proc" data-f="tables table states grid sync polling restaurant_table_states free occupied awaiting_payment reserved disabled"><h3>מצב שולחנות (Grid) וסנכרון בין מכשירים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל/מנהל משמרת/מלצר בעסק מסוג מסעדה פותח את פאנל "ניהול שולחנות" (<code>window.openAdminTablesPanel</code> business-app.js:41568, אריח <code>__tables__</code> שתמיד מוצג — <code>INTRINSIC</code> business-app.js:35160) או את דשבורד התפקיד. לחיצה על אריח שולחן משנה את מצבו.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>מספר השולחנות = <code>family_groups.table_count</code> (ברירת מחדל 8; עמודה server.js:1177; נקבע ב-<code>PATCH /api/groups/:id/business-settings</code> server.js:26373 עם <code>parseInt(table_count)||8</code>). הקליינט טוען מ-<code>GET /api/groups/:id/settings</code> server.js:26405 כש-<code>currentGroup.table_count</code> חסר.</li>
+<li>שולחן במצב <code>disabled</code> — לחיצה לא עושה דבר (business-app.js:40172).</li>
+<li>שולחן במצב <code>reserved</code> — לחיצה פותחת מודאל הזמנות (<code>openReservedTableModal</code> business-app.js:40210) ולא מחזור מצב.</li>
+<li>אין אימות/הרשאה בשרת: <code>GET/PUT /api/tables/:groupId/states</code> (server.js:14233-14249) ללא middleware — כל קורא יכול לדרוס.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>המצב נשמר מקומית ב-<code>localStorage['tables_{groupId}']</code> כאובייקט <code>{tableId: state, _t{id}: timestamp}</code> (<code>getTableStates</code> business-app.js:39901).</li>
+<li><code>_applyTableState</code> (business-app.js:40181): קובע מצב חדש; אם עובר ל-<code>occupied</code> ממצב אחר — שומר <code>_t{id}=Date.now()</code> (טיימר ישיבה); כל מצב אחר מוחק את <code>_t{id}</code>.</li>
+<li>כתיבה ל-localStorage ואז <code>PUT /api/tables/:groupId/states</code> עם כל האובייקט (fire-and-forget). בשרת: UPSERT ל-<code>restaurant_table_states(group_id, states JSONB, updated_at)</code> (server.js:14242).</li>
+<li>Polling: <code>startTablePolling</code> כל 4000ms (business-app.js:39945) קורא <code>GET states</code> + <code>GET bills</code>; אם ה-JSON זהה לאחרון — מדלג; אחרת מיזוג <code>Object.assign(local, server)</code> (השרת גובר) ורינדור מחדש של <code>.table-grid-card</code> (business-app.js:39917).</li>
+<li><code>startTableGridPolling</code> כל 5000ms מסנכרן assignments ומרנדר מחדש, אלא אם מודאל POS המלצר פתוח (business-app.js:40499).</li>
+<li><code>loadTableReservationsForGrid</code> טוען הזמנות 7 ימים קדימה ל-<code>_tableReservationsCache</code> לתצוגת שעות על אריחי <code>reserved</code> (business-app.js:39935).</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li>טיימר ישיבה: <code>elapsed = floor((now - _t{id})/60000)</code> דק'; ספי צבע ברירת מחדל <code>{amber:60, orange:80, red:90, maxBar:120}</code> הניתנים לדריסה מ-<code>localStorage['table_timer_thresholds_{gid}']</code>; ≤60 ירוק, ≤80 ענבר, ≤90 כתום, מעל אדום; רוחב פס <code>min(100, round(elapsed/maxBar*100))%</code> (business-app.js:40429-40450).</li>
+<li>סיכום: פנויים = count − (occupied+awaiting_payment) − reserved; תפוסים = occupied בלבד; "ממתינים" = awaiting_payment (business-app.js:40463-40470). שולחנות ממוזגים (<code>merges[id]!==id</code>) לא מוצגים.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>ערכים: <code>free</code>, <code>reserved</code>, <code>occupied</code>, <code>awaiting_payment</code>, <code>disabled</code> (תוויות business-app.js:40168). מחזור ידני <code>TABLE_STATE_CYCLE</code> business-app.js:40158.
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>free</td><td>occupied</td><td>כל משתמש בעסק (לחיצה / "הושב" מתור המתנה)</td><td>—</td><td>טיימר <code>_t{id}</code> מתחיל; טוסט</td></tr>
+<tr><td>occupied</td><td>awaiting_payment</td><td>לחיצה / מודאל ⚙️ / <code>setTableAwaitingPayment</code> אחרי סגירת POS (business-app.js:33475)</td><td>—</td><td>הטיימר נמחק</td></tr>
+<tr><td>awaiting_payment</td><td>free</td><td>לחיצה / "שולם — שחרר" / <code>waiterConfirmCloseBill</code></td><td>—</td><td>—</td></tr>
+<tr><td>awaiting_payment</td><td>occupied</td><td>מודאל ⚙️ "חזור לתפוס"</td><td>—</td><td>טיימר מתאפס מחדש</td></tr>
+<tr><td>כל מצב ≠free</td><td>free</td><td>"שחרר שולחן"</td><td>—</td><td>—</td></tr>
+<tr><td>free</td><td>awaiting_payment</td><td>מודאל ⚙️</td><td>—</td><td>—</td></tr>
+<tr><td>reserved</td><td>occupied / free</td><td><code>openReservedTableModal</code></td><td>—</td><td>—</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>אין התראות/ארנק/Audit. סנכרון בלבד לטבלת <code>restaurant_table_states</code>.</div>
+<div>ממשק</div><div><code>renderTableGrid</code> business-app.js:40406 — רשת 4 עמודות; לכל אריח: מספר, קיבולת (👥), שם מלצר משויך, תווית מצב, שעות הזמנה (לאריח reserved, עד 2), טיימר, כפתורי ↔️ (העברה — רק ל-occupied/awaiting_payment), ⚙️ (לא ל-free/disabled), 📱 QR. כותרת: "📅 חלונות" ו-⚙️ הגדרות. מתחת: תור המתנה. KPI בפאנל הניהול: פנויים/תפוסים/לתשלום/בקשות שירות (business-app.js:41370).</div>
+<div>פערים</div><div><ul><li>אין שום קוד שקובע מצב <code>reserved</code> או <code>disabled</code> (הערה business-app.js:40157 טוענת שאישור ביומן קובע reserved, אך אין מימוש) — מצבים אלה בלתי ניתנים להשגה; תצוגת שעות ההזמנה על האריח לעולם לא מופיעה.</li><li>אחרי סגירת עסקה בקופה (שולמה) השולחן מוגדר דווקא ל-<code>awaiting_payment</code> (business-app.js:33475).</li><li>מיזוג "server wins" מחזיר מצב שנמחק מקומית רק אם השרת עדיין מכיל אותו; אין נעילה/גרסה — דריסה הדדית בין מכשירים.</li></ul></div></div></section>
+
+<section class="proc" data-f="table assignments waiter assign shift_date restaurant_table_assignments"><h3>שיוך מלצרים לשולחנות (משמרת יומית)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל בפאנל ניהול שולחנות בוחר מלצר לכל שולחן (select בפאנל, <code>window.assignTableWaiter</code> business-app.js:40392).</div>
+<div>תנאים ואימותים</div><div><ul><li>רשימת המלצרים: חברי צוות שאינם ADMIN ו-<code>employee_role_type==='waiter'</code> או ללא תפקיד (business-app.js:41382). <strong style="color:var(--warn)">[תוקן באימות: התוכן נכון, אך שורת הסינון היא business-app.js:41399 (סינון ADMIN ב-41341), ולא 41382. ה-dropdown של שיוך המלצרים עצמו בנוי ב-39706 (סינון ADMIN ב-39683).]</strong></li><li>ללא אימות בשרת (server.js:14252-14276).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>מקומית: <code>localStorage['table_assign_{gid}_{YYYY-MM-DD}']</code> = <code>{tableId: waiterName}</code>; ריק = מחיקה.</li><li><code>PUT /api/tables/:groupId/assignments</code> → UPSERT <code>restaurant_table_assignments(group_id, assignments, shift_date=today(UTC), updated_at)</code> (server.js:14265).</li><li><code>GET</code>: אם <code>shift_date</code> ≠ היום (לפי <code>toISOString</code> UTC) מחזיר <code>{}</code> — איפוס יומי אוטומטי (server.js:14252-14263).</li><li>מסוף המלצר מושך שיוכים כל 5 שניות (business-app.js:32071) ומאזין ל-<code>storage</code> event לטוסט "שולחנות עודכנו".</li></ol></div>
+<div>חישובים</div><div>סיכום למלצר: סכום <code>price*qty</code> של פריטי <code>submitted</code> בחשבונות השולחנות שלו + מספר שולחנות ב-awaiting_payment (business-app.js:41388-41398).</div>
+<div>ממשק</div><div>"👥 תמונת-על מלצרים" בפאנל הניהול; שם המלצר מופיע על האריח ובצ'יפ השולחן במסוף המלצר.</div>
+<div>פערים</div><div>"היום" מחושב ב-UTC בקליינט ובשרת — סביב חצות שעון ישראל השיוכים מתאפסים בשעה 02:00/03:00 מקומית.</div></div></section>
+
+<section class="proc" data-f="table transfer merge capacity qr table_cap table_merge"><h3>העברת שולחן, מיזוג, קיבולת ו-QR לשולחן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל/מלצר: ↔️ באריח (<code>openTableTransferModal</code> business-app.js:40317), ⚙️ "הגדרות שולחנות" (<code>openTableSettingsModal</code> 40728), 📱 (<code>showTableQR</code> 40529).</div>
+<div>תנאים ואימותים</div><div><ul><li>העברה: יעדים = כל שולחן ≠ מקור ושאינו <code>disabled</code> (גם תפוס!).</li><li>קיבולת: input 1–20; ערך ≤0/ריק מוחק (40807).</li><li>מיזוג: יעדים שאינם כבר ממוזגים (40815).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><b>העברה</b> <code>executeTableTransfer</code> (40350): <code>states[to]=states[from]</code>, <code>states[from]='free'</code>, מעביר את טיימר <code>_t</code>, שומר + PUT states; מעביר שיוך מלצר רק ב-localStorage (ללא PUT assignments).</li><li><b>קיבולת</b>: <code>localStorage['table_cap_{gid}']</code> בלבד.</li><li><b>מיזוג</b> <code>mergeTable(A,B)</code> (40833): <code>merges[B]=A</code> (B מוסתר), <code>caps[A]=(capA+capB)||undefined</code>; ביטול <code>unmergeTable</code> מוחק <code>merges[id]</code> (הקיבולת המצטברת לא מוחזרת).</li><li><b>QR</b>: URL <code>{origin}/store/{store_alias||id}?table={N}</code>, תמונה מ-<code>api.qrserver.com</code> 200×200.</li></ol></div>
+<div>ממשק</div><div>מודאלים תחתונים; טוסטים "שולחן X הועבר לשולחן Y", "שולחן A + B מוזגו".</div>
+<div>פערים</div><div><ul><li>קיבולת ומיזוג נשמרים רק מקומית — לא מסונכרנים בין מכשירים ואינם משפיעים על זמינות/שיבוץ הזמנות בשרת.</li><li>העברה לשולחן תפוס דורסת אותו בשקט; שיוך מלצר מועבר רק מקומית.</li><li>נתיב QR <code>/store/:alias</code> לא קיים בשרת (רק <code>/:alias</code> server.js:23346) ואף חזית לא קוראת פרמטר <code>table</code> — הזמנה מ-QR לא משויכת לשולחן. לא נקבע בקוד.</li></ul></div></div></section>
+
+<section class="proc" data-f="waitlist queue waiting seat"><h3>תור המתנה (Waitlist)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מארחת/מנהל לוחץ "+ הוסף" בכרטיס "⏳ תור המתנה" שמתחת לרשת השולחנות (business-app.js:40865).</div>
+<div>תנאים ואימותים</div><div><ul><li>שם חובה — "נא להזין שם לקוח" (40918); סועדים ברירת מחדל 2 (input 1–30).</li><li>הושבה: חייב שולחן <code>free</code> — אחרת "אין שולחן פנוי כרגע" (40936).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הוספה: push ל-<code>localStorage['waitlist_{gid}']</code> של <code>{id: base36(now)+rand, name, guests, notes, addedAt}</code>.</li><li>הושבה <code>seatFromWaitlist</code> (40928): בוחר את השולחן הפנוי בעל המספר הנמוך ביותר (ללא התחשבות בקיבולת/סועדים), מסיר מהתור, <code>_applyTableState(t,'occupied')</code>.</li><li>הסרה: סינון מהרשימה.</li></ol></div>
+<div>חישובים</div><div>זמן המתנה <code>floor((now-addedAt)/60000)</code>; ≥30 דק' מסומן בכתום (40869).</div>
+<div>פערים</div><div>התור מקומי למכשיר בלבד (אין API).</div></div></section>
+
+<section class="proc" data-f="waiter pos table bill submit kitchen restaurant_table_bills pending submitted orderSource table"><h3>מסוף מלצר — חשבון שולחן ושליחה למטבח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מלצר/מנהל פותח "🍽️ הזמנה לשולחן" (<code>window.showWaiterPOS</code> business-app.js:31890), בוחר שולחן, מוסיף מנות ושולח למטבח.</div>
+<div>תנאים ואימותים</div><div><ul><li>הוספת פריט ללא שולחן נבחר — "בחר שולחן תחילה" (32130).</li><li>מוצרים מוצגים: <code>storeCatalogCache</code> עם <code>is_active!==false</code>; אם הקאש ריק נטען <code>GET /api/store/catalog/:gid</code>.</li><li>מוצר עם <code>options_text</code> (אורך&gt;10) נפתח במודאל bundle/pizza/modifiers בדגל <code>_waiterPOSMode</code> (32133-32140).</li><li>מוצר <code>is_complimentary</code> נוסף דרך <code>addPOSComplimentary</code> ("ללא חיוב").</li><li>שליחה ללא פריטים חדשים — "אין פריטים חדשים לשליחה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מבנה חשבון: <code>localStorage['table_bills_{gid}']</code> = <code>{tableId:{openedAt, submitted:[{id,name,price,qty,kitchenStation,note,submittedAt,orderId,delivered,deliveredAt}], pending:[...]}}</code> (תיעוד business-app.js:31867).</li>
+<li>פריטי <code>pending</code> נשמרים בכל שינוי (<code>waiterSavePendingForCurrentTable</code>) ומסונכרנים <code>PUT /api/tables/:gid/bills</code> → UPSERT <code>restaurant_table_bills</code> (server.js:14285).</li>
+<li><code>waiterSubmitOrder</code> (32286): בונה items <code>{catalogId,name,quantity,price,note,kitchenStation}</code> + פריט מטא <code>{is_quote_metadata:true, data: JSON({tableNumber, waiter})}</code>; <code>POST /api/store/orders</code> עם <code>customerName='שולחן N'</code>, <code>customerPhone=''</code>, <code>notes=JSON(meta)</code>, <code>orderSource:'table'</code>, ללא status → בשרת <code>status='pending_approval'</code> (server.js:14540).</li>
+<li>בהצלחה: pending → submitted (עם <code>orderId</code>, <code>delivered:false</code>), pending=[]; שמירה+PUT.</li>
+<li>Polling חשבונות כל 4 שניות (<code>syncTableBillsFromServer</code> 40104): מיזוג — <code>submitted</code> מהשרת גובר; <code>pending</code> מקומי נשמר רק לשולחן הנבחר; שולחן שנמחק בשרת נמחק מקומית.</li>
+<li>"סופק" (<code>waiterMarkDelivered</code> 32175) מסמן פריט <code>delivered</code>; "×" (<code>waiterRemoveSubmitted</code> 32185, עם אישור) מוחק פריט מהחשבון; שולחן ריק נמחק.</li>
+</ol></div>
+<div>חישובים</div><div>"חדש לשליחה" = Σ<code>price*qty</code> של pending (32246). כפתור ראשי הופך ל-"💳 סגור חשבון" כשאין pending וכל ה-submitted סופקו (32253).</div>
+<div>תופעות לוואי</div><div>יצירת <code>store_orders</code> + <code>store_order_items</code> (לוגיקת יצירת הזמנה בתחום החנות).</div>
+<div>ממשק</div><div>מסך מלא; צ'יפים לשולחנות (צבע ענבר=נבחר, אינדיגו=יש חשבון, "N הוזמן +M חדש"); תג "🍽️ מוכן" כשהמנה נמצאת ב-<code>_waiterItemReadyList</code>; כפתורי "טען" (קטלוג) ו"רענן" (שיוכים).</div>
+<div>פערים</div><div><ul><li>הסרת פריט שכבר נשלח מוחקת אותו רק מהחשבון המקומי — ההזמנה ב-<code>store_orders</code> וסכומה לא מתעדכנים.</li><li>הזמנות שולחן נוצרות ב-<code>pending_approval</code> ודורשות "אשר לטבח" לפני שמופיע עדכון "בהכנה" (ראו KDS).</li></ul></div></div></section>
+
+<section class="proc" data-f="close bill table payment method closed_bills waiter"><h3>סגירת חשבון שולחן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מלצר: "סגור חשבון 💳" (<code>waiterCloseBill</code> business-app.js:32335) או "💳 נאסף+תשלום" ברשימת מוכנים (<code>collectAndBill</code> 31832 — מסמן הזמנה completed ופותח סגירה אחרי 150ms).</div>
+<div>תנאים ואימותים</div><div><ul><li>חייב שולחן נבחר; חשבון ללא פריטים — "אין חשבון פתוח לשולחן זה".</li><li>אמצעי תשלום: מזומן/כרטיס/אפליקציה; לא חובה (ברירת מחדל "לא צוין").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>סה"כ = Σ<code>price*qty</code> של submitted+pending.</li><li><code>waiterConfirmCloseBill</code> (32378): unshift לארכיון <code>localStorage['closed_bills_{gid}']</code> <code>{table,total,method,items,closedAt,waiter}</code>, מוגבל ל-200 רשומות.</li><li>מחיקת החשבון + PUT bills; מצב השולחן <code>free</code>, מחיקת טיימר + PUT states; פתיחה מחדש של המסוף.</li></ol></div>
+<div>פערים</div><div>אין רישום תשלום/הכנסה בשרת בסגירת החשבון; ההכנסה נרשמת רק כשכל הזמנה עוברת ל-<code>completed</code> (server.js:14684). פריטי pending שלא נשלחו נכללים בסכום אך לא נוצרה עבורם הזמנה.</div></div></section>
+
+<section class="proc" data-f="waiter ready section items ready served pickup delivered shipped"><h3>רשימת "מוכן להגשה/איסוף" למלצר</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>דשבורד מלצר (<code>renderWaiterDashboard</code> business-app.js:41132) ופאנל ניהול שולחנות; רענון <code>refreshWaiterReadySection</code> כל 5000ms (39960, 39984), פאנל ניהול כל 10000ms (41587).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /api/store/orders/:gid</code>; שלוש רשימות: <b>ממתין לאישור</b> (<code>status='pending_approval'</code>), <b>מוכן</b> (<code>status='ready'</code>), <b>מנות מוכנות</b> — הזמנות <code>new/processing</code> עם <code>items_ready</code> לא ריק.</li>
+<li>מספר שולחן נלקח מ-<code>JSON.parse(notes).tableNumber</code>; פריטי מטא וסימני <code>DELIVERY_META|</code> מסוננים.</li>
+<li>"הוגש ✓" → <code>markItemServed</code> (31817): <code>PATCH /api/store/orders/:id/item-ready {idx, ready:false}</code> — מסיר את הפריט מ-<code>items_ready</code>.</li>
+<li>מוכן: הזמנת משלוח → "📦 ממתין לשליח" (<code>status='shipped'</code> + <code>setDelivery:true</code> שמעדכן <code>is_delivery=true</code>, server.js:14670) או "✅ נמסר" (<code>completed</code>); הזמנת שולחן → "💳 נאסף+תשלום"; אחרת "✅ נאסף" (<code>completed</code>). <code>markReadyDelivered</code> (31840) גם מסמן <code>delivered=true</code> לכל פריטי החשבון עם אותו <code>orderId</code>.</li>
+</ol></div>
+<div>תופעות לוואי</div><div>מעבר ל-<code>completed</code>/<code>delivered</code> בשרת: <code>triggerCashbackForOrder</code>, <code>logBizIncome</code>, <code>deductPantryForOrder</code>, FLOW על מבצע קהילתי, Audit <code>UPDATE_ORDER_STATUS</code>, והתראת חבר-עסק (server.js:14679-14716).</div>
+<div>ממשק</div><div>עד 12 מנות מוכנות ועד 8 הזמנות מוכנות מוצגות; תגי מקור "🍽️ שולחן"/"🌐 אתר", "🛵 משלוח".</div></div></section>
+
+<h2 class="grp">מסעדה — KDS (מסך מטבח)</h2>
+
+<section class="proc" data-f="kds kitchen display cook ticket station item-ready items_ready bon hot cold drinks bread"><h3>KDS — כרטיסי הזמנה, סימון מנות והשלמת הכנה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טבח (<code>employee_role_type='cook'</code> → <code>renderCookDashboard</code>, business-app.js:38130, 41623) או מנהל דרך אריח "KDS מטבח" (<code>openAdminKDSPanel</code> 41590, רענון אוטומטי כל 30000ms אלא אם מודאל בון פתוח).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כרטיסים: הזמנות עם <code>status ∈ {pending_approval,new,processing,ready}</code>, שנוצרו היום (תאריך מקומי בדפדפן), שאינן ב-<code>localStorage['kds_done_{gid}']</code>; עד 15 (41641-41652). הזמנה ללא <code>created_at</code> מוצגת.</li>
+<li>כפתור "✅ הכנה הושלמה" פעיל רק כשמספר המנות שסומנו ≥ סך המנות (&gt;0).</li>
+<li>אין אימות בשרת ל-<code>PATCH /api/store/orders/:id/item-ready</code> (server.js:26384) ול-<code>POST /api/store/orders/status</code> (14666).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פריטים עם quantity&gt;1 "נפרשים" לשורות בודדות; פריטי מטא מסוננים.</li>
+<li>קיבוץ לפי תחנה: <code>item.kitchenStation</code> ← או <code>store_catalog.kitchen_station</code> ← או <code>other</code>. תחנות: <code>hot</code> 🔥 פס חם, <code>cold</code> ❄️ פס קר, <code>drinks</code> 🥤, <code>bread</code> 🍞, <code>other</code> 📋 (41666). <code>GET /api/store/orders</code> מעשיר פריטים ב-<code>kitchenStation</code> מהקטלוג (server.js:14301-14320).</li>
+<li>סימון מנה <code>kdsItemCheck</code> (40950): שומר אינדקסים ב-<code>localStorage['kds_items_{gid}_{orderId}']</code>; מסנכרן תיבות במודאל הבון; <code>PATCH item-ready {idx,name,tableNum,ready}</code> — בשרת: ready=true מוסיף <code>{idx,name,tableNum,time}</code> ל-<code>store_orders.items_ready</code> אם אינו קיים; false מסיר.</li>
+<li>אם זו המנה הראשונה שסומנה והסטטוס <code>new</code> → <code>POST status 'processing'</code> (40990).</li>
+<li>"הכנה הושלמה" <code>cookDoneOrder</code> (41100): מוסיף <code>{id,date}</code> ל-<code>kds_done</code> (מנקה ערכים שאינם מהיום), <code>POST status 'ready'</code>, <code>PATCH item-ready {clearAll:true}</code> → <code>items_ready='[]'</code>; מסיר את הכרטיס.</li>
+<li>"🎫 בון מלא" <code>kdsShowBon</code> (41002): מודאל מסך מלא שבנוי מה-DOM של הכרטיס, עם תיבות סימון מסונכרנות.</li>
+</ol></div>
+<div>חישובים</div><div>התקדמות "X/Y מוכנים" (Y = מנות לאחר פריסה).</div>
+<div>מכונת מצבים</div><div>ראו "מחזור חיים של הזמנת מסעדה" למטה.</div>
+<div>תופעות לוואי</div><div>הלקוח (חבר-עסק) מקבל התראה על כל שינוי סטטוס (<code>_sendMemberBizNotif</code>, תוויות: new חדשה, processing בטיפול, ready מוכנה לאיסוף, delivering בדרך, delivered נמסרה, completed הושלמה, cancelled בוטלה — server.js:14706).</div>
+<div>ממשק</div><div>דשבורד טבח כולל גם "🚨 חסרים במלאי" ו"רשימת הכנה יומית" (משימות לא-משמרת פתוחות, עד 6). אין polling בדשבורד הטבח עצמו (רק בפאנל המנהל).</div>
+<div>פערים</div><div><ul><li>סימון מנות שמור מקומית לכל מכשיר — שני מסכי KDS לא רואים זה את סימוני זה (רק <code>items_ready</code> בשרת).</li><li>בהזמנת <code>pending_approval</code> סימון המנה הראשונה לא משנה סטטוס (רק מ-<code>new</code>), ו-<code>items_ready</code> מוצג למלצר רק ב-<code>new/processing</code> — המלצר לא יראה מנות מוכנות של הזמנה שלא אושרה.</li><li><code>kdsShowBon</code> מחלץ אינדקס מ-regex על <code>onchange</code>; תחנה מזוהה לפי טקסט הכותרת.</li></ul></div></div></section>
+
+<section class="proc" data-f="restaurant order lifecycle pending_approval new processing ready completed shipped cancelled approve kitchen reject"><h3>מחזור חיים של הזמנת מסעדה (אישור למטבח → מוכן → נאסף)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הזמנה נכנסת (אתר, מסוף מלצר, QR) ב-<code>pending_approval</code>; מלצר/מנהל מאשר "✅ אשר לטבח" (<code>approveDeliveryToKitchen</code> business-app.js:23329) או "❌ דחה" (<code>rejectStoreOrder</code> 23355, עם אישור).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>POST /api/store/orders/status</code> מקבל כל ערך סטטוס ללא רשימה מותרת, ללא בדיקת בעלות (server.js:14666).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>store_orders.status</code>, <code>status_changed_at</code> (+<code>is_delivery=true</code> אם <code>setDelivery</code>).</li><li>תשובה נשלחת; אחריה תופעות לוואי אסינכרוניות.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending_approval</td><td>יצירת הזמנה ללא status</td><td>—</td><td>—</td></tr>
+<tr><td>pending_approval</td><td>processing</td><td>מלצר/מנהל "אשר לטבח"</td><td>—</td><td>התראת חבר-עסק; רענון KDS</td></tr>
+<tr><td>pending_approval</td><td>cancelled</td><td>"דחה"</td><td>אישור UI</td><td>התראה</td></tr>
+<tr><td>new</td><td>processing</td><td>KDS (סימון מנה ראשונה)</td><td>status=new</td><td>—</td></tr>
+<tr><td>pending_approval/new/processing</td><td>ready</td><td>טבח "הכנה הושלמה"</td><td>כל המנות סומנו</td><td>items_ready נוקה</td></tr>
+<tr><td>ready</td><td>completed</td><td>מלצר "נאסף"/"נמסר"/"נאסף+תשלום"</td><td>—</td><td>cashback, income, ניכוי מלאי, FLOW</td></tr>
+<tr><td>ready</td><td>shipped</td><td>מלצר "ממתין לשליח"</td><td>הזמנת משלוח</td><td>is_delivery=true</td></tr>
+<tr><td>(קופה)</td><td>completed</td><td>finalizePOSOrder מיד אחרי יצירה (business-app.js:33452)</td><td>—</td><td>כנ"ל</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>ב-<code>completed</code>/<code>delivered</code>: <code>triggerCashbackForOrder</code>, <code>logBizIncome(group, total, 'הזמנה הושלמה — שם (#id)')</code>, <code>deductPantryForOrder</code>, <code>awardFlow('family', …, 'promo_used')</code> אם יש <code>community_promo_id</code> (server.js:14679-14697). Audit <code>logBizAction(...'UPDATE_ORDER_STATUS')</code> לכל שינוי.</div>
+<div>פערים</div><div>אין מניעת מעבר חוזר ל-completed/delivered: הניכוי מוגן ע"י <code>pantry_deducted_at</code> וה-cashback ע"י בדיקת <code>business_platform_dues.order_id</code>, אך <code>logBizIncome</code> (server.js:4201) מכניס שורת הכנסה ל-<code>transactions</code> בכל מעבר — הכנסה כפולה. הזמנת קופה שמשויכת לשולחן גם נרשמת כ-completed וגם משאירה את השולחן ב-awaiting_payment.</div></div></section>
+
+<h2 class="grp">מסעדה — הזמנות שולחן</h2>
+
+<section class="proc" data-f="table reservation availability public storefront slots table_count"><h3>בדיקת זמינות שולחנות (ציבורי)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח בחנות המסעדה בוחר תאריך במודאל "הזמנת שולחן" (<code>bookDateChange</code> storefront-restaurant.html:2295) → <code>GET /api/public/restaurants/:groupId/availability/:date</code> (server.js:33488). ללא אימות.</div>
+<div>תנאים ואימותים</div><div><ul><li>עסק לא קיים → 404 "עסק לא נמצא".</li><li>אין אימות פורמט תאריך / תאריך עבר (הקליינט קובע <code>min=today</code>, storefront-restaurant.html:2283).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>tableCount = parseInt(table_count)||8</code>.</li><li>שליפת <code>start_time, num_guests</code> מ-<code>calendar_events</code> של היום, <code>call_type='table_reservation'</code>, <code>status IN ('pending','approved')</code>.</li><li>לכל שעה עגולה 10:00–23:00 מחשבים זמינות.</li></ol></div>
+<div>חישובים</div><div><code>occupied = Σ(num_guests||1)</code> של הזמנות שההפרש בין השעה העגולה שלהן לשעת הסלוט ≤1 (דקות מתעלמות); <code>available = tableCount − ceil(occupied/2)</code>; <code>tables=max(0,available)</code>; <code>available&gt;0</code> → פנוי (server.js:33511-33525). כלומר הנחה של 2 סועדים לשולחן.</div>
+<div>ממשק</div><div>גלולות שעה ירוקות/מלאות; tooltip "N שולחנות פנויים"; רק שעות פנויות לחיצות (storefront-restaurant.html:2321).</div>
+<div>פערים</div><div>אין התחשבות בשעות הפתיחה של העסק (קבוע 10–23); לוגים מפורטים לקונסול בכל קריאה.</div></div></section>
+
+<section class="proc" data-f="table reservation book-table sms verify temp_table_reservations twilio otp storefront"><h3>הזמנת שולחן ציבורית עם אימות SMS (2 שלבים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח מחובר (sc-auth) בחנות המסעדה: "הזמנת שולחן" (<code>openBooking('table')</code> storefront-restaurant.html:2256 — דורש התחברות ל-<code>scAuth</code>), שלב 1 <code>POST /book-table</code>, שלב 2 הזנת קוד <code>POST /verify-table-sms</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>קליינט: שם חובה, טלפון ≥9 תווים, תאריך, סלוט נבחר (storefront-restaurant.html:2342-2353).</li>
+<li>שרת book-table (server.js:33541): <code>name, phone, date, time, numGuests</code> חובה → 400 "חסרים פרטים חובה".</li>
+<li>בדיקת זמינות חוזרת: אם מספר ההזמנות <b>ביום כולו</b> (pending/approved) ≥ <code>table_count||8</code> → 400 "אין זמינות בשעה זו" (server.js:33551-33562).</li>
+<li>verify (server.js:33604): קוד באורך 4 בדיוק, אחרת "קוד שגוי"; רשומה זמנית <code>status='pending'</code> של אותו עסק — אחרת 404 "הזמנה לא נמצאה"; קוד לא תואם → "קוד שגוי"; עברו &gt;30 דק' מ-<code>sms_sent_at</code> → "קוד פג תוקף".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קוד אקראי 4 ספרות (<code>padStart(4,'0')</code>).</li>
+<li>INSERT <code>temp_table_reservations(group_id, customer_name, customer_phone, reservation_date, reservation_time, num_guests, notes, sms_code, sms_sent_at=NOW())</code> (status ברירת מחדל pending, expires_at=NOW()+30min — server.js:1395).</li>
+<li>אם <code>system_settings.sms_debug_code</code> באורך 4 — הקוד נדרס בו (בדיקות).</li>
+<li>SMS דרך <code>sendSMSviaTwilio</code>; טלפון שמתחיל ב-0 → <code>+972</code>+שאר. גוף: שם העסק, שם, תאריך (he-IL), שעה, סועדים, קוד אישור, "נשלח דרך WEFLOWZ".</li>
+<li>verify: איתור <code>storefront_customers.family_group_id</code> לפי טלפון → <code>customer_group_id</code>.</li>
+<li>INSERT <code>calendar_events</code> (<code>title='{שם} — {N} סועדים'</code>, status <code>pending</code>, <code>call_type='table_reservation'</code>, num_guests, customer_group_id).</li>
+<li>UPDATE temp → <code>status='verified', verified_at=NOW()</code>.</li>
+<li><code>upsertStoreCustomer(groupId,{name,phone,notes:'הזמנת שולחן דרך החנות הציבורית'})</code>.</li>
+<li>אין SMS בשלב זה — "ישלח רק אחרי אישור העסק" (server.js:33672).</li>
+</ol></div>
+<div>מכונת מצבים</div><div><code>temp_table_reservations.status</code>: <code>pending</code> → <code>verified</code>. אירוע היומן נוצר ב-<code>pending</code> (ראו "אישור הזמנה ע"י העסק").</div>
+<div>תופעות לוואי</div><div>SMS Twilio; לקוח חנות (store customer) נוצר/מתעדכן.</div>
+<div>ממשק</div><div>מודאל 3 שלבים (פרטים → 4 תיבות קוד עם מעבר אוטומטי ושליחה כשכולן מלאות → אישור); "שלח שוב" מריץ מחדש את שלב 1 (יוצר רשומה זמנית חדשה).</div>
+<div>פערים</div><div><ul><li>אין הגבלת ניסיונות לקוד ואין rate-limit על שליחת SMS.</li><li>בדיקת הזמינות ב-book-table סופרת הזמנות לכל היום ולא לפי שעה — לא עקבית עם endpoint הזמינות; אין בדיקה חוזרת ב-verify.</li><li>אין ניקוי רשומות זמניות (אין cron).</li><li>אישור לא משבץ שולחן ולא מפעיל אישור אוטומטי (<code>auto_approve_max_guests</code> מופעל רק ב-<code>POST /api/calendar/events</code>).</li></ul></div></div></section>
+
+<section class="proc" data-f="table reservation calendar events auto approve auto_approve_max_guests reserved_table_number inbox app family ai"><h3>יצירת הזמנת שולחן דרך היומן (אפליקציית משפחה / AI / עסק) ואישור אוטומטי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>POST /api/calendar/events</code> עם <code>callType:'table_reservation'</code> (server.js:22891). מקורות: אפליקציית המשפחה <code>_submitTableReservation</code> (app.js:14748, פעולת "🍽️ הזמן שולחן" app.js:14471), פעולת AI בעסק <code>_aiCreateTableRes</code> (business-app.js:57307, status <code>approved</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>ללא אימות בשרת; קליינט משפחה: תאריך ושעה חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>finalStatus = status||'pending'</code>.</li>
+<li>אם <code>auto_approve_max_guests</code> מוגדר ו-<code>numGuests ≤</code> הערך: שליפת שולחנות תפוסים — הזמנות <code>approved</code> באותו יום עם <code>|start_time − time| &lt; 2</code> שעות ו-<code>reserved_table_number</code> לא ריק; בחירת המספר הנמוך הפנוי 1..table_count; אם נמצא → <code>finalStatus='approved'</code> (server.js:22898-22918).</li>
+<li>INSERT <code>calendar_events</code> כולל <code>reserved_table_number</code>.</li>
+<li>(יופי בלבד: קישור <code>beauty_client_records</code>.)</li>
+<li>תשובה <code>{eventId, status, assignedTable}</code>; אחריה INSERT ל-<code>inbox_messages</code> של העסק (<code>sender_type='customer'</code>, נושא "הזמנת שולחן — {יום} {שעה}", כולל "(אושר אוטומטית, שולחן N)"); אם אושר אוטומטית ויש <code>customerGroupId</code> — הודעת inbox יוצאת ללקוח "הזמנת שולחן אושרה ✅" (server.js:22959-22975).</li>
+</ol></div>
+<div>חישובים</div><div>חלון התנגשות שולחן: פחות מ-2 שעות בין שעות ההתחלה.</div>
+<div>תופעות לוואי</div><div>הודעות inbox לעסק וללקוח. אין SMS באישור האוטומטי.</div>
+<div>ממשק</div><div>app.js: טוסט "ההזמנה אושרה! שולחן N מחכה לך" או "בקשת ההזמנה נשלחה"; רענון האקורדיון של העסק.</div>
+<div>פערים</div><div>הזמנה עם <code>status:'approved'</code> מפורש (פעולת AI) ללא הגדרת אישור אוטומטי נשמרת מאושרת ללא שולחן משובץ.</div></div></section>
+
+<section class="proc" data-f="table reservation approve business calendar status sms inbox assign table"><h3>אישור הזמנת שולחן ע"י העסק ושיבוץ שולחן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל בטאב יומן → בקשות: "אשר" (<code>approveCalendarEvent</code> business-app.js:26811) → <code>PUT /api/calendar/events/:id/status {status:'approved'}</code> (server.js:22977).</div>
+<div>תנאים ואימותים</div><div><ul><li>אין אימות/בעלות; אין בדיקת מצב קודם (ניתן לאשר מחדש).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>UPDATE status.</li>
+<li>אם <code>call_type='table_reservation'</code>: שיבוץ השולחן הנמוך הפנוי (אותה נוסחת &lt;2 שעות מול הזמנות approved אחרות) → UPDATE <code>reserved_table_number</code> (אם אין פנוי — נשאר ריק, ללא שגיאה).</li>
+<li>SMS ללקוח אם יש טלפון: "{עסק} — הזמנת שולחן אושרה! 🎉 / תאריך / שעה / סועדים / שולחן N / WEFLOWZ".</li>
+<li>אם יש <code>customer_group_id</code> — הודעת inbox יוצאת "הזמנת שולחן אושרה ✅".</li>
+</ol></div>
+<div>מכונת מצבים</div><div><code>calendar_events.status</code> להזמנות שולחן:
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח (חנות/אפליקציה)</td><td>—</td><td>inbox לעסק</td></tr>
+<tr><td>—</td><td>approved</td><td>אישור אוטומטי / AI</td><td>סועדים ≤ סף ויש שולחן</td><td>שולחן משובץ; inbox ללקוח</td></tr>
+<tr><td>pending</td><td>approved</td><td>מנהל</td><td>—</td><td>שיבוץ, SMS, inbox</td></tr>
+<tr><td>pending</td><td>rejected</td><td>מנהל "דחה עם חלופות"</td><td>—</td><td><code>alternatives_json</code>, inbox</td></tr>
+<tr><td>rejected</td><td>cancelled</td><td>לקוח בחר חלופה (הישן מבוטל) / "לא מתאים"</td><td>—</td><td>הזמנה חדשה נוצרת</td></tr>
+<tr><td>pending/approved</td><td>cancelled_by_customer</td><td>לקוח (sc-auth)</td><td>חלון ביטול</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>(נמחק)</td><td>מנהל ✕ (<code>DELETE /api/calendar/events/:id</code>)</td><td>—</td><td>—</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>SMS Twilio, inbox.</div>
+<div>ממשק</div><div>כרטיס בקשה "🍽️ הזמנת שולחן" עם כפתור "אשר", "דחה" (במקום "המר להצעה") ו-✕ (business-app.js:26673-26690). מונה ממתינות ב-KPI ובפעולה מהירה "📅 הזמנות שולחן" (business-app.js:5940, 39836).</div>
+<div>פערים</div><div>אישור אינו משנה את מצב השולחן ברשת ל-<code>reserved</code>.</div></div></section>
+
+<section class="proc" data-f="table reservation reject alternatives suggest-alts reject-with-alts accept alt decline"><h3>דחיית הזמנה עם הצעת שעות חלופיות ובחירת חלופה ע"י הלקוח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל "דחה" (<code>rejectTableReservation</code> business-app.js:26884) → <code>GET /api/calendar/events/:id/suggest-alts</code> (server.js:23084) → בחירת עד 3 שעות → <code>POST /reject-with-alts</code> (server.js:23112). לקוח באפליקציה בוחר חלופה (<code>_acceptTableAlt</code> app.js:14829) או "✕ לא מתאים" (<code>_declineAllTableAlts</code> app.js:14844).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>suggest-alts (preview, ללא שינוי DB): שעות תפוסות = <code>start_time</code> של הזמנות <code>approved</code> באותו יום; הצעות: שעות עגולות 12:00–22:00 שאינן תפוסות ושונות מהמבוקשת, עד 3; אם חסר — חצאי שעה 12:30–21:30.</li>
+<li>reject-with-alts: UPDATE <code>status='rejected', alternatives_json=[slots]</code>; אם יש <code>customer_group_id</code> ו-slots — inbox "הזמנת שולחן — חלופות זמינות" עם רשימה ממוספרת.</li>
+<li>לקוח בוחר חלופה: פותח את מודאל ההזמנה עם התאריך והשעה, מסמן <code>origEventId</code>; אחרי שליחה מוצלחת של הזמנה חדשה — <code>PUT status 'cancelled'</code> על הישנה (app.js:14774).</li>
+<li>"לא מתאים": <code>PUT status 'cancelled'</code>.</li>
+</ol></div>
+<div>ממשק</div><div>מודאל מנהל: 3 שדות שעה + תצוגת שעות 12:00–22:30 (כתום=מבוקש, אדום=תפוס, ירוק=פנוי, לחיצה ממלאת שדה פנוי/מסירה). אפליקציה: כפתורי שעות בכרטיס הזמנה שנדחתה.</div>
+<div>פערים</div><div>"תפוס" נקבע לפי שעה זהה בלבד, לא לפי מספר שולחנות; sc-auth אינו מכיר את הסטטוס <code>rejected</code> (מוצג כטקסט גולמי, sc-auth.js:609).</div></div></section>
+
+<section class="proc" data-f="table reservation cancel customer cancellation_hours window cancelled_by_customer sc-auth"><h3>ביטול הזמנת שולחן ע"י הלקוח (חלון ביטול)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח מחובר בפאנל הפעילות של החנות (sc-auth.js:820) → <code>DELETE /api/public/restaurants/:groupId/reservation/:eventId</code> עם <code>{phone}</code> (server.js:33152).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>קליינט: כפתור מוצג רק אם הסטטוס אינו cancelled/cancelled_by_customer ותאריך ההזמנה ≥ היום (sc-auth.js:620).</li>
+<li>שרת: אירוע של העסק, <code>call_type='table_reservation'</code>, לא מבוטל → אחרת 404 "הזמנה לא נמצאה".</li>
+<li>אם נשלח <code>phone</code> והוא שונה מ-<code>customer_phone</code> → 403 "אין הרשאה".</li>
+<li><code>cancellation_hours</code> מ-<code>calendar_settings</code> (ברירת מחדל 0): אם &gt;0 ו-<code>(מועד − עכשיו)/3600000 &lt; חלון</code> → 400 "לא ניתן לבטל פחות מ-N שעות לפני מועד ההזמנה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>status='cancelled_by_customer'</code>.</li></ol></div>
+<div>חישובים</div><div>מועד = <code>new Date('YYYY-MM-DDTHH:MM:00')</code> (שעון השרת).</div>
+<div>פערים</div><div>ללא אימות: אם <code>phone</code> לא נשלח — כל אחד שיודע eventId יכול לבטל. אין הודעה לעסק על הביטול.</div></div></section>
+
+<section class="proc" data-f="table settings auto approve guests table-settings settings"><h3>הגדרות שולחנות: אישור אוטומטי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>⚙️ ברשת השולחנות → "אשר אוטומטית עד N סועדים" → <code>saveAutoApproveSettings</code> (business-app.js:40793) → <code>PATCH /api/groups/:id/table-settings</code> (server.js:26412).</div>
+<div>תנאים ואימותים</div><div>שרת: ריק/null/≤0 → <code>NULL</code> (ביטול); אחרת <code>parseInt</code>. ללא אימות הרשאה. Input קליינט 0–30.</div>
+<div>שלבי עיבוד</div><div>UPDATE <code>family_groups.auto_approve_max_guests</code>; עדכון <code>currentGroup</code>; טוסט "✅ אישור אוטומטי פעיל עד N סועדים" / "אישור אוטומטי בוטל".</div></div></section>
+
+<section class="proc" data-f="seating windows reservations today upcoming 7 days timeline"><h3>חלונות הושבה ורשימות הזמנות (היום / 7 ימים)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"📅 חלונות" ברשת (<code>openSeatingWindowsModal</code> business-app.js:40547) ומודאל שולחן מוזמן.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/tables/:gid/reservations-today</code> (server.js:23145) — הזמנות approved/pending של היום (UTC). <code>GET /reservations-upcoming</code> (23160) — היום עד +7 ימים, ממוין, LIMIT 50.</li><li>איחוד ללא כפילויות, סינון לתאריך הנבחר, מיון לפי שעה.</li></ol></div>
+<div>חישובים</div><div>ציר 10:00–23:00; <code>x = ((h−10)*60+m)/780*100%</code>; משך ברירת מחדל 90 דק' (אין end_time); רוחב מינימלי 2%. הזמנה ללא שולחן משובץ מוצגת על שולחן 1 (40619). KPI: הזמנות, סך סועדים, ממתינות.</div>
+<div>ממשק</div><div>כחול=מאושרת, ענבר=ממתינה; רשימת היום עם תווית מקור (<code>order_source</code> — שדה שלא נשלף, ולכן ריק תמיד) וקישור טלפון.</div></div></section>
+
+<h2 class="grp">מסעדה — לקוחות וביקורים (CRM)</h2>
+
+<section class="proc" data-f="restaurant customer upsert restaurant_customers search"><h3>לקוח מסעדה — הוספה/עדכון ורשימה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>POST /api/restaurant/customer</code> (server.js:33091), <code>GET /api/restaurant/customers/:groupId?search=</code> (33079). ללא אימות.</div>
+<div>שלבי עיבוד</div><div><ol><li>אם נשלח phone וקיים לקוח באותו עסק עם אותו טלפון — UPDATE <code>customer_name, email, notes, updated_at</code> ומחזיר <code>updated:true</code>.</li><li>אחרת INSERT <code>restaurant_customers</code> (status ברירת מחדל active, visits_total 0).</li><li>רשימה: עם search — ILIKE על שם/טלפון, LIMIT 50 ממוין לפי שם; בלי — LIMIT 100 ממוין <code>visits_total DESC</code>; כולל <code>last_visit</code>.</li></ol></div>
+<div>פערים</div><div>אין שום קריאה מהקליינט ל-<code>/api/restaurant/*</code> (פרט לביטול הזמנה) — endpoints אלה הם קוד מת מבחינת ממשק. שם לא נבדק כחובה.</div></div></section>
+
+<section class="proc" data-f="restaurant visit check-in checkout self-visit restaurant_visits guests"><h3>ביקור: צ'ק-אין (עסק/עצמי), ביטול וצ'ק-אאוט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק: <code>POST /api/restaurant/visit</code> (33107); לקוח: <code>POST /api/restaurant/self-visit</code> (33186); ביטול <code>DELETE /visit/:id</code> (33124); יציאה <code>POST /visit/:id/checkout</code> (33135); היסטוריה <code>GET /my-visits/:groupId?phone=</code> (33201); היום <code>GET /visits/:groupId</code> (33144).</div>
+<div>תנאים ואימותים</div><div><ul><li>self-visit: groupId+phone חובה → "חסרים פרמטרים"; ביקור קיים היום לאותו טלפון → 400 "כבר נרשמה כניסה היום" (<code>alreadyIn</code>).</li><li>checkout: רק אם <code>checked_out_at IS NULL</code> → אחרת 404 "ביקור לא נמצא או כבר יצא".</li><li>my-visits: phone חובה "חסר פלאפון".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם הטלפון שייך ללקוח קיים — <code>visits_total+1</code>.</li><li>INSERT <code>restaurant_visits(group_id, customer_id, customer_name||'אורח', customer_phone, guests||1)</code>.</li><li>ביטול: DELETE + <code>visits_total=GREATEST(visits_total−1,0)</code>.</li><li>checkout: <code>checked_out_at=NOW()</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>ביקור: פתוח (<code>checked_out_at NULL</code>) → יצא. "יושבים כעת" = ביקורי היום ללא יציאה.</div>
+<div>פערים</div><div>ללא אימות כלל (כל אחד יכול לבצע צ'ק-אין/ביטול לכל עסק). self-visit לא יוצר לקוח חדש.</div></div></section>
+
+<section class="proc" data-f="restaurant dashboard kpi alerts dormant 30 days pending reservations"><h3>דשבורד KPI והתראות (לקוחות רדומים / הזמנות ממתינות)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET /api/restaurant/dashboard/:groupId</code> (33058), <code>GET /api/restaurant/alerts/:groupId</code> (33211).</div>
+<div>חישובים</div><div><ul><li>visits_today = ביקורים ב-<code>DATE(visited_at)=CURRENT_DATE</code>.</li><li>reservations_today = הזמנות שולחן היום pending/approved.</li><li>customers_total = לקוחות active.</li><li>dormant = לקוחות active ללא ביקור ב-30 הימים האחרונים (<code>visited_at ≥ CURRENT_DATE−30</code>).</li><li>seated_now = ביקורי היום ללא checkout.</li><li>alerts: עד 50 רדומים (מיון last_visit DESC) + עד 20 הזמנות שולחן pending.</li></ul></div>
+<div>פערים</div><div>שגיאה ב-alerts מחזירה רשימות ריקות בשקט. אין צרכן בקליינט.</div></div></section>
+
+<h2 class="grp">תפריטי אירועים (Menu Templates) ופניות</h2>
+
+<section class="proc" data-f="menu templates create update delete slug public pricing_mode per_person per_item event_mode hide_prices menu_templates"><h3>תבנית תפריט — יצירה, עריכה, מחיקה רכה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל בטאב "תפריטים" (<code>menu_templates</code>; <code>loadMenuTemplates</code> business-app.js:58495): "צור תפריט" (<code>_mtCreateTemplate</code> 58681), עורך עם שמירה אוטומטית (<code>_mtEF</code> 59032 debounce 1500ms → <code>_mtSave</code> 59094), מחיקה (<code>_mtDeleteConfirm</code> 59695).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>כל ה-endpoints: <code>verifyBizOrLegacy</code> + <code>requireModule('menu_templates')</code>; <code>req.bizAuth.groupId</code> חסר → 401 "נדרש token". requireModule: legacy או עסק ללא <code>managed_modules</code> → מותר; אחרת 403 "גישה למודול זה אינה כלולה בחבילה שלך" (server.js:43126).</li>
+<li>POST (server.js:42138): שם חובה "שם התבנית נדרש"; min/max_guests ≥1 ו-max≥min; <code>base_price_per_person ≥0</code>; <code>pricing_mode ∈ {per_person, per_item}</code> אחרת per_person.</li>
+<li>PUT (42195): בעלות (group_id + template_type='menu') אחרת 404; ולידציית min/max מול הערכים השמורים; לפחות שדה אחד → אחרת "לא נשלחו שדות לעדכון". שדות מותרים: name, description, event_type, min_guests, max_guests, base_price_per_person, pricing_mode, show_related_options, is_active, is_public, cover_image_url, logo_url, slogan, contact_phone, contact_address, notification_email, event_mode, hide_prices, event_greeting, event_intro, event_image_url.</li>
+<li>קליינט: שם חובה ("שם התפריט נדרש").</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>slug: <code>_menuSlug</code> (42129) = אותיות לטיניות/ספרות מהשם (עד 20, ריק→"menu") + "-" + 3 בתים hex אקראיים; עד 5 ניסיונות ייחודיות → אחרת 500 "שגיאת שרת — נסה שנית".</li>
+<li>INSERT <code>menu_templates</code> (<code>template_type='menu'</code>, is_active ברירת מחדל true, is_public ברירת מחדל false).</li>
+<li>PUT דינמי + <code>updated_at</code>.</li>
+<li>DELETE (42254): מחיקה רכה <code>is_active=false</code> (רק אם פעילה).</li>
+<li>GET רשימה: פעילות בלבד + <code>section_count</code>, <code>item_count</code>; GET יחידה: כולל sections עם items ממוינים.</li>
+</ol></div>
+<div>מכונת מצבים</div><div><code>is_public</code> false (טיוטה, נגיש רק עם preview_token) ↔ true (פורסם); <code>is_active</code> true → false (נמחק).</div>
+<div>ממשק</div><div>סוגי אירוע בקליינט: wedding, barmitzvah, corporate, birthday, general (business-app.js:58538). העלאת תמונות ל-Cloudinary (תיקייה <code>family-flow-menus</code>, דחיסה 1600px, 0.85). "שכפול — בקרוב" (59693). תצוגה מקדימה/PDF מצרפים <code>preview_token=_bizToken</code> (59532).</div>
+<div>פערים</div><div><code>_mtPreview</code> (59688) פותח <code>/menu/slug</code> בלי preview_token — טיוטה תציג "התפריט אינו זמין". מפתחות event_type בשרת למייל (<code>bar_mitzvah</code>) לא תואמים לקליינט (<code>barmitzvah</code>) ואף לא בשימוש.</div></div></section>
+
+<section class="proc" data-f="menu sections steps min_choices max_choices is_required price_modifier"><h3>שלבי תפריט (Sections)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"הוספת שלב" (<code>_mtDoAddSec</code> business-app.js:59165) → <code>POST /api/menu-templates/:templateId/sections</code> (42279); עריכה <code>PUT /api/menu-sections/:id</code> (42327); מחיקה <code>DELETE</code> (42369, עם confirm "למחוק שלב זה ואת כל פריטיו?").</div>
+<div>תנאים ואימותים</div><div><ul><li>שם חובה "שם הסקשן נדרש"; min_choices ברירת מחדל 0, max 1; שניהם ≥0; max≥min.</li><li>בעלות דרך JOIN לתבנית.</li><li>קליינט שולח <code>max_choices</code> ברירת מחדל 99 ו-<code>is_required = minC&gt;0</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><code>sort_order</code> חסר → <code>MAX+1</code>; INSERT <code>menu_sections(template_id,name,description,min_choices,max_choices,is_required,sort_order,price_modifier)</code>. DELETE פיזי (הפריטים נמחקים ב-cascade לפי מבנה DB — לא נקבע בקוד הנתיב).</div>
+<div>פערים</div><div><code>price_modifier</code> נשמר ומוחזר בציבורי אך לא משמש בשום חישוב מחיר (menu.html:649).</div></div></section>
+
+<section class="proc" data-f="menu items catalog_item_id custom_price allergens is_available image"><h3>פריטי תפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"הוסף פריט" ידני (<code>_mtDoAddItem</code> 59348) או מהקטלוג (<code>_mtDoAddFromCatalog</code> 59315, ריבוי בחירה, POST לכל פריט); זמינות (<code>_mtToggleItemA</code> 59456); תמונה (Cloudinary <code>family-flow-menu-items</code>); מחיקה.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>catalog_item_id</code> חייב להיות של אותו עסק → 400 "מוצר קטלוג לא נמצא או לא שייך לעסק זה" (POST 42391 ו-PUT 42451).</li><li>שם חובה כשאין catalog_item_id.</li><li><code>custom_price ≥0</code>.</li><li>קליינט: מהקטלוג נשלח <code>custom_price</code> רק אם מחיר הקטלוג &gt;0 (מקובע בזמן ההוספה).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT <code>menu_items(section_id,name,description,catalog_item_id,custom_price,image_url,allergens,is_available=true,sort_order)</code>; PUT דינמי לשדות מותרים; DELETE פיזי.</div>
+<div>חישובים</div><div>מחיר מוצג ציבורית: <code>custom_price ?? catalog.price ?? null</code>; שם: שם הקטלוג אם מקושר, אחרת <code>name</code>; תמונה: <code>image_url || catalog.image_url</code> (server.js:42614-42620).</div></div></section>
+
+<section class="proc" data-f="menu public view menu.html preview_token og related catalog menus.html alias wizard"><h3>תצוגת תפריט ציבורית (menu.html / menus.html)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח פותח <code>/menu/:slug</code> (server.js:46314 — מזריק תגיות OG: "{עסק} — תפריט", לוגו/כריכה) או <code>/menus/:alias</code> (46352, כל התפריטים הפומביים לפי <code>store_alias</code>/<code>group_code</code> — <code>GET /api/menus/public/:alias</code> 46360).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>GET /api/menu/public/:slug</code> (42546): פעיל + menu; אם <code>is_public=false</code> נדרש <code>preview_token</code> = טוקן <code>family_sessions</code> מסוג biz בתוקף של אותו group → אחרת 404 "תבנית לא נמצאה".</li><li><code>/related</code> ו-<code>/catalog</code>: אותו עקרון (related רק פומבי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>החזרת התבנית ללא <code>group_id/is_public</code>, עם <code>store_id = COALESCE(store_alias, group_code)</code>, sections ופריטים מועשרים מהקטלוג (חי).</li><li>קליינט מסנן שלבים ללא פריט זמין (menu.html:180). ניתוב: <code>show_related_options=false</code> → ישר לאשף (אם יש שלבים) או למצב קטלוג; אחרת דף נחיתה.</li><li>אשף: <code>toggleItem</code> (585) — בחירה יחידה כש-max=1, אחרת עד max ("ניתן לבחור עד N פריטים"); <code>nextStep</code> (601) — שלב חובה דורש ≥min.</li><li>מצב קטלוג: <code>GET /catalog</code> — כל פריטי <code>store_catalog</code> הזמינים (sort_order,id), עגלה עם כמויות.</li><li>מצבי PDF/WhatsApp (<code>?pdf=1</code>) עם palette/plating/air.</li></ol></div>
+<div>חישובים</div><div><code>calcTotal</code> (menu.html:649): <code>per_item</code> → Σ מחירי פריטים נבחרים; <code>per_person</code> → אם אין מחיר בסיס 0, אחרת <code>base + Σ</code> ("סה״כ משוער לאיש"). מחירים מוסתרים כש-<code>hide_prices || event_mode</code>.</div>
+<div>ממשק</div><div><code>event_mode</code> מציג ברכה/פתיח/תמונת אירוע במקום מטא-מחיר; כפתור חנות ל-<code>/storefront.html?store=</code>.</div></div></section>
+
+<section class="proc" data-f="menu quote request public form wizard selections rate limit notification email HG"><h3>שליחת פנייה מאשף התפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח ממלא פרטים בסוף האשף (<code>submitForm</code> menu.html:688) → <code>POST /api/menu/public/:slug/request</code> (server.js:42636).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>Rate-limit בזיכרון לפי IP (<code>x-forwarded-for</code> ראשון): 5 בקשות לשעה (משותף ל-catalog-request) → 429 "יותר מדי בקשות. נסה שנית בעוד N שניות." (server.js:42518-42539).</li>
+<li>תבנית פעילה ופומבית בלבד.</li>
+<li>שם (אחרי ניקוי HTML) חובה; טלפון 7–15 תווים, <code>^[0-9+\-() ]+$</code>; תאריך לא בעבר (Asia/Jerusalem); guest_count ≥1 ובטווח min/max התבנית.</li>
+<li>selections אובייקט; כל section שייך לתבנית; מערך; אורך בין min ל-max; כל ה-item ids שייכים ל-section; שלב חובה שלא נשלח וקיים min&gt;0 → "{שלב}: בחירה זו חובה".</li>
+<li>קליינט: אותן בדיקות שם/טלפון + מינימום אורחים.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>המרת selections לשמות: <code>{שם שלב: [שם פריט|id]}</code>.</li><li>INSERT <code>menu_quote_requests(... source='public_form', status='pending')</code>.</li><li>מספר פנייה <code>'HG-'+id.padStart(4,'0')</code>.</li><li>אם <code>notification_email</code> — מייל HTML לעסק (<code>sendSystemEmail</code>) עם פרטים ו"N בחירות" לכל שלב.</li></ol></div>
+<div>תופעות לוואי</div><div>מייל לעסק.</div>
+<div>פערים</div><div>פריט מקושר-קטלוג ללא <code>name</code> יישמר כמספר ה-id (השם נלקח מ-<code>menu_items.name</code> בלבד).</div></div></section>
+
+<section class="proc" data-f="menu catalog request catalog_builder cart"><h3>פנייה מ"הרכבת קטלוג"</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>submitCatalogForm</code> (menu.html:422) → <code>POST /api/menu/public/:slug/catalog-request</code> (server.js:42828).</div>
+<div>תנאים ואימותים</div><div>Rate-limit משותף; תבנית פומבית; שם חובה; טלפון ≥7 ("טלפון לא תקין"); <code>cart_items</code> לא ריק → "לא נבחרו פריטים".</div>
+<div>שלבי עיבוד</div><div>INSERT עם <code>selections = cart_items</code> כפי שנשלחו (<code>{catalog_item_id,name,price,qty}</code>), <code>source='catalog_builder'</code>; מייל לעסק עם שורות פריטים ומחירים.</div>
+<div>פערים</div><div>מחירים ושמות נשמרים מהקליינט ללא אימות מול הקטלוג.</div></div></section>
+
+<section class="proc" data-f="menu quote requests status viewed closed convert order menu_request converted"><h3>ניהול פניות תפריט: סטטוס והמרה להזמנה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל ברשימת "פניות תפריט" (<code>fetchMenuRequests</code> business-app.js:8864, <code>renderMenuRequests</code> 8907): "סגור" (<code>updateMenuRequestStatus</code> 9006), "המר" (<code>convertMenuRequest</code> 9019).</div>
+<div>תנאים ואימותים</div><div><ul><li>PATCH status (server.js:42904): מותר רק <code>pending|viewed|closed</code>; בעלות.</li><li>convert (42935): בעלות; אם כבר <code>converted</code> → 400 "כבר הומר להצעה מספר HG-XXXX (הזמנה #N)".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>status: אם viewed לראשונה — גם <code>viewed_at=NOW()</code>.</li><li>convert: בניית שורות מ-selections (ערכים מומרים ל-Number כ-menu_item ids): מחיר = <code>custom_price ?? catalog.price ?? 0</code>, <code>item_type:'selection'</code>; שורת בסיס "מחיר בסיס לאורח × N" אם base&gt;0 ו-guest_count&gt;0.</li><li>טרנזקציה: INSERT <code>store_orders(status='new', order_source='menu_request', items JSON, notes=custom_notes)</code> → UPDATE בקשה <code>status='converted', linked_order_id</code> → COMMIT.</li></ol></div>
+<div>חישובים</div><div><code>total = Σ row_total</code>; בסיס = <code>base_price_per_person × guest_count</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח ציבורי</td><td>ולידציה</td><td>מייל לעסק</td></tr>
+<tr><td>pending</td><td>viewed</td><td>PATCH (אין כפתור בממשק)</td><td>—</td><td>viewed_at</td></tr>
+<tr><td>pending/viewed</td><td>closed</td><td>מנהל "סגור"</td><td>—</td><td>—</td></tr>
+<tr><td>pending/viewed/closed</td><td>converted</td><td>מנהל "המר" (כפתור מוסתר ל-closed/converted)</td><td>לא converted</td><td>store_orders חדש</td></tr>
+</table></div></div>
+<div>ממשק</div><div>סינון לפי סטטוס; תג ממתינות ב-<code>menu-requests-badge</code> ו-<code>mt-requests-badge</code>; תצוגת בחירות (מזהה "בקשה ישנה" כשמפתחות מספריים); אחרי המרה מעבר לטאב "quotes".</div>
+<div>פערים</div><div><ul><li><b>באג:</b> selections נשמרות כשמות (<code>{שם שלב:[שם פריט]}</code>) או כמערך עגלה, אך ההמרה מניחה מזהי פריטים — <code>Number(name)</code>=NaN מסונן ⇒ ההזמנה נוצרת רק עם שורת מחיר הבסיס (או 0) (server.js:42958 מול 42722).</li><li>ההזמנה נוצרת ב-<code>status='new'</code> (לא quote) אך הקליינט עובר לטאב הצעות מחיר.</li></ul></div></div></section>
+
+<section class="proc" data-f="quote from template menu work order assign menu auto reserve inventory from menu event guest"><h3>הצעת מחיר מתבנית תפריט, שיוך תפריט לפקודת עבודה ושריון מלאי אוטומטי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>Events Hub: <code>POST /api/store/quotes/from-template</code> (server.js:27001), <code>PUT /api/work-orders/:id/menu</code> (27111), <code>POST /api/work-orders/:id/inventory/auto-from-menu</code> (26934). כולם <code>verifyBiz</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>from-template: templateId + customerName חובה; תבנית של העסק.</li><li>menu: פקודה <code>call_type='work_order'</code> של העסק (אחרת 403); תפריט של העסק אחרת 400 "תפריט לא נמצא"; ערך ריק מסיר שיוך.</li><li>auto-from-menu: חייב <code>menu_template_id</code> → "לאירוע זה לא משויך תפריט".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>from-template: כל פריטי התבנית הזמינים; <code>guests = max(1, guestCount||min_guests||1)</code>; כל פריט: מחיר <code>custom_price||0</code>, כמות = guests ב-per_person אחרת 1; שורת "מחיר בסיס לסועד" × guests; INSERT <code>store_orders(status='quote', is_event=TRUE, menu_template_id, event_guest_count, target_datetime)</code>; <code>quote_number='QT-'+id.padStart(6,'0')</code>.</li>
+<li>menu: UPDATE <code>menu_template_id</code> + ציר זמן <code>menu_assigned/menu_removed</code>.</li>
+<li>auto-from-menu: כל מוצרי הקטלוג המקושרים לתבנית → מרכיבי <code>product_ingredients</code>; איחוד לפי שם; לכל מרכיב חיפוש פריט pantry בשם (case-insensitive); שריון <code>min(needed, available)</code>; INSERT <code>work_order_inventory</code>; ציר זמן <code>inventory_auto_reserved</code>.</li>
+</ol></div>
+<div>חישובים</div><div>auto-from-menu: <code>qtyPerGuest = quantity × (1 + waste_pct/100)</code>, <code>needed = Σ qtyPerGuest × guests</code>; <code>available = max(0, stock − reserved − stock×min_stock_buffer_pct/100)</code>.</div>
+<div>פערים</div><div><ul><li>נוסחת פחת שונה מ-Food Cost (שם <code>qty/(1−waste%)</code>) וללא המרת יחידות.</li><li>השריון מסכם את כל המנות בתבנית (לא רק הנבחרות) לכל סועד.</li><li>from-template: פריט מקושר-קטלוג ללא custom_price מתומחר 0 וללא שם.</li></ul></div></div></section>
+
+<h2 class="grp">Food Cost — תמחור מנות ועץ מוצר</h2>
+
+<section class="proc" data-f="food cost calculation recipe ingredients price shopping_trip_items unit conversion foodcostpct _foodcost_ units waste"><h3>חישוב עלות מנה ו-Food Cost % (כולל המרת יחידות)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב <code>foodcost</code> (<code>fetchFoodCost</code> business-app.js:23401, נטען ב-switchTab 2989) → <code>GET /api/food-cost/:groupId</code> (server.js:22632). מודול זמין ל-restaurant/food_production (BUSINESS_TYPES business-app.js:37527/37538), ותפקיד cook (37518). ללא אימות בשרת.</div>
+<div>תנאים ואימותים</div><div>רק מוצרי <code>store_catalog</code> עם <code>is_available=TRUE</code>, ממוינים לפי קטגוריה ושם.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מרכיבים: <code>product_ingredients</code> של מוצרי העסק.</li>
+<li>מחירון: לכל <code>item_name</code> המחיר האחרון (<code>DISTINCT ON (item_name) … ORDER BY trip_date DESC</code>) מ-<code>shopping_trip_items</code>⋈<code>shopping_trips</code> של העסק; מפתח = שם מנורמל (trim+lowercase).</li>
+<li>לכל מרכיב: אם אין מחיר → <code>no_price_data</code>; אחרת המרה <code>convertFoodCostQtyWithWeight(qty, ing.unit, price.unit, unit_weight_grams)</code>; כשל המרה → <code>unit_mismatch</code> (העלות מחושבת בכל זאת עם הכמות הלא מומרת).</li>
+<li>תקורות: Σ<code>cost</code> של <code>store_catalog.overhead_details</code> (JSON).</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li>יחידות (server.js:22223-22243; זהה בקליינט business-app.js:24208-24230): משקל <code>{גרם:1, ג:1, קג:1000, ק"ג:1000, ק'ג:1000}</code>, נפח <code>{מל:1, מ"ל:1, ליטר:1000, ל':1000}</code>, ספירה <code>{יח, יח', יח., יחידה, יחידות}</code> (זהות). המרה = <code>qty×factor[from]/factor[to]</code>; יחידות זהות → ok.</li>
+<li>חוצה-משפחה רק עם <code>unit_weight_grams=w&gt;0</code>: יח'→משקל = <code>qty×w/factor[to]</code>; משקל→יח' = <code>qty×factor[from]/w</code> (22246).</li>
+<li>פחת: <code>waste = min(waste_pct, 95)</code>; <code>effectiveQty = convQty / (1 − waste/100)</code> (22670).</li>
+<li><code>cost = price_per_unit × effectiveQty</code>; <code>total = Σingredients + Σoverheads</code>; <code>foodCostPct = total/salePrice×100</code> (0 אם מחיר 0); <code>profit = salePrice − total</code> (22690).</li>
+</ul></div>
+<div>ממשק</div><div><code>renderFoodCostList</code> (23453): צבע/סטטוס — 0 ולא חושב: אפור; &gt;40 "בעייתי" אדום; &gt;33 "גבוה" כתום; &gt;28 "טוב"; אחרת "מצוין". באנר תפריט (<code>renderFoodCostWarningBanner</code> 23425): מנות בהפסד, &gt;40%, 33–40% (מחושב על כל התפריט, לא רק על הסינון). אזהרת "חלק מהמרכיבים ללא מחיר רכישה תואם" כש-<code>has_incomplete_data</code>. חיפוש לפי שם/קטגוריה. KPI ממוצע Food Cost בדשבורד (5947): &lt;30 לבן, &lt;40 צהוב, אחרת אדום.</div>
+<div>פערים</div><div>בכשל המרה הרשימה מחשבת עלות עם כמות לא מומרת (עלולה להיות מנופחת פי 1000), בעוד בונה המתכון מציג 0 לאותו מרכיב ו-<code>computeFixedOverhead</code> מדלג עליו — שלושה חישובים שונים.</div></div></section>
+
+<section class="proc" data-f="recipe builder save product_ingredients overhead_details new dish catalog duplicate target price ai"><h3>בונה המתכון — שמירת עץ מוצר ויצירת מנה חדשה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"עץ מוצר" במנה (<code>openRecipeBuilder(id)</code> business-app.js:23899), "הוסף מנה חדשה לחנות ותמחר מאפס" (כפתור שמוזרק כל 2 שניות — <code>setInterval(injectCreateRecipeBtn,2000)</code> 24184), "שכפל" (<code>duplicateRecipeFromFC</code> 24193).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>מרכיב: שם וכמות &gt;0 → "הכנס שם וכמות תקינה" (24232); פחת מוגבל ל-95.</li>
+<li>תקורה: שם ועלות &gt;0 → "הכנס שם ועלות תקינה".</li>
+<li>מנה חדשה: שם ומחיר &gt;0 → "יש להזין שם מנה ומחיר מכירה גדול מ-0".</li>
+<li>אישור רווחיות לפני שמירה (<code>checkRBProfitabilityBeforeSave</code> 24387): אם עלות&gt;0 ומחיר&gt;0 — הפסד → confirm "המנה נמכרת בהפסד"; &gt;40% → confirm "Food Cost גבוה מאוד"; &gt;33% → confirm "גבוהה מהסטנדרט"; ביטול = לא נשמר.</li>
+<li>במנה קיימת שם וקטגוריה נעולים; המחיר פתוח לעריכה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מנה חדשה: <code>POST /api/store/catalog</code> (<code>productType:'food'</code>, description "מנה שהורכבה במערכת התמחור.") → מקבל id.</li>
+<li><code>POST /api/food-cost/recipe/:catalogId</code> (server.js:22714) בטרנזקציה: UPDATE <code>store_catalog.overhead_details</code>; DELETE כל <code>product_ingredients</code> של המוצר; INSERT לכל מרכיב עם שם (<code>ingredient_name||name</code>; ללא שם — מדלג) <code>quantity||0</code>, <code>unit||"יח'"</code>, <code>waste_pct||0</code>, <code>unit_weight_grams</code>; COMMIT (ROLLBACK בשגיאה).</li>
+<li>רענון רשימת Food Cost.</li>
+</ol></div>
+<div>חישובים</div><div><ul><li>תצוגה חיה (<code>refreshRBUI</code> 24281): עלות מרכיב = <code>conv.ok ? conv.value×price : 0</code> כש-<code>effectiveQty=qty/(1−waste)</code>; פס צבע &gt;40 אדום, &gt;33 כתום, אחרת ירוק.</li><li>מחיר מומלץ (<code>calcRBTargetPrice</code> 24343): <code>totalCost / (target%/100)</code>, יעד ברירת מחדל 30; "החל" מעגל למעלה (<code>Math.ceil</code>).</li></ul></div>
+<div>תופעות לוואי</div><div>"ייעוץ AI להוזלת עלות המנה" (<code>analyzeRBCostAI</code> 24362) → <code>POST /api/biz/chat-assistant</code> עם רשימת המרכיבים, התקורות והיעד, הקשר "יועץ קולינרי וכלכלי למסעדות" (עוטף <code>executeWithAIWarning</code>).</div>
+<div>פערים</div><div><ul><li>במנה קיימת שינוי מחיר המכירה בבונה אינו נשמר (רק עץ המוצר נשלח) — האישור והתצוגה מחושבים לפי מחיר שלא יתעדכן.</li><li><code>POST /recipe</code> ללא בדיקת בעלות על catalogId.</li></ul></div></div></section>
+
+<section class="proc" data-f="recipe ingredient single update famliai ai action"><h3>עדכון מרכיב בודד במתכון (FamliAI)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פעולת AI בעסק (business-app.js:57375) → <code>POST /api/food-cost/recipe/:catalogId/ingredient</code> (server.js:22752).</div>
+<div>תנאים ואימותים</div><div>groupId חובה ("groupId required"); שם מרכיב ("שם מרכיב חסר"); כמות &gt;0 ("כמות לא תקינה"); המנה שייכת לעסק → אחרת 404 "מנה לא נמצאה בעסק זה". פחת ≤95.</div>
+<div>שלבי עיבוד</div><div>חיפוש מרכיב קיים לפי <code>lower(trim(name))</code>: UPDATE (quantity, unit, waste_pct, unit_weight_grams) או INSERT. Audit <code>logBizAction(…,'FamliAI','UPDATE_RECIPE_INGREDIENT','catalog_item',…)</code>.</div></div></section>
+
+<section class="proc" data-f="overhead presets food_cost_overhead_presets"><h3>סטי תקורות שמורים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בבונה המתכון: "שמור כסט" (<code>saveOverheadPreset</code> business-app.js:24156, prompt לשם) / "טען סט" (<code>applyOverheadPreset</code> 24145).</div>
+<div>תנאים ואימותים</div><div>קליינט: חייבות להיות תקורות; שרת (22351): שם חובה "שם הסט חסר", חותך ל-100 תווים. מחיקה (22363) לפי id+group.</div>
+<div>שלבי עיבוד</div><div>INSERT <code>food_cost_overhead_presets(group_id,name,overheads JSON)</code>; טעינה מחליפה לגמרי את <code>rbOverheads</code> בעותק עמוק.</div></div></section>
+
+<section class="proc" data-f="fixed overhead break even profit targets apply to all food_cost_fixed_overhead budget transactions"><h3>תקורה תפעולית קבועה, נקודת איזון והחלה על כל התפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חלונית "תקורה קבועה ונקודת איזון" (<code>openFixedOverheadModal</code> business-app.js:23646): בחירת קטגוריות הוצאה (מקור actual/budget), מצב כמות (auto/manual), יעדי רווח; "שמור וחשב מחדש" (<code>_foSave</code>) ו"החל תקורה על כל התפריט" (<code>_foApplyToAll</code>, עם confirm).</div>
+<div>תנאים ואימותים</div><div><ul><li>קטגוריות זמינות (22544): DISTINCT מ-<code>budget_allocations</code> ∪ הוצאות <code>transactions</code>, ללא <code>allocations, allowance, tasks, academy, savings</code> (22543).</li><li>POST (22560): קטגוריות עם שם בלבד, source ∈ {budget, actual}; יעדים: ייחודיים, <code>max(0, round)</code>, ממוינים; ריק → <code>[0,10,20,30]</code>; <code>labor_cost_manual</code> נכפה ל-0.</li><li>apply-to-all (22592): אם <code>overheadPct</code> לא &gt;0 → 400 "אין עדיין אחוז תקורה לחישוב …".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT <code>food_cost_fixed_overhead</code> ואז <code>computeFixedOverhead</code> (22376).</li><li>apply-to-all בטרנזקציה: לכל מוצר עם מחיר&gt;0 מסיר שורות שמתחילות ב-"תקורה תפעולית קבועה (" ומוסיף <code>{name:'תקורה תפעולית קבועה (X% ממחיר המנה = ₪Y)', cost}</code>; מוצרים ללא מחיר נספרים כ-skipped.</li><li>בבונה המתכון: כפתור "הוסף תקורה תפעולית קבועה" (<code>addFixedOverheadToRB</code> 24100) — אותה שורה למנה בודדת; דורש מחיר ("יש להזין מחיר מכירה למנה קודם").</li></ol></div>
+<div>חישובים</div><div><ul>
+<li>סכום קטגוריה: budget = Σ<code>amount_limit</code> מכל שורות ההקצאה (22392); actual = Σ הוצאות מתחילת החודש הנוכחי (22398). <code>totalFixed = Σ + laborCost(0)</code>.</li>
+<li>כמות/הכנסה אוטומטית: מכירות <code>completed/delivered</code> בחודש הקלנדרי הקודם; אם 0 — 30 הימים האחרונים; אחרת none (22412-22432). הכנסה = Σ<code>quantity×price_at_order</code>.</li>
+<li>מנה נכללת אם מחיר&gt;0, יש מתכון ועלות&gt;0 (סיבות החרגה 22461). ממוצע משוקלל-מכירות של מחיר ו-CM=<code>price−cost</code>; אם 0 — ממוצע פשוט.</li>
+<li>הכנסה אפקטיבית: manual → <code>qtyManual × (avgCatalogPriceAll || avgPrice)</code>; auto → <code>autoRevenue</code> או <code>autoQty × avg</code>. <code>overheadPct = totalFixed / effectiveRevenue</code> (22509).</li>
+<li>יעד: <code>denom = avgCM − target%×avgPrice</code>; אם avgPrice≤0 או denom≤0 → לא בר-השגה; אחרת <code>requiredQty = ceil(totalFixed/denom)</code> (22514).</li>
+<li>תקורה למנה = <code>round(price × overheadPct × 100)/100</code> (22613).</li>
+</ul></div>
+<div>פערים</div><div>הוצאות "בפועל" לוקחות רק את החודש הנוכחי (חלקי) בעוד הכנסות מהחודש הקודם — אחוז מעוות בתחילת חודש.</div></div></section>
+
+<section class="proc" data-f="pantry auto deduct order completed product_ingredients pantry_deducted_at"><h3>ניכוי מלאי אוטומטי בעת השלמת מכירה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>deductPantryForOrder</code> (server.js:22269), נקרא fire-and-forget כשהזמנה עוברת ל-<code>completed</code>/<code>delivered</code> (14688).</div>
+<div>תנאים ואימותים</div><div>תפיסה אטומית: <code>UPDATE store_orders SET pantry_deducted_at=NOW() WHERE id AND pantry_deducted_at IS NULL</code> — אם לא עודכנה שורה, יציאה (מניעת ניכוי כפול). דילוג אם אין פריטים עם catalog_id, אין מתכונים או אין מלאי.</div>
+<div>שלבי עיבוד</div><div><ol><li>פריטי <code>store_order_items</code> → מתכונים → פריט pantry תואם בשם (trim+lowercase); אין תואם → דילוג.</li><li>צבירת ניכוי לכל pantry.id; UPDATE <code>quantity = GREATEST(quantity − x, 0)</code>.</li><li>Audit <code>PANTRY_AUTO_DEDUCT</code> עם מפת הניכויים.</li></ol></div>
+<div>חישובים</div><div><code>base = ing.quantity × soldQty</code>; <code>effective = base/(1−min(waste,95)/100)</code>; המרה ליחידת המלאי; כשל המרה → לא מנכים (22300-22305).</div></div></section>
+
+<section class="proc" data-f="known ingredients datalist purchase history"><h3>רשימת מרכיבים מוכרים (לבחירה בבונה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET /api/food-cost/:groupId/known-ingredients</code> (server.js:22325) בפתיחת הבונה (<code>_rbLoadKnownIngredients</code>).</div>
+<div>שלבי עיבוד</div><div>שמות ייחודיים מ-<code>shopping_trip_items</code> של העסק בלבד (pantry לא נכלל כי אין לו מחיר), ממוינים בעברית → datalist.</div></div></section>
+
+<h2 class="grp">ייבוא Excel לקטלוג / לאשף</h2>
+
+<section class="proc" data-f="excel import catalog ai mapping bulk-import plan limit xlsx"><h3>ייבוא קטלוג מ-Excel (מיפוי עמודות → bulk-import)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"ייבוא Excel" בקטלוג (<code>importExcelToCatalog</code> business-app.js:20159) → <code>_excelCatOpenModal</code> (20182) → תצוגה מקדימה → <code>_excelCatDoImport</code> (20409) → <code>POST /api/store/catalog/bulk-import</code> (server.js:13617, <code>verifyBizOrLegacy</code>+<code>requireModule('sales')</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>ספריית XLSX חייבת להיטען; קובץ עם פחות מ-2 שורות → "לא הצלחנו לקרוא את הקובץ — נסה פורמט אחר".</li><li>מיפוי ידני: עמודת שם חובה ("יש לבחור עמודת שם מוצר").</li><li>שורה ללא שם לא ניתנת לבחירה; ללא מחיר מסומנת בענבר.</li><li>שרת: groupId מהטוקן; products לא ריק → 400 "נתונים חסרים"; מגבלת תוכנית: enterprise 500, premium 100, אחרת 50 מוצרים כולל הקיימים; אם אין מקום → 400 "הגעת למגבלת N המוצרים. שדרג לתוכנית גבוהה יותר.".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שליחת 6 השורות הראשונות ל-<code>POST /api/ai/generate-catalog</code> (type BUSINESS) לבקשת מיפוי; <code>_excelCatExtractMapping</code> מחפש <code>data.mapping</code> או <code>"mapping":{…}</code> בטקסט; אם אין שם ממופה → מיפוי ידני עם ניחוש מילות מפתח (שם/name/מנה/מוצר, מחיר/price/עלות, קטגוריה/category/סוג, תיאור/description/הערות, מקט/sku).</li><li><code>_excelCatApplyMapping</code> (20236): התאמת כותרת מדויקת או הכלה; מחיר = ספרות ונקודה בלבד; קטגוריה ברירת מחדל "כללי".</li><li>עריכה inline; INSERT לכל מוצר <code>store_catalog(group_id,name,description,price,category,sku,product_type='retail')</code> עד המגבלה; תשובה <code>{imported, skipped}</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>קריאת AI: Gemini <code>gemini-2.5-flash</code> + חיוב סוללת AI (<code>handleAITokens</code>) (server.js:18308).</div>
+<div>פערים</div><div><b>באג:</b> ה-endpoint <code>generate-catalog</code> עוטף את הטקסט בפרומפט "צור קטלוג התחלתי של 6–10 מוצרים" ומחזיר <code>items</code>, לעולם לא <code>mapping</code> — המיפוי האוטומטי תמיד נכשל, נופל למיפוי ידני, ובכל זאת נגבית סוללת AI.</div></div></section>
+
+<section class="proc" data-f="excel smart import excel_biz_types wizard categories row types smart parse"><h3>ייבוא Excel "חכם" (EXCEL_BIZ_TYPES) לאשף ההקמה / לקטלוג</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>importExcelToWizard</code> (business-app.js:20136) מאשף ההקמה, או זרימה ישנה דרך <code>_readExcelFile</code> → מודאל שלב 1 (בחירת תבנית מיון + "מנות/מוצרים/שירותים") → תצוגה מקדימה → <code>_excelConfirmImport</code> (20825).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>EXCEL_BIZ_TYPES</code> (20101): restaurant 🍽️ [ראשונות, עיקריות, קינוחים, שתיה, תוספות, רטבים]; shop 🛍️; service 🔧. סוגי שורה <code>EXCEL_ROW_TYPES</code>: פריט, תוספת, רוטב, ירק, שתיה, נלווה, אחר.</li><li>"המשך" פעיל רק כשנבחרו גם סוג וגם תווית. אם נבחרו inline באשף — מדלגים על שלב 1.</li><li>אשף: עד 25 פריטים (<code>wizardProducts.length &lt; 25</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>_excelSmartParse</code> (20533): זיהוי שורת כותרת (מכילה שם/name/מחיר/price); זיהוי עמודות לפי מילות מפתח.</li>
+<li>מחיר: regex <code>N ש"ח/₪/שח</code> או מספר 0&lt;n&lt;10000; חיפוש בכל העמודות שאינן עמודת השם; תא שם מספרי → הוא המחיר והשם נלקח מעמודה טקסטואלית אחרת (או "פריט").</li>
+<li>שורת קטגוריה: תא יחיד, לא מספרי, ללא מחיר, ותואם מילת מפתח (מנות/ראשונות/…) או שאחת מ-6 השורות הבאות שאינן ריקות מכילה מחיר.</li>
+<li>סוג פריט מהקטגוריה (תוספות→תוספת, רטבים→רוטב, ירקות→ירק, שתיה→שתיה) או משם הפריט.</li>
+<li>אישור: אשף → push ל-<code>wizardProducts</code>; אחרת POST <code>/api/store/catalog</code> לכל פריט עם <code>productType: type==='פריט' ? 'retail' : 'addon'</code>.</li>
+</ol></div>
+<div>ממשק</div><div>גרירה לסידור, עריכת תאים, בחירה לפי סוג, הוספה/מחיקת שורה; תבנית להורדה <code>תבנית-תפריט.xlsx</code> (<code>downloadCatalogTemplate</code> 20858).</div>
+<div>פערים</div><div><code>EXCEL_BIZ_TYPES</code> מציג בחירת "סוג עסק" (מסעדה/חנות/שירותים) במודאל ייבוא — משמש רק לתבנית קטגוריות ואינו משנה את <code>business_type</code>, אך מנוגד לכלל שבחירת סוג עסק רק באשף/SA. ייבוא לקטלוג בזרימה זו עוקף את מגבלת התוכנית של bulk-import.</div></div></section>
+
+<h2 class="grp">קופה — פיצול חשבון</h2>
+
+<section class="proc" data-f="split bill by items pos tender _split_colors _split_labels parts"><h3>פיצול חשבון לפי מנות (קופה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>במסך התשלום בקופה: "✂️ פיצול לפי מנות" (<code>openItemSplitModal</code> business-app.js:32864).</div>
+<div>תנאים ואימותים</div><div><ul><li>עגלה ריקה → "העגלה ריקה!".</li><li>מספר חלקים 2–6 (<code>_itemSplitSetParts</code> 32855); הקטנה מוחקת שיוכים לחלקים שבוטלו.</li><li>מנות לא משויכות באישור → confirm "N מנות לא שויכו. הן יתווספו לחלק א." (32894).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שיוך כל שורת עגלה לחלק (כפתורים 1..N בצבעי <code>_SPLIT_COLORS</code>, תוויות <code>_SPLIT_LABELS</code> "חלק א"…"חלק ו", 32796-32804).</li><li>אישור: <code>posItemSplitParts</code> = חלקים עם סכום &gt;0.005.</li><li>תקציר במסך התשלום; "הכנס ▶" ממלא את סכום החלק בשדה הסכום (<code>_fillSplitPartAmount</code>); הקופאי מוסיף תשלום (<code>addPaymentToSplit</code>) לכל חלק.</li><li>"ביטול פיצול" מאפס.</li></ol></div>
+<div>חישובים</div><div>סכום חלק = Σ<code>price×qty</code> של המנות המשויכות (לפני הנחות/טיפ). יתרה במסך התשלום: <code>grand = Σcart − (promo+manual discount) + tip</code> (≥0); סיום מותר כש-<code>grand − Σpayments ≤ 0.01</code> (<code>updateTenderDisplay</code> 32968). "שי" (<code>applyFullDiscount</code> 32948) = תשלום יחיד <code>gift</code> בסך <code>max(0, net − promo)</code>.</div>
+<div>תופעות לוואי</div><div>אין. הפיצול לא נשמר; רק רשימת התשלומים נשמרת בהזמנה (<code>notes.payments</code>).</div>
+<div>פערים</div><div>סכומי החלקים אינם כוללים הנחות/טיפ, כך שסכום החלקים ≠ הסכום לתשלום כשיש הנחה.</div></div></section>
+
+<h2 class="grp">חנות מסעדה ציבורית (storefront-restaurant.html)</h2>
+
+<section class="proc" data-f="storefront restaurant online order delivery pickup coupon bogo min order restaurant-v3"><h3>הזמנה אונליין מחנות המסעדה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח בחנות (מוגשת כשהעסק בחר <code>store_settings.template_id='restaurant'</code> — server.js:23374-23380) מוסיף מנות ומבצע הזמנה (<code>submitOrder</code> storefront-restaurant.html:2161).</div>
+<div>תנאים ואימותים</div><div><ul><li>טעינה: <code>GET /api/storefront/:code</code> (קוד מהנתיב או <code>?store</code>/<code>?groupId</code>, ברירת מחדל "demo").</li><li>מינימום הזמנה <code>settings.min_order</code>: "מינימום הזמנה ₪X. חסר עוד ₪Y." (2119).</li><li>שם חובה; טלפון ≥9; במשלוח עיר ורחוב חובה; <code>scAuth.requireLogin</code> — חובה להתחבר.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>POST /api/store/orders</code> עם items, <code>totalAmount=final</code>, isDelivery, deliveryFee, <code>deliveryDetails:{address}</code>, notes, <code>orderSource:'restaurant-v3'</code> (ללא status → <code>pending_approval</code>).</li><li>שמירת הזמנה אחרונה ב-<code>localStorage['_last_restaurant_order']</code>; איפוס עגלה וקופון.</li></ol></div>
+<div>חישובים</div><div><ul><li>דמי משלוח (2011): 0 באיסוף; 0 אם <code>free_delivery_above&gt;0</code> והסכום ≥; אחרת דמי אזור (לפי geocode Nominatim + haversine) או <code>delivery_fee</code>.</li><li>קופון: <code>fixed:X</code> → <code>min(sub, X)</code>; אחרת <code>round(sub × pct)</code>.</li><li>BOGO (2494): מבצע <code>promo_type='bogo'</code> פעיל, ללא קופון; לכל שורה מתאימה <code>floor(qty/2)×price</code>.</li><li><code>final = max(0, sub + fee − coupon − bogo)</code>; שורת "הנחת קהילה X%" מוצגת בלבד (לא מנוכה ב-final).</li><li>שעות פתיחה <code>isStoreOpen</code> (2511) כולל מעבר חצות.</li></ul></div>
+<div>ממשק</div><div>עברית/אנגלית; מצב תצוגה רשימה/כרטיסים; בונה פיצה (פרוסות/תוספות); קוד FLOW אם <code>flow_code_enabled</code>; מצב "branding" כשאין חנות.</div>
+<div>פערים</div><div>מסך הסיום מציג "שולמה ואושרה" ו"בהכנה" קבועים, אף שאין תשלום ואמצעי התשלום הנבחר (<code>_payMethod</code>) לא נשלח; מספר הזמנה אקראי אם השרת לא החזיר id. הנחת הקהילה המוצגת לא נכללת בסכום הנשלח.</div></div></section>
+
+<section class="proc" data-f="storefront event catering booking calendar request"><h3>בקשת אירוע/קייטרינג מהחנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openBooking('event')</code> → <code>submitEventBooking</code> (storefront-restaurant.html:2413).</div>
+<div>תנאים ואימותים</div><div>דורש התחברות; שם, טלפון ותאריך חובה.</div>
+<div>שלבי עיבוד</div><div><code>POST /api/calendar/events</code> עם <code>startTime:'12:00'</code>, <code>status:'pending'</code>, notes "הזמנת אירוע / קייטרינג\n…" (ללא callType) — מופיע כבקשה ביומן העסק.</div></div></section>
+
+<h2 class="grp">רכש, ספקים ו-B2B (טאב shop)</h2>
+
+<section class="proc" data-f="init-procurement drop tables suppliers supplier_products purchase_orders"><h3>אתחול מנוע הרכש (init-procurement)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>GET /api/init-procurement</code> (server.js:17120) — הפעלה ידנית בדפדפן.</div>
+<div>שלבי עיבוד</div><div><code>DROP TABLE IF EXISTS purchase_orders, purchase_requests, supplier_products, suppliers CASCADE</code> ואז CREATE <code>suppliers</code> (min_order, delivery_days JSONB, cutoff_time 12:00), <code>supplier_products</code> (unit_type "יח'", units_per_package 1, properties JSONB, is_active), <code>purchase_orders</code> (status 'pending').</div>
+<div>פערים</div><div><b>קריטי:</b> GET ללא אימות שמוחק את כל נתוני הרכש של כל העסקים; עמודות שנוספו במיגרציות (customer_number, confirm_token, service_call_id, work_order_id…) לא נוצרות כאן.</div></div></section>
+
+<section class="proc" data-f="suppliers create update delete delivery days cutoff min_order customer_number"><h3>ספקים — הוספה/עריכה/מחיקה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב shop → "ספקים" (<code>switchProcurementTab('suppliers')</code> business-app.js:18160) → <code>submitSupplier</code> (18291) → <code>POST /api/suppliers</code> (server.js:17185); מחיקה <code>deleteSupplier</code> (18321, confirm "יימחקו גם כל המוצרים בקטלוג שלו") → <code>DELETE /api/suppliers/:id</code>.</div>
+<div>תנאים ואימותים</div><div>קליינט: שם חובה "חובה להזין שם ספק / חברה". שרת: ללא אימות; עדכון מסונן לפי <code>id AND group_id</code>; מחיקה לפי id בלבד.</div>
+<div>שלבי עיבוד</div><div>INSERT/UPDATE <code>suppliers</code> (contact_person, phone, email, category, <code>min_order||0</code>, <code>delivery_days</code> מערך ימים מספרי, <code>cutoff_time||'12:00:00'</code>, customer_number).</div>
+<div>פערים</div><div>DELETE ללא בדיקת בעלות.</div></div></section>
+
+<section class="proc" data-f="supplier products catalog links supplier_product_catalog_links qty_per_unit sku"><h3>קטלוג מוצרי ספק וקישור למוצרי החנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"קטלוג" של ספק → <code>submitSupplierProduct</code> (business-app.js:18493) → <code>POST /api/suppliers/products</code> (server.js:17259).</div>
+<div>תנאים ואימותים</div><div>קליינט: שם ומחיר חובה. שרת: ללא אימות/בעלות.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>supplier_products</code> (price, <code>unit_type||"יח'"</code>, <code>units_per_package||1</code>, <code>properties</code> כולל sku).</li><li>אם נשלח <code>catalogLinks</code>: DELETE כל הקישורים ו-INSERT <code>supplier_product_catalog_links(supplier_product_id, catalog_id, qty_per_unit||1)</code>.</li><li>החזרה עם <code>catalog_links</code> (שם מוצר החנות).</li></ol></div>
+<div>פערים</div><div>הקישורים לקטלוג נשמרים ומוצגים בלבד; לא נמצא שימוש בהם בחישוב/הזמנה. "סריקה חכמה" — "תהיה זמינה בקרוב!".</div></div></section>
+
+<section class="proc" data-f="b2b catalog cart checkout split suppliers min order"><h3>מרקטפלייס B2B — עגלה וצ'קאאוט מפוצל לספקים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב shop → "list" (<code>fetchB2BCatalog</code> → <code>GET /api/b2b/catalog/:gid</code> server.js:17303 — מוצרים פעילים של העסק עם פרטי הספק).</div>
+<div>תנאים ואימותים</div><div><code>openB2BCheckout</code> (business-app.js:18639): לכל ספק אם <code>min_order&gt;0</code> והסכום נמוך ממנו — הספק מסומן באדום וכפתור השיגור מושבת.</div>
+<div>שלבי עיבוד</div><div>עגלה בזיכרון <code>b2bCart{productId:qty}</code>; פיצול לפי <code>supplier_id</code> לשורות <code>{id, sku, name, quantity, unit, price_per_unit, row_total}</code>.</div>
+<div>חישובים</div><div><code>row_total = price × qty</code>; סה"כ ספק וסה"כ כללי. ב-PDF: מע"מ מחולץ מהסכום (<code>net = total/(1+rate/100)</code>, rate ברירת מחדל 18) אם מע"מ מופעל.</div>
+<div>פערים</div><div>בדיקת מינימום הזמנה רק בקליינט; <code>cutoff_time</code>/<code>delivery_days</code> אינם נאכפים.</div></div></section>
+
+<section class="proc" data-f="purchase order create send email pdf confirm token supplier confirm /c/po service call"><h3>שיגור הזמנות רכש: יצירה, PDF, מייל ואישור קבלה ע"י הספק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"שגר הזמנות לספקים" (<code>submitB2BOrders</code> business-app.js:18903).</div>
+<div>תנאים ואימותים</div><div>ללא אימות בשרת. מייל נשלח רק אם <code>SMTP_USER/SMTP_PASS</code> מוגדרים ולספק יש email (אחרת success שקט).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>POST /api/b2b/orders/create</code> (server.js:18090) בטרנזקציה: לכל ספק INSERT <code>purchase_orders(status='sent', items, total_amount, created_by)</code>; אם <code>serviceCallId</code> (מצב רכש מקריאת שירות <code>_pendingScForPo</code>) — <code>service_call_id</code> + <code>service_calls.parts_status='waiting_delivery'</code>; <code>confirm_token</code> = 24 בתים hex; URL <code>{APP_URL|https://host}/c/po/{id}/{token}</code>.</li>
+<li>קליינט מייצר PDF לרוחב A4 עם מספר ההזמנה האמיתי (html2pdf 0.10.1).</li>
+<li><code>POST /api/b2b/orders/send-email</code> (18133) לכל הזמנה: Gmail SMTP 465, נושא "הזמנת רכש חדשה מ-{עסק} (הזמנה #N)", רשימת פריטים, כפתור "✅ אשר קבלת הזמנה", PDF מצורף.</li>
+<li>ספק: <code>GET /c/po/:id/:token</code> (25151) מציג כפתור (לא מאשר ב-GET בגלל בוטים של תצוגה מקדימה); <code>POST</code> (25176) קובע <code>supplier_confirmed_at=NOW()</code> פעם אחת.</li>
+<li>איפוס עגלה, מעבר לטאב "rfq".</li>
+</ol></div>
+<div>תופעות לוואי</div><div>מייל לספק; עדכון קריאת שירות; שליחה ידנית ב-WhatsApp (<code>sendPurchaseOrderWhatsApp</code> 19177 — הורדת PDF ואז wa.me עם פירוט, ח.פ, איש קשר וקישור אישור).</div>
+<div>פערים</div><div>כשל במייל נבלע; שגיאה כללית מציגה "ההזמנה נשלחה — בדוק את ההיסטוריה" גם כשלא נוצרה. <code>supplier_confirmed_at</code> לא משנה את <code>status</code>.</div></div></section>
+
+<section class="proc" data-f="purchase request assign supplier legacy b2b orders draft shopping"><h3>העברת דרישת רכש (רשימת קניות) לספק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פריט ברשימת הדרישות → "לאיזה ספק לשייך" → <code>submitAssignSupplier</code> (business-app.js:7430) → <code>POST /api/b2b/orders</code> (server.js:18196).</div>
+<div>תנאים ואימותים</div><div>חובה לבחור ספק "יש לבחור ספק מהרשימה".</div>
+<div>שלבי עיבוד</div><div><ol><li>שורה יחידה <code>{id:'req_'+reqId, name, quantity, unit, price_per_unit:0}</code>, total 0.</li><li>שרת: INSERT <code>purchase_orders(status='sent')</code>, טוקן אישור, ושליחת מייל מיידית לספק (נושא "הזמנת רכש חדשה מ-WEFLOWZ").</li><li>מחיקת הדרישה <code>DELETE /api/shopping/delete/:id</code>; מעבר ל-"rfq".</li></ol></div>
+<div>פערים</div><div><b>באג:</b> הקליינט שולח <code>status:'draft'</code> ומציג "הועברה לטיוטת הזמנה" אך השרת מתעלם וקובע <code>sent</code> ושולח מייל לספק מיד, בהזמנה במחיר 0.</div></div></section>
+
+<section class="proc" data-f="purchase order status pending draft approved sent processing shipped delivered cancelled"><h3>סטטוסי הזמנת רכש</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ADMIN בלבד (<code>currentUser.role==='ADMIN'</code>) רואה בורר סטטוס בהיסטוריה (business-app.js:19055) → <code>updateB2BOrderStatus</code> (19235) → <code>POST /api/b2b/orders/status</code> (server.js:17441). קיים גם <code>PUT /api/b2b/orders/:id/status</code> (17332).</div>
+<div>תנאים ואימותים</div><div><ul><li>"סופק במלואו" אינו ניתן לבחירה ידנית; בחירה בו בקליינט חסומה עם טוסט "לסימון כ"סופק" יש להשתמש בכפתור "קבלת סחורה ועדכון מלאי"".</li><li>שרת: כל ערך, ללא אימות.</li><li>כפתור קבלת סחורה מוצג רק כשהסטטוס אינו delivered/cancelled/draft/pending.</li></ul></div>
+<div>מכונת מצבים</div><div>ערכים (business-app.js:19023): pending ממתין לאישור, draft טיוטה, approved אושר, sent נשלח לספק, processing בטיפול אצל הספק, shipped בדרך אלינו, delivered סופק במלואו, cancelled בוטל.
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>sent</td><td>שיגור / העברת דרישה</td><td>—</td><td>מייל, טוקן</td></tr>
+<tr><td>—</td><td>draft</td><td>קבלת סחורה עם חוסרים</td><td>יש חוסרים</td><td>הזמנה חדשה</td></tr>
+<tr><td>כל מצב</td><td>pending/draft/approved/sent/processing/shipped/cancelled</td><td>ADMIN בבורר</td><td>—</td><td>אין</td></tr>
+<tr><td>sent/approved/processing/shipped</td><td>delivered</td><td>משתמש עם גישה לרכש</td><td>"קבלת סחורה"</td><td>מלאי, מחיר, טיוטת חוסרים</td></tr>
+<tr><td>draft</td><td>(נמחק)</td><td>"משוך לעגלה"</td><td>—</td><td>פריטים חוזרים לעגלה</td></tr>
+</table></div></div>
+<div>פערים</div><div>השרת מאפשר <code>delivered</code> ישירות דרך ה-API ובכך עוקף את תופעות הלוואי.</div></div></section>
+
+<section class="proc" data-f="receive goods pantry shopping_trips price missing draft parts_ready service call"><h3>קבלת סחורה ועדכון מלאי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>"קבלת סחורה ועדכון מלאי" (<code>openReceiveGoodsModal</code> → <code>submitReceiveGoods</code> business-app.js:19340) → <code>POST /api/b2b/orders/receive</code> (server.js:17341).</div>
+<div>תנאים ואימותים</div><div>לכל שורה כמות שהתקבלה וכמות חסרה; שורות עם 0 לא נשלחות. שרת ללא אימות.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה: <code>purchase_orders.status='delivered'</code>.</li>
+<li>אם מקושרת קריאת שירות: <code>service_calls.parts_status='parts_ready'</code> + <code>alert_notifications</code> (<code>trigger_type='sc_parts_ready'</code>, "✅ חלקים הגיעו לקריאה …", reference_key יומי).</li>
+<li>לכל פריט שהתקבל: pantry בשם זהה (רגיש לרישיות) → <code>quantity += qty</code>; אחרת INSERT (unit ברירת מחדל "יח'").</li>
+<li>פריטים עם מחיר&gt;0: INSERT <code>shopping_trips(store_name=שם הספק, total=Σprice×qty, buyer_id)</code> + <code>shopping_trip_items(price_per_unit)</code> — מקור המחיר של Food Cost (כשל כאן לא מפיל).</li>
+<li>חוסרים: INSERT הזמנה חדשה לאותו ספק <code>status='draft'</code> עם שורות שמכילות את מזהה המוצר המקורי, notes "הזמנת השלמת חוסרים שנוצרה אוטומטית (הזמנה #N)".</li>
+<li>COMMIT.</li>
+</ol></div>
+<div>חישובים</div><div><code>row_total = price × qty</code> לחוסרים; <code>missingTotal = Σ</code>.</div>
+<div>תופעות לוואי</div><div>התראת מערכת לקריאת שירות; עדכון מלאי; רישום מחיר רכש.</div>
+<div>פערים</div><div>התאמת pantry רגישת-רישיות (בעוד Food Cost מנרמל); אין בדיקה שההזמנה לא סומנה כבר delivered — קבלה כפולה מוסיפה מלאי פעמיים.</div></div></section>
+
+<section class="proc" data-f="draft order pull back cart delete purchase order"><h3>משיכת טיוטת חוסרים חזרה לעגלה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>בהזמנת draft: <code>editDraftOrder</code> (business-app.js:19153, confirm "למחוק הזמנה זו לצמיתות?").</div>
+<div>שלבי עיבוד</div><div>לכל שורה עם <code>id</code> — <code>b2bCart[id] += quantity</code>; <code>DELETE /api/b2b/orders/:id</code> (server.js:17450, מחיקה פיזית ללא אימות); מעבר לטאב list.</div>
+<div>פערים</div><div>שורות שמקורן בדרישה (<code>id='req_N'</code>) לא יימצאו בקטלוג ויספרו בעגלה ללא מחיר.</div></div></section>
+
+<h2 class="grp">מלאי עסקי (Pantry)</h2>
+
+<section class="proc" data-f="pantry add update use delete inventory business verifyfamilyorbiz units_per_package"><h3>פריטי מלאי — הוספה, עדכון, שימוש ומחיקה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב <code>pantry</code> (מודול משותף למשפחה ולעסק). endpoints: GET (server.js:11193), add (11206), update (11225), use (11236), delete (11255) — כולם <code>verifyFamilyOrBiz</code> וה-groupId נלקח מהטוקן.</div>
+<div>תנאים ואימותים</div><div><ul><li>GET: <code>groupId</code> בנתיב חייב להיות של הקורא → 403 "אין הרשאה".</li><li>add: שם חובה "שם פריט נדרש" (חיתוך 100 תווים); כמות ≥0, ברירת מחדל 1.</li><li>update/delete: בעלות → 404 "פריט לא נמצא".</li><li>use: פריט בשם מדויק → 404 "Item not found".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: אם קיים שם זהה — <code>quantity += q</code>; אחרת INSERT (<code>unit||"יח'"</code>, <code>units_per_package||1</code>); <code>logActivity(..., 'pantry_add')</code>.</li><li>update: <code>quantity = max(0, q)</code>.</li><li>use: ניכוי; כמות חדשה ≤0 → DELETE הפריט.</li></ol></div>
+<div>חישובים</div><div>use: <code>deduct = usedUnits&gt;0 &amp;&amp; units_per_package&gt;0 ? usedUnits/units_per_package : usedQuantity</code>; <code>new = max(0, qty − deduct)</code> (11246).</div>
+<div>פערים</div><div>use מוחק את הפריט כשמגיע ל-0 (בניגוד לניכוי האוטומטי שמשאיר 0) — מאבד <code>reserved_qty</code> ושריונים.</div></div></section>
+
+<section class="proc" data-f="inventory count bulk-update pantry store inventory-count stock_quantity email pdf"><h3>ספירת מלאי (מחסן / מוצרי חנות) עם דוח במייל</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ספירת מחסן: <code>POST /api/pantry/bulk-update</code> (server.js:11264, <code>verifyFamilyOrBiz</code>). ספירת מוצרי חנות: <code>POST /api/store/inventory-count</code> (13806, ללא אימות).</div>
+<div>תנאים ואימותים</div><div>items מערך → אחרת 400 "נתונים חסרים"; שורות עם כמות ריקה מדולגות.</div>
+<div>שלבי עיבוד</div><div><ol><li>pantry: UPDATE <code>quantity=max(0,q)</code> לפי id+group. חנות: UPDATE <code>store_catalog.stock_quantity=parseInt</code>.</li><li>אם <code>sendEmail</code> ויש <code>admin_email</code>: טבלת HTML (פריט/יחידה/כמות בפועל); pantry שולח ישירות דרך nodemailer Gmail עם PDF מצורף אופציונלי; חנות דרך <code>sendSystemEmail</code>.</li></ol></div>
+<div>פערים</div><div><code>inventory-count</code> מקבל groupId מהגוף ללא אימות.</div></div></section>
+
+<section class="proc" data-f="work order inventory reservation buffer min_stock_buffer_pct reserved_qty use release inventory-settings"><h3>שריון מלאי לפקודת עבודה/אירוע (כולל מרווח ביטחון)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>Events Hub/פקודת עבודה: <code>POST /api/work-orders/:id/inventory</code> (server.js:26777), שימוש <code>/:resId/use</code> (26841), שחרור <code>DELETE</code> (26861); הגדרות <code>PUT /api/groups/:id/inventory-settings</code> (10221). צפייה בשריונים לפריט (26747/26762).</div>
+<div>תנאים ואימותים</div><div>פקודה <code>call_type='work_order'</code> של העסק (אחרת 403 "אין הרשאה"); פריט pantry/קטלוג קיים; שחרור רק ל-<code>status='reserved'</code> ("שריון לא נמצא או כבר בשימוש").</div>
+<div>שלבי עיבוד</div><div><ol><li>שריון: <code>reserved_qty += actual</code> בפריט; INSERT <code>work_order_inventory(needed_qty, reserved_qty, unit_price, reserved_by)</code>; ציר זמן <code>inventory_reserved</code> ("חסר X" אם יש מחסור).</li><li>שימוש: <code>status='used', used_qty</code>; פריט: <code>quantity −= used</code>, <code>reserved_qty −= reserved</code> (≥0).</li><li>שחרור: <code>status='released'</code>, <code>reserved_qty −= reserved</code>.</li></ol></div>
+<div>חישובים</div><div><code>buffer = stock × min_stock_buffer_pct/100</code>; <code>available = max(0, stock − reserved − buffer)</code>; <code>actual = min(needed, available)</code>; <code>shortage = round4(needed − actual)</code>; <code>used = min(usedQty||reserved, reserved)</code>.</div>
+<div>מכונת מצבים</div><div><code>work_order_inventory.status</code>: reserved → used | released.</div></div></section>
+
+<section class="proc" data-f="pantry ai insight gemini procurement familai"><h3>תובנת AI למלאי ורכש</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>POST /api/pantry/familai-insight</code> (server.js:12486).</div>
+<div>תנאים ואימותים</div><div>groupId של הקורא (403); סוללת AI (<code>handleAITokens</code>) → <code>BATTERY_EMPTY</code>; מפתח Gemini.</div>
+<div>שלבי עיבוד</div><div>Gemini <code>gemini-2.5-flash</code>; לעסק (<code>type='BUSINESS'</code>) פרומפט "מנהל מלאי ורכש" עם המלאי והיסטוריית רכש מתחילת החודש הקודם, 3–4 משפטים, מתחיל ב-"דוח מלאי ורכש תקופתי:".</div></div></section>
+
+<section class="proc" data-f="cook low stock pantry kds dashboard"><h3>מלאי נמוך בדשבורד הטבח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>renderCookDashboard</code> (business-app.js:41623) טוען <code>GET /api/pantry/:gid</code>.</div>
+<div>חישובים</div><div>נמוך = <code>quantity !== null &amp;&amp; quantity ≤ (min_quantity||2)</code>, עד 5 פריטים (41628).</div>
+<div>פערים</div><div>ה-endpoint מחזיר <code>item_name</code> ואין עמודת <code>min_quantity</code> — הסף תמיד 2 ושם הפריט מוצג ריק (<code>p.name</code>, 41660).</div></div></section>

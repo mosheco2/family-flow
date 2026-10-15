@@ -1,0 +1,17 @@
+[
+ {"id":16,"verdict":"CORRECT","evidence_lines":"server.js:15158-15181","correction":""},
+ {"id":17,"verdict":"CORRECT","evidence_lines":"storefront.html:907-913","correction":""},
+ {"id":18,"verdict":"CORRECT","evidence_lines":"business-app.js:9578-9618; server.js:14800-14811 (randomBytes(24).toString('hex'), APP_URL || https://host)","correction":""},
+ {"id":19,"verdict":"CORRECT","evidence_lines":"business-app.js:28563, 28621, 28546 (גם 28530)","correction":""},
+ {"id":20,"verdict":"CORRECT","evidence_lines":"server.js:15000-15043 (UPDATE ב-15011)","correction":""},
+ {"id":21,"verdict":"CORRECT","evidence_lines":"business-app.js:20101-20106","correction":""},
+ {"id":22,"verdict":"CORRECT","evidence_lines":"server.js:42138-42175","correction":""},
+ {"id":23,"verdict":"CORRECT","evidence_lines":"server.js:42062-42935 (13 endpoints, כולם עם 401 'נדרש token'); requireModule 43126-43149","correction":""},
+ {"id":24,"verdict":"CORRECT","evidence_lines":"business-app.js:39916-39931 (syncTableStatesFromServer), 39945-39953 (startTablePolling), 40104-40110 (bills)","correction":""},
+ {"id":25,"verdict":"SHIFTED","evidence_lines":"business-app.js:41341 (סינון role!=='ADMIN'), 41399 (סינון waiter); גם 39683/39706 בדשבורד ה-dropdown לשיוך","correction":"התוכן נכון, אך שורת הסינון היא business-app.js:41399 (סינון ADMIN ב-41341), ולא 41382. ה-dropdown של שיוך המלצרים עצמו בנוי ב-39706 (סינון ADMIN ב-39683)."},
+ {"id":26,"verdict":"CORRECT","evidence_lines":"business-app.js:46606-46670 (פענוח תגיות וכפתורים), 57388-57446 (handlers של ספורט)","correction":""},
+ {"id":27,"verdict":"CORRECT","evidence_lines":"server.js:29256-29261","correction":""},
+ {"id":28,"verdict":"CORRECT","evidence_lines":"server.js:29366-29370","correction":""},
+ {"id":29,"verdict":"CORRECT","evidence_lines":"business-app.js:37536, 45591-45610","correction":""},
+ {"id":30,"verdict":"CORRECT","evidence_lines":"server.js:29294-29307","correction":""}
+]

@@ -1,0 +1,872 @@
+[
+{
+"id": "STR-01",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "אימות והרשאות",
+"category": "security",
+"severity": "critical",
+"title": "ביטול fallback legacy ב-verifyBizOrLegacy — groupId רק מהסשן",
+"as_is": "verifyBizOrLegacy מקבל בקשה ללא Authorization ולוקח groupId מ-req.body/req.query (server.js:43082-43086). ממשק העסק כמעט לא שולח טוקן לנתיבי /api/store (אין fetch-interceptor), כך שכל 23 הנתיבים 'המוגנים' רצים בפועל ללא אימות.",
+"proposal": "כל נתיב ניהולי של העסק דורש טוקן biz תקף; groupId נגזר אך ורק מ-req.bizAuth.groupId ומתעלמים מ-groupId בגוף/בשאילתה. הלקוח (business-app.js) עובר לעטיפת fetch אחת שמוסיפה Authorization: Bearer לכל קריאה. בקשה ללא טוקן → 401.",
+"alternatives": [
+"תקופת מעבר של 30 יום: fallback מותר רק לקריאה (GET) עם לוג, וכתיבה ללא טוקן נחסמת מיד"
+],
+"refs": [
+"server.js:43056-43086",
+"business-app.js (אין window.fetch wrapper)",
+"s1-rbac.html#BIZ — חנות/מכירות/קופה",
+"rules-store.html#אימות והרשאות בנתיבי /api/store/*"
+],
+"dup_of": "ARC-03"
+},
+{
+"id": "STR-02",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "אימות והרשאות",
+"category": "security",
+"severity": "high",
+"title": "requireModule: fail-closed וחל על כל סוגי האימות",
+"as_is": "requireModule נאכף רק כש-fromToken=true; managed_modules ריק/null פותח הכל; שגיאת DB → fail-open (server.js:43120-43150). verifyBiz בכלל לא בודק מודול.",
+"proposal": "בדיקת זכאות למודול רצה לכל בקשה מאומתת (verifyBiz ו-verifyBizOrLegacy) מול מקור אמת אחד (billing_config/managed_modules). שגיאה בבדיקה → 503 (fail-closed). עסק ללא הגדרה מקבל את מודולי ברירת המחדל של סוג העסק בלבד, לא 'הכל'.",
+"alternatives": [
+"להשאיר 'ריק = הכל פתוח' לעסקים ותיקים שנוצרו לפני תאריך מוגדר, עם דגל legacy_open_modules"
+],
+"refs": [
+"server.js:43120-43150",
+"s1-rbac.html#managed_modules + requireModule"
+]
+},
+{
+"id": "STR-03",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "אימות והרשאות",
+"category": "security",
+"severity": "critical",
+"title": "נתיבי ניהול חנות ללא אימות כלל — חובת verifyBiz ובדיקת בעלות",
+"as_is": "55 נתיבי /api/store ללא middleware, ביניהם POST /api/store/settings (13116), DELETE /catalog/:id (13605), modifier presets (13276-13283), branding (15638), gallery (15739), popups create/update/delete (13998-14028), delivery-zones (14049), newsletter (13945), inventory-count (13806), commission-summary (14213), customers/:id/send-quote (15255), PUT kiosk-password (24655). כל אחד יכול לשנות alias/הגדרות/קטלוג של כל עסק.",
+"proposal": "כל הנתיבים האלה דורשים verifyBiz; group_id נלקח מהסשן וכל UPDATE/DELETE כולל WHERE group_id=session.groupId (0 שורות → 404). רשימה לבנה מפורשת של נתיבים ציבוריים: GET /api/storefront/:code, GET item-image, GET public reviews/popups/gallery, POST /api/store/orders (לקוח), kiosk-order (ראו STR-25). כל נתיב אחר — מאומת.",
+"alternatives": [],
+"refs": [
+"server.js:13116",
+"server.js:13605",
+"server.js:13276",
+"server.js:15638",
+"server.js:15739",
+"server.js:13998",
+"server.js:14049",
+"server.js:13945",
+"server.js:13806",
+"server.js:14213",
+"server.js:15255",
+"server.js:24655",
+"s1-rbac.html#BIZ — חנות/מכירות/קופה"
+]
+},
+{
+"id": "STR-04",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "מחזור חיי הזמנה",
+"category": "security",
+"severity": "critical",
+"title": "פעולות על הזמנה (סטטוס/תזמון/מוכנות) ללא אימות, בעלות או רשימת ערכים",
+"as_is": "POST /api/store/orders/status מעדכן לפי orderId בלבד, כל ערך status נשמר, ומפעיל ברקע קאשבק, הכנסה, ניכוי מחסן ו-FLOW (server.js:14666-14700). גם /orders/schedule (14660), PATCH /orders/:id/target-date ו-/item-ready (26384) ללא אימות.",
+"proposal": "כל נתיבי פעולה על הזמנה דורשים verifyBiz + store_orders.group_id=session.groupId. status חייב להיות מתוך enum קנוני (ראו STR-17) והמעבר חייב להיות מותר מטבלת המעברים; אחרת 400 'מעבר סטטוס לא חוקי'. כל שינוי נרשם ב-audit עם userId.",
+"alternatives": [],
+"refs": [
+"server.js:14666-14700",
+"server.js:14660",
+"server.js:26384",
+"s1-rbac.html#BIZ — חנות/מכירות/קופה",
+"rules-store.html#מחזור חיי הזמנה ועדכון סטטוס"
+]
+},
+{
+"id": "STR-05",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "לקוחות חנות",
+"category": "security",
+"severity": "critical",
+"title": "חשיפת PII בחיפוש לקוחות וברשימת לקוחות ללא אימות",
+"as_is": "search-customers, lookup-oneflow ו-check-oneflow ללא אימות וחושפים שמות, טלפונים, ת\"ז ושנת לידה של משתמשי WEFLOWZ לכל גולש (server.js:14861-14953, 31781-31796). GET/POST /api/store/customers ללא אימות; POST יוצר member_business_links לכל עסק (15183-15203).",
+"proposal": "כל נתיבי חיפוש/רשימת לקוחות דורשים verifyBiz. חיפוש משתמשי WEFLOWZ מחוץ ללקוחות העסק מותר רק בהתאמת טלפון מלאה (10 ספרות) ומחזיר שם + טלפון ממוסך (05X-XXX-1234) בלבד; id_number ושנת לידה לעולם לא מוחזרים. GET/POST/PUT/DELETE customers — רק לעסק המחובר.",
+"alternatives": [],
+"refs": [
+"server.js:14861-14908",
+"server.js:14911-14953",
+"server.js:31781-31796",
+"server.js:15158-15252",
+"rules-store.html#חיפוש וזיהוי לקוחות WEFLOWZ"
+]
+},
+{
+"id": "STR-06",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "ניוזלטר",
+"category": "security",
+"severity": "high",
+"title": "ניוזלטר/הודעות WEFLOWZ: אימות, הרשאת קהל וטרנזקציה אמיתית",
+"as_is": "שליחת ניוזלטר ללא אימות — ניתן לשלוח inbox_messages לכל קהילה בשם כל עסק (server.js:13930-13950). BEGIN/COMMIT רצים על pool.query ולא על חיבור ייעודי (13891, 13952). oneflow-customers מסמן את כל הלקוחות כ-matched (13856-13860).",
+"proposal": "שליחה דורשת verifyBiz ו-role=ADMIN. קהל community מותר רק לקהילה שבה העסק חבר מאושר. הכתיבה בטרנזקציה על client ייעודי (pool.connect). oneflow-customers מחזיר matched=true רק ללקוח שזוהה family_group_id עבורו. מגבלה: ניוזלטר אחד לקהל ל-24 שעות.",
+"alternatives": [
+"ללא מגבלת תדירות, רק אימות והרשאה"
+],
+"refs": [
+"server.js:13930-13950",
+"server.js:13891",
+"server.js:13952",
+"server.js:13856-13860",
+"rules-store.html#ניוזלטר והודעות WEFLOWZ ללקוחות"
+]
+},
+{
+"id": "STR-07",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "תשתית",
+"category": "security",
+"severity": "critical",
+"title": "הסרת GET /api/init-promotions שמוחק את טבלת המבצעים",
+"as_is": "GET /api/init-promotions ללא אימות מבצע DROP TABLE store_promotions ויוצר אותה מחדש ללא buy_qty/get_qty (server.js:17035-17040) — קריאה אחת מוחקת את מבצעי כל העסקים.",
+"proposal": "אין נתיבי HTTP שמבצעים DDL הרסני. הסכמה מנוהלת רק במיגרציות בעת עליית השרת. הנתיב נמחק.",
+"alternatives": [],
+"refs": [
+"server.js:17035",
+"rules-store.html#מבצעי חנות (Promotions)"
+]
+},
+{
+"id": "STR-08",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "יצירת הזמנה",
+"category": "money",
+"severity": "critical",
+"title": "אימות מחיר בשרת לא רץ בפועל (is_active לא קיים ב-store_catalog)",
+"as_is": "שאילתת הקטלוג ב-POST /api/store/orders מסננת is_active=true — עמודה שאינה קיימת ב-store_catalog (server.js:14472; schema). Promise.all נכשל ונבלע, catalogMap ריק, ולכן אימות המחיר ואכיפת המבצעים מדולגים ו-total_amount נשמר כפי שהלקוח שלח.",
+"proposal": "השרת מחשב את המחיר מהקטלוג (is_available=TRUE, כולל price_override של וריאציה ותוספות options_text) ודוחה פריט שמחירו חורג מ-max(1₪, 1%) → 400. total_amount נשמר כערך שהשרת חישב, לא ערך הלקוח. כשל בשליפת הקטלוג → 500 (לא דילוג שקט).",
+"alternatives": [],
+"refs": [
+"server.js:14468-14506",
+"server.js:14527-14537",
+"rules-store.html#יצירת הזמנה (POST /api/store/orders)"
+]
+},
+{
+"id": "STR-09",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "תמחור והנחות",
+"category": "money",
+"severity": "high",
+"title": "מנוע תמחור אחד בשרת לכל ערוצי ההזמנה",
+"as_is": "חישוב מבצעים שונה בכל ערוץ: חזית קלאסית — מבצעים מצטברים (storefront.html:2771-2800); market — המבצע הראשון בלבד ומושבת עם קופון (1653-1690); מסעדה — BOGO בלבד (2494); קופה/שרת — ההנחה הטובה ביותר לפריט (server.js:14371-14444). השרת מתעלם מ-storeCouponCode, flowRedeemCode, appliedDiscountPct ו-orderType.",
+"proposal": "פונקציית תמחור אחת בשרת (priceOrder) שמקבלת שורות + קודים ומחזירה breakdown: subtotal, promoDiscount, couponDiscount, communityDiscount, flowDiscount, deliveryFee, total. כלל: לכל פריט ההנחה הטובה ביותר (לא מצטבר) מבין המבצעים הפעילים; קופון מוחל אחרי מבצעים על היתרה; סך ההנחות ≤ subtotal. החזיתות והקופה קוראות ל-POST /api/store/quote-price להצגה, וה-breakdown נשמר בהזמנה.",
+"alternatives": [
+"מבצעים מצטברים (כמו החזית הקלאסית) עם תקרת הנחה 50% מהסל"
+],
+"refs": [
+"storefront.html:2771-2800",
+"storefront-market.html:1653-1690",
+"storefront-restaurant.html:2494",
+"server.js:14371-14444",
+"rules-store.html#עגלה וקופה בחזית הקלאסית (storefront.html)"
+]
+},
+{
+"id": "STR-10",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קופונים",
+"category": "money",
+"severity": "medium",
+"title": "קופונים: אימות בשרת, מונה מימושים ומגבלות",
+"as_is": "קופון נבדק רק בחזית (server.js:16980-16999); בהזמנה promoCode רק נשמר ב-store_orders.promo_code ללא אימות. אין מגבלת שימוש/מונה. חזית market בודקת promo_code מול store_promotions שאין בה עמודה כזו.",
+"proposal": "בהזמנה השרת מאמת את הקופון (קיים, של העסק, valid_until ≥ היום) ומחיל אותו דרך מנוע התמחור. שדות חדשים: max_uses (NULL=ללא הגבלה), max_uses_per_customer (ברירת מחדל 1), min_order_amount; טבלת store_coupon_redemptions(order_id UNIQUE). קופון לא תקף → 400 'קוד קופון לא תקין או פג תוקף'. market עובר לבדיקה דרך /api/store/coupons/validate.",
+"alternatives": [],
+"refs": [
+"server.js:16980-17017",
+"storefront-market.html:1653-1690",
+"rules-store.html#קופוני חנות"
+]
+},
+{
+"id": "STR-11",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "תמחור והנחות",
+"category": "money",
+"severity": "medium",
+"title": "הנחת קהילה: אופן החלה אחיד",
+"as_is": "בחזית הקלאסית הנחת הקהילה מוחלת על מחיר כל פריט ונשלחת כמחיר מוזל (storefront.html:973-981) — בסתירה לאימות מחיר בשרת; ב-market ובמסעדה היא מוצגת בלבד ולא מנוכה מהסכום.",
+"proposal": "הנחת קהילה היא הנחה ברמת ההזמנה שהשרת מחשב: discount_pct של הקהילה × subtotal כש-family_count ≥ min_families (ברירת מחדל 30) והלקוח חבר מאושר בקהילה. מחירי הפריטים נשלחים ללא הנחה. כל החזיתות מציגות ומנכות אותה זהה.",
+"alternatives": [
+"לבטל את הנחת הקהילה בחזיתות ולהשאיר רק קודי מבצע קהילתיים"
+],
+"refs": [
+"storefront.html:973-981",
+"server.js:15337",
+"storefront-restaurant.html:2011-2020",
+"rules-store.html#עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה"
+]
+},
+{
+"id": "STR-12",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "FLOW",
+"category": "money",
+"severity": "high",
+"title": "מימוש FLW בהזמנה — בשרת ובאותה טרנזקציה",
+"as_is": "אחרי הצלחת ההזמנה החזית שולחת POST /api/flow/deduct נפרד (storefront.html:3507-3536); אם נכשל — ההנחה כבר ניתנה. השרת מתעלם מ-flowRedeemCode בהזמנה.",
+"proposal": "מימוש FLW מבוצע ע\"י השרת בתוך טרנזקציית יצירת ההזמנה: בדיקת יתרה, ניכוי flow_wallets, ורישום flow_redemptions עם order_id. שער: 100 Flw = ₪10, מינימום 100 Flw, תקרה = הסכום לתשלום. כשל → כל ההזמנה נכשלת.",
+"alternatives": [],
+"refs": [
+"storefront.html:3164-3181",
+"storefront.html:3507-3536",
+"rules-store.html#עגלה וקופה בחזית הקלאסית (storefront.html)"
+]
+},
+{
+"id": "STR-13",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "יצירת הזמנה",
+"category": "data-integrity",
+"severity": "medium",
+"title": "ולידציית גוף הזמנה: items חובה וכמויות עשרוניות",
+"as_is": "items חסר → קריסה בתוך הטרנזקציה (server.js:14579). כמות = parseInt(qty) → 0.5 ק\"ג נשמר כ-1 (server.js:14512-14522).",
+"proposal": "items חובה: מערך 1–200 שורות, אחרת 400. quantity מספר > 0 עם 3 ספרות עשרוניות; למוצר unit_type=piece חייב להיות שלם; למשקל/נפח/אורך — צעד לפי היחידה (0.05 ק\"ג / 0.1 ליטר / 0.5 מטר). עמודת הכמות ב-store_order_items NUMERIC(10,3).",
+"alternatives": [],
+"refs": [
+"server.js:14512-14522",
+"server.js:14579",
+"rules-store.html#יצירת הזמנה (POST /api/store/orders)"
+]
+},
+{
+"id": "STR-14",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "משלוח",
+"category": "money",
+"severity": "medium",
+"title": "דמי משלוח ומינימום הזמנה — חישוב בשרת לפי כלל אחד",
+"as_is": "free_delivery_above לא מיושם בחזית הקלאסית; עסק ללא מיקום מקבל delivery_fee||30 (storefront.html:3448). בשרת דמי הלקוח מתקבלים אם ≤ base×2+50 (server.js:14512-14522). מינימום הזמנה נאכף רק בלקוח.",
+"proposal": "השרת מחשב דמי משלוח ומתעלם מהערך שנשלח: איסוף → 0; subtotal ≥ free_delivery_above (>0) → 0; אחרת עמלת מעגל הרדיוס הקטן ביותר שמכיל את הכתובת; מחוץ לכל המעגלים → 400 'מחוץ לאזור המשלוח'; ללא מעגלים → store_settings.delivery_fee (ללא ברירת מחדל 30). subtotal < min_order (ושאינו הצעת מחיר) → 400.",
+"alternatives": [],
+"refs": [
+"storefront.html:3436-3449",
+"server.js:14512-14522",
+"storefront-restaurant.html:2011-2020",
+"rules-store.html#עגלה וקופה בחזית הקלאסית (storefront.html)"
+]
+},
+{
+"id": "STR-15",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "משלוח",
+"category": "scope",
+"severity": "low",
+"title": "אזורי משלוח בשמות (delivery_zones) — תצורה מתה",
+"as_is": "טבלת delivery_zones (כולל min_order) נשמרת מהממשק (business-app.js:45447-45519) אך לא נקראת בשום חזית או אימות הזמנה; כפילות מול biz_radius_delivery_zones.",
+"proposal": "מודל משלוח יחיד: מעגלי רדיוס (biz_radius_delivery_zones). ממשק ו-API של אזורים בשמות מוסרים, והנתונים הקיימים מוצגים פעם אחת למנהל להעברה ידנית.",
+"alternatives": [
+"לממש אזורים בשמות כחלופה לעסק ללא מיקום (התאמה לפי עיר)"
+],
+"refs": [
+"business-app.js:45447-45519",
+"server.js:14049",
+"s1-erd.html#Delivery zone",
+"rules-store.html#אזורי משלוח (בשמות) ומעגלי משלוח (רדיוס)"
+]
+},
+{
+"id": "STR-16",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "כתובת משלוח",
+"category": "functional",
+"severity": "medium",
+"title": "מבנה כתובת משלוח אחיד בכל החזיתות",
+"as_is": "חזית המסעדה שולחת deliveryDetails:{address} בשדה יחיד, בעוד המייל לעסק ומסך השליח קוראים street/house/city (server.js:14634; business-app.js:23277) — הכתובת לא מוצגת.",
+"proposal": "deliveryDetails בפורמט אחד: {city, street, house, apartment?, floor?, notes?, lat?, lng?}; השרת דוחה הזמנת משלוח ללא city+street+house (400). כל החזיתות שולחות מבנה זה.",
+"alternatives": [],
+"refs": [
+"server.js:14634",
+"business-app.js:23277",
+"storefront-restaurant.html:2160-2174",
+"rules-store.html#עגלה וקופה בחזית מרקט (storefront-market.html) ומסעדה"
+]
+},
+{
+"id": "STR-17",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "מחזור חיי הזמנה",
+"category": "functional",
+"severity": "high",
+"title": "מכונת מצבים קנונית להזמנה ותופעות לוואי בנקודה אחת",
+"as_is": "ערכי סטטוס לא עקביים: 'delivered' מטופל בשרת אך אין כפתור ששולח אותו; 'delivering' חסר ב-statusMap; ערך לא מוכר מוצג כ'חדשה'. אישור קבלה ע\"י הלקוח (shipped→completed, server.js:14735-14750) עוקף קאשבק/הכנסה/ניכוי מחסן.",
+"proposal": "enum: pending_approval, new, processing, ready, shipped, delivering, completed, cancelled (+quote לטיפול נפרד). מעברים מותרים: pending_approval→new|cancelled; new→processing|cancelled; processing→ready; ready→shipped|completed; shipped→delivering; delivering→completed; completed→(אין, רק החזרה). פונקציה אחת completeOrder() מפעילה את כל תופעות הלוואי בכל מסלול (עובד, שליח, קופה, לקוח). 'delivered' מתבטל וממופה ל-completed.",
+"alternatives": [],
+"refs": [
+"server.js:14666-14718",
+"server.js:14735-14750",
+"business-app.js:15651",
+"rules-store.html#מחזור חיי הזמנה ועדכון סטטוס"
+]
+},
+{
+"id": "STR-18",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הכנסות",
+"category": "money",
+"severity": "high",
+"title": "רישום הכנסה מהזמנה — פעם אחת בלבד",
+"as_is": "logBizIncome (server.js:4201-4212) מכניס שורת transactions בכל מעבר ל-completed/delivered — מעבר חוזר רושם הכנסה כפולה (בניגוד לקאשבק ולניכוי שמוגנים).",
+"proposal": "transactions מקבלת source_order_id עם UNIQUE (group_id, source_order_id, type); רישום ההכנסה מתבצע ב-INSERT ... ON CONFLICT DO NOTHING. ביטול/החזרה של הזמנה שהושלמה רושם תנועת זיכוי (income שלילי) מקושרת.",
+"alternatives": [],
+"refs": [
+"server.js:4201-4212",
+"server.js:14679-14700",
+"rules-store.html#מחזור חיי הזמנה ועדכון סטטוס"
+]
+},
+{
+"id": "STR-19",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "מלאי קמעונאי",
+"category": "functional",
+"severity": "high",
+"title": "ניכוי מלאי מוצרי חנות במכירה והחזרה בביטול",
+"as_is": "אין בשום מקום תנועת 'sale' או 'cancelled_order' — מכירה בחנות/קופה/קיוסק לא מורידה store_catalog.stock_quantity (rules-store; recordInventoryMovement server.js:7378 נקרא רק מהתאמות/החזרות/ספירות).",
+"proposal": "במעבר הזמנה ל-completed (או ל-new בהזמנה מקוונת, לפי בחירה) נרשמת תנועת 'sale' לכל שורה עם track_inventory=TRUE (וריאציה אם יש), פעם אחת (עמודה stock_deducted_at). ביטול הזמנה שנוכתה → תנועת 'cancelled_order' שמחזירה כמות. מלאי שלילי מותר אך מסומן.",
+"alternatives": [
+"ניכוי כבר ביצירת ההזמנה (שריון) ושחרור בביטול"
+],
+"refs": [
+"server.js:7378",
+"server.js:13384-13603",
+"rules-store.html#מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)"
+]
+},
+{
+"id": "STR-20",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "החזרות",
+"category": "money",
+"severity": "medium",
+"title": "זיכוי חנות (credit_balance) — שימוש בפועל",
+"as_is": "החזרה בשיטת store_credit מגדילה store_customers.credit_balance (server.js:13548) אך היתרה לא נקראת ולא נצרכת בשום מקום.",
+"proposal": "אמצעי תשלום 'store_credit' בקופה ובחזית ללקוח מזוהה: מנכה עד גובה היתרה, ונרשם ביומן store_credit_movements(customer_id, order_id, amount). היתרה מוצגת בכרטיס הלקוח.",
+"alternatives": [
+"לבטל את אפשרות store_credit ולהחזיר רק במזומן/אשראי"
+],
+"refs": [
+"server.js:13531-13550",
+"rules-store.html#מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)"
+]
+},
+{
+"id": "STR-21",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קופה (POS)",
+"category": "money",
+"severity": "high",
+"title": "סגירת מכירה בקופה — קריאה אטומית אחת",
+"as_is": "finalizePOSOrder יוצר הזמנה (POST /api/store/orders) ואז שולח בנפרד status 'completed' (fire-and-forget) (business-app.js:33409-33465). כשל בשנייה משאיר הזמנה ב-pending_approval ללא הכנסה.",
+"proposal": "נתיב POST /api/store/pos/sale (verifyBiz) שמקבל שורות + payments ויוצר בטרנזקציה אחת הזמנה בסטטוס completed, שורות תשלום, ומפעיל completeOrder(). כשל → אין הזמנה והקופה מציגה שגיאה.",
+"alternatives": [],
+"refs": [
+"business-app.js:33409-33465",
+"rules-store.html#מכירה בקופה (טאב POS ב-business-app.js)"
+]
+},
+{
+"id": "STR-22",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קופה (POS)",
+"category": "money",
+"severity": "high",
+"title": "תשלומים כטבלה והכרה בהכנסה לפי אמצעי תשלום",
+"as_is": "התשלומים נשמרים כ-JSON בפריט metadata וב-notes (business-app.js:33463-33465). הכנסה נרשמת על total_amount המלא גם לתשלום 'שי' ולהקפה (on_account).",
+"proposal": "טבלת store_order_payments(order_id, method ∈ {cash, credit, bit, paybox, on_account, gift, store_credit}, amount). הכנסה (transactions) נרשמת רק על אמצעים שהם תקבול בפועל; gift נרשם כהנחה ולא כהכנסה; on_account נרשם כחוב לקוח ונהפך להכנסה בעת פירעון.",
+"alternatives": [],
+"refs": [
+"business-app.js:33463-33465",
+"server.js:4201",
+"rules-store.html#מכירה בקופה (טאב POS ב-business-app.js)"
+]
+},
+{
+"id": "STR-23",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קופה (POS)",
+"category": "data-integrity",
+"severity": "medium",
+"title": "חוב לקוח (הקפה) — יתרה בשרת",
+"as_is": "חוב לקוח מחושב רק בצד לקוח ממטמון ההזמנות (getCustomerDebt business-app.js:11592); אין טבלת יתרות; מכשיר אחר/מטמון חלקי מציג חוב שגוי.",
+"proposal": "יומן customer_ledger(customer_id, order_id, type ∈ {charge, payment}, amount) בשרת; יתרה = Σcharge − Σpayment, מוחזרת ב-GET לקוח. פירעון חוב ≤ יתרה (400 אחרת).",
+"alternatives": [],
+"refs": [
+"business-app.js:11592",
+"business-app.js:11655-11683",
+"rules-store.html#מכירה בקופה (טאב POS ב-business-app.js)"
+]
+},
+{
+"id": "STR-24",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קופה (POS)",
+"category": "money",
+"severity": "medium",
+"title": "שיעור מע\"מ — מקור אחד בהגדרות החנות",
+"as_is": "הקופה קוראת מע\"מ מ-localStorage ofl_vat_{groupId} (ברירת מחדל 18%, מיגרציה 17→18; business-app.js:31400-31412), בעוד החזית משתמשת ב-store_settings.include_vat/vat_rate.",
+"proposal": "store_settings.vat_rate ו-include_vat הם מקור האמת לקופה, לחזית ולקבלות. הגדרה מקומית מוסרת. שיעור המע\"מ נשמר בהזמנה בעת יצירתה.",
+"alternatives": [],
+"refs": [
+"business-app.js:31400-31412",
+"business-app.js:33456-33462",
+"server.js:13178-13180",
+"rules-store.html#מכירה בקופה (טאב POS ב-business-app.js)"
+],
+"dup_of": "ARC-21"
+},
+{
+"id": "STR-25",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קיוסק",
+"category": "security",
+"severity": "high",
+"title": "קיוסק: סיסמת יציאה חשופה והזמנה ללא אימות מחיר",
+"as_is": "GET /api/store/kiosk-password/:groupId ו-kiosk-settings (SELECT *) חושפים את kiosk_password לכל גולש; ברירת מחדל '1234' (server.js:24571-24588, 24647). kiosk-order ללא אימות מחיר וללא store_order_items (24620-24644).",
+"proposal": "kiosk_password נשמר כ-hash ואינו מוחזר באף GET; יציאה דרך POST /api/store/kiosk/verify-exit. אין ברירת מחדל — פתיחת קיוסק דורשת הגדרת קוד 4–8 ספרות. kiosk-order עובר דרך אותה לוגיקת יצירת הזמנה (תמחור שרת, store_order_items, ניכוי מחסן/מלאי) עם order_source='kiosk'.",
+"alternatives": [],
+"refs": [
+"server.js:24571-24588",
+"server.js:24620-24647",
+"business-app.js:35538",
+"rules-store.html#מצב קיוסק (הזמנה עצמית)"
+]
+},
+{
+"id": "STR-26",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הצעות מחיר",
+"category": "functional",
+"severity": "high",
+"title": "פעולות הצעת מחיר נכשלות ב-400 כי הלקוח לא שולח טוקן",
+"as_is": "to-work-order, prepare-send, PATCH /quotes/:id/status, send-to-oneflow, link-only קוראים רק req.bizAuth.groupId, והלקוח לא שולח טוקן או groupId (business-app.js:9425, 9470, 9600, 9666, 12863, 12910) → 400 'groupId נדרש'. ב-PATCH status הלקוח מציג 'עודכן' למרות הכישלון.",
+"proposal": "תיקון בצד הלקוח בלבד (במסגרת STR-01): כל הקריאות נשלחות עם טוקן biz. הלקוח מציג הצלחה רק בתגובת 2xx, אחרת טוסט שגיאה עם הודעת השרת.",
+"alternatives": [],
+"refs": [
+"business-app.js:9425",
+"business-app.js:9470",
+"business-app.js:9600",
+"business-app.js:9666",
+"server.js:14763-14773",
+"rules-store.html#מחזור חיי הצעת מחיר ושליחה ללקוח"
+]
+},
+{
+"id": "STR-27",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "התראות",
+"category": "functional",
+"severity": "high",
+"title": "התראות הצעות מחיר נכשלות בשקט (עמודות לא קיימות)",
+"as_is": "כל ה-INSERT ל-alert_notifications בתהליך ההצעות משתמשים בעמודות type, title, reference_id שאינן קיימות (קיימות: group_id, rule_id, trigger_type, message, is_read, reference_key) → נכשלים בשקט (server.js:14851, 14980, 15038, 15076, 15120, 15148).",
+"proposal": "פונקציית עזר אחת notify(groupId, triggerType, message, referenceKey) שכותבת לעמודות הקיימות; כשל נרשם בלוג שגיאות. כל שש הנקודות עוברות אליה.",
+"alternatives": [
+"להוסיף לטבלה עמודות type, title, reference_id ולשמור את הקוד"
+],
+"refs": [
+"server.js:14851",
+"server.js:14980",
+"server.js:15038",
+"server.js:15076",
+"server.js:15120",
+"server.js:15148",
+"server.js:760",
+"rules-store.html#מחזור חיי הצעת מחיר ושליחה ללקוח"
+],
+"dup_of": "SA-52"
+},
+{
+"id": "STR-28",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הצעות מחיר",
+"category": "data-integrity",
+"severity": "medium",
+"title": "סטטוסי הצעת מחיר — enum ומעברים מוגדרים",
+"as_is": "PATCH /quotes/:id/status מקבל quoteStatus חופשי (server.js:14763-14773); ערכים בפועל: NULL, draft, sent, frozen, waiting_customer, waiting_business, customer_approved, approved, cancelled, והתצוגה ממפה ביניהם (business-app.js:9166-9169).",
+"proposal": "quote_status ∈ {draft, sent, waiting_customer, waiting_business, customer_approved, approved, cancelled, frozen}; הצעה חדשה = draft (לא NULL). מעברים: draft→sent|waiting_customer; waiting_customer→customer_approved|cancelled|waiting_business; waiting_business→waiting_customer; customer_approved→approved; כל מצב→frozen|cancelled. ערך לא חוקי → 400.",
+"alternatives": [],
+"refs": [
+"server.js:14763-14773",
+"business-app.js:9166-9169",
+"business-app.js:9413-9421",
+"rules-store.html#מחזור חיי הצעת מחיר ושליחה ללקוח"
+]
+},
+{
+"id": "STR-29",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הצעות מחיר",
+"category": "scope",
+"severity": "medium",
+"title": "מסלול אישור הצעה אחד (approve מול to-work-order)",
+"as_is": "שני מסלולים: POST /approve (status='new', לא נקרא מהממשק, server.js:14821-14845) ו-to-work-order (status='processing', call_type='work_order', 15094-15115).",
+"proposal": "מסלול יחיד: אישור הצעה ממיר אותה להזמנה; עסקים מסוג שירות/תיקונים/מקצועי → call_type='work_order', status='processing'; שאר הסוגים → status='new'. הנתיב השני מוסר.",
+"alternatives": [],
+"refs": [
+"server.js:14821-14845",
+"server.js:15094-15115",
+"rules-store.html#מחזור חיי הצעת מחיר ושליחה ללקוח"
+]
+},
+{
+"id": "STR-30",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הצעות מחיר",
+"category": "security",
+"severity": "medium",
+"title": "קישור אישור הצעה: אישור ב-POST, עדכון סטטוס ותפוגה",
+"as_is": "GET /c/q/:id/:token מאשר מיד (server.js:25118-25140) — תצוגה מקדימה של וואטסאפ מאשרת אוטומטית (בניגוד ל-/c/po שעבר ל-POST). האישור אינו משנה quote_status ואין תפוגה.",
+"proposal": "GET מציג את ההצעה וכפתור 'אני מאשר/ת'; POST מאשר: customer_confirmed_at=NOW(), quote_status='customer_approved', אירוע ב-quote_history והתראה לעסק. הקישור פג אחרי validity ימים (ברירת מחדל 30) מיום השליחה → 410.",
+"alternatives": [],
+"refs": [
+"server.js:25118-25140",
+"server.js:25151-25190",
+"rules-store.html#קישור אישור קבלת הצעה (GET /c/q/:id/:token)"
+]
+},
+{
+"id": "STR-31",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הצעות מחיר",
+"category": "functional",
+"severity": "medium",
+"title": "בקשת הצעת מחיר מהחזית — סוג רשומה נכון",
+"as_is": "orderType:'quote' מהחזית הקלאסית מתעלם; הבקשה נשמרת כהזמנה pending_approval ומזוהה כהצעה רק לפי טקסט '[הצעת מחיר]' בהערה (business-app.js:15620). בטופס האירוע title/source מתעלמים ו-totalAmount=NULL (storefront.html:3628-3634).",
+"proposal": "בקשת הצעה מהחזית (orderType='quote' או פריטי complex_builder) נשמרת status='quote', quote_status='waiting_business', עם quote_title ו-source מהגוף ו-total_amount=Σ שורות (0 מותר). זיהוי לפי status בלבד, לא לפי טקסט.",
+"alternatives": [],
+"refs": [
+"storefront.html:3462-3467",
+"storefront.html:3628-3634",
+"business-app.js:15619-15625",
+"rules-store.html#יצירה ועריכה של הצעת מחיר"
+]
+},
+{
+"id": "STR-32",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הגדרות חנות",
+"category": "data-integrity",
+"severity": "high",
+"title": "שמירת הגדרות חנות מאפסת delivery_fee ו-booking_mode",
+"as_is": "הלקוח לא שולח deliveryFee ו-bookingMode (business-app.js:13497-13527), והשרת דורס delivery_fee=0 ו-booking_mode='appointments' בכל שמירה (server.js:13224, 13229).",
+"proposal": "שמירת הגדרות היא עדכון חלקי: שדה שלא נשלח לא משתנה (COALESCE / עדכון דינמי). ברירות מחדל חלות רק ב-INSERT הראשון.",
+"alternatives": [],
+"refs": [
+"business-app.js:13497-13527",
+"server.js:13197-13251",
+"rules-store.html#שמירת הגדרות חנות (POST /api/store/settings)"
+]
+},
+{
+"id": "STR-33",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קטלוג מוצרים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "עדכון מוצר/וריאציה — עדכון חלקי",
+"as_is": "PUT /api/store/catalog/:id דורס badge_text, sku, name_en ושדות טקסט נוספים לריק כשלא נשלחו (server.js:13352-13355); עדכון וריאציה מאפס price_override ל-null (13471).",
+"proposal": "PUT/PATCH מעדכן רק שדות שנשלחו; ניקוי שדה דורש שליחת null מפורש. אותו כלל לווריאציות.",
+"alternatives": [],
+"refs": [
+"server.js:13344-13366",
+"server.js:13471",
+"rules-store.html#עדכון / זמינות / מחיקה / סידור מוצר"
+]
+},
+{
+"id": "STR-34",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קטלוג מוצרים",
+"category": "functional",
+"severity": "low",
+"title": "מגבלת מוצרים לפי מסלול — אכיפה אחידה בכל מסלולי היצירה",
+"as_is": "מגבלה 50/100/500 נבדקת ב-POST catalog וב-bulk-import (server.js:13322-13328, 13631); bulk חותך בשקט; ייבוא Excel 'חכם' יוצר פריט-פריט; isAvailable מהייבוא מתעלם.",
+"proposal": "בדיקת מגבלה אחת בפונקציה משותפת לכל יצירה (טופס, ויזארד, Excel, bulk, בונה מתכון, שכפול). bulk מחזיר {imported, skipped, reason:'plan_limit'} והממשק מציג אילו שורות לא נכנסו. is_available מהייבוא נשמר.",
+"alternatives": [
+"להעביר את המגבלות ל-billing_config של SA במקום plan קשיח"
+],
+"refs": [
+"server.js:13322-13328",
+"server.js:13620-13641",
+"business-app.js:20825",
+"rules-store.html#יצירת מוצר בקטלוג (POST /api/store/catalog)"
+]
+},
+{
+"id": "STR-35",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קטלוג מוצרים",
+"category": "data-integrity",
+"severity": "low",
+"title": "תבניות תוספות לא נשמרות כשאין שורת store_settings",
+"as_is": "שמירת modifier_presets היא UPDATE בלבד (server.js:13280) — לעסק ללא שורת store_settings לא נשמר דבר אך מוחזר success:true.",
+"proposal": "UPSERT על store_settings(group_id). בנוסף, שורת store_settings נוצרת אוטומטית ביצירת עסק (ראו STR-38).",
+"alternatives": [],
+"refs": [
+"server.js:13276-13283",
+"rules-store.html#תבניות תוספות (Modifier Presets) וויזארד תבניות"
+]
+},
+{
+"id": "STR-36",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קטלוג מוצרים",
+"category": "security",
+"severity": "medium",
+"title": "יצירת תמונת מוצר והעלאת קבצים — אימות ומכסה",
+"as_is": "POST /catalog/generate-image ללא אימות ואינו צורך מכסת AI (פונה ל-Pixabay/Pexels/Pollinations/Cloudinary, server.js:13661-13797); כשל מוחזר כ-HTTP 200 success:false. POST /api/upload/product-image ללא אימות (13648).",
+"proposal": "שני הנתיבים דורשים verifyBiz. יצירת תמונה נספרת במכסה יומית לעסק (enterprise ללא הגבלה, premium 50, אחר 10 — כמו טקסט AI). כשל במציאת תמונה → 404 עם success:false. העלאה: רק image/*, עד 5MB.",
+"alternatives": [],
+"refs": [
+"server.js:13648",
+"server.js:13661-13797",
+"server.js:4170-4198",
+"rules-store.html#תמונת מוצר אוטומטית (POST /api/store/catalog/generate-image) והעלאת תמונה"
+]
+},
+{
+"id": "STR-37",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "מבצעים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "מודל מבצעים אחד: ניקוי טפסים כפולים וטבלה לא בשימוש",
+"as_is": "window.submitPromotion מוגדר שלוש פעמים (business-app.js:28814, 34307, 34360 — האחרונה גוברת); טופס ישן ב-business.html:3685, 3764 עם fixed_price שמחושב רק בחזית הקלאסית; store_retail_promotions נוצרת ואינה בשימוש; INSERT עם min_order שאינו קיים (server.js:5533). אין ולידציה בשרת.",
+"proposal": "סוגי מבצע: discount_pct (1–100), discount_fixed (>0, ≤ מחיר הפריט), bogo, buy_x_get_y (0<get<buy). השרת מאמת: title חובה, end_date ≥ start_date. הגדרה אחת של submitPromotion, הטופס הישן ו-fixed_price מוסרים, store_retail_promotions נמחקת.",
+"alternatives": [],
+"refs": [
+"business-app.js:28814",
+"business-app.js:34307",
+"business-app.js:34360",
+"business.html:3685",
+"server.js:5533",
+"server.js:1343",
+"rules-store.html#מבצעי חנות (Promotions)"
+]
+},
+{
+"id": "STR-38",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "הגשת חזית",
+"category": "functional",
+"severity": "low",
+"title": "שורת store_settings לכל עסק ואיתור עקבי לפי alias",
+"as_is": "נתיב /:alias משתמש ב-JOIN פנימי ל-store_settings ולא ימצא עסק בלי שורה, בעוד /api/storefront/:code משתמש ב-LEFT JOIN (server.js:23362-23367, 15303-15331).",
+"proposal": "ביצירת עסק נוצרת שורת store_settings עם ברירות מחדל; שני הנתיבים משתמשים באותה פונקציית resolveStore(code) (id מספרי / group_code / store_alias).",
+"alternatives": [],
+"refs": [
+"server.js:23346-23387",
+"server.js:15303-15331",
+"rules-store.html#הגשת חזית לפי כתובת קצרה (GET /:alias) והזרקת og"
+]
+},
+{
+"id": "STR-39",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "תשתית",
+"category": "architecture",
+"severity": "medium",
+"title": "הוצאת ALTER/CREATE TABLE מנתיבי בקשה",
+"as_is": "~25 פקודות ALTER TABLE ADD COLUMN IF NOT EXISTS בכל שמירת הגדרות (server.js:13120-13141, 13191-13194); CREATE TABLE branding_content בכל קריאה (15638); ALTERים ב-GET storefront וב-POST orders.",
+"proposal": "כל שינויי סכמה מתבצעים רק במיגרציות ממוספרות בעליית השרת. נתיב בקשה לא מריץ DDL.",
+"alternatives": [],
+"refs": [
+"server.js:13120-13141",
+"server.js:15638",
+"server.js:14447",
+"rules-store.html#שמירת הגדרות חנות (POST /api/store/settings)"
+]
+},
+{
+"id": "STR-40",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "ביקורות",
+"category": "functional",
+"severity": "medium",
+"title": "ביקורות ציבוריות — מבנה תשובה אחד וממוצע אמיתי",
+"as_is": "חזית market קוראת rating/review_text/reviewer_name אך השרת מחזיר customer_rating/customer_rating_notes/display_name → כל ביקורת מוצגת 5 כוכבים 'לקוח' (storefront-market.html:1875-1890). avg_rating מחושב רק על השורות שהוחזרו (עד 50); שלושה נתיבים כפולים (server.js:15682-15726).",
+"proposal": "נתיב יחיד GET /api/public/reviews/:groupId מחזיר {rating, text, display_name, date}; avg_rating ו-total מחושבים על כל ההזמנות המדורגות של העסק. כל החזיתות קוראות שדות אלה; שני הנתיבים האחרים מוסרים.",
+"alternatives": [],
+"refs": [
+"server.js:15682-15726",
+"storefront-market.html:1875-1890",
+"rules-store.html#ביקורות ציבוריות"
+]
+},
+{
+"id": "STR-41",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "פופאפים",
+"category": "functional",
+"severity": "low",
+"title": "פופאפים: כיבוד חלון תזמון בכל הטריגרים",
+"as_is": "פופאפ עם טריגר 'shift' או 'task' לא בודק scheduled_at/expires_at (server.js:12954-12966, 12063-12074), בניגוד לפופאפ חנות (14063-14078).",
+"proposal": "כל טריגר מציג פופאפ רק אם is_active ו-scheduled_at ≤ now ≤ expires_at (NULL = ללא גבול).",
+"alternatives": [],
+"refs": [
+"server.js:12954-12966",
+"server.js:12063-12074",
+"server.js:14063-14078",
+"rules-store.html#פופאפים לחנות ולעובדים"
+]
+},
+{
+"id": "STR-42",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "לקוחות חנות",
+"category": "security",
+"severity": "medium",
+"title": "אין יצירת חשבון FAMILY וקישור פעיל אוטומטית מהזמנה",
+"as_is": "upsertStoreCustomer יוצר חשבון FAMILY 'shopper' חדש לפי טלפון ו-member_business_links בסטטוס 'active' מכל הזמנה, גם הזמנה לא מאומתת מהקופה או מ-POST פתוח (server.js:7304-7370, 7392-7445, 14617-14625).",
+"proposal": "ההזמנה יוצרת/מעדכנת רק store_customers של העסק. קישור ל-WEFLOWZ (member_business_links) נוצר רק כשהלקוח מחובר (sc-auth/FAMILY) בעת ההזמנה, ובסטטוס active. חשבון FAMILY נוצר רק בהרשמה יזומה של הלקוח.",
+"alternatives": [
+"יצירה אוטומטית מותרת רק כשיש OTP מאומת לטלפון"
+],
+"refs": [
+"server.js:7304-7370",
+"server.js:7392-7445",
+"server.js:14617-14625",
+"rules-store.html#יצירת הזמנה (POST /api/store/orders)"
+]
+},
+{
+"id": "STR-43",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "לקוחות חנות",
+"category": "architecture",
+"severity": "medium",
+"title": "איחוד טבלאות לקוח-של-עסק",
+"as_is": "שבעה ייצוגים מקבילים ללקוח של עסק: store_customers, storefront_customers, restaurant_customers, logistics_customers, beauty_client_records ועוד; הקישור היחיד המשותף הוא טלפון או family_group_id.",
+"proposal": "ישות אחת business_customers(group_id, phone_normalized UNIQUE per group, name, email, family_group_id?, storefront_customer_id?) והרחבות תחומיות כטבלאות-בת (restaurant_profile, beauty_profile...). נרמול טלפון אחד: ספרות בלבד, 972→0.",
+"alternatives": [],
+"refs": [
+"s1-erd.html#לקוח של עסק",
+"server.js:708",
+"server.js:1248",
+"server.js:1898"
+],
+"dup_of": "ARC-14"
+},
+{
+"id": "STR-44",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קמפיינים ומרקטפלייס",
+"category": "functional",
+"severity": "low",
+"title": "\"הטבת השבוע\" במרקטפלייס תמיד ריקה",
+"as_is": "השאילתה מצטרפת על cp.biz_code שאינה עמודה ב-community_promotions → נכשלת ונבלעת, ומחזירה מערך ריק; גם לא מסוננת status='approved' (server.js:8015-8025).",
+"proposal": "הצטרפות לפי cp.business_id; סינון status='approved' ו-valid_until ≥ היום; 2 מבצעים עם discount_pct הגבוה ביותר בקהילות המשפחה.",
+"alternatives": [],
+"refs": [
+"server.js:8015-8025",
+"s1-erd.html#CommunityPromotion",
+"rules-store.html#מרקטפלייס משפחתי (marketplace.html)"
+]
+},
+{
+"id": "STR-45",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "קמפיינים ומרקטפלייס",
+"category": "functional",
+"severity": "low",
+"title": "קמפיין קהילתי: תקרת כמות ואזור זמן",
+"as_is": "ההערה בקוד מתארת תקרת כמות 50 שאינה ממומשת; שעות פתיחת השוק נבדקות לפי TZ של השרת ובלקוח לפי הדפדפן (server.js:15424-15448).",
+"proposal": "כמות לשורה 1–50 (400 מעבר לכך). ימים/שעות נבדקים לפי Asia/Jerusalem בשרת ובלקוח.",
+"alternatives": [],
+"refs": [
+"server.js:15424-15448",
+"server.js:15532-15538",
+"rules-store.html#עמוד קמפיין קהילתי ציבורי והזמנה (community-store.html)"
+]
+},
+{
+"id": "STR-46",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "התראות ללקוח",
+"category": "functional",
+"severity": "low",
+"title": "הודעות וואטסאפ על הזמנה (order-notify) לא נשלחות לעולם",
+"as_is": "POST /api/biz/whatsapp/order-notify (server.js:44277-44295) אינו נקרא מאף לקוח; הודעת customer_order ב-cron נשלחת רק כש-owner_order דולק (4586).",
+"proposal": "השרת שולח order_received ביצירת הזמנה ו-order_ready במעבר ל-ready, לפי דגלי whatsapp_settings.customer_order / notify_customer_ready בנפרד מדגלי הבעלים. הנתיב הידני מוסר.",
+"alternatives": [
+"להסיר את התכונה לגמרי"
+],
+"refs": [
+"server.js:44277-44295",
+"server.js:4586-4610",
+"s1-messages.html#WA-09"
+]
+},
+{
+"id": "STR-47",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "ביצועים",
+"category": "architecture",
+"severity": "low",
+"title": "תדירות polling של 'ההזמנות שלי' וצ'אט",
+"as_is": "רשימת 'ההזמנות שלי' מתרעננת כל 3000ms (app.js:1042) — הערת הקוד אומרת 20 שניות והמסמכים 15; צ'אט חזית כל 3000ms (storefront-chat.js:14).",
+"proposal": "'ההזמנות שלי' — כל 15 שניות רק כשהלשונית גלויה (visibilitychange); צ'אט — כל 5 שניות כשהחלון פתוח. בהמשך: SSE.",
+"alternatives": [],
+"refs": [
+"app.js:1042",
+"storefront-chat.js:14",
+"s1-docsvscode.html#ריענון \"הזמנות שלי\""
+]
+},
+{
+"id": "STR-48",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "היקף",
+"category": "scope",
+"severity": "low",
+"title": "הסרת נתיב send-quote לקוח (לא בשימוש)",
+"as_is": "POST /api/store/customers/:id/send-quote לא נקרא מאף ממשק, ללא אימות, ו-businessGroupId מהגוף ללא בדיקה מול הלקוח (server.js:15255-15284).",
+"proposal": "הנתיב מוסר.",
+"alternatives": [
+"לשמור עם verifyBiz ובדיקה שהלקוח שייך לעסק"
+],
+"refs": [
+"server.js:15255-15284",
+"rules-store.html#שליחת הצעה כהודעת קריאת שירות (POST /api/store/customers/:id/send-quote)"
+]
+},
+{
+"id": "STR-49",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "היקף",
+"category": "scope",
+"severity": "low",
+"title": "מודולים לפי סוג עסק: מקור אמת אחד (store_only ו-kds)",
+"as_is": "BUSINESS_TYPES בלקוח ו-BIZ_TYPE_MODULES ב-SA לא תואמים: store_only מקבל בלקוח budget, cashflow, customers, pantry, pos, reports, sales, shop שאינם ב-SA; restaurant מקבל kds רק בלקוח.",
+"proposal": "רשימת מודולים לסוג עסק מוגדרת פעם אחת בשרת ומוגשת ללקוח ול-SA. החלטה נדרשת לתוכן store_only: pos, sales, customers, pantry, reports, cashflow.",
+"alternatives": [],
+"refs": [
+"s1-bizmatrix.html#אי-התאמות בין שני המקורות",
+"business-app.js:37527-37541"
+]
+},
+{
+"id": "STR-50",
+"domain": "חנות, קופה והצעות מחיר",
+"area": "תיעוד",
+"category": "docs",
+"severity": "low",
+"title": "עדכון מדריך קמעונאות ו-BIZ_ENV_SPEC לנתיבים ולתהליכים בפועל",
+"as_is": "BIZ_ENV_SPEC מתאר נתיבים ופונקציות שאינם קיימים (POST /api/store/products, submitPOSOrder, /api/store/kds, /api/deliveries); spec-retail-store מתאר סריקת ברקוד בקופה והחזרה מ'ההזמנות שלי' — לא ממומשים.",
+"proposal": "אחרי אישור יומן ההחלטות, retail-guide.html ו-docs/BIZ_ENV_SPEC.md מעודכנים לשמות הנתיבים והזרימות בפועל; תכונות לא ממומשות (ברקוד בקופה, החזרה ע\"י לקוח) מסומנות 'עתידי' או נכנסות לתכנון.",
+"alternatives": [
+"לממש חיפוש לפי barcode בקופה (שדה כבר קיים בקטלוג)"
+],
+"refs": [
+"s1-docsvscode.html#BIZ_ENV_SPEC",
+"s1-docsvscode.html#docs/spec-retail-store.md"
+]
+}
+]

@@ -1,0 +1,563 @@
+<h2 class="grp">ספורט / כושר — עקרונות רוחביים</h2>
+
+<section class="proc" data-f="sport auth security ownership middleware cross-cutting"><h3>בקרת גישה, בעלות ומבנה כללי של מודול הספורט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל נתיבי <code>/api/sport/*</code> (server.js:29223–30907) ו-<code>/api/ai/sport/training-plan</code> משרתים שלושה צרכנים: מסך BIZ (business-app.js:44756–50122, 57388–57450, 60126–60344), חנות ציבורית (<code>storefront-sport.html</code>, <code>storefront.html</code> מורשת, <code>storefront-btype.js</code>, <code>sc-auth.js</code>), ואפליקציית המשפחה (<code>app.js:14127–14141</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>אף נתיב ספורט אינו מוגן ב-middleware (<code>mw: []</code> לכל הנתיבים ב-api.json; אין <code>verifyBiz</code>/<code>verifyFamily</code>). אין בדיקת בעלות: <code>groupId</code> נלקח מה-body/params כפי שהוא, ונתיבים לפי <code>:id</code> (חבר, שיעור, מאמן, תור) פועלים על כל רשומה בכל עסק.</li>
+<li>אין gating לפי <code>business_type</code> או מודול בצד שרת. ה-gating היחיד הוא בצד לקוח: דשבורד ספורט מוצג רק ל-<code>role==='ADMIN'</code> ו-<code>business_type==='sport'</code> (business-app.js:5628), ומנהל סניף בעסק ספורט מקבל את אותו דשבורד (business-app.js:39856).</li>
+<li>יומן הביקורת הגלובלי (server.js:121–144) רושם רק בקשות עם <code>req.bizAuth</code> — ולכן אף פעולת ספורט לא נרשמת בו אוטומטית; רישום ידני קיים רק ל-FREEZE/CANCEL/DELETE (ראו תהליכים).</li>
+<li>מודולי BIZ לסוג ספורט: <code>['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports']</code> (business-app.js:37536). מסכי הספורט עצמם אינם טאבים אלא מודאל <code>#sport-modal</code> בתוך <code>content-feed</code> (<code>_ensureSportModal</code>, business-app.js:45591).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הסכמה נוצרת באתחול (server.js:1654–1863) ב-<code>CREATE TABLE IF NOT EXISTS</code>/<code>ALTER … ADD COLUMN IF NOT EXISTS</code> עטופים ב-try/catch שקט.</li><li>אין טרנזקציות באף נתיב ספורט — כל כתיבה היא <code>pool.query</code> נפרד.</li></ol></div>
+<div>חישובים</div><div>קבוע יחיד ברמת מודול: <code>SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS = 14</code> (server.js:29226). תאריכי <code>DATE</code> של pg מוחזרים כאובייקט <code>Date</code> של JS (אין <code>setTypeParser</code> בקוד) — משמעות לחישובי זמן מתועדת בפערים בתהליכים הרלוונטיים.</div>
+<div>תופעות לוואי</div><div>פונקציות עזר משותפות: <code>logBizIncome</code> (server.js:4201, כותב <code>transactions</code> type=income, category='sales', משויך ל-ADMIN הראשון); <code>logBizExpense</code> (server.js:4213); <code>upsertStoreCustomer</code> (server.js:7393 — מאחד כרטיס <code>store_customers</code> לפי טלפון, יוצר/מקשר <code>member_business_links</code> אם יש משפחה ב-WEFLOWZ); <code>_sendMemberBizNotif</code> (server.js:30937 — הודעה ב-<code>alert_notifications</code> עם <code>trigger_type='business_update'</code>, דה-דופליקציה לפי <code>(group_id, reference_key)</code>); <code>logBizAction</code> (server.js:4160, <code>biz_audit_log</code>).</div>
+<div>ממשק</div><div>ניתוב פעולות מהירות דרך עטיפות שרשרת של <code>window.rdAction</code> (business-app.js:45579, 46485, 48292, 48619, 49511, 60126): <code>sport-checkin, sport-members, sport-add-member, sport-membership-types, sport-schedule, sport-alerts, sport-reports, sport-waivers, sport-trainers, sport-leads, sport-oneflow, sport-inbox, sport-ai, sport-appointments</code>. פונקציות רבות מוגדרות מחדש מספר פעמים; ההגדרה האחרונה בקובץ היא הפעילה (למשל <code>showSportSchedule</code> 7 פעמים, האחרונה business-app.js:49886; <code>_sportMemberCard</code> 4 הצהרות function, האחרונה business-app.js:48306).</div>
+<div>פערים</div><div>היעדר אימות ובעלות בכל המודול: כל אחד יכול לקרוא רשימות חברים כולל טלפונים (<code>GET /api/sport/members/:groupId</code> — ש-<code>storefront.html:4993</code> אף קורא מהחנות הציבורית), למחוק חברים/שיעורים/מאמנים, ולסמן שכר כשולם.</div>
+</div></section>
+
+<h2 class="grp">הגדרות: סוגי מנויים, הגדרות חנות, מדיניות ביטול, הצהרת בריאות</h2>
+
+<section class="proc" data-f="membership types plans sport_membership_types crud punch_card monthly yearly"><h3>ניהול סוגי מנויים (sport_membership_types)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל העסק מגדיר מסלולי מנוי (מחיר, משך, מכסת כניסות). מסך יחיד: טאב "מכירות" ← קטלוג (<code>renderSportSalesCatalogView</code>, business-app.js:45208). <code>showSportMembershipTypes</code> רק מנווט לשם (business-app.js:45201). גם נזרע אוטומטית בויזארד AI (server.js:5552–5562).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: שם חובה — "יש להזין שם" (business-app.js:45360, 45399). מחיר <code>parseFloat||0</code>; כניסות <code>parseInt||null</code>.</li>
+<li>שרת POST (server.js:29263): ללא אימות; <code>type||'monthly'</code>, <code>price parseFloat||0</code>, <code>color||'indigo'</code>, תמיד <code>is_active=true,is_public=true</code>.</li>
+<li>שרת PUT (server.js:29281): ללא אימות; <code>duration_days</code> נגזר מ-<code>durationMap[type]</code> ולא מהקלט.</li>
+<li>DELETE (server.js:29274): מחיקה פיזית; FK ב-<code>sport_memberships.membership_type_id</code> הוא <code>ON DELETE SET NULL</code> (server.js:1674).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET <code>/membership-types/:groupId</code> — כל הסוגים (כולל לא פעילים/לא ציבוריים) ממוינים לפי מחיר עולה (server.js:29258).</li>
+<li>POST — INSERT יחיד.</li>
+<li>PUT — UPDATE של <code>name,type,price,duration_days,sessions,updated_at</code>.</li>
+<li>DELETE — DELETE יחיד; מנויים קיימים נשארים עם <code>membership_type_id=NULL</code>.</li>
+</ol></div>
+<div>חישובים</div><div><code>durationMap = { monthly:30, yearly:365, punch_card:null, day_pass:1, pt_sessions:null }</code> (לקוח business-app.js:45361 נשלח כ-<code>durationDays</code> ב-POST; שרת server.js:29284 ב-PUT). בויזארד: <code>duration_days = mt.duration_days||30</code>, <code>price = mt.price||200</code>, <code>color = mt.color||'#6366f1'</code> (server.js:5558–5559).</div>
+<div>מכונת מצבים</div><div>שדות בוליאניים <code>is_active</code>/<code>is_public</code> — אין UI או נתיב לשינוים (תמיד true). הנתיב הציבורי מסנן לפיהם (server.js:30057).</div>
+<div>ממשק</div><div>טופס הוספה מוזרק (business-app.js:45236), עריכה inline לכל שורה (business-app.js:45291), תוויות סוג: <code>{monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT'}</code> (business-app.js:45269). לצידם מוצגים מוצרי קטלוג רגילים (<code>/api/store/catalog</code>) וקיצור ל"כללי הרשמה לשיעורים".</div>
+<div>פערים</div><div><ul><li>PUT מעדכן <code>updated_at</code>, אך העמודה לא קיימת בטבלה (server.js:1655–1666, אין ALTER) — סביר שכל עריכת סוג מנוי נכשלת בשגיאת SQL.</li><li>פרומפט ה-AI בויזארד מציע סוג <code>class_pack</code> (server.js:5264) שאינו במפת המשכים/תוויות; כרטיסייה מקבלת ברירת מחדל 30 יום אם ה-AI לא החזיר <code>duration_days</code>.</li><li>הוספות הויזארד נעשות ב-<code>pool.query</code> בתוך פונקציה שפתחה טרנזקציה על <code>client</code> (server.js:5452, 5555) — לא חלק מהטרנזקציה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="store settings sport_settings trial freeze policy waiver public_show"><h3>הגדרות ספורט בחנות (store_settings.sport_settings)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירת מדיניות טקסטואלית וסימון אילו כפתורים ציבוריים מוצגים. מופעל ע"י עטיפת <code>window.saveStoreSettings</code> כשהעסק מסוג sport (business-app.js:45552–45576), וע"י ויזארד ההקמה (server.js:5573–5587).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: <code>groupId</code> חובה — "Missing groupId" (server.js:29297). מריץ <code>ALTER TABLE … ADD COLUMN IF NOT EXISTS sport_settings JSONB</code> בכל קריאה.</li><li>ויזארד: נשמר רק אם יש <code>cancellation_policy</code> או <code>waiver_text</code> או <code>freeze_policy</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח בונה אובייקט: <code>trial_enabled, cancellation_policy, freeze_policy, waiver_text, min_age, cancel_notice_days, public_show_schedule, public_show_membership, public_show_trainer</code> (business-app.js:45556–45566).</li><li>POST <code>/api/sport/store-settings</code> ← UPSERT <code>store_settings(group_id, sport_settings)</code> — <b>החלפה מלאה</b> של ה-JSON (server.js:29299–29303).</li><li>אחר כך נקראת ה-<code>saveStoreSettings</code> המקורית.</li></ol></div>
+<div>חישובים</div><div>ברירות ויזארד: <code>trial_enabled ?? true</code>, <code>min_age||16</code>, <code>cancel_notice_days||14</code> (server.js:5579–5584).</div>
+<div>תופעות לוואי</div><div>החנות הציבורית מציגה כפתורי "לוח שיעורים / הצטרף כחבר / הזמן אימון אישי" כאשר הדגל <code>!== false</code> (storefront-sport.html:1304–1306; sc-auth.js:737–742). <code>waiver_text</code> מוצג כתיבת אישור ברכישת מנוי (storefront-sport.html:2738).</div>
+<div>ממשק</div><div>טעינה: <code>_loadSportStoreSettings</code> (business-app.js:45413) — תיבות הסימון מסומנות רק אם הערך truthy.</div>
+<div>פערים</div><div>אי-התאמה בברירת מחדל: בחנות ערך חסר = מוצג, אבל ב-BIZ ערך חסר = תיבה לא מסומנת, ולכן שמירת הגדרות החנות פעם אחת בלי לגעת בתיבות שומרת <code>false</code> ומסתירה את שלושת הכפתורים הציבוריים. <code>trial_enabled, min_age, cancel_notice_days, freeze_policy, cancellation_policy</code> אינם נאכפים בשום מקום בקוד (טקסט/מידע בלבד).</div>
+</div></section>
+
+<section class="proc" data-f="cancel policy late cancellation window deduct_session block"><h3>מדיניות ביטול שיעורים (sport_cancel_policy)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל קובע חלון ביטול חינם ומה קורה בביטול מאוחר. מסך: "🚫 ביטולים" בלוח השיעורים (<code>showSportCancelPolicy</code>, business-app.js:47381).</div>
+<div>תנאים ואימותים</div><div><ul><li>GET: אם אין שורה מוחזרת ברירת מחדל <code>{enabled:true, cancel_window_hours:8, late_cancel_action:'deduct_session', late_cancel_fee:0}</code> (server.js:29935) — אך ברירה זו <b>אינה נאכפת</b>, כי הנתיבים האוכפים קוראים את הטבלה ישירות ודורשים שורה קיימת.</li><li>POST: <code>cancelWindowHours||8</code>, <code>lateCancelAction||'deduct_session'</code>, <code>lateCancelFee||0</code> (server.js:29945).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT לפי <code>group_id</code> (UNIQUE) עם <code>updated_at=NOW()</code>.</li></ol></div>
+<div>חישובים</div><div>חלונות זמינים בממשק: 2/4/8/12/24/48 שעות (business-app.js:47420).</div>
+<div>מכונת מצבים</div><div><code>late_cancel_action</code>: <code>deduct_session</code> (ניקוב כניסה), <code>block</code> (חסימה), <code>none</code> (נשלח מהלקוח, business-app.js:47436 — השרת פשוט לא מתייחס, כלומר ללא עונש).</div>
+<div>ממשק</div><div>Toggle "מדיניות פעילה", כפתורי שעות, רדיו פעולה (business-app.js:47401–47442). הלקוח לא שולח <code>lateCancelFee</code>.</div>
+<div>פערים</div><div><code>late_cancel_fee</code> נשמר אך לא משמש בשום מקום (קוד מת). ראו גם בתהליך "ביטול רישום" — חישוב הזמן לשיעור שבור כך שהמדיניות לא נאכפת בפועל.</div>
+</div></section>
+
+<section class="proc" data-f="waiver health declaration template validity minor guardian"><h3>תבנית הצהרת בריאות / תקנון (sport_waiver_templates)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מגדיר תוכן הצהרה, תוקף וחובה. מסך <code>showSportWaiverSettings</code> טאב "📝 תבנית" (business-app.js:47620, 47647).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: <code>title</code> ו-<code>content</code> חובה — "כותרת ותוכן חובה" (server.js:30238). זהה בלקוח (business-app.js:47753).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE sport_waiver_templates SET is_active=false WHERE group_id</code> (כל הקודמות).</li><li>INSERT חדשה עם <code>require_for_registration = (requireForRegistration!==false)</code>, <code>validity_months||12</code>, <code>require_guardian_for_minors = (…!==false)</code>, <code>minor_age_threshold||18</code> (server.js:30241–30244).</li><li>GET מחזיר את הפעילה האחרונה לפי <code>created_at DESC</code> (server.js:30230).</li></ol></div>
+<div>חישובים</div><div>אפשרויות תוקף בממשק: 6/12/24/36 חודשים; גיל קטין 16/17/18 (business-app.js:47674, 47680).</div>
+<div>תופעות לוואי</div><div><code>require_for_registration</code> נאכף <b>רק בצ'ק-אין</b> (<code>sportCheckinGuards</code>, server.js:29494–29497), לא ברישום לשיעור.</div>
+<div>ממשק</div><div>טקסט ברירת מחדל של 5 סעיפים מוטמע בלקוח (business-app.js:47663–47668). טקסט ההסבר בממשק: "חסום רישום לשיעור ללא חתימה" (business-app.js:47689).</div>
+<div>פערים</div><div>הטקסט בממשק מבטיח חסימת רישום לשיעור, אך השרת חוסם רק כניסה (צ'ק-אין). <code>require_guardian_for_minors</code> ו-<code>minor_age_threshold</code> אינם נאכפים בשרת. שני מקורות טקסט מקבילים להצהרה: התבנית, ו-<code>sport_settings.waiver_text</code> שבו משתמשת storefront-sport.html.</div>
+</div></section>
+
+<h2 class="grp">חברים ומנויים (sport_memberships)</h2>
+
+<section class="proc" data-f="create member join new membership payment upsert customer"><h3>הוספת חבר חדש (BIZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל רושם חבר חדש. מסך <code>showSportAddMember</code> (business-app.js:45091; עטיפה שמוסיפה תאריך לידה/מגדר business-app.js:48358) ← <code>_sportSubmitNewMember</code> (גרסה פעילה business-app.js:48387). גם מהמרת ליד (business-app.js:48606).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם חובה "יש להזין שם"; סוג מנוי חובה "יש לבחור סוג מנוי" (business-app.js:48399–48400). אם אין סוגי מנוי — מוצג קישור להוספה ואין select.</li><li>שרת (server.js:29348): <b>ללא אימות שדות</b>. מקבל <code>name|memberName</code>, <code>phone|memberPhone</code>, <code>email|memberEmail</code>. סוג מנוי לא קיים ⇒ המנוי נוצר ללא תאריך סיום ומכסה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT סוג המנוי.</li>
+<li>חישוב <code>end_date</code> ו-<code>sessions_total</code>.</li>
+<li>INSERT <code>sport_memberships</code> (<code>status</code> ברירת מחדל 'active', <code>start_date = startDate || היום</code>, <code>notes||''</code>, <code>date_of_birth, gender, id_number</code>).</li>
+<li>אם <code>paymentAmount &gt; 0</code>: INSERT <code>sport_payments</code> (<code>payment_method||'cash'</code>, notes='הצטרפות מנוי חדש') ואז <code>logBizIncome</code> עם תיאור "הצטרפות מנוי חדש — שם" (server.js:29367–29371).</li>
+<li><code>upsertStoreCustomer</code> (ללא await) עם notes "חבר מועדון: {שם הסוג}".</li>
+<li>לקוח: אם הגיע מהמרת ליד — PUT <code>/api/sport/leads/:id</code> עם <code>status:'converted', convertedToMembershipId</code> (business-app.js:48408–48416).</li>
+</ol></div>
+<div>חישובים</div><div><code>end_date = (startDate||now) + duration_days × 86400000ms</code> → ISO date (server.js:29358). <code>sessions_total = mtype.sessions</code>. סכום התשלום ממולא אוטומטית במחיר הסוג בבחירת סוג (business-app.js:45165–45172) וניתן לעריכה.</div>
+<div>מכונת מצבים</div><div>מצב התחלתי: <code>active</code>.</div>
+<div>תופעות לוואי</div><div>תנועת הכנסה ב-<code>transactions</code>; כרטיס לקוח מאוחד; קישור <code>member_business_links</code> אם הטלפון שייך למשפחת WEFLOWZ.</div>
+<div>ממשק</div><div>שדות: שם*, טלפון, אימייל, סוג מנוי*, סכום ששולם, אמצעי תשלום (cash/credit/transfer/app), תאריך התחלה (היום), ת"ז, תאריך לידה, מגדר, הערות (business-app.js:45108–45157, 48367–48380).</div>
+<div>פערים</div><div>אין מניעת כפילות לפי טלפון. <code>new Date(startDate)</code> בחישוב הסיום מפורש כ-UTC — תאריך סיום מחושב במילישניות ולא בימים קלנדריים.</div>
+</div></section>
+
+<section class="proc" data-f="members list filter expiring auto expire auto unfreeze lazy"><h3>רשימת חברים, סינון ופקיעה/הפשרה עצלה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טעינת רשימת חברים (מסך חברים, חיפוש בצ'ק-אין, בורר רישום לשיעור, ויזארד WEFLOWZ). GET <code>/api/sport/members/:groupId?status&amp;q|search</code> (server.js:29310).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>status='expiring'</code> ⇒ <code>status='active' AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+14</code>; <code>status</code> אחר ושונה מ-'all' ⇒ שוויון; חיפוש <code>ILIKE %q%</code> על שם או טלפון (server.js:29318–29325).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT עם JOIN לסוג (type_name, type_color, type_kind), מיון <code>created_at DESC</code>.</li>
+<li><b>פקיעה עצלה</b>: לכל שורה מוחזרת עם <code>status='active'</code> ו-<code>end_date &lt; now</code> — UPDATE ל-<code>expired</code> (server.js:29329–29330).</li>
+<li><b>הפשרה עצלה</b>: לכל <code>frozen</code> עם <code>frozen_until &lt; now</code> — חישוב ימי ההקפאה והארכת end_date, UPDATE ל-<code>active</code> ואיפוס <code>frozen_at/frozen_reason/frozen_until</code> (server.js:29332–29343).</li>
+</ol></div>
+<div>חישובים</div><div><code>frozenDays = floor((frozen_until − frozen_at)/86400000)</code>; <code>new end_date = end_date + frozenDays</code> (server.js:29336–29339). השוואת <code>end_date</code> (Date בחצות מקומית) מול now ⇒ המנוי פוקע מתחילת יום הסיום עצמו.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>active</td><td>expired</td><td>מערכת (בקריאת רשימה)</td><td>end_date &lt; now</td><td>אין התראה</td></tr>
+<tr><td>frozen</td><td>active</td><td>מערכת (בקריאת רשימה)</td><td>frozen_until &lt; now</td><td>הארכת end_date; אין התראה</td></tr></table></div></div>
+<div>ממשק</div><div>מסנני מסך: <code>all, active, expiring, frozen, expired</code> (business-app.js:44912). כרטיס חבר (גרסה פעילה business-app.js:48306): פיל סטטוס מחושב — active+הצהרה חסרה/פגה ⇒ "ממתין להצהרה" (צהוב); active+≤14 ימים ⇒ "פג בעוד X"; frozen סגול; expired אדום; cancelled אפור. גיל מחושב מ-DOB (365.25 ימים). כפתורים: כניסה, הקפאה, הפשרה, חידוש (expired או ≤14 ימים), חתימת הצהרה.</div>
+<div>פערים</div><div>פקיעה/הפשרה קורות רק כשמישהו טוען רשימה ורק לשורות שתאמו לסינון — דשבורד/התראות/צ'ק-אין/דוחות עלולים לראות מנויים פגים כ-active. כפתור ההקפאה בכל ארבע גרסאות הכרטיס מכיל <code>}</code> מיותר ב-onclick (<code>')}"</code>, business-app.js:44972, 46233, 47366, 48347) ⇒ שגיאת תחביר, הכפתור לא עובד; הקפאה זמינה רק מכרטיס החבר המפורט.</div>
+</div></section>
+
+<section class="proc" data-f="edit member update extended health emergency trial"><h3>עריכת פרטי חבר (בסיסי + מורחב)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עורך פרטים. <code>showSportMemberEdit</code> (business-app.js:47179) ← <code>_sportSubmitEdit</code> (business-app.js:47238) ששולח במקביל PUT <code>/members/:id</code> ו-PUT <code>/members/:id/extended</code>.</div>
+<div>תנאים ואימותים</div><div><ul><li>PUT בסיסי (server.js:29378): קורא <code>name, phone, email, notes, status</code>; ללא אימות. <code>status=COALESCE($5,status)</code>.</li><li>PUT extended (server.js:30663): <code>emergency_contact, emergency_phone, health_notes, is_trial, date_of_birth, gender, id_number</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT group_id.</li><li>UPDATE שם/טלפון/אימייל/הערות/סטטוס.</li><li><code>upsertStoreCustomer</code>.</li><li>תשובה ללקוח, ואז אם נשלח <code>status</code> — חיפוש קישור <code>member_business_links</code> פעיל לפי <code>linked_member_ref_id</code> ושליחת התראה "המנוי שלך ב{עסק} עודכן: {תווית}" עם refKey <code>mbiz_sport_{id}_{status}</code> (server.js:29386–29399).</li></ol></div>
+<div>מכונת מצבים</div><div>PUT בסיסי מאפשר כל ערך סטטוס ללא בדיקת מעבר (ממשק העריכה לא שולח status). תוויות: <code>{active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל'}</code>.</div>
+<div>ממשק</div><div>שדות: שם, טלפון, אימייל, ת. לידה, מגדר (male/female/other), ת"ז, איש קשר חירום+טלפון, הערות בריאות, "מנוי ניסיון 🆓", הערות (business-app.js:47195–47233).</div>
+<div>פערים</div><div><b>באג חמור</b>: הלקוח שולח <code>memberName/memberPhone/memberEmail</code> (business-app.js:47254) אך השרת קורא <code>name/phone/email</code> ⇒ כל שמירה מאפסת את <code>member_name</code> ל-NULL ואת הטלפון והאימייל למחרוזת ריקה. דה-דופליקציית ההתראה לפי refKey קבוע ⇒ אותו שינוי סטטוס לא יתריע פעם שנייה לעולם.</div>
+</div></section>
+
+<section class="proc" data-f="freeze membership frozen_until days reason"><h3>הקפאת מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל (BIZ: <code>showSportFreeze</code>/<code>_sportConfirmFreeze</code>, business-app.js:44981, 45014; כפתור AI <code>_aiFreezeMember</code> business-app.js:57389) או <b>החבר עצמו</b> מאפליקציית המשפחה (<code>_memberFreeze</code>, app.js:14127). POST <code>/api/sport/members/:id/freeze</code> (server.js:29404).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: ללא בדיקה שהמנוי קיים/פעיל; ללא מגבלת מספר הקפאות או אורך. לקוח: ימים min=1 max=365 (מאפייני input בלבד).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>חישוב <code>frozen_until</code> אם נשלחו ימים.</li><li>UPDATE <code>status='frozen', frozen_at=CURRENT_DATE, frozen_reason, frozen_until</code>.</li><li>אם נמצאה שורה — <code>logBizAction(...'FREEZE_MEMBER','membership', id, 'מנוי #id הוקפא', {reason})</code> עם actor 'מערכת'.</li><li>תשובה; אחר כך התראה לחבר המקושר "המנוי שלך ב{עסק} הוקפא" refKey <code>mbiz_sport_{id}_frozen</code>.</li></ol></div>
+<div>חישובים</div><div><code>frozen_until = today + days×86400000ms</code> (server.js:29408). בלי ימים — הקפאה ללא סוף עד הפשרה ידנית.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>כל מצב (בפועל active מה-UI)</td><td>frozen</td><td>מנהל / AI / החבר מאפליקציית המשפחה</td><td>אין בשרת; UI מציג רק ל-active</td><td>audit, התראה לחבר</td></tr></table></div></div>
+<div>ממשק</div><div>טופס: סיבה, ימים (אופציונלי, "המנוי יופשר אוטומטית כשיחלוף"). אפליקציית משפחה שולחת body ריק — ללא ימים וסיבה.</div>
+<div>פערים</div><div>החבר יכול להקפיא בלי הגבלה (מדיניות <code>freeze_policy</code> לא נאכפת). הקפאה מ-expired/cancelled אפשרית ב-API. התראת הקפאה שנייה לאותו מנוי לא תישלח (refKey קבוע). <code>frozen_days_banked</code> בטבלה לא בשימוש.</div>
+</div></section>
+
+<section class="proc" data-f="unfreeze membership extend end date"><h3>הפשרת מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל (<code>sportUnfreeze</code>, business-app.js:45047; AI business-app.js:57404) או החבר (<code>_memberUnfreeze</code>, app.js:14135). POST <code>/members/:id/unfreeze</code> (server.js:29427). גם אוטומטית ברשימת חברים (ראו לעיל).</div>
+<div>תנאים ואימותים</div><div><ul><li>404 "לא נמצא" אם אין רשומה. אין בדיקה שהמצב הוא frozen.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT.</li><li>חישוב end_date חדש.</li><li>UPDATE <code>status='active'</code>, איפוס frozen_*.</li><li>התראה "המנוי שלך ב{עסק} הופשר ✅" עם refKey ייחודי הכולל timestamp.</li></ol></div>
+<div>חישובים</div><div><code>frozenDays = floor((now − frozen_at)/86400000)</code>; <code>end_date += frozenDays</code> (server.js:29434–29437). רק אם קיימים גם frozen_at וגם end_date.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>frozen (בפועל כל מצב)</td><td>active</td><td>מנהל / AI / חבר</td><td>רשומה קיימת</td><td>הארכת end_date, התראה</td></tr></table></div></div>
+<div>פערים</div><div>הפשרה של מנוי שאינו frozen (למשל cancelled/expired) מחזירה אותו ל-active ללא תשלום. אין רישום audit להפשרה.</div>
+</div></section>
+
+<section class="proc" data-f="cancel membership cancelled churn"><h3>ביטול מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מכרטיס חבר "בטל מנוי ⛔" (<code>sportCancelMembership</code>, business-app.js:45062). POST <code>/members/:id/cancel</code> (server.js:29458).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: prompt לסיבה (ביטול ה-prompt עוצר), confirm מסוכן. שרת: 404 "לא נמצא".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>status='cancelled', updated_at=NOW()</code>.</li><li><code>logBizAction('CANCEL_MEMBER', …, {reason})</code>.</li><li>התראה "המנוי שלך ב{עסק} בוטל" refKey <code>mbiz_sport_{id}_cancelled</code>.</li></ol></div>
+<div>חישובים</div><div>דוח נטישה סופר ביטול לפי חודש של <code>updated_at</code> (server.js:29633–29635) — כל עדכון מאוחר יותר של הרשומה מזיז את חודש הנטישה.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>כל מצב ≠ cancelled (UI)</td><td>cancelled</td><td>מנהל</td><td>—</td><td>audit, התראה; הסיבה נשמרת רק ב-audit</td></tr><tr><td>cancelled</td><td>active</td><td>מנהל (חידוש)</td><td>—</td><td>ראו חידוש</td></tr></table></div></div>
+<div>פערים</div><div>אין החזר כספי/רישום הוצאה; רישומים עתידיים לשיעורים לא מבוטלים; ההודעה בממשק "ניתנת לביטול ע"י חידוש".</div>
+</div></section>
+
+<section class="proc" data-f="delete member permanent cascade"><h3>מחיקת חבר לצמיתות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מחק לצמיתות 🗑️" בכרטיס חבר (<code>sportDeleteMember</code>, business-app.js:45079). DELETE <code>/members/:id</code> (server.js:29481).</div>
+<div>תנאים ואימותים</div><div><ul><li>404 "לא נמצא". confirm מסוכן בלקוח.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT group_id, member_name.</li><li>DELETE.</li><li><code>logBizAction('DELETE_MEMBER', …)</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>FK: רישומים לשיעורים, רשימות המתנה והצהרות — <code>ON DELETE CASCADE</code>; כניסות ותשלומים — <code>ON DELETE SET NULL</code> (server.js:1690, 1712, 1726, 1743, 1771); ליד מומר — SET NULL.</div>
+<div>פערים</div><div>הודעת ה-confirm טוענת שגם היסטוריית הכניסות והתשלומים "יימחקו" (business-app.js:45080), בפועל הם נשארים יתומים (membership_id=NULL) וממשיכים להיספר בדוחות.</div>
+</div></section>
+
+<section class="proc" data-f="renew membership renewal payment reset sessions"><h3>חידוש מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מהתראות/כרטיס חבר/כרטיס ברשימה (<code>showSportRenewMember</code>, business-app.js:45999). POST <code>/members/:id/renew</code> (server.js:29668).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: סוג חובה "יש לבחור סוג מנוי". שרת: 404 "סוג מנוי לא נמצא" / "חבר לא נמצא". אין בדיקת שייכות הסוג לעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT סוג.</li><li>UPDATE המנוי <b>באותה רשומה</b>: <code>membership_type_id, start_date, end_date, sessions_total, sessions_used=0, status='active', frozen_at=NULL, frozen_reason=NULL</code>.</li><li>אם <code>paymentAmount &gt; 0</code>: INSERT <code>sport_payments</code> + <code>logBizIncome</code> "מנוי ספורט — שם".</li></ol></div>
+<div>חישובים</div><div><code>sd = startDate || היום</code>; <code>end_date = sd + duration_days</code> ימים (setDate, server.js:29676). אין צבירת יתרה מהמנוי הקודם.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>כל מצב</td><td>active</td><td>מנהל</td><td>סוג קיים</td><td>איפוס מכסה, תשלום אופציונלי</td></tr></table></div></div>
+<div>ממשק</div><div>סוג (ברירת מחדל הסוג הנוכחי), תאריך התחלה, אמצעי תשלום, סכום (ריק = ללא תשלום) (business-app.js:46011–46031).</div>
+<div>פערים</div><div><code>frozen_until</code> לא מאופס בחידוש. ההיסטוריה של המנוי הקודם (תאריכים/סוג) נדרסת — אין טבלת היסטוריה. אין התראה לחבר.</div>
+</div></section>
+
+<section class="proc" data-f="member detail profile checkins classes payments total paid"><h3>כרטיס חבר מפורט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על חבר. GET <code>/member-detail/:id</code> (server.js:29651) — 4 שאילתות במקביל: החבר + type_name/type_kind/type_price; כל הכניסות; 20 שיעורים אחרונים עם attended; 10 תשלומים אחרונים.</div>
+<div>תנאים ואימותים</div><div><ul><li>404 "לא נמצא".</li></ul></div>
+<div>חישובים</div><div>"סה"כ שילם" = סכום 10 התשלומים האחרונים בלבד (business-app.js:47288). כניסות נותרות = <code>sessions_total − sessions_used</code>.</div>
+<div>ממשק</div><div>גרסה פעילה business-app.js:47267: תג "ניסיון", אזור חירום/בריאות אדום, כפתורים: חדש, QR, הקפא (active), הפשר (frozen), תשלום, 🔗 WEFLOWZ, בטל מנוי (≠cancelled), מחק לצמיתות; 10 כניסות אחרונות, שיעורים (✅/❌), תשלומים.</div>
+<div>פערים</div><div>"סה"כ שילם" מטעה — מוגבל ל-10 תשלומים.</div>
+</div></section>
+
+<section class="proc" data-f="qr token member card digital"><h3>כרטיס כניסה דיגיטלי (QR token)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"QR 📱" בכרטיס חבר (<code>showSportMemberQR</code>, business-app.js:47131). GET <code>/member-qr/:id</code> (server.js:30648); גם נוצר ברכישה ציבורית (server.js:30091).</div>
+<div>שלבי עיבוד</div><div><ol><li>אם אין <code>qr_token</code> — יצירת <code>crypto.randomBytes(16).hex</code> (32 תווים) ושמירה.</li><li>הלקוח בונה URL <code>{origin}/api/sport/qr-checkin-page?token=…</code> ומציג תמונה מ-<code>api.qrserver.com</code> (200×200).</li><li>שיתוף: <code>navigator.share</code> או קישור <code>wa.me</code> עם טקסט.</li></ol></div>
+<div>תופעות לוואי</div><div>הטוקן נשלח לשירות צד שלישי (qrserver.com) כחלק מה-URL.</div>
+<div>פערים</div><div>הנתיב <code>/api/sport/qr-checkin-page</code> לא קיים בשרת — סריקת ה-QR מובילה ל-404. נתיב ה-POST <code>/qr-checkin</code> קיים אך אף לקוח לא קורא לו. אזור אישי ב-sc-auth מצייר QR מהטוקן הגולמי (sc-auth.js:1061–1064).</div>
+</div></section>
+
+<section class="proc" data-f="sign declaration waiver admin public validity status alerts"><h3>חתימה על הצהרת בריאות, סטטוס והתראות תוקף</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) מנהל חותם בשם החבר (<code>showSportAdminSignWaiver</code>, business-app.js:47765) ← POST <code>/sign-declaration</code> (server.js:30274). (ב) לקוח בחנות אחרי רכישה ← POST <code>/public-sign-declaration</code> (server.js:30292; storefront-sport.html:2787, storefront.html:5164, storefront-btype.js:485).</div>
+<div>תנאים ואימותים</div><div><ul><li>admin: <code>groupId, membershipId</code> חובה — "חסרים שדות חובה". לקוח: חייב ללחוץ על אזור החתימה (<code>_sportSigSigned</code>) — "יש לאשר חתימה"; דורש תבנית קיימת — "אין תבנית הצהרה — צור תבנית תחילה".</li><li>public: <code>groupId, memberPhone</code> חובה; 404 "לא נמצא מנוי" — בוחר את המנוי האחרון לפי <code>id DESC</code> לטלפון.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קריאת התבנית הפעילה; <code>validityMonths = validity_months||12</code>.</li><li>INSERT <code>sport_health_declarations</code> (טקסט = declarationText או תוכן התבנית; ב-public תמיד תוכן התבנית; <code>signature_data</code> — ב-admin המחרוזת <code>'admin-confirmed'</code>).</li><li>UPDATE <code>sport_memberships.waiver_signed_at=NOW(), waiver_valid_until</code>.</li></ol></div>
+<div>חישובים</div><div><code>valid_until = today + validity_months</code> (setMonth). סטטוס (server.js:30260): <code>isValid = hasSigned AND waiver_valid_until &gt; now</code>; <code>daysUntilExpiry = ceil((valid_until − now)/86400000)</code>. התראות (server.js:30313): חברים active עם <code>waiver_valid_until IS NULL OR &lt; CURRENT_DATE + 14 days</code>, מיון NULLS FIRST. קטין בלקוח: <code>שנה נוכחית − שנת לידה &lt; minor_age_threshold</code> (business-app.js:47774) — חישוב לפי שנים בלבד.</div>
+<div>ממשק</div><div>טאבים "✅ חתומות" (תג "פג תוקף"/"בתוקף", פרטי הורה לקטין) ו-"⚠️ התראות" (תוויות: "מעולם לא חתם" / "פג לפני X ימים" / "פג בעוד X ימים") (business-app.js:47702–47742). באנר במסך התראות (business-app.js:47846). שדות הורה מוצגים אם קטין <b>או</b> שהתבנית דורשת אפוטרופוס.</div>
+<div>פערים</div><div>"חתימה" היא לחיצה אחת ללא לכידת חתימה; public אינו שומר <code>is_minor</code>; public בוחר מנוי לפי טלפון ולא לפי <code>membershipId</code> שהלקוח שולח. storefront-sport.html חותם רק כש-<code>sport_settings.waiver_text</code> קיים, בעוד ש-storefront.html בודק את התבנית — שתי לוגיקות שונות.</div>
+</div></section>
+
+<h2 class="grp">כניסות (צ'ק-אין)</h2>
+
+<section class="proc" data-f="checkin manual entry guards waiver sessions punch"><h3>צ'ק-אין ידני (BIZ) ושומרי הכניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך "כניסה למועדון 🚪" (<code>showSportCheckIn</code>, business-app.js:44763): חיפוש (≥2 תווים, רק active) ← <code>_sportDoCheckin</code>. גם מכרטיס חבר, מכפתור AI ומ-storefront.html (business-app.js:57418; storefront.html:4997). POST <code>/api/sport/checkin</code> (server.js:29507).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>לקוח: סטטוס ≠ active ⇒ "לא ניתן לרשום כניסה — מנוי מוקפא/לא פעיל".</li>
+<li>שרת לפי סדר: 404 "חבר לא נמצא"; expired ⇒ "המנוי פג תוקף"; frozen ⇒ "המנוי מוקפא"; cancelled ⇒ "המנוי בוטל"; <code>sessions_total!==null AND sessions_used &gt;= sessions_total</code> ⇒ "כרטיסייה מנוצלת עד תום" (status 'no_sessions').</li>
+<li><code>sportCheckinGuards</code> (server.js:29493): אם בתבנית פעילה <code>require_for_registration</code> ו-<code>waiver_valid_until</code> לא בעתיד ⇒ "נדרשת חתימה על הצהרת בריאות תקפה לפני כניסה" (waiver_required); כניסה קיימת היום לאותו מנוי ⇒ "כבר בוצע צ׳ק-אין היום" (already_in).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מנוי.</li><li>בדיקות.</li><li>INSERT <code>sport_checkins(group_id, membership_id, member_name)</code>.</li><li>אם יש מכסה — <code>sessions_used+1</code>.</li></ol></div>
+<div>חישובים</div><div>מגבלה: כניסה אחת ליום לחבר (<code>DATE(checked_in_at)=CURRENT_DATE</code>). הודעה בלקוח: נותרו <code>sessions_total − sessions_used − 1</code>; אם ≤0 "כרטיסייה מנוצלת 🔔".</div>
+<div>מכונת מצבים</div><div>כניסה: פתוחה (<code>checked_out_at IS NULL</code>) ← סגורה (יציאה) / נמחקת (ביטול).</div>
+<div>ממשק</div><div>רשימת "כניסות היום (N)" עם שעת כניסה, כפתורי "יציאה"/"ביטול", ומשך ביקור (<code>_sportLoadCheckinToday</code>, business-app.js:44843).</div>
+<div>פערים</div><div>אין בדיקת <code>end_date</code> בשרת — מנוי שפג אך עוד לא עודכן עצלות ל-expired יעבור. אין בדיקת שייכות <code>membershipId</code> ל-<code>groupId</code>.</div>
+</div></section>
+
+<section class="proc" data-f="self checkin phone customer storefront"><h3>צ'ק-אין עצמי לפי טלפון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר באזור האישי בחנות: "✅ צ׳ק-אין עצמי" (sc-auth.js:1067–1091). POST <code>/self-checkin</code> (server.js:29534).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>groupId, phone</code> חובה — "חסרים פרמטרים". המנוי האחרון לפי <code>created_at</code> עם <code>status='active'</code> וטלפון זהה, אחרת "לא נמצא מנוי פעיל". מכסה ו-<code>sportCheckinGuards</code> כמו בידני.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT כניסה; <code>sessions_used+1</code> אם יש מכסה.</li><li>החזרת <code>sessionsLeft = sessions_total − sessions_used − 1</code> או null.</li></ol></div>
+<div>פערים</div><div>הלקוח קורא את הטלפון מ-<code>window._scAuth</code> (sc-auth.js:1073) — אובייקט שאינו מוגדר (המודול חושף <code>window.scAuth</code>) ⇒ תמיד "שגיאה: לא זוהה לקוח מחובר". <code>groupId</code> נלקח מ-<code>window._scBizId</code> (לא מוגדר) או מ-<code>?store=</code> שעשוי להיות קוד/כינוי ולא מזהה מספרי. אין אימות שהטלפון שייך למשתמש המחובר.</div>
+</div></section>
+
+<section class="proc" data-f="qr checkin token public"><h3>צ'ק-אין באמצעות QR</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>POST <code>/qr-checkin</code> עם <code>qrToken</code> (server.js:30629). אין קורא בלקוחות (ראו כרטיס QR).</div>
+<div>תנאים ואימותים</div><div><ul><li>"לא תקין" אם חסר טוקן; 404 "כרטיס לא נמצא"; <code>status≠active</code> ⇒ "מנוי מוקפא"/"מנוי לא פעיל"; מכסה; guards (משתמש ב-<code>m.group_id</code> ולא ב-groupId שנשלח).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT כניסה; עדכון מכסה; תשובה עם <code>remaining</code> ו-<code>endDate</code>.</li></ol></div>
+<div>פערים</div><div>נתיב ללא צרכן (קוד מת מבחינת UI).</div>
+</div></section>
+
+<section class="proc" data-f="checkout cancel checkin restore session"><h3>יציאה וביטול כניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתורי "יציאה"/"ביטול" ברשימת כניסות היום (business-app.js:44879, 44888).</div>
+<div>תנאים ואימותים</div><div><ul><li>יציאה (server.js:29571): UPDATE רק אם <code>checked_out_at IS NULL</code>, אחרת 404 "כניסה לא נמצאה או כבר בוצעה יציאה".</li><li>ביטול (server.js:29555): 404 "כניסה לא נמצאה"; confirm בלקוח.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יציאה: <code>checked_out_at=NOW()</code>.</li><li>ביטול: DELETE הכניסה; אם למנוי יש מכסה — <code>sessions_used = GREATEST(sessions_used−1, 0)</code>.</li></ol></div>
+<div>חישובים</div><div>משך ביקור בלקוח: דקות = round((out−in)/60000); ≥60 ⇒ "Xש׳ Yד׳" (business-app.js:44858–44861). "בפנים כרגע" בדשבורד = כניסות היום ללא יציאה.</div>
+<div>פערים</div><div>אין יציאה אוטומטית בסוף יום — "בפנים כרגע" נשאר גבוה אם לא לוחצים יציאה.</div>
+</div></section>
+
+<h2 class="grp">תשלומים, KPIs, התראות ודוחות</h2>
+
+<section class="proc" data-f="payment record income sport_payments transactions"><h3>רישום תשלום ידני</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"תשלום 💰" בכרטיס חבר (<code>_sportAddPayment</code>/<code>_sportConfirmPayment</code>, business-app.js:46143, 46189). POST <code>/api/sport/payments</code> (server.js:29693).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: סכום &gt; 0 — "יש להזין סכום תקין". שרת: אין אימות (amount NOT NULL ברמת DB).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>sport_payments(group_id, membership_id, member_name, amount, payment_method||'cash', notes||'')</code>.</li><li><code>logBizIncome(groupId, amount, 'מנוי ספורט — שם', method)</code>.</li></ol></div>
+<div>חישובים</div><div>סכום מוצע = <code>type_price</code> של המנוי. אמצעי תשלום: cash/credit/transfer/app (תוויות מזומן/אשראי/העברה/אפליקציה). אין מע"מ/הנחות/עמלות בקוד.</div>
+<div>תופעות לוואי</div><div>כל תשלום (גם בהצטרפות/חידוש/רכישה ציבורית) נכתב פעמיים: ב-<code>sport_payments</code> וב-<code>transactions</code>.</div>
+<div>פערים</div><div>אין מחיקה/החזר תשלום. אין נתיב GET לתשלומים (ה-AI קורא <code>/sport/payments/:groupId</code> שלא קיים, business-app.js:46519).</div>
+</div></section>
+
+<section class="proc" data-f="dashboard kpi active expiring checkins revenue at risk polling"><h3>דשבורד מנהל מועדון — KPIs</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>renderDashboard</code> ל-ADMIN בעסק ספורט (business-app.js:5628) או מנהל סניף (business-app.js:39856) ← <code>renderSportDashboard</code> (business-app.js:45755, עטוף ב-V9 business-app.js:48648). GET <code>/dashboard/:groupId</code> (server.js:29229) + <code>/alerts</code>.</div>
+<div>חישובים</div><div><ul>
+<li><code>active_members</code> = COUNT status='active'.</li>
+<li><code>expiring_soon</code> = active עם end_date בין היום להיום+14.</li>
+<li><code>checkins_today</code>; <code>currently_in</code> = כניסות היום ללא יציאה.</li>
+<li><code>at_risk</code> ("רדומים") = active שאין להם כניסה ב-30 הימים האחרונים.</li>
+<li><code>revenue_month</code> = SUM <code>transactions.amount</code> type='income' מתחילת החודש — <b>כל הכנסות העסק</b>, לא רק ספורט (server.js:29240–29242).</li>
+<li>באנר: מנויים מתוך alerts.expiring עם ≤7 ימים (business-app.js:45767).</li></ul></div>
+<div>ממשק</div><div>6 KPI לחיצים (business-app.js:45778–45785), 10 פעולות מהירות + שורת V9 (WEFLOWZ/הודעות/AI) ותג לא-נקראו מ-<code>/api/inbox</code>. רענון אוטומטי כל <b>30 שניות</b> כשלא פתוח מסך ספורט (business-app.js:5646–5654, 45626–45632).</div>
+<div>פערים</div><div>"הכנסה החודש" כוללת הכנסות לא-ספורט. "תורים" (sport-appointments) מתווסף כפעולה מהירה; כמה פעולות מהירות (<code>sport-appointments</code>) מטופלות רק בעטיפה המאוחרת (business-app.js:60126).</div>
+</div></section>
+
+<section class="proc" data-f="alerts expiring at risk frozen waitlist banner"><h3>מסך התראות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportAlerts</code> (business-app.js:45937, עטוף business-app.js:47846). GET <code>/alerts/:groupId</code> (server.js:29580).</div>
+<div>חישובים</div><div><ul><li>expiring: active, end_date בין היום להיום+14 (קבוע 14 בקוד ולא דרך הקבוע), מיון end_date.</li><li>atRisk: active ללא כניסה 30 יום, כולל <code>last_checkin</code> = MAX כניסה.</li><li>frozen: כל המוקפאים לפי frozen_at DESC.</li><li>שגיאה ⇒ מערכים ריקים (לא 500).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח גם קורא <code>/waitlist-pending</code> (שמפעיל קידום עצל — ראו המתנה) ומציג באנר "⏳ ממתינים לאישור מקום".</li><li>העטיפה מוסיפה באנר הצהרות שפגו/חסרות מתוך <code>/waiver-alerts</code>.</li></ol></div>
+<div>ממשק</div><div>expiring: "חדש" + 📞, "עוד X ימים"/"פג!"; atRisk: ביקור אחרון/"מעולם לא"; frozen: "הפשר". מסך "רדומים" נפרד (<code>showSportAtRisk</code>, business-app.js:45905).</div>
+</div></section>
+
+<section class="proc" data-f="reports churn revenue by type checkins classes export csv unified"><h3>דוחות ספורט, נטישה וייצוא CSV</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) GET <code>/api/sport/reports/:groupId?period=month|year</code> (server.js:29604) — אין לו צרכן ב-BIZ; <code>showSportReports</code> מנווט לטאב "reports" (business-app.js:46480). (ב) הדוח המאוחד <code>/api/reports/:groupId</code> מחזיר <code>result.sport</code> לסוג ספורט (server.js:33785–33807), מוצג ב-business-app.js:2514. (ג) ייצוא CSV דרך <code>/api/biz/export-report</code> (מוגן <code>verifyBiz</code>, server.js:16373) סוגים <code>sport-members, sport-checkins, sport-revenue, sport-classes</code> (server.js:16455–16476).</div>
+<div>חישובים</div><div><ul>
+<li>revenueByType: COUNT+SUM <code>sport_payments</code> לפי שם סוג המנוי הנוכחי של החבר (לא הסוג בזמן התשלום).</li>
+<li>revenueByMonth: 6 חודשים, <code>TO_CHAR(paid_at,'YYYY-MM')</code>.</li>
+<li>checkinsByDay: 30 יום.</li>
+<li>classStats: 20 שיעורים מ-30 הימים האחרונים עם registered/capacity.</li>
+<li>churnByMonth: expired לפי חודש end_date + cancelled לפי חודש updated_at, 6 חודשים.</li>
+<li><code>churnRatePercent = round(churned_this_month/(active_now+churned_this_month)×1000)/10</code> (server.js:29640) — אחוז עם ספרה עשרונית אחת.</li>
+<li>CSV שיעורים: <code>fill = registrations/capacity×100</code> toFixed(0); מגבלות שורות: כניסות/תשלומים 5000, שיעורים 2000.</li></ul></div>
+<div>ממשק</div><div>בדוח המאוחד: "הכנסות מנויים" = סכום revenueByType, "סה"כ חברים" = סכום membersByStatus, טבלת הכנסה לפי סוג (business-app.js:2514–2530).</div>
+<div>פערים</div><div>שינוי סוג מנוי (חידוש) משייך מחדש את כל התשלומים ההיסטוריים לסוג החדש בדוח. נתיב <code>/sport/reports</code> מיותר (אין צרכן).</div>
+</div></section>
+
+<h2 class="grp">שיעורים קבוצתיים: סוגים, לוח, רישום, נוכחות, המתנה</h2>
+
+<section class="proc" data-f="class types booking rules allowed memberships open close hours"><h3>סוגי שיעורים וכללי הרשמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportClassTypes</code> (business-app.js:46686), נגיש מלוח השיעורים ומקיצור בטאב מכירות. נזרע בויזארד עם <code>booking_open_days=7, booking_close_hours=2, max_per_session=20</code> (server.js:5566–5568).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם חובה. שרת POST/PUT (server.js:29711, 29725): ללא אימות; <code>color||'indigo'</code>, <code>default_duration_min||60</code>, <code>allowed_membership_type_ids</code> JSON (ריק = כולם), <code>booking_open_days||null</code>, <code>booking_close_hours ?? 1</code>, <code>max_per_session||null</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET מחזיר רק <code>is_active=true</code> לפי שם.</li><li>DELETE = מחיקה רכה <code>is_active=false</code> (server.js:29741).</li></ol></div>
+<div>חישובים</div><div>כללים נאכפים רק ברישום ציבורי (ראו). צבעים: indigo, violet, emerald, orange, red, blue, teal, pink.</div>
+<div>פערים</div><div><code>bookingOpenDays=0</code> נשמר כ-NULL בגלל <code>||null</code> (0 ימים = "תמיד"). <code>max_per_session</code> נשמר אך לא נאכף בשום מקום ולא נשלח מהממשק. <code>default_duration_min</code> לא משמש לחישוב שעת סיום.</div>
+</div></section>
+
+<section class="proc" data-f="class schedule create edit delete equipment trainer"><h3>יצירה, עריכה ומחיקה של שיעור; שיוך ציוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ שיעור" (<code>showSportAddClass</code>, business-app.js:46303) ← POST <code>/classes</code> (server.js:29760). עריכה ✏️ (<code>showSportEditClass</code>, business-app.js:50040) ← PUT <code>/classes/:id</code> (server.js:29770) + POST <code>/classes/:id/equipment</code>. מחיקה 🗑️ ← DELETE (server.js:29779).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם ותאריך חובה — "שם ותאריך הם שדות חובה". שרת: ללא אימות; <code>capacity||20</code>; <code>status||'scheduled'</code> ב-PUT.</li><li>מאמן: אם יש מאמנים — select ששולח <code>trainerId</code>+שם; אחרת שדה טקסט חופשי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>sport_classes</code>.</li><li>ציוד: DELETE כל השיוכים ואז INSERT מחדש (<code>ON CONFLICT DO NOTHING</code>) (server.js:29797–29800); פריטים מ-<code>/api/equipment/items</code>.</li><li>מחיקה: DELETE; רישומים/המתנה/ציוד ב-CASCADE, <code>sport_trainer_sessions.class_id</code> SET NULL.</li></ol></div>
+<div>חישובים</div><div>GET <code>/classes/:groupId</code> ברירת טווח: היום עד היום+14 (server.js:29747–29748); <code>trainer_name = COALESCE(tr.name, sc2.trainer_name)</code>; <code>registered_count</code> כולל את כל הרישומים.</div>
+<div>ממשק</div><div>אישור מחיקה ממליץ "בטל שיעור" במקום (business-app.js:46377).</div>
+<div>פערים</div><div>עריכה תמיד שולחת <code>status:'scheduled'</code> (business-app.js:50109) ⇒ עריכת שיעור מבוטל/שהושלם מחזירה אותו ל-scheduled. PUT לא מעדכן <code>class_type_id</code>. מחיקת שיעור לא מודיעה לנרשמים.</div>
+</div></section>
+
+<section class="proc" data-f="recurring classes weekly template weekdays"><h3>יצירת שיעורים חוזרים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"🔁" (<code>showSportAddRecurring</code>, business-app.js:46892) ← POST <code>/classes/recurring</code> (server.js:30027).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: שם; לפחות יום אחד; טווח; סיום אחרי התחלה; טווח ≤365 ימים — "טווח מקסימלי הוא שנה" (business-app.js:46966–46972).</li><li>שרת: <code>weekDays</code> לא ריק, <code>fromDate</code>, <code>toDate</code> — "חסרים שדות חובה". אין מגבלת טווח בשרת.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לולאה יומית מ-from עד to; לכל יום ש-<code>getDay()</code> ב-weekDays (0=ראשון) — INSERT שיעור נפרד (ללא trainer_id).</li><li>מחזיר <code>count</code> ו-<code>classIds</code>.</li></ol></div>
+<div>פערים</div><div>select המאמן בטופס החוזר שולח שם ולא מזהה ⇒ השיעורים לא מקושרים ל-<code>trainer_id</code> ולא יופיעו בעמודת המאמן ביומן. <code>getDay()</code> על תאריך UTC — תלוי אזור זמן השרת.</div>
+</div></section>
+
+<section class="proc" data-f="cancel class status cancelled notify registered completed"><h3>ביטול שיעור ומצבי שיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"⛔ בטל שיעור" (<code>_sportCancelClass</code>, business-app.js:46366) ← PATCH <code>/classes/:id/status</code> (server.js:29808).</div>
+<div>תנאים ואימותים</div><div><ul><li>"חסר status"; 404 "לא נמצא". כל ערך status מתקבל.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE status.</li><li>אם 'cancelled': לכל membership רשום — חיפוש קישור WEFLOWZ פעיל ושליחת "השיעור "{שם}" ב{עסק} ב-{תאריך} בוטל" refKey <code>mbiz_sport_class_{id}_cancelled</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>scheduled</td><td>cancelled</td><td>מנהל</td><td>—</td><td>התראה לנרשמים המקושרים; מוסתר מהלוח הציבורי (server.js:30073); מוצג קו חוצה ב-BIZ</td></tr>
+<tr><td>scheduled</td><td>completed</td><td>מנהל (שמירת נוכחות)</td><td>—</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>scheduled</td><td>מנהל (עריכה)</td><td>תמיד בעריכה</td><td>—</td></tr></table></div></div>
+<div>פערים</div><div>הרישומים לא נמחקים בביטול; ביומן הויזואלי שיעורים מבוטלים מסוננים. אין מנגנון "שחזור".</div>
+</div></section>
+
+<section class="proc" data-f="class register registration capacity admin"><h3>רישום חבר לשיעור (BIZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ הוסף" במסך ניהול שיעור ← בורר חיפוש (<code>_sportRegisterToClass</code>, business-app.js:46425) ← POST <code>/classes/:id/register</code> (server.js:29850). גם כפתור AI (business-app.js:57433).</div>
+<div>תנאים ואימותים</div><div><ul><li>404 "שיעור לא נמצא"; COUNT רישומים ≥ <code>capacity||20</code> ⇒ "השיעור מלא".</li><li>הבורר מציג גם חברים לא פעילים (עם ⚠️) — אין חסימה לפי סטטוס/הצהרה/סוג מנוי/חלון הרשמה/מכסת כניסות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>sport_class_registrations</code> <code>ON CONFLICT DO NOTHING</code> (UNIQUE class_id+membership_id).</li></ol></div>
+<div>פערים</div><div>רישום אינו מנקב כניסה; רק נוכחות/צ'ק-אין. אין הצעה להוסיף להמתנה כשהשיעור מלא.</div>
+</div></section>
+
+<section class="proc" data-f="attendance mark present completed"><h3>סימון נוכחות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "נרשמים ✅" ← "שמור" (<code>_sportSaveAttendance</code>, business-app.js:46415) ← POST <code>/classes/:id/attendance</code> (server.js:29864).</div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE כל הרישומים <code>attended=false</code>.</li><li>UPDATE <code>attended=true</code> ל-<code>membership_id = ANY(presentIds)</code>.</li><li>UPDATE השיעור <code>status='completed'</code>.</li></ol></div>
+<div>פערים</div><div>נוכחות לא יוצרת <code>sport_checkins</code> ולא מנקבת כניסה בכרטיסייה. רישומים עם <code>membership_id=NULL</code> (drop-in ציבורי) לא ניתנים לסימון (id ריק בתיבת הסימון).</div>
+</div></section>
+
+<section class="proc" data-f="cancel registration late policy deduct promote waitlist"><h3>ביטול רישום לשיעור (BIZ) ואכיפת מדיניות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✕" ליד נרשם (<code>_sportRemoveRegistration</code> פעיל business-app.js:47469 עם <code>?groupId</code>). DELETE <code>/classes/:id/registrations/:membershipId?groupId&amp;force</code> (server.js:29987).</div>
+<div>תנאים ואימותים</div><div><ul><li>מדיניות נבדקת רק אם נשלח <code>groupId</code>, לא נשלח <code>force</code>, קיימת שורת מדיניות ו-<code>enabled</code>.</li><li>ביטול מאוחר: <code>0 &lt; hoursUntilClass &lt; cancel_window_hours</code>. <code>deduct_session</code> ⇒ <code>sessions_used+1</code> (רק אם יש מכסה); <code>block</code> ⇒ 400 "ביטול מאוחר — פחות מ-X שעות לשיעור" עם <code>lateCancellation:true</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>cancelled_at=NOW(), cancel_type='late'|'on_time'</code>.</li><li>DELETE הרישום (העדכון הקודם נמחק מיד).</li><li>קידום: הראשון ב-<code>status='waiting'</code> לפי position ⇒ <code>status='pending', promoted_at=NOW(), expires_at=NOW()+30min</code>, ו-<code>_notifyWaitlistPromoted</code>.</li></ol></div>
+<div>חישובים</div><div><code>hoursUntilClass = (Date(`${class_date}T${start_time||'00:00'}:00`) − now)/3600000</code> (server.js:29997–29998).</div>
+<div>תופעות לוואי</div><div>התראה למקודם: "התפנה לך מקום בשיעור "{שם}" ב{עסק} ב-{תאריך}! יש לך 30 דקות לאשר את המקום" (server.js:29891–29893).</div>
+<div>ממשק</div><div>Toast: "הוסר ✅ (ניקוב session — ביטול מאוחר) | {שם} הועלה ממתנה ⏳".</div>
+<div>פערים</div><div><b>המדיניות לא נאכפת בפועל</b>: <code>class_date</code> מוחזר כאובייקט Date ו-<code>start_time</code> כ-"HH:MM:SS", כך שהמחרוזת הנבנית אינה תאריך תקין ⇒ <code>NaN</code> ⇒ התנאי תמיד false. שמירת <code>cancelled_at/cancel_type</code> חסרת משמעות כי השורה נמחקת. אין קידום אם הרשימה שבוטלה לא הייתה מלאה — מקודם גם אם יש מקום.</div>
+</div></section>
+
+<section class="proc" data-f="waitlist position pending confirm expire 30 minutes promote"><h3>רשימת המתנה: הוספה, הסרה, אישור ותפוגה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "המתנה ⏳" בניהול שיעור (business-app.js:47553), מסך "ממתינים לאישור מקום" (business-app.js:47488), רישום ציבורי לשיעור מלא, וטופס המתנה ב-storefront.html:4835.</div>
+<div>תנאים ואימותים</div><div><ul><li>הוספה (server.js:29908): ללא אימות; <code>position = MAX(position)+1</code>; <code>ON CONFLICT DO NOTHING</code> (UNIQUE class_id+membership_id). ב-BIZ: prompt שם ובחירת <b>התוצאה הראשונה</b> בחיפוש (business-app.js:47078–47083).</li><li>אישור (server.js:29974): חייב רשומה <code>status='pending'</code> — "אין מקום פנוי לאישור או שפג תוקף"; <code>expires_at &lt; now</code> ⇒ "פג תוקף האישור (30 דקות)".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אישור: INSERT רישום (ללא בדיקת קיבולת) ← DELETE רשומת ההמתנה ← <code>position−1</code> לכל ה-waiting בשיעור.</li>
+<li>הסרה (server.js:29918): DELETE ← מספור מחדש 1..n לפי position.</li>
+<li>תפוגה עצלה: בכל GET <code>/waitlist-pending/:groupId</code> (server.js:29951) — pending עם <code>expires_at &lt; NOW()</code> ⇒ <code>expired</code>, וקידום הבא ב-waiting ל-pending+30 דק' + התראה.</li>
+</ol></div>
+<div>חישובים</div><div>חלון אישור: <code>INTERVAL '30 minutes'</code> (server.js:29962, 30017, 30218).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>waiting</td><td>מנהל / לקוח ציבורי</td><td>הוספה</td><td>position הבא</td></tr>
+<tr><td>waiting</td><td>pending</td><td>מערכת</td><td>ביטול רישום, או תפוגת pending קודם</td><td>expires_at=+30 דק', התראה ל-WEFLOWZ</td></tr>
+<tr><td>pending</td><td>(נמחק ← רישום)</td><td>מנהל "אשר מקום"</td><td>לפני expires_at</td><td>INSERT רישום, הזזת positions</td></tr>
+<tr><td>pending</td><td>expired</td><td>מערכת</td><td>קריאת waitlist-pending אחרי expires_at</td><td>קידום הבא</td></tr>
+<tr><td>כל מצב</td><td>(נמחק)</td><td>מנהל "✕"/"דלג"</td><td>—</td><td>מספור מחדש, <b>ללא קידום</b></td></tr></table></div></div>
+<div>ממשק</div><div>pending מוצג עם טיימר דקות (אדום ≤10) וכפתור "אשר"; מסך pending: "אשר מקום ✅" / "דלג (הבא) ⏭️".</div>
+<div>פערים</div><div>"דלג" מבטיח "הבא ברשימה הועלה" (business-app.js:47545) אך DELETE לא מקדם. אישור נעשה ע"י המנהל בלבד — אין נתיב לחבר לאשר בעצמו, למרות שההתראה אומרת "יש לך 30 דקות לאשר". רשומות <code>expired</code> נשארות עם position ומונעות הצטרפות מחדש (UNIQUE). המתנה ציבורית עם <code>membershipId=null</code> מאפשרת כפילויות ולא ניתנת לאישור. תפוגה רק כשמנהל פותח התראות/ממתינים.</div>
+</div></section>
+
+<section class="proc" data-f="schedule views list grid trainer week month filter ics export"><h3>לוח שיעורים ב-BIZ: תצוגות, סינון וייצוא ICS</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportSchedule</code> בנוי משרשרת עטיפות: בסיס (business-app.js:47103) + מאמנים (48278) + ICS (48476) + סרגל סינון (49613) + מתג רשימה/יומן (49659) + סרגל יום/שבוע/חודש וקיבוץ (49886).</div>
+<div>חישובים</div><div><ul><li>מילוי: <code>fill = min(100, round(registered_count/(capacity||20)×100))</code>; מלא כש-<code>registered_count ≥ capacity||20</code>.</li><li>יומן יום: עמודה לכל מאמן עם שיעורים ביום + "ללא מאמן משויך"; טווח שעות 06:00–22:00 (<code>HOUR_START=6, HOUR_END=22</code>), גובה מינימלי 3% (business-app.js:49747–49762).</li><li>שבוע: מראשון עד שבת; חודש: רשת 7 עמודות עם ספירת שיעורים.</li><li>ICS: 30 יום קדימה, TZID Asia/Jerusalem, ברירת שעות 07:00–08:00, תיאור "מקומות: פנוי/קיבולת" (business-app.js:48423–48471).</li></ul></div>
+<div>ממשק</div><div>סינון בצד לקוח לפי טקסט, מאמן, סוג, תאריך מדויק וטווח (business-app.js:49580). כפתורי כותרת: 📅 ICS, 👨‍🏫 מאמנים, 🚫 ביטולים, 🎽 סוגים, 🔁, + שיעור.</div>
+<div>פערים</div><div><code>class_date</code> מגיע כמחרוזת ISO עם שעה (סדרת Date) ⇒ בשבוע/חודש ההשוואה <code>c.class_date===dStr</code> עלולה לא להתאים, וב-ICS <code>replace(/-/g,'')</code> מייצר DTSTART לא תקין. ההיסט היומי מבוסס <code>toISOString</code> (UTC).</div>
+</div></section>
+
+<h2 class="grp">מאמנים, שכר ותורים אישיים</h2>
+
+<section class="proc" data-f="trainers crud pay type hourly per class revenue bonus work hours"><h3>ניהול מאמנים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportTrainers</code> (business-app.js:47871), טופס <code>_sportTrainerForm</code> (business-app.js:48009). POST/PUT/DELETE <code>/api/sport/trainers</code> (server.js:30486–30509).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת POST: <code>groupId, name</code> חובה — "שם חובה". PUT/DELETE ללא אימות.</li><li>ברירות: <code>payType||'per_class'</code>, תעריפים <code>||0</code>, <code>bonusBaseTrainees||10</code>, <code>colorHex||'#6366f1'</code>, <code>workStart||'09:00'</code>, <code>workEnd||'18:00'</code>, <code>slotMinutes||60</code>; PUT <code>is_active = isActive!==false</code> (הממשק לא שולח ⇒ תמיד true).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET: כל המאמנים + <code>total_sessions</code> + <code>unpaid_amount</code> (SUM pay_amount של sessions ללא paid_at).</li><li>DELETE פיזי; sessions ב-CASCADE (כולל היסטוריית שכר), <code>sport_classes.trainer_id</code> ו-<code>sport_appointments.trainer_id</code> SET NULL.</li></ol></div>
+<div>חישובים</div><div>ברירות טופס: per_class 150, hourly 80, revenue_percent 20, bonus בסיס 100 / 10 מתאמנים / 15 לכל נוסף (business-app.js:48098–48115). משכי תור: 30/45/60/90/120.</div>
+<div>פערים</div><div>אין נטרול מאמן מה-UI (is_active תמיד true), למרות שהזמינות והחנות מסננות לפיו. מחיקת מאמן מוחקת את היסטוריית התשלומים שלו.</div>
+</div></section>
+
+<section class="proc" data-f="trainer session log pay calculation calcTrainerPay"><h3>רישום שיעור למאמן וחישוב שכר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ רשום שיעור"/"🔄 החלפה" בפרופיל מאמן (<code>showSportLogSession</code>, business-app.js:48218) ← POST <code>/trainer-sessions</code> (server.js:30545).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: <code>groupId, trainerId, sessionDate</code> — "חסרים שדות חובה"; 404 "מאמן לא נמצא". לקוח: "תאריך חובה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מאמן, <code>calcTrainerPay</code>.</li><li>INSERT <code>sport_trainer_sessions</code> (<code>hours_worked||1</code>, <code>trainees_count||0</code>, <code>is_substitute||false</code>).</li></ol></div>
+<div>חישובים</div><div><code>calcTrainerPay</code> (server.js:30527–30542):<ul>
+<li>hourly: <code>hourly_rate × (hoursWorked||1)</code></li>
+<li>per_class: <code>per_class_rate</code></li>
+<li>revenue_percent: <code>classRevenue × revenue_percent / 100</code></li>
+<li>bonus: <code>per_class_rate + max(0, trainees − (bonus_base_trainees||10)) × bonus_per_trainee</code></li>
+<li>עיגול: <code>Math.round(pay×100)/100</code>.</li></ul></div>
+<div>ממשק</div><div>שדות: תאריך, שעות (צעד 0.5), מתאמנים (ברירה 10), "מחליף את" (טקסט — לא נשלח), הערות. Toast מציג את השכר המחושב.</div>
+<div>פערים</div><div>הממשק אינו שולח <code>classRevenue</code> ⇒ מאמן revenue_percent תמיד מקבל 0. <code>originalTrainerId</code> ושם המאמן המקורי לא נשלחים. אין קישור ל-<code>classId</code> מהממשק. מכפלות pg DECIMAL הן מחרוזות — JS מבצע כפל מספרי תקין, אך <code>per_class_rate || 0</code> מחזיר מחרוזת, ובחישוב bonus <code>"100.00" += 30</code> ⇒ שרשור מחרוזות ("100.0030") ואז <code>Math.round</code> מחזיר 100 — הבונוס נעלם (server.js:30537–30541).</div>
+</div></section>
+
+<section class="proc" data-f="mark paid trainer salary expense payroll"><h3>סימון תשלום שכר מאמן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שלם ₪X" בדוח שכר או בפרופיל (<code>_sportMarkTrainerPaid</code>, business-app.js:47984) ← POST <code>/trainer-sessions/mark-paid</code> (server.js:30560).</div>
+<div>תנאים ואימותים</div><div><ul><li>"לא נבחרו sessions" אם המערך ריק. לקוח: confirm; "אין sessions לתשלום".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח מושך את <code>/trainers/:id/detail</code> (50 sessions אחרונים) ולוקח את כל אלה ללא paid_at.</li><li>שרת: SELECT sessions שלא שולמו (לחישוב הוצאה), UPDATE <code>paid_at=NOW()</code> לכולם.</li><li>קיבוץ לפי group ו-<code>logBizExpense(gid, total, 'שכר מאמנים — שמות', 'salary')</code>, רק לסכום &gt; 0.</li></ol></div>
+<div>פערים</div><div>הסכום המוצג הוא "לתשלום" של החודש הנבחר, אך מסומנים כל ה-sessions הלא משולמים מ-50 האחרונים ללא סינון חודש — ההוצאה הנרשמת עשויה להיות שונה מהמוצג; sessions ישנים מ-50 לא יסומנו לעולם.</div>
+</div></section>
+
+<section class="proc" data-f="trainer payroll monthly report"><h3>דוח שכר חודשי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "💰 שכר" (business-app.js:47930) ← GET <code>/trainer-payroll/:groupId?month=YYYY-MM</code> (server.js:30588).</div>
+<div>חישובים</div><div>לכל מאמן פעיל: <code>session_count, total_trainees, total_pay, unpaid, paid</code> מסוננים לפי <code>TO_CHAR(session_date,'YYYY-MM')</code> בתנאי ה-JOIN. סיכום בלקוח: סכום unpaid/paid. בורר חודשים: החודש ושני הקודמים.</div>
+<div>פערים</div><div>החלפת חודש (<code>_sportLoadPayroll</code>, business-app.js:47968) מעדכנת רק את שני מספרי הסיכום ולא את רשימת המאמנים.</div>
+</div></section>
+
+<section class="proc" data-f="trainer substitution replace class"><h3>החלפת מאמן בשיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>POST <code>/trainer-substitution</code> (server.js:30608). אין קורא בלקוחות.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>classId, substituteTrainerId</code> חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE השיעור <code>trainer_id</code> + <code>trainer_name</code> מהמאמן.</li><li>אם המחליף קיים: ספירת רישומים, <code>calcTrainerPay(sub, 1, count, 0)</code>, INSERT session עם <code>is_substitute=true</code>, notes=reason||'החלפה'.</li></ol></div>
+<div>פערים</div><div>קוד מת מבחינת UI.</div>
+</div></section>
+
+<section class="proc" data-f="appointments personal training pt booking availability slots conflict"><h3>תורים לאימון אישי וזמינות מאמן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>BIZ: "📅 תורים" (<code>showSportAppointments</code>, business-app.js:60158). ציבורי: "📅 הזמן אימון אישי" (storefront-sport.html:2873; sc-auth.js:1416; storefront-btype.js:501). נתיבים: GET/POST/PATCH/DELETE <code>/appointments</code> ו-GET <code>/availability</code> (server.js:30798–30905).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>POST: <code>groupId, clientName, startTime, endTime</code> — "שדות חסרים". אם יש מאמן: חפיפה עם תור שאינו cancelled (<code>NOT (end ≤ start' OR start ≥ end')</code>) ⇒ 409 <code>TRAINER_CONFLICT</code> "המאמן תפוס בזמן זה".</li>
+<li>availability: <code>groupId, date</code> — "חסר groupId או date"; מאמן לא קיים/לא פעיל ⇒ slots ריק.</li>
+<li>PATCH: לפחות שדה אחד — "אין מה לעדכן".</li>
+<li>חנות: נדרשת התחברות <code>scAuth.requireLogin</code>; שם חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT עם <code>status='pending'</code>, <code>trainer_name</code> מהמאמן, <code>service_name||'אימון אישי'</code>, <code>duration_minutes||60</code>.</li><li><code>upsertStoreCustomer</code> עם "הזמין תור: …".</li><li>PATCH: עדכון דינמי של status/internal_notes/notes + updated_at.</li></ol></div>
+<div>חישובים</div><div>זמינות (server.js:30866–30902): ברירות 09:00–18:00, משבצת 60 דק'; משבצות רצופות מ-work_start כל עוד <code>cur+slot ≤ end</code>; מדלגים על משבצות בעבר; מסירים חופפות לתורים לא מבוטלים באותו יום. בלי מאמן — בדיקה מול כל תורי העסק.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח/מנהל</td><td>אין חפיפה</td><td>כרטיס לקוח</td></tr>
+<tr><td>pending</td><td>confirmed</td><td>מנהל "אשר"</td><td>—</td><td>—</td></tr>
+<tr><td>pending/confirmed</td><td>cancelled</td><td>מנהל "בטל"</td><td>—</td><td>משחרר את המשבצת</td></tr>
+<tr><td>confirmed</td><td>completed</td><td>מנהל "סיים"</td><td>—</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>BIZ: סינון לפי תאריך ומאמן; תוויות <code>{pending:'ממתין', confirmed:'מאושר', completed:'הושלם', cancelled:'בוטל'}</code>. חנות: הודעת הצלחה "נציג מהמועדון יצור איתך קשר לאישור התור".</div>
+<div>פערים</div><div>אין התראה למנהל/לקוח על תור חדש או שינוי. שדה "משך" ב-BIZ לא משנה את אורך המשבצת. sc-auth שולח זמן מקומי נאיבי (<code>date+'T'+HH:MM</code>) בעוד שהחנות שולחת ISO UTC מה-availability — עמודות <code>TIMESTAMP</code> ללא אזור זמן ⇒ אי-עקביות. השוואת משבצות מבוססת <code>new Date(`${date}T${hh}:${mm}`)</code> באזור הזמן של השרת. PATCH ללא אימות מאפשר כל סטטוס.</div>
+</div></section>
+
+<h2 class="grp">חנות ציבורית ואזור אישי לחבר</h2>
+
+<section class="proc" data-f="public types schedule storefront"><h3>הצגת מנויים ולוח שיעורים ציבורי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חנות ספורט (<code>openScheduleModal</code>, <code>openMembershipModal</code>, storefront-sport.html:2595, 2705) — שתיהן דורשות התחברות לקוח. GET <code>/public-types/:groupId</code> (server.js:30053), GET <code>/public-schedule/:groupId</code> (server.js:30063). עסק ספורט מוגש תמיד מ-<code>storefront-sport.html</code> (server.js:13174–13180, 23375–23381).</div>
+<div>חישובים</div><div>types: <code>COALESCE(is_active,true) AND COALESCE(is_public,true)</code>, מיון מחיר. schedule: טווח ברירה היום..+14, <code>status != 'cancelled'</code>, <code>registered_count</code> רק רישומים עם <code>cancelled_at IS NULL</code>, כולל כללי הרשמה של הסוג. מקומות פנויים = <code>capacity − registered_count</code>; ≤0 ⇒ "מלא — רשימת המתנה". תווית משך: ≥365 ⇒ שנים, ≥30 ⇒ חודשים, אחרת ימים.</div>
+<div>ממשק</div><div>לוח שבועי (7 ימים, ניווט קדימה בלבד מהיום) (storefront-sport.html:2611–2655).</div>
+<div>פערים</div><div><code>openClassReg</code> בונה <code>new Date(c.class_date+'T12:00:00')</code> כש-class_date כבר מחרוזת ISO מלאה ⇒ "Invalid Date" בכותרת הרישום (storefront-sport.html:2666).</div>
+</div></section>
+
+<section class="proc" data-f="public membership purchase storefront self signup qr payment app"><h3>רכישת מנוי עצמית מהחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בוחר סוג ← פרטים ← שליחה (<code>submitMembership</code>, storefront-sport.html:2756; sc-auth.js:1655; storefront-btype.js:479; storefront.html:5086). POST <code>/public-membership-purchase</code> (server.js:30080).</div>
+<div>תנאים ואימותים</div><div><ul><li>שרת: <code>groupId, memberName, membershipTypeId</code> — "חסרים שדות חובה"; סוג חייב להשתייך לעסק — 404 "סוג מנוי לא נמצא". אין בדיקת is_active/is_public בשרת.</li><li>לקוח: שם וטלפון חובה; אם מוצג בלוק הצהרה — חייב סימון "יש לאשר את הצהרת הכשירות הגופנית"; התחברות נדרשת.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>חישוב end_date (setDate + duration_days).</li><li>יצירת <code>qr_token</code> אקראי.</li><li>INSERT מנוי עם <code>status='active'</code>, health_notes, emergency_contact/phone.</li><li>אם <code>price &gt; 0</code>: INSERT <code>sport_payments</code> amount=price, method <code>'app'</code>, notes "רכישת מנוי דרך עמוד ציבורי" + <code>logBizIncome</code> "הצטרפות מנוי (עצמאי) — שם".</li><li><code>upsertStoreCustomer</code> "רכש מנוי: {סוג}".</li><li>לקוח: אם סומנה הצהרה — POST public-sign-declaration.</li></ol></div>
+<div>מכונת מצבים</div><div>נוצר ישירות כ-<code>active</code> (הערת הקוד "creates pending member" שגויה).</div>
+<div>פערים</div><div><b>אין גביית תשלום</b>: המנוי פעיל מיד וההכנסה נרשמת כאילו התקבלה. sc-auth מציג "⏳ ממתין לאישור המועדון … תיצור איתך קשר לתשלום" (sc-auth.js:1673–1674) — סותר את מצב השרת. אין מניעת כפילות לפי טלפון; אין התראה לעסק.</div>
+</div></section>
+
+<section class="proc" data-f="public class register booking window membership allowed lead dropin waitlist"><h3>רישום ציבורי לשיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitClassReg</code> (storefront-sport.html:2677), sc-auth.js:1390, storefront-btype.js:424, storefront.html:4888/5197. POST <code>/public-class-register</code> (server.js:30109).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>groupId, classId, memberPhone</code> — "חסרים שדות חובה"; 404 "שיעור לא נמצא" (חייב להשתייך לעסק).</li>
+<li>מוקדם מדי: <code>now &lt; classDateTime − booking_open_days</code> ⇒ "ההרשמה תיפתח ב-{תאריך}".</li>
+<li>מאוחר מדי: <code>now &gt; classDateTime − (booking_close_hours??1) שעות</code> ⇒ "ההרשמה לשיעור זה נסגרה".</li>
+<li>סוג מנוי מורשה: אם <code>allowed_membership_type_ids</code> לא ריק — חייב מנוי active בטלפון מסוג ברשימה ⇒ אחרת "שיעור זה מצריך סוג מנוי ספציפי" (<code>requiresMembership</code>).</li>
+<li>שגיאות אלה מוחזרות כ-HTTP 200 עם <code>success:false</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>חיפוש מנוי active לפי טלפון (LIMIT 1 ללא מיון).</li>
+<li>ספירת רישומים (כולל כולם).</li>
+<li>יש מנוי: מקום פנוי ⇒ INSERT רישום, <code>status:'registered'</code>; מלא ⇒ INSERT המתנה ב-position הבא, <code>status:'waitlisted', position</code>.</li>
+<li>אין מנוי: יצירת ליד <code>source='drop-in'</code> אם אין ליד לטלפון, <code>upsertStoreCustomer</code>; מקום פנוי ⇒ רישום עם <code>membership_id=NULL</code>, <code>warning:'no_active_membership'</code>; מלא ⇒ <code>success:false, status:'full'</code> "השיעור מלא ואין לך מנוי פעיל".</li></ol></div>
+<div>חישובים</div><div><code>classDateTime = new Date(`${class_date.toISOString().split('T')[0]}T${start_time||'00:00'}:00`)</code> (server.js:30120).</div>
+<div>פערים</div><div><code>start_time</code> מגיע כ-"HH:MM:SS" ⇒ "…T08:00:00:00" אינו תאריך תקין ⇒ בדיקות חלון ההרשמה תמיד עוברות כשיש שעת התחלה (נאכפות רק לשיעורים ללא שעה). אין בדיקת הצהרה, מכסת כניסות, סטטוס שיעור (ניתן להירשם לשיעור מבוטל ב-API) או שעבר. <code>ON CONFLICT</code> על membership_id NULL לא מונע כפילויות drop-in. sc-auth קורא <code>res.waitlistPosition</code> אך השרת מחזיר <code>position</code>.</div>
+</div></section>
+
+<section class="proc" data-f="public cancel class registration phone policy"><h3>ביטול רישום ציבורי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אזור אישי בחנות "ביטול" (sc-auth.js:787–806), storefront.html:5223. DELETE <code>/public-class-register</code> עם body (server.js:30188).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>classId, memberPhone</code> — "חסרים שדות חובה"; מנוי כלשהו לטלפון (כל סטטוס) — 404 "לא נמצא מנוי לטלפון זה". מדיניות כמו ב-BIZ (block ⇒ 400; deduct_session ⇒ ניקוב).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE רישום לפי class+membership.</li><li>קידום הראשון בהמתנה ל-pending+30 דק' והתראה.</li></ol></div>
+<div>פערים</div><div>אותו באג חישוב זמן (המדיניות לא נאכפת). רישומי drop-in (membership NULL) לא ניתנים לביטול. כשיש כמה מנויים לטלפון, נבחר שרירותית (LIMIT 1 ללא מיון).</div>
+</div></section>
+
+<section class="proc" data-f="leads crm dropin conversion status"><h3>לידים (מתעניינים) והמרה לחבר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך <code>showSportLeads</code> (business-app.js:48492); לידים נוצרים ידנית, אוטומטית ברישום ציבורי ללא מנוי, ובנתיב <code>/public-dropin-capture</code> (ללא צרכן).</div>
+<div>תנאים ואימותים</div><div><ul><li>POST: "groupId חובה"; לקוח: "שם או טלפון חובה". PUT: <code>COALESCE</code> לכל שדה (לא ניתן לנקות). dropin-capture: אם קיים מנוי לטלפון ⇒ <code>existing_member</code>; ליד קיים ⇒ עדכון updated_at, <code>existing_lead</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שינוי סטטוס מ-select ← PUT מיידי ללא משוב.</li><li>"המר למנוי ➡️" ← פתיחת טופס חבר עם שם/טלפון ושמירת <code>_sportConvertingLeadId</code>; הליד מסומן converted ומקושר רק אחרי יצירת החבר.</li></ol></div>
+<div>מכונת מצבים</div><div>סטטוסים: <code>new</code> (ברירת DB), <code>contacted</code>, <code>interested</code>, <code>converted</code>, <code>lost</code> (business-app.js:48521–48522); כל מעבר ידני חופשי. מקורות: drop-in, website, referral, social, walk-in, other.</div>
+<div>פערים</div><div>סטטוס converted ניתן לבחור ידנית בלי חבר. אם המשתמש עוזב את טופס החבר, <code>_sportConvertingLeadId</code> נשאר ויסמן את החבר הבא שייווצר.</div>
+</div></section>
+
+<section class="proc" data-f="weflowz oneflow identify sync calendar rfq member summary"><h3>אינטגרציית WEFLOWZ בחנות: זיהוי, סנכרון יומן, RFQ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>storefront.html (מורשת): <code>_sportOneflowIdentify</code> (4753), סנכרון יומן (4909), RFQ (4971). נתיבים server.js:30328–30426.</div>
+<div>תנאים ואימותים</div><div><ul><li>identify: "טלפון חובה"; מחפש <code>users.phone=$1 OR users.nickname=$1</code>.</li><li>sync: <code>familyGroupId, classId</code> חובה.</li><li>rfq: <code>groupId, customerPhone</code> חובה.</li><li>member-summary: <code>phone, groupId</code> (ללא צרכן).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>identify מחזיר משתמש, משפחה, מנוי active/frozen אחרון, ועד 5 שיעורים קרובים.</li><li>sync: INSERT <code>calendar_events</code> למשפחה, כותרת "🏋️ {שיעור} — {מאמן}", status 'confirmed'.</li><li>rfq: INSERT <code>store_orders</code> עם <code>status='quote', quote_status='waiting_business'</code>, total 0, פריט מטא "תוכנית ליווי אישית", ואז <code>quote_number = 'RFQ-' + id.padStart(6,'0')</code>.</li></ol></div>
+<div>פערים</div><div>identify חושף שם ומשפחה של כל משתמש לפי טלפון ללא אימות. sync מוסיף אירוע ליומן של כל משפחה לפי מזהה ללא אימות וללא בדיקת רישום. עסק ספורט מוגש מ-storefront-sport.html, כך שהקוד ב-storefront.html נגיש רק בגישה ישירה.</div>
+</div></section>
+
+<section class="proc" data-f="inbox broadcast message members weflowz"><h3>הודעות: שידור לחברים, הודעה לחבר, הודעה מהחבר לעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך WEFLOWZ (<code>showSportOneFlow</code>, business-app.js:48696), תיבת הודעות (business-app.js:49213), טופס פנייה ב-storefront.html:4925.</div>
+<div>תנאים ואימותים</div><div><ul><li>broadcast: <code>groupId, content</code>; member-message: <code>familyGroupId, content</code>; inbox-member-message: <code>businessGroupId, content</code> — "חסרים שדות חובה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>oneflow-members: חברים active/frozen/expired שהטלפון שלהם תואם <code>users.phone</code> (כולל המרת +972↔0), DISTINCT לפי מנוי.</li><li>broadcast: משפחות DISTINCT של חברים active/frozen ⇒ INSERT <code>inbox_messages</code> לכל משפחה (sender_type 'business', נושא ברירת מחדל "הודעה מהמועדון"); מחזיר count.</li><li>member-message: INSERT יחיד למשפחה.</li><li>inbox-member-message: INSERT לעסק sender_type 'customer' עם sender_contact.</li></ol></div>
+<div>חישובים</div><div>התאמת טלפון: <code>u.phone = sm.member_phone OR REPLACE(u.phone,'+972','0') = sm.member_phone OR (sm.member_phone LIKE '0%' AND u.phone = '+972'||substr)</code> (server.js:30688–30690).</div>
+<div>ממשק</div><div>תיבה: רשימה עם נקודת לא-נקרא, פתיחה מסמנת נקרא (<code>PUT /api/inbox/:id/read</code>), מחיקה, כפתור חיוג. "כתיבת הודעה חכמה" יכולה למלא את טופס השידור.</div>
+<div>פערים</div><div>שידור ללא הגבלת קצב או אימות — כל אחד יכול לשלוח הודעה לכל חברי עסק. ויזארד WEFLOWZ לסוג ספורט ממפה <code>c.phone</code> (חברים מחזיקים <code>member_phone</code>) ו-<code>c.family_group_id</code> (לא קיים) ⇒ טלפון ריק ו-"קיים ב-WEFLOWZ" תמיד false (business-app.js:48892–48898).</div>
+</div></section>
+
+<section class="proc" data-f="member app family my orders business activity sc-auth personal area notifications"><h3>אזור אישי לחבר: אפליקציית המשפחה ואזור לקוח בחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) אפליקציית המשפחה — כרטיס עסק מקושר: <code>_memberLoadOrders</code> (app.js:13924) ← GET <code>/api/member/my-orders/:biz/:member</code> (server.js:31135); טאב פעילות ← <code>/api/family/business-activity</code> (server.js:31892, מוגן <code>verifyFamily</code>). (ב) אזור לקוח בחנות ← <code>/api/sc-auth/activity/:bizGroupId</code> (server.js:43636, Bearer של לקוח חנות).</div>
+<div>תנאים ואימותים</div><div><ul><li>my-orders: קישור <code>member_business_links</code> פעיל חייב <code>status='active'</code>, אחרת <code>pending:true</code>; טלפון לפי משתמש ADMIN של המשפחה. מנויים לפי <code>sm.id=linked_member_ref_id OR member_phone</code>.</li><li>sc-auth activity: 401 "לא מחובר" בלי טוקן; מנויים בסטטוסים <code>active, trial, frozen, pending</code> (5 אחרונים לפי end_date).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אפליקציית משפחה: הצגת סטטוס, כניסות נותרות, תוקף; כפתורי "❄️ הקפא מנוי" (active) ו-"▶️ שחרר הקפאה" (frozen) — קוראים ישירות לנתיבי freeze/unfreeze ללא ימים/סיבה.</li><li>sc-auth: פעולות מהירות (לוח, אימון אישי, רכישה — רק אם אין מנוי active), פרטי מנוי + QR + צ'ק-אין עצמי, ביטול רישום לשיעור.</li></ol></div>
+<div>תופעות לוואי</div><div>התראות שהחבר מקבל (דרך <code>alert_notifications</code>, רק אם יש קישור פעיל עם <code>linked_member_ref_id</code>): עדכון סטטוס, הקפאה, הפשרה, ביטול מנוי, ביטול שיעור, קידום מהמתנה. אין WhatsApp/SMS/Email בכל המודול.</div>
+<div>פערים</div><div><code>/api/family/business-activity</code> לספורט שואל עמודות שאינן קיימות (<code>business_group_id, member_group_id, plan_type_id</code>, טבלה <code>membership_plan_types</code>) ⇒ ה-catch מחזיר תמיד ריק. ב-sc-auth: שאילתת רישומים בוחרת <code>sr.status</code> (לא קיים) ושאילתת תורים בוחרת <code>tr.full_name</code> (לא קיים) ⇒ שתיהן תמיד ריקות (server.js:43660, 43683); הסטטוסים <code>trial/pending</code> לעולם לא נכתבים בקוד.</div>
+</div></section>
+
+<h2 class="grp">בינה מלאכותית</h2>
+
+<section class="proc" data-f="ai training plan gemini battery tokens"><h3>יצירת תוכנית אימון אישית ב-AI</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"כלי AI 🤖" ← "תוכנית אימון אישית" (<code>showSportAITrainingPlan</code>/<code>_sportAIGeneratePlan</code>, business-app.js:49322, 49349), גם מכפתור 🤖 בחבר WEFLOWZ. POST <code>/api/ai/sport/training-plan</code> (server.js:30756).</div>
+<div>תנאים ואימותים</div><div><ul><li>אין מפתח ⇒ 500 "מפתח Gemini חסר"; "groupId חובה"; <code>handleAITokens(groupId,'sport/training-plan')</code> false ⇒ 429 <code>BATTERY_EMPTY</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ספירת כל הכניסות של החבר לפי טלפון.</li><li>קריאה ל-Gemini <code>gemini-2.5-flash</code> עם פרומפט "מאמן כושר מקצועי" הכולל שם, מטרה, רמה, ימים, סוג מנוי, כניסות, הערות בריאות, ודרישת JSON לפי סכמה <code>{summary, weeks[{weekNum,goal,days[{day,focus,exercises[{name,sets,reps,notes}],duration}]}], nutrition[], safetyNotes[]}</code>.</li><li>ניקוי גדרות ```json ו-JSON.parse; כישלון ⇒ <code>{summary: rawText, weeks:[]…}</code>.</li></ol></div>
+<div>חישובים</div><div>מכסת AI (server.js:4170): enterprise — ללא הגבלה; premium — 50 ליום; אחר — 10 ליום; איפוס יומי; ניכוי 1 לקריאה; רישום ב-<code>ai_usage_log</code>.</div>
+<div>ממשק</div><div>רמות: beginner/intermediate/advanced; ימים 1–7 (ברירה 3). תצוגה לפי שבועות/ימים/תרגילים, תזונה, בטיחות. התוכנית לא נשמרת.</div>
+<div>פערים</div><div><code>membershipType</code> לא נשלח מהממשק.</div>
+</div></section>
+
+<section class="proc" data-f="ai chat assistant sport context actions freeze checkin register compose insights"><h3>עוזר AI עסקי לספורט, פעולות AI, כתיבת הודעה ותובנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עטיפת <code>submitGlobalAI</code> לעסק ספורט (business-app.js:46498) ← POST <code>/api/biz/chat-assistant</code> (מוגן <code>verifyBiz</code>, Gemini <code>gemini-2.5-flash</code>, מכסת AI, server.js:16038–16045) עם הקשר ספורט ומקטע הנחיות ספורט (server.js:16199–16232). "כתיבת הודעה חכמה"/"תובנות" ← <code>/api/ai/generate</code> (server.js:13907, ללא מכסה ואימות).</div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח אוסף dashboard, alerts, classes, payments ובונה <code>sportContext</code> (KPIs, revenue, churn_risk, renewals, classes, open_tasks).</li><li>התשובה נסרקת לתגיות: <code>EXPORT_EXCEL, ADD_TASK, OPEN_TAB, FREEZE_MEMBER|id|סיבה, UNFREEZE_MEMBER|id|שם, CHECKIN_MEMBER|id|שם, REGISTER_CLASS|class|member|שם, CREATE_TASK, CREATE_ALERT_RULE</code>, וכל אחת הופכת לכפתור שמבצע את הנתיב המקביל (business-app.js:46605–46671, 57388–57446).</li><li>השרת יכול לבקש נתונים נוספים ב-<code>[NEED_DATA:…]</code> ולקרוא שנית.</li></ol></div>
+<div>חישובים</div><div>בלקוח: <code>retention_pct = round(active/total×100)</code>; <code>trend_pct</code> של הכנסה חודשית; ימי חוסר פעילות (99 אם אין כניסה). פרומפט השרת מגדיר יעדים: retention &gt;75%, חוסר פעילות 14+ ימים, תפוסה &lt;50%/&gt;90%, &gt;2 כניסות בשבוע.</div>
+<div>פערים</div><div>ההקשר בנוי משדות שלא קיימים: <code>/sport/payments/:groupId</code> אינו נתיב (הכנסות תמיד 0), <code>start_time</code> כתאריך, <code>max_participants</code>, <code>registration_count</code>, <code>stats.total_members/frozen_members/checkins_week</code> ⇒ רוב המדדים 0/ריקים. <code>OPEN_TAB|sport-*</code> קורא <code>switchTab('sport-members')</code> — טאבים שאינם קיימים. הפעולה "הקפאה" מה-AI ללא ימים.</div>
+</div></section>
+
+<h2 class="grp">משימות רקע</h2>
+
+<section class="proc" data-f="cron background lazy expiry no scheduled jobs"><h3>משימות רקע ותזמון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אין cron ייעודי לספורט: אף אחת מפונקציות ה-<code>setInterval</code> בשרת (למשל server.js:4719, 25104, 32675, 44849) אינה נוגעת בטבלאות <code>sport_*</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>פקיעת מנויים והפשרה אוטומטית — עצלות, בעת GET רשימת חברים (server.js:29328–29343).</li><li>תפוגת אישור המתנה וקידום — עצלים, בעת GET <code>/waitlist-pending</code> (server.js:29954–29965).</li><li>רענון דשבורד בלקוח כל 30 שניות (business-app.js:5646).</li></ol></div>
+<div>פערים</div><div>ללא מסך פתוח: מנויים לא פוקעים, הקפאות לא מופשרות, ומקומות בהמתנה לא מתקדמים; אין תזכורות חידוש/הצהרה/שיעור אוטומטיות לחברים.</div>
+</div></section>

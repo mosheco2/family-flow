@@ -1,0 +1,92 @@
+[
+ {
+  "id": 31,
+  "domain": "beauty",
+  "process": "השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה",
+  "claim": "עמלה: לכל סגמנט active עם practitioner_id ו-price>0, INSERT beauty_commissions(commission_type='service', gross_amount=price, commission_rate=commission_rate_svc, commission_amount) (server.js:31639-31651)."
+ },
+ {
+  "id": 32,
+  "domain": "beauty",
+  "process": "השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה",
+  "claim": "אחרי COMMIT, אם total_price>0: logBizIncome(biz, total_price, \"תור יופי — {client_name||'לקוח'}\"), שמוסיף שורה ל-transactions (category='sales', type='income', is_manual=FALSE, user_id = ה-ADMIN הראשון) (server.js:4201-4211, 31683-31687)."
+ },
+ {
+  "id": 33,
+  "domain": "beauty",
+  "process": "ניהול קטלוג שירותים",
+  "claim": "לקוח: שם חובה, \"שם שירות הוא שדה חובה\" (business-app.js:54534); משך ברירת מחדל 60."
+ },
+ {
+  "id": 34,
+  "domain": "beauty",
+  "process": "יצירת תור (פנימי או ממשפחה)",
+  "claim": "זיהוי לקוח (רק כש-src==='biz' ואין client_family_id): ספרות הטלפון ו-alt (972↔0). חיפוש users של קבוצה type='FAMILY', ואם לא נמצא, beauty_client_records.client_family_id של העסק לפי טלפון (server.js:31446-31469)."
+ },
+ {
+  "id": 35,
+  "domain": "beauty",
+  "process": "הרשאות גישה ל-API של היופי",
+  "claim": "verifyBeautyPractitionerAccess (server.js:41965-41971): ADMIN או senior_therapist בלבד; אחרת 403 \"אין הרשאה לנהל צוות מטפלות\". חל על POST/PATCH מטפלות ועל POST /commissions/pay."
+ },
+ {
+  "id": 36,
+  "domain": "logistics",
+  "process": "יצירת הזמנת משלוח",
+  "claim": "סטטוס התחלתי: driver_id ? 'assigned' : 'new' (server.js:32750)."
+ },
+ {
+  "id": 37,
+  "domain": "logistics",
+  "process": "רשימת הזמנות, קנבן וסינון",
+  "claim": "אין גרירה (drag&drop) למרות שהטור באונבורדינג מתאר זאת (business-app.js:2151)."
+ },
+ {
+  "id": 38,
+  "domain": "logistics",
+  "process": "בקשות הצעת מחיר (RFQ)",
+  "claim": "לקוח: שם חובה 'שם חובה' (business-app.js:53304); הצעת מחיר — ערך לא ריק (business-app.js:53266)."
+ },
+ {
+  "id": 39,
+  "domain": "logistics",
+  "process": "מבנה נתונים ומיגרציות (הקשר לכללים)",
+  "claim": "logistics_invoices: invoice_number UNIQUE, status DEFAULT 'pending', invoice_type DEFAULT 'single', order_id FK ללא ON DELETE (server.js:2443–2461)."
+ },
+ {
+  "id": 40,
+  "domain": "logistics",
+  "process": "עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)",
+  "claim": "INSERT logistics_order_events (event_type='status_change', old_status, new_status, actor_name, notes) (server.js:32768)."
+ },
+ {
+  "id": 41,
+  "domain": "services",
+  "process": "המרת הצעת מחיר לפקודת עבודה / תיק",
+  "claim": "convert: ה-UPDATE מותנה call_type IS NULL OR call_type<>'work_order'; אם כבר פקודה → 404 \"הצעה לא נמצאה\" (26510-26514)."
+ },
+ {
+  "id": 42,
+  "domain": "services",
+  "process": "פרטי פקודה ומודל ניהול",
+  "claim": "לקוח: טעינת עובדים (/work-orders/users), הצעות משמרת (/suggest-staff לפי תאריך הזימון הראשון), קטלוג, תבניות תפריט; עבור maintenance_repair — מסתיר תפריט ומציג שיוך הצעות (/available-quotes) (43076-43093)."
+ },
+ {
+  "id": 43,
+  "domain": "services",
+  "process": "SSO מחנות לאפליקציית המשפחה",
+  "claim": "בחירת משפחה ידנית רק לטלפון הבדיקות SC_MULTI_FAMILY_TEST_PHONE='0526626619' (43492), מאומת מול users.phone, FAMILY פעילה, לא shopper/member."
+ },
+ {
+  "id": 44,
+  "domain": "services",
+  "process": "תחזוקה מתוזמנת והשלמה מחזורית",
+  "claim": "אם interval_days → INSERT רשומה חדשה (pending) עם scheduled_date=completed_date+interval_days (26126-26133)."
+ },
+ {
+  "id": 45,
+  "domain": "services",
+  "process": "יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)",
+  "claim": "table_reservation: אם auto_approve_max_guests מוגדר ו-numGuests≤ערך → חיפוש שולחן פנוי 1..table_count(8) שאין לו הזמנה approved באותו תאריך בהפרש <2 שעות; נמצא → status approved + reserved_table_number (22898-22919)."
+ }
+]

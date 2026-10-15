@@ -1,0 +1,619 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>לוגיקה · קהילה ומנהלי אזור · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>לוגיקה · קהילה ומנהלי אזור</h1><span class="meta">63 תהליכים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="cur">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro"><strong>לוגיקה עסקית לבנייה מחדש.</strong> בכל תהליך מתועדים, לפי סדר: מטרה וטריגר, תנאים ואימותים, שלבי עיבוד (כולל סדר הכתיבות ל-DB), חישובים ונוסחאות, מכונת מצבים, תופעות לוואי (התראות, מטבעות, AI, cron), התנהגות הממשק, ולבסוף פערים. רוב התוכן מתאר את ההתנהגות כפי שהיא ממומשת. "פערים" הוא החלק האחרון, ומופיע רק כשנמצא בקוד. כל כלל מגובה במספר שורה (server.js:N או file.js:N). החוזה הטכני של כל נתיב נמצא בעמודי ה-API, והסכמה במילון הנתונים.</div><h2 class="grp">קהילות — ישות, יצירה, חברות משפחות וניהול</h2>
+
+ <section class="proc" data-f="community communities create sa super admin code city manager_email kol-haam seed"><h3>יצירת קהילה ע"י סופר-אדמין</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA יוצר קהילה רשמית מטאב הקהילות (<code>sa-app.js:createSACommunity</code> 4648). <code>POST /api/sa/communities</code> (server.js:17490, <code>verifySA</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>name</code>, <code>code</code>, <code>city</code> חובה — אחרת 400 "שם, עיר וקוד קהילה הם שדות חובה" (17497).</li>
+<li><code>code</code> נשמר <code>toUpperCase().trim()</code>; כפילות (PG 23505) → 400 "קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר." (17508).</li>
+<li><code>managerEmail</code> ברירת מחדל <code>system@weflowz.co.il</code>, <code>managerPassword</code> ברירת מחדל '' (17494) — שדות לגאסי, לא משמשים לכניסה בשום מקום בקוד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>INSERT ל-<code>communities</code> (name, city, code, manager_email, manager_password, image_url). <code>status</code> מקבל DEFAULT <code>'active'</code> (16510), <code>created_by_group_id</code>=NULL, <code>min_families</code> DEFAULT 30 — אך מיגרציה באתחול מאפסת ל-0 כל קהילה בלי <code>created_by_group_id</code> (16587).</li>
+<li>Hook <code>patchCommunityCreation</code> (40637) עוטף את ה-route: אחרי תשובת success בוחר <code>SELECT id FROM communities ORDER BY id DESC LIMIT 1</code> ומריץ <code>seedLocalCategories(id)</code> (קטגוריות "קול העם").</li></ol></div>
+<div>מכונת מצבים</div><div>קהילת SA נוצרת ישר ב-<code>active</code>.</div>
+<div>ממשק</div><div><code>sa-app.js:createSACommunity</code>, טבלה <code>renderSACommunitiesTable</code> (4376), מודל עריכה <code>openSACommunityModal</code> (4480).</div>
+<div>פערים</div><div>ה-hook בוחר "הקהילה האחרונה" לפי id ולא לפי ה-INSERT — race בין שתי יצירות מקבילות (40652). <code>manager_password</code> נשמר בטקסט גלוי.</div></div></section>
+
+ <section class="proc" data-f="community user-create initiative family pending min_families 30 my-initiatives"><h3>יזמות קהילתית — יצירת קהילה ע"י משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה ("יזמות קהילתית") פותחת קהילה חדשה מטאב קהילה. <code>app.js:openCreateCommunityModal</code> (6851) → <code>submitNewInitiative</code> → <code>POST /api/community/user-create</code> (16593, <code>verifyFamily</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>groupId</code> חייב להיות שווה ל-<code>req.familyAuth.groupId</code> → אחרת 403 "אין הרשאה".</li>
+<li><code>name</code>, <code>city</code> חובה (400 "חסרים שדות חובה"); כל אחד ≤100 תווים (400 "טקסט ארוך מדי") (16598).</li>
+<li>לקוח: שני השדות חובה ("יש למלא שם וערים לקהילה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>code = 'C-' + generateGroupCode()</code> (16599).</li>
+<li>INSERT <code>communities</code> עם <code>status='pending'</code>, <code>min_families=30</code>, <code>created_by_group_id=groupId</code>.</li>
+<li>INSERT <code>family_communities(group_id, community_id)</code> ON CONFLICT DO NOTHING — היוצר מצטרף אוטומטית; <code>status</code> מקבל DEFAULT <code>'approved'</code> (server.js:532).</li>
+<li>Hook <code>patchUserCommunityCreate</code> (40666) → <code>seedLocalCategories</code>.</li></ol></div>
+<div>חישובים</div><div>יעד גיוס: 30 משפחות (מוקשח גם בלקוח <code>const target = 30</code>, app.js:6922). תצוגה: <code>pct = min(100, famCount/30*100)</code>; "פעילה" אם <code>famCount ≥ 30 || status==='active'</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>משפחה</td><td>—</td><td>יוצר מצורף כחבר approved</td></tr>
+<tr><td>pending</td><td>active</td><td>SA</td><td><code>PUT /api/sa/communities/:id/approve</code> (17524)</td><td>אין</td></tr></table></div>
+אין מעבר אוטומטי ל-active בהגעה ל-30 משפחות — לא נקבע בקוד.</div>
+<div>ממשק</div><div><code>app.js:renderMyInitiatives</code> (6913): פס התקדמות, כפתור WhatsApp עם קישור <code>/?inviteCommunityCode=CODE</code> וטקסט "אם נגיע ל-30 משפחות...". נתונים מ-<code>GET /api/community/my-initiatives/:groupId</code> (16614).</div>
+<div>פערים</div><div><code>my-initiatives</code> סופר <code>family_groups.community_id</code> (שדה לגאסי) ולא <code>family_communities</code> (16619) — מונה ההתקדמות כמעט תמיד 0. גם <code>/api/biz/communities/my</code> (16635) ו-<code>/api/sa/business/:bizId/communities</code> סופרים לפי השדה הלגאסי.</div></div></section>
+
+ <section class="proc" data-f="community sa edit approve delete details pending families"><h3>ניהול קהילה ע"י SA — עריכה, אישור, מחיקה, פרטים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מטבלת הקהילות.</div>
+<div>תנאים ואימותים</div><div><ul><li>כולם <code>verifySA</code>. עריכה (17515) קוראת <code>code.toUpperCase()</code> ללא בדיקה — <code>code</code> חסר יפיל 500.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>עריכה</b> <code>PUT /api/sa/communities/:id</code>: UPDATE name, city, code, manager_email, manager_password, image_url (כל השדות נדרסים).</li>
+<li><b>אישור</b> <code>PUT .../approve</code>: <code>status='active'</code>.</li>
+<li><b>מחיקה</b> <code>DELETE /api/sa/communities/:id</code> (17531): (1) <code>family_groups.community_id=NULL</code>; (2) DELETE <code>community_businesses</code>; (3) DELETE <code>communities</code> (FK CASCADE מנקה family_communities, community_promotions, banner_requests וכו'). ללא טרנזקציה.</li>
+<li><b>פרטים</b> <code>GET .../:id/details</code> (17540): משפחות (כולל users ו-<code>is_community_manager</code> מנורמל ל-boolean) + עסקים שאינם rejected/removed.</li>
+<li><b>רשימה</b> <code>GET /api/sa/communities</code> (17473): family_count, users_count, business_count(approved).</li>
+<li><b>מפה</b> <code>GET /api/sa/communities/map-data</code> (21418): כולל pending_biz (סטטוסים pending/zm_pending/comm_mgr_pending/pending_cm_review) ו-total_credit מ-<code>community_wallet_transactions type='credit'</code>.</li></ol></div>
+<div>ממשק</div><div><code>sa-app.js:approveSACommunity</code> (4466), <code>deleteSACommunity</code> (4640), <code>openCommunitiesMap</code> (9370).</div></div></section>
+
+ <section class="proc" data-f="community join family code referral pending approve family_communities max 5"><h3>הצטרפות משפחה לקהילה (קוד) ואישורה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה מזינה קוד קהילה (או לוחצת "הצטרף" במסך גילוי קהילות). <code>app.js:joinCommunityDyn</code> (8114) / <code>joinCommunityByCode</code> (7925) → <code>POST /api/community/join</code> (18484).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>בעלות: <code>groupId === req.familyAuth.groupId</code>.</li>
+<li>קהילה לפי <code>code.toUpperCase().trim()</code> בסטטוס <code>active</code> או <code>pending</code> → אחרת 404 "קוד קהילה שגוי או שהקהילה אינה קיימת." (18489).</li>
+<li>שורה קיימת: pending → 200 <code>{success:false,pending:true,error:'הבקשה שלך ממתינה לאישור — נחזור אליך בקרוב!'}</code>; אחרת "כבר מחובר לקהילה זו." (18497).</li>
+<li>מגבלה: <code>COUNT(*) WHERE status='approved' ≥ 5</code> → 400 "ניתן להצטרף לעד 5 קהילות מאושרות במקביל." (18503). ממתינות לא נספרות.</li>
+<li><code>referralCode</code> אופציונלי — מחפש <code>family_groups.referral_code</code> (FAMILY, id≠groupId). לא נמצא — מתעלם בשקט.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>family_communities(group_id, community_id, status='pending', referred_by_group_id)</code>.</li><li>תשובה <code>{success, pending:true, community, referrerFound}</code>.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>משפחה</td><td>join</td><td>—</td></tr>
+<tr><td>pending</td><td>approved</td><td>מנהל קהילה</td><td><code>POST /api/community/manager/family/approve</code> (20464); נדרש <code>is_community_manager</code> בקהילה; חוסם משתמש CHILD</td><td>—</td></tr>
+<tr><td>pending</td><td>approved</td><td>מנהל אזור</td><td><code>POST /api/zone-manager/community-family/approve</code> (19103); קהילה באזורו; <code>AND status='pending'</code></td><td>—</td></tr>
+<tr><td>* </td><td>approved</td><td>SA</td><td><code>POST /api/sa/community-family/approve</code> (17767) — ללא תנאי סטטוס</td><td>—</td></tr>
+<tr><td>pending</td><td>(נמחק)</td><td>CM / ZM / SA</td><td>reject = DELETE השורה (20484 / 19129 / 17779 — SA מוחק גם approved)</td><td>—</td></tr>
+<tr><td>* </td><td>approved</td><td>SA</td><td>שיוך יזום <code>POST /api/sa/communities/:commId/assign-families</code> (18652), UPSERT status='approved'</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>אין התראה למשפחה על אישור/דחייה. אין הענקת FLOW על הצטרפות (מפתח <code>join_community</code> קיים ב-flow_config 21681 אך לא נקרא בשום מקום). הפניה (<code>referred_by_group_id</code>) נספרת רק בסטטיסטיקה (<code>/api/community/my-referral-stats</code>, 21079).</div>
+<div>ממשק</div><div>אחרי join, <code>fetchCommunityData</code> (app.js:6799) מבצע polling כל 15 שניות כל עוד יש קהילה ב-pending (6813). SA רואה רק בקשות בקהילות ללא ZM פעיל (<code>/api/sa/communities/pending-families</code> 17747); ZM — באזורו (19086); CM — ב-<code>/api/community/manager-data</code> (20490).</div>
+<div>פערים</div><div>אין בקשה ל-CM לפני ZM עבור משפחות (בשונה מעסקים) — שלושתם יכולים לאשר במקביל. SA מוחק גם שורות approved ב-reject.</div></div></section>
+
+ <section class="proc" data-f="community leave family manager last"><h3>עזיבת קהילה ע"י משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:leaveCommunity</code> (8228) → <code>DELETE /api/community/leave/:groupId/:communityId</code> (18522).</div>
+<div>תנאים ואימותים</div><div><ul><li>בעלות groupId.</li><li>אם המשפחה <code>is_community_manager</code> ואין מנהל נוסף בקהילה → 409 "את/ה מנהל/ת הקהילה היחיד/ה — יש למנות מנהל/ת אחר/ת (דרך הסופר-אדמין/מנהל האזור) לפני העזיבה" (18533).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE <code>family_communities</code>.</li></ol></div>
+<div>פערים</div><div>קהילה שנוצרה ע"י המשפחה (<code>created_by_group_id</code>) עדיין תוחזר ב-<code>/api/community/info</code> (UNION, 18370) גם אחרי עזיבה, עם <code>status</code> COALESCE ל-'approved'.</div></div></section>
+
+ <section class="proc" data-f="community manager appoint set-manager is_community_manager zone sa"><h3>מינוי/הסרת מנהל קהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA (<code>PUT /api/sa/communities/:commId/set-manager</code>, 18640, <code>sa-app.js:setSACommunityManager</code> 4616) או ZM (<code>POST /api/zone-manager/set-community-manager</code>, 19962, <code>zone-manager-app.js:zmSetCommunityManager</code> 649 / <code>zmSetManagerFromFamily</code> 663).</div>
+<div>תנאים ואימותים</div><div><ul><li>ZM: groupId+communityId חובה; קהילה באזורו → אחרת 403 "קהילה לא שייכת לאזור שלך".</li><li>SA: ללא בדיקות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>family_communities.is_community_manager = !!isManager</code> לשורה (group, community). אם המשפחה אינה חברה — 0 שורות, תשובת success.</li></ol></div>
+<div>תופעות לוואי</div><div>קיום CM מאושר משנה את זרימת אישור עסקים (<code>resolveCommunityJoinStatus</code> 16790 → <code>pending_cm_review</code>). אפשר כמה מנהלים לקהילה.</div>
+<div>ממשק</div><div>ZM מחפש חברים ב-<code>GET /api/zone-manager/communities-members?communityId&amp;q</code> (19357, LIMIT 30, ILIKE על name/admin_email). אצל המשפחה כפתור "ניהול" מופיע לפי <code>is_community_manager</code> מ-<code>/api/community/cashback-info</code> (app.js:6985).</div>
+<div>פערים</div><div>המינוי לא בודק <code>status='approved'</code> — אפשר למנות משפחה pending, אך <code>resolveCommunityJoinStatus</code> מתחשב רק ב-CM approved.</div></div></section>
+
+ <section class="proc" data-f="community info family-feed businesses discount cashback-info"><h3>תצוגת הקהילות והעסקים למשפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טעינת טאב קהילה: <code>GET /api/community/info/:groupId</code> (18358), <code>GET /api/community/cashback-info/:groupId</code> (20446), <code>GET /api/community/family-feed/:groupId</code> (18394), <code>GET /api/community/promos/:groupId</code> (17861).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>info: קהילות = חברות ב-family_communities ∪ קהילות שהמשפחה יצרה; <code>status = COALESCE(fc.status,'approved')</code>; family_count מאושרות. עסקים: <code>community_businesses.status='approved'</code> בכל הקהילות, לוגו <code>COALESCE(store_settings.logo_url, family_groups.image_url)</code>, family_count (כל הסטטוסים) ו-min_families.</li>
+<li>family-feed: מבצעים מאושרים בתוקף (LIMIT 20), חבילות פעילות, באנרים מאושרים בטווח תאריכים (LIMIT 5) — לכל הקהילות שהמשפחה בהן (כולל pending!).</li>
+<li>promos: רק קהילות שהמשפחה approved בהן; מבצע approved ו-<code>valid_until ≥ CURRENT_DATE</code> או NULL.</li></ol></div>
+<div>חישובים</div><div>תג "פעיל" לעסק בקהילה: <code>family_count ≥ (min_families || 30)</code> (app.js:6359) — ויזואלי בלבד (ירוק/כתום), אין חסימת הנחה בשרת.</div>
+<div>ממשק</div><div><code>app.js:renderFamilyCommunities</code> (6960) — "הקהילות שלי (n/5)", תג ארנק ₪ מ-community_wallets, תג "מנהל קהילה", כפתורי ניהול/הזמן עסק/התנתק. <code>renderFamCommunityBenefits</code> (6342) — קישור לחנות <code>storefront.html?store=CODE&amp;communityId=ID</code>; עסק בכמה קהילות → <code>openBizCommunityPicker</code>.</div>
+<div>פערים</div><div>family-feed לא מסנן <code>fc.status='approved'</code> (18400) — משפחה ממתינה רואה מבצעים/קודים.</div></div></section>
+
+ <section class="proc" data-f="community interests tags type geographic interest discover by-interest match score business"><h3>תחומי עניין, סוג קהילה, גילוי קהילות ודירוג התאמה לעסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מגדיר תגיות וסוג; משפחה מחפשת קהילות; עסק רואה התאמה.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>POST /api/sa/communities/:id/interests</code> (21317): <code>tags</code> חייב להיות מערך (400 "tags חייב להיות מערך").</li><li><code>POST /api/sa/communities/:id/type</code> (21407): רק <code>geographic|interest</code> (400 "סוג לא חוקי").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>interests: <code>communities.interest_tags = tags.join(',')</code>; DELETE+INSERT <code>community_interests</code>.</li>
+<li>discover (ציבורי, 21358): <code>status='active'</code>; <code>q</code> (ILIKE על שם/עיר/שם אזור) גובר על <code>city</code>; <code>type</code>; LIMIT 50 ממוין family_count; מחזיר גם <code>byCity</code> (עיר ריקה → 'ארצי'). מחזיר <code>code</code> (מאפשר הצטרפות ישירה).</li>
+<li>by-interest (ציבורי, 21341): ILIKE על interest_tag.</li>
+<li>match (<code>GET /api/biz/communities/match/:bizId</code> 21194).</li></ol></div>
+<div>חישובים</div><div>ציון התאמה (21220–21248), תקרה 100, מעוגל:
+<ul><li>מיקום 0–40: אם לעסק <code>location_lat/lng</code> ולקהילה <code>lat/lng</code>: <code>dist = √(Δlat²+Δlng²)·111</code>; <code>max(0, 40 − 4·dist)</code>. אחרת התאמת עיר מלאה +35, חלקית (includes) +20.</li>
+<li>עסקים: <code>min(20, biz_count·2)</code>. משפחות: <code>min(30, family_count·0.5)</code>.</li>
+<li>תגית: +10 אם <code>interest_tags</code> כולל מילה ממפה: beauty→[יופי,קוסמטיקה,ספא], sport→[כושר,ספורט], food→[אוכל,מסעדה,קייטרינג], logistics→[שירותים,לוגיסטיקה].</li></ul></div>
+<div>ממשק</div><div><code>app.js:openCommunityDiscoveryModal</code> (7943), <code>searchCommunitiesByCity</code> (8012); <code>business-app.js:loadBizCommunitiesWithMatch</code> (17600).</div>
+<div>פערים</div><div>לטבלת <code>communities</code> אין עמודות lat/lng (schema) — ענף הגאו מת. match לא בודק בעלות על bizId. <code>address_city</code> לא קיים ב-family_groups.</div></div></section>
+
+ <section class="proc" data-f="community articles zone manager sa content kol-haam"><h3>מאמרי קהילה (SA / מנהל אזור / מנהל קהילה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פרסום תוכן לקהילה. SA: <code>/api/sa/articles</code> (15803–15824). ZM: <code>/api/zm/articles</code> (15827–15860, <code>zone-manager-app.js:zmPublishArticle</code> 2209). CM: <code>POST /api/community/manager/articles</code> (15863, <code>app.js:cmPublishArticle</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>ZM: title+body חובה ("title and body required").</li><li>CM: בעלות group_id; title/body/community_id חובה; title ≤200, body ≤5000; חייב <code>is_community_manager</code> ("Not a community manager"); חוסם CHILD.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>community_articles(community_id, author_type∈{sa,zone_manager,community_manager}, author_id, title, body, image_url)</code>.</li><li>קריאה ציבורית <code>GET /api/community/articles/:communityId</code>: <code>community_id=$1 OR NULL</code>, LIMIT 20 (מאמר עם community_id NULL = גלובלי).</li><li>ZM מוחק רק מאמרים שלו.</li></ol></div>
+<div>ממשק</div><div><code>app.js:loadCommunityArticles</code> (6260).</div>
+<div>פערים</div><div>ZM יכול לפרסם ל-<code>community_id</code> כלשהו (לא נבדק שבאזורו). <code>zmLoadContent</code> קורא ל-<code>/api/zm/zones</code> (zone-manager-app.js:2182) שאינו קיים בשרת.</div></div></section>
+
+<h2 class="grp">קישור עסק ↔ קהילה (community_businesses)</h2>
+
+ <section class="proc" data-f="community business status machine pending zm_pending pending_cm_review comm_mgr_pending biz_invited approved rejected removed"><h3>מכונת המצבים של חיבור עסק לקהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ישות <code>community_businesses</code> (PK community_id+business_id, 16497) — חברות עסק בקהילה, <code>discount_pct</code>, דגלי הסרה.</div>
+<div>חישובים</div><div>יעד ההמתנה הראשוני — <code>resolveCommunityJoinStatus(communityId)</code> (16790): יש CM approved בקהילה → <code>pending_cm_review</code>; אחרת <code>resolveCommunityFinalApprovalStatus</code> (16797): לקהילה <code>zone_id</code> → אזור → ZM בסטטוס active → <code>zm_pending</code>; אחרת <code>pending</code> (SA).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>— / rejected / removed</td><td>pending_cm_review / zm_pending / pending</td><td>עסק</td><td><code>POST /api/biz/communities/join</code> (16807) — UPSERT ללא תנאי סטטוס</td><td>מאפס rejected_at, removal_requested, removed_*</td></tr>
+<tr><td>— / rejected / removed</td><td>לפי resolve</td><td>משפחה</td><td>הפניה <code>POST /api/community/family-refer</code> (18453) — UPDATE רק אם rejected/removed</td><td>INSERT community_referrals</td></tr>
+<tr><td>— / rejected / removed</td><td>biz_invited</td><td>משפחה חברה approved / ZM</td><td><code>/api/community/invite-business</code> (16833) / <code>/api/zone-manager/invite-business</code> (18889)</td><td>discount_pct=0, created_at=NOW</td></tr>
+<tr><td>biz_invited</td><td>comm_mgr_pending</td><td>עסק</td><td><code>/api/biz/community-invitation/accept</code> (16865) — חובה discountPct</td><td>—</td></tr>
+<tr><td>biz_invited</td><td>rejected (by business)</td><td>עסק</td><td><code>/decline</code> (16879)</td><td>rejected_at</td></tr>
+<tr><td>comm_mgr_pending</td><td>approved</td><td>CM / ZM</td><td><code>/api/community/manager/community-business/approve</code> (16891) / <code>/api/zone-manager/community-business/approve-invited</code> (18907)</td><td><code>awardFlow(business,'biz_join_approved')</code></td></tr>
+<tr><td>comm_mgr_pending, pending_cm_review</td><td>rejected (community_manager)</td><td>CM</td><td>16908</td><td>—</td></tr>
+<tr><td>comm_mgr_pending</td><td>rejected (zone_manager)</td><td>ZM</td><td>reject-invited 18923</td><td>—</td></tr>
+<tr><td>pending_cm_review</td><td>zm_pending / pending</td><td>CM</td><td>forward-approve (16926)</td><td>מחזיר forwardedTo</td></tr>
+<tr><td>zm_pending</td><td>approved</td><td>ZM</td><td>18974 (UPDATE … AND status='zm_pending')</td><td>awardFlow — גם אם 0 שורות עודכנו</td></tr>
+<tr><td>zm_pending</td><td>rejected (zone_manager)</td><td>ZM</td><td>18993</td><td>—</td></tr>
+<tr><td>* (כל שורה)</td><td>zm_pending / approved</td><td>SA</td><td><code>/api/sa/community-business/approve</code> (17654) — ללא תנאי סטטוס: יש ZM פעיל → zm_pending, אחרת approved</td><td>awardFlow רק ב-approved</td></tr>
+<tr><td>pending, zm_pending</td><td>rejected (super_admin)</td><td>SA</td><td>17678</td><td>—</td></tr>
+<tr><td>pending/zm_pending/pending_cm_review/comm_mgr_pending</td><td>approved</td><td>SA</td><td>override-approve (17589)</td><td>awardFlow</td></tr>
+<tr><td>כנ"ל + biz_invited</td><td>rejected (super_admin)</td><td>SA</td><td>override-reject (17602)</td><td>—</td></tr>
+<tr><td>* </td><td>approved</td><td>SA</td><td>approve-direct (17738) / קישור ידני <code>POST /api/sa/community-business</code> (17615, UPSERT)</td><td>ללא awardFlow</td></tr>
+<tr><td>approved (+removal_requested)</td><td>removed</td><td>ZM / SA</td><td>approve-removal (19030 / 17712), נדרש removal_requested=TRUE</td><td>removed_at, removed_by</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>עסק / SA</td><td><code>DELETE /api/biz/communities/leave/:c/:b</code> (16971) / <code>DELETE /api/sa/community-business/:c/:b</code> (17638)</td><td>מחיקה פיזית</td></tr></table></div>
+<code>rejected_by</code> ∈ {business, community_manager, zone_manager, super_admin}; <code>removed_by</code> ∈ {zone_manager, super_admin}.</div>
+<div>תופעות לוואי</div><div>רק <code>approved</code> נחשב חבר: מבצעים, פיד עסקי, פולים, קמפייני שוקה, באנרים, קאשבק. אין התראות על שום מעבר.</div>
+<div>ממשק</div><div>תוויות שלב זהות ב-<code>sa-app.js:SA_BIZ_STAGE_LABELS</code> (4164) ו-<code>business-app.js</code> (16527): pending "ממתין לאישורך", zm_pending "ממתין למנהל אזור", pending_cm_review "ממתין למנהל קהילה", comm_mgr_pending "ממתין לאישור מי שהזמין", biz_invited "ממתין לתגובת העסק". כפתור אישור מוסתר כש-biz_invited.</div>
+<div>פערים</div><div><code>/api/biz/communities/join</code> לא בודק קיום שורה — עסק approved שמגיש שוב חוזר למצב המתנה (ומאבד חברות). ZM approve (18987) מעניק FLOW גם כשלא עודכנה שורה → שכפול תגמול. comm_mgr_pending נוצר גם מהזמנת משפחה רגילה (לא רק CM), וכל CM/ZM יכול לאשרו ישירות.</div></div></section>
+
+ <section class="proc" data-f="business join community self request discount available via-biz"><h3>בקשת הצטרפות עצמית של עסק לקהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "גלה קהילות" בעסק: <code>business-app.js:loadBizAvailableCommunities</code> (16848) → מודל → <code>submitBizCommunityJoin</code> (17319).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: הנחה מספר ≥0 ("יש להזין אחוז הנחה תקין (אפשרי 0)").</li><li>שרת: בעלות businessId; <code>discountPct</code> → <code>parseFloat||0</code>; אין תקרה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>status = resolveCommunityJoinStatus(communityId)</code>.</li><li>UPSERT <code>community_businesses</code> (discount, status, איפוס דגלי דחייה/הסרה).</li></ol></div>
+<div>ממשק</div><div>זמינות: <code>GET /api/biz/communities/available/:bizId</code> (16755) — <code>communities.status='active'</code> שאין לעסק בהן שורה שאינה rejected/removed. גילוי דרך עסק עמית: <code>GET /api/biz/communities/via-biz/:bizCode/:myBizId</code> (16770). הודעת הצלחה "בקשת ההצטרפות נשלחה לניהול הקהילה!".</div>
+<div>פערים</div><div><code>available</code> ו-<code>via-biz</code> לא בודקים בעלות על bizId/myBizId.</div></div></section>
+
+ <section class="proc" data-f="invite business family zone manager invitation accept decline search-business"><h3>הזמנת עסק לקהילה ותגובת העסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה חברה (<code>app.js:openInviteBizModal</code>) או ZM (<code>zone-manager-app.js:openZMInviteBizModal</code> 419 → <code>zmSendBizInvite</code> 465). חיפוש עסק: <code>GET /api/community/search-business?q</code> (16821, ציבורי, ILIKE name/group_code, LIMIT 10).</div>
+<div>תנאים ואימותים</div><div><ul><li>משפחה: בעלות + חברות approved ("אינך חבר מאושר בקהילה זו").</li><li>ZM: קהילה באזורו.</li><li>שורה קיימת שאינה rejected/removed → 400 "העסק כבר חבר בקהילה" / "העסק כבר בתהליך הצטרפות".</li><li>accept: <code>discountPct</code> חובה ("יש להזין אחוז הנחה"); 404 "הזמנה לא נמצאה" אם לא biz_invited.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT status=<code>biz_invited</code>, discount 0.</li><li>העסק רואה ב-<code>GET /api/biz/community-invitations/:bizId</code> (16852) → accept → <code>comm_mgr_pending</code> + discount; decline → rejected.</li><li>CM/ZM מאשר ישירות (ראו טבלת מצבים).</li></ol></div>
+<div>ממשק</div><div><code>business-app.js:loadBizCommunityInvitations</code> (18019). ZM: לשונית בקשות עסקים <code>zmLoadPendingBiz</code> (314) + פאנל ממתינים עם רענון כל 60 שניות (<code>showDashboard</code> 132).</div></div></section>
+
+ <section class="proc" data-f="community manager business review forward approve reject removal request cancel manager-data"><h3>סקירת עסקים ע"י מנהל קהילה (כולל בקשת הסרה)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>CM מאפליקציית המשפחה, פאנל <code>app.js:openCommunityManagerPanel</code> (8252), נתונים מ-<code>GET /api/community/manager-data/:groupId</code> (20490).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>verifyCommunityManagerAccess</code> (20545): שורת family_communities עם is_community_manager=TRUE (לא נבדק status). 403 "אין הרשאה לקהילה זו".</li><li><code>blockIfChildFamilyUser</code> (33970): משתמש role=CHILD → 403 "פעולה זו אינה זמינה למשתמש מסוג ילד/ה" (fail-open על שגיאת DB).</li><li>request-removal: רק approved, אחרת 404 "העסק אינו פעיל בקהילה זו".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>manager-data: קהילות מנוהלות; עסקים שאינם rejected/removed (כולל removal_requested); משפחות pending; ארנקים (community_wallets); 50 תנועות אחרונות.</li><li>request-removal: <code>removal_requested=TRUE, removal_requested_at=NOW</code> — העסק נשאר פעיל.</li><li>cancel-removal-request: איפוס הדגל.</li><li>ZM/SA מאשרים (status=removed) או דוחים (<code>decline-removal</code>, איפוס דגל — ללא בדיקת סטטוס).</li></ol></div>
+<div>ממשק</div><div>בפאנל: "אשר"/"דחה" ל-comm_mgr_pending, "אשר והעבר הלאה" ל-pending_cm_review, "בקש הסרה" / "בקשת הסרה נשלחה · ביטול" לעסק פעיל (app.js:8277–8320).</div></div></section>
+
+ <section class="proc" data-f="discount community business update zone manager sa"><h3>עדכון אחוז הנחה קהילתי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק (<code>PUT /api/biz/community-discount</code> 19074, מודל <code>openUpdateDiscountModal</code> 17345), ZM (<code>PUT /api/zone-manager/community-business/discount</code> 19062, <code>openZMDiscountEdit</code>), SA (<code>PUT /api/sa/community-business/discount</code> 17646).</div>
+<div>תנאים ואימותים</div><div><ul><li>עסק: בעלות + חיבור approved ("אין הרשאה לעדכן — החיבור לא מאושר").</li><li>ZM: קהילה באזורו.</li><li>ערך: <code>parseFloat||0</code>; ללא טווח בשרת (לקוח: <code>min=0 max=100</code> בלבד).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>community_businesses.discount_pct</code>.</li></ol></div>
+<div>פערים</div><div>אחוז ההנחה מוצג בלבד באפליקציית המשפחה; יישום ההנחה בהזמנה — לא נקבע בתחום זה.</div></div></section>
+<h2 class="grp">מבצעי קהילה, בקשות באנר, חבילות וביקורות</h2>
+
+ <section class="proc" data-f="community promotions promo submit approve reject promo_code product condition"><h3>מבצע קהילה — הגשה ואישור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק מגיש מבצע לקהילה שהוא חבר בה: <code>business-app.js:submitBizPromo</code> (17548) → <code>POST /api/biz/community/promotions</code> (17824).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>businessId, communityId, title חובה (400 "חסרים שדות חובה"); בעלות; חיבור approved → אחרת 403 "העסק אינו חבר בקהילה זו".</li>
+<li>לקוח: כותרת ("יש להזין כותרת למבצע"), קהילה ("יש לבחור קהילה"). סוג <code>product</code>: מוצר קטלוג חובה; מחיר ≥0 או "חינם" (=0); תנאי <code>min_amount</code> &gt;0 / <code>product</code> (מוצר תנאי) / <code>category</code> / <code>none</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>community_promotions</code> status='pending', promo_type ברירת מחדל 'discount', condition_type ברירת מחדל 'none', discount_pct parseFloat||0.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>SA</td><td><code>POST /api/sa/community-promo/approve</code> (17785) — ללא תנאי סטטוס</td><td>יוצר <code>promo_code = 'PROMO' + 5 תווים base36 uppercase</code>; <code>awardFlow(business,'biz_promo_approved', community, promoId)</code></td></tr>
+<tr><td>* </td><td>approved / rejected</td><td>SA</td><td><code>POST /api/sa/community/promotions/:id/status</code> (21165)</td><td>approved → awardFlow; <b>לא</b> יוצר promo_code</td></tr>
+<tr><td>* </td><td>rejected</td><td>SA</td><td><code>/api/sa/community-promo/reject</code> (17799)</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>FLOW לעסק: 10 אישי + 5 לקהילה (flow_config <code>biz_promo_approved</code>, 21693).</div>
+<div>ממשק</div><div>SA: פאנל ממתינים <code>loadSAPendingRequests</code> (sa-app.js:4172) → <code>approveSAPromo</code> (מציג "המבצע אושר! קוד: X"); פאנל נפרד <code>openSAPromotionsPanel</code>/<code>saApprovePromo</code> (9142/9180) משתמש בנתיב status. עסק רואה מבצעיו ב-<code>/api/biz/community/promotions/:bizId</code> (17846, עם בעלות) — ובנתיב כפול 21153 ללא בדיקת בעלות (נרשם מאוחר יותר, לא נגיש כי הראשון תופס).</div>
+<div>פערים</div><div>אישור דרך <code>saApprovePromo</code> משאיר <code>promo_code=NULL</code> → לא ניתן לאמת/לממש את המבצע בקוד. אין דרישה ש-valid_until עתידי.</div></div></section>
+
+ <section class="proc" data-f="community promo validate redeem code checkout flow promo_redemption"><h3>אימות ומימוש קוד מבצע קהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>(א) אימות בקופה: <code>GET /api/community/promotions/validate?code&amp;communityId</code> (21112, ציבורי). (ב) מימוש ידני מכרטיס מבצע: <code>app.js:redeemCommunityPromo</code> (7320) → <code>POST /api/community/promotions/:id/redeem</code> (22132). (ג) בהזמנת חנות עם <code>communityPromoCode</code>/<code>promoCode</code> (store/orders, 14543, 14601).</div>
+<div>תנאים ואימותים</div><div><ul><li>validate: code חובה; ללא communityId → 403 "קוד מבצע קהילה זמין רק לחברי קהילה"; התאמה promo_code (uppercase) + status approved + community_id + בתוקף, אחרת 404 "קוד לא תקין, לא מאושר, או פג תוקף". לא נבדקת חברות המשפחה.</li>
+<li>redeem: בעלות; מבצע approved; אם יש community_id — משפחה approved בקהילה ("יש להיות חבר מאושר בקהילה כדי לממש הטבה זו").</li>
+<li>הזמנת חנות: <code>communityPromoCode</code> נשמר רק אם המשפחה approved בקהילת המבצע (14547).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>redeem: <code>awardFlow(family,'promo_redemption')</code> (3 אישי + 2 קהילה); <code>awardFlow(business,'biz_promo_redeemed')</code> (5+5); <code>awardFlow('community', community,'promo_community')</code> (0 אישי, 5 קהילה).</li>
+<li>הזמנה עם promoCode: אותם שלושה awardFlow (14607–14611).</li>
+<li>סגירת הזמנה (delivered/completed) עם community_promo_id: <code>awardFlow(family,'promo_used')</code> (14694) — המפתח לא קיים ב-flow_config → no-op.</li></ol></div>
+<div>חישובים</div><div>סה"כ לקהילה במימוש אחד: 2+5+5=12 FLW.</div>
+<div>פערים</div><div>אין רישום מימוש ואין מניעת כפילות — לחיצה חוזרת על "מימוש" מעניקה FLOW שוב ושוב (22132–22152). validate מחזיר נתוני מבצע לכל מי שיודע code+communityId.</div></div></section>
+
+ <section class="proc" data-f="community banner request promotion headline position ai approved-banners legacy"><h3>בקשת באנר קהילתי (מערכת לגאסי, על בסיס מבצע)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק עם מבצע מאושר מבקש באנר: <code>business-app.js:requestBannerForPromo</code> (17759) → <code>POST /api/biz/community/promotions/:id/banner-request</code> (21437).</div>
+<div>תנאים ואימותים</div><div><ul><li>businessId חובה + בעלות; מבצע של העסק ב-approved (404 "מבצע לא נמצא או לא מאושר"); אין בקשה קיימת שאינה rejected (409 "בקשת באנר כבר קיימת למבצע זה").</li>
+<li>SA approve (21532): status ∈ {approved, rejected}; approved דורש startDate+endDate ("נדרש תאריך התחלה וסיום").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>community_banner_requests</code> (promotion_id, business_id, community_id) status pending.</li><li>SA: UPDATE status, start/end, banner_headline, <code>position = clamp(parseInt||5, 1, 10)</code>.</li><li>AI כותרת: <code>POST /api/sa/community/banner-ai/:id</code> (21546) — Gemini <code>gemini-2.5-flash</code>, פרומפט "כותרת שיווקית קצרה (עד 10 מילים) בעברית"; מנקה מרכאות ונקודה סופית ושומר ב-banner_headline.</li></ol></div>
+<div>מכונת מצבים</div><div>pending → approved | rejected (SA). אחרי rejected ניתן לבקש שוב.</div>
+<div>תופעות לוואי</div><div>תצוגה: <code>GET /api/community/approved-banners?communityId</code> (21458, ציבורי) — לגאסי: כל הבאנרים המאושרים בטווח (או ללא תאריכים) <b>מכל הקהילות</b>, ממוין position ASC; בנוסף <code>banner_orders</code> active בטווח שה-community_ids שלהם מכילים את הקהילה (source='flow_ads'). family-feed מציג עד 5 (18434).</div>
+<div>ממשק</div><div>SA: <code>openSABannerRequestsPanel</code>/<code>approveBannerRequest</code>/<code>generateBannerAI</code> (sa-app.js:9554–9660). משפחה: <code>app.js:loadCommHomeBanners</code> (6314), <code>renderCommunityBanners</code> (7198).</div>
+<div>פערים</div><div>approved-banners לגאסי לא מסנן לפי communityId — באנרים של קהילה אחת מוצגים בכל הקהילות (21472).</div></div></section>
+
+ <section class="proc" data-f="community bundles package purchase flow sa create"><h3>חבילות קהילה (Bundles)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA יוצר חבילה של כמה עסקים; משפחה "רוכשת". SA: <code>createCommunityBundle</code> (sa-app.js:9783) → <code>POST /api/sa/community/bundles</code> (21574). משפחה: <code>app.js:purchaseCommunityBundle</code> (7299) → <code>POST /api/community/bundles/:id/purchase</code> (22191).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה: communityId, name ו-<code>businessIds</code> מערך באורך ≥2 → אחרת 400 "נדרשים קהילה, שם ולפחות 2 עסקים". לא נבדק שהעסקים חברים בקהילה.</li><li>רכישה: בעלות; חבילה active (404 "חבילה לא נמצאה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: INSERT community_bundles (discount_pct parseFloat||0) + community_bundle_businesses.</li><li>רכישה: awardFlow family 'bundle_purchase' (18+7); לכל עסק 'biz_bundle_sold' (10+20); 'community' 'bundle_community' (0+20).</li><li>SA משנה סטטוס חופשי <code>PATCH /api/sa/community/bundles/:id</code> (21624).</li></ol></div>
+<div>פערים</div><div>"רכישה" אינה כוללת תשלום, הזמנה או מניעת כפילות — מכונת FLOW בלחיצה. PATCH status ללא ולידציה.</div></div></section>
+
+ <section class="proc" data-f="community review business rating biz-contact lead flow"><h3>ביקורת על עסק ופנייה לעסק דרך הקהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:submitCommunityReview</code> (7376) → <code>POST /api/community/reviews</code> (22155); פנייה: <code>POST /api/community/biz-contact</code> (22176).</div>
+<div>תנאים ואימותים</div><div><ul><li>ביקורת: בעלות; familyGroupId, businessGroupId, rating חובה; rating 1–5 ("דירוג 1–5 בלבד"); כפילות — קיימת טרנזקציית <code>review_business</code> עם reference_id=עסק ב-30 הימים האחרונים → 409 "כבר כתבת ביקורת על עסק זה החודש".</li>
+<li>פנייה: פעם ביום לכל זוג (עסק, משפחה) נבדק לפי flow_transactions.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ביקורת: awardFlow family 'review_business' (7+3); אם rating ≥4 → business 'biz_review_received' (8+2). <b>טקסט הביקורת לא נשמר בשום טבלה.</b></li><li>פנייה: awardFlow business 'biz_lead_received' (5+2); ההודעה עצמה לא נשמרת/נשלחת.</li></ol></div>
+<div>פערים</div><div>ביקורת ופנייה הן רק מנגנוני FLOW; <code>message</code>/<code>text</code> נזרקים.</div></div></section>
+
+<h2 class="grp">הפניות, קאשבק, ארנקי קהילה ומנוע FLOW</h2>
+
+ <section class="proc" data-f="referral code family my-referral-code stats share whatsapp"><h3>קוד הפניה משפחתי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה משתפת קוד הפניה; מצטרף חדש מזין אותו ב-join. <code>GET /api/community/my-referral-code/:groupId</code> (21091), <code>GET /api/community/my-referral-stats/:groupId</code> (21079).</div>
+<div>חישובים</div><div>Backfill באתחול: <code>UPPER(SUBSTRING(MD5(id||'fref'),1,8))</code> (21071). On-demand: שני מקטעי 4 תווים base36 uppercase (21099). <code>family_groups.referral_code</code> UNIQUE (VARCHAR 12).</div>
+<div>שלבי עיבוד</div><div><ol><li>stats: COUNT מ-family_communities לפי <code>referred_by_group_id</code>, ו-COUNT approved.</li></ol></div>
+<div>ממשק</div><div><code>app.js:loadMyReferralCode</code> (8147), <code>copyReferralCode</code>, <code>shareReferralWhatsApp</code> (8221), <code>selectCommunityForReferral</code> (8175).</div>
+<div>פערים</div><div>אין תגמול למפנה על הצטרפות משפחה (<code>referral</code>/<code>referral_join</code> ב-flow_config לא נקראים בתחום זה).</div></div></section>
+
+ <section class="proc" data-f="ambassador family refer business community_referrals approve reward points wallet"><h3>שגריר קהילה — הפניית עסק ע"י משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:openFamReferralModal</code>/<code>submitFamReferral</code> (7838/7877) → <code>POST /api/community/family-refer</code> (18453).</div>
+<div>תנאים ואימותים</div><div><ul><li>בעלות; groupId, bizCode, communityId חובה; המשפחה בקהילה (כל סטטוס) ("אינך חבר בקהילה זו"); bizCode קיים BUSINESS ("לא נמצא עסק עם קוד זה"); אין הפניה קודמת לאותו (מפנה, עסק, קהילה) → 409 "כבר הפנית עסק זה לקהילה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>community_referrals</code> (status 'pending', notes).</li><li>UPSERT community_businesses ב-<code>resolveCommunityJoinStatus</code>; עדכון רק אם השורה rejected/removed.</li><li>SA: <code>POST /api/sa/community/referrals/:id/approve</code> (21277): <code>pts = parseFloat(rewardPoints)||50</code>; UPDATE referral approved+reward_points; INSERT community_wallets (אם חסר) ו-<code>balance += pts</code>; INSERT community_wallet_transactions type='credit' "בונוס שגריר קהילה"; <code>awardFlow(family, referrer,'ambassador_approved', community, refId)</code> (35+15).</li></ol></div>
+<div>מכונת מצבים</div><div>community_referrals: pending → approved (SA, ללא תנאי סטטוס — אישור חוזר מזכה שוב). אין מעבר rejected בקוד.</div>
+<div>ממשק</div><div>SA <code>sa-app.js</code> 9277 (מבקש נקודות, ברירת מחדל 50). משפחה: <code>GET /api/community/my-referrals/:groupId</code> (21262).</div>
+<div>פערים</div><div>אישור ההפניה אינו קשור לאישור העסק בקהילה. "נקודות" מתווספות ל-community_wallets (₪, ארנק הקאשבק) ולא ל-total_earned — מטבע מעורבב.</div></div></section>
+
+ <section class="proc" data-f="cashback order delivered platform commission community wallet business_platform_dues zone manager commission"><h3>קאשבק קהילתי ועמלות בעת השלמת הזמנה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שינוי סטטוס הזמנת חנות ל-<code>delivered</code>/<code>completed</code> ב-<code>POST /api/store/orders/status</code> (14666) → <code>triggerCashbackForOrder(orderId)</code> (18548), אסינכרוני אחרי התשובה.</div>
+<div>תנאים ואימותים</div><div><ul><li>ההזמנה ב-delivered/completed; למשפחה המזמינה (<code>family_group_id</code>) ולעסק (<code>group_id</code>) קהילה משותפת: family_communities (כל סטטוס) ⋈ community_businesses approved; LIMIT 1 (הקהילה הראשונה שנמצאה).</li><li>לא קיימת כבר שורת <code>business_platform_dues</code> להזמנה (אידמפוטנטיות).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>INSERT <code>business_platform_dues</code> (order_amount, commission_pct, commission_amount, cashback_pct, cashback_amount, community_id, status 'pending').</li>
+<li>אם cashback&gt;0: UPSERT <code>community_wallets</code> (balance += , total_earned += ); INSERT <code>community_wallet_transactions</code> type='cashback', reference_id=orderId, "קאשבק מהזמנה #X על סך ₪Y".</li>
+<li>אם לקהילה אזור עם ZM active: INSERT <code>zone_manager_commissions</code> (manager_id, community_id, order_id, amount, commission_pct, "עמלה מהזמנה #X בקהילה").</li></ol>ללא טרנזקציה; שגיאות נבלעות ל-console.</div>
+<div>חישובים</div><div>
+<code>commPct = system_settings.platform_commission_pct || 3</code>; <code>cashbackPct = community_cashback_pct || 30</code> (18571).<br>
+<code>commAmount = round2(total_amount × commPct/100)</code>; <code>cashbackAmount = round2(commAmount × cashbackPct/100)</code> (18574).<br>
+<code>zmPct = zone_managers.commission_pct || zone_manager_commission_pct || 5</code>; <code>zmAmount = round2(commAmount × zmPct/100)</code> (18603).<br>
+דוגמה: הזמנה ₪100 → עמלה ₪3 → קאשבק ₪0.90 לקהילה, ZM ₪0.15.</div>
+<div>תופעות לוואי</div><div>SA מגדיר אחוזים ב-<code>GET/PUT /api/sa/settings/rates</code> (18617/18626). סיכומים: <code>/api/sa/finance-summary</code> (18671), <code>/api/sa/business-dues</code> (18692), רישום גביה <code>POST /api/sa/business-collections</code> (18712, business_id+amount חובה, collected_at ברירת מחדל היום).</div>
+<div>מכונת מצבים</div><div>business_platform_dues.status: נוצר 'pending'; אין מעבר אחר בקוד (גביה נרשמת בטבלה נפרדת).</div>
+<div>פערים</div><div><code>/api/store/orders/status</code> ללא אימות — כל אחד יכול להפעיל קאשבק. אין מנגנון משיכה/שימוש ביתרת community_wallets (רק צבירה). <code>parseFloat(value||3)</code> — ערך 0 שמור יהפוך ל-3.</div></div></section>
+
+ <section class="proc" data-f="community wallet cashback-info sa community-wallets balance"><h3>ארנק קהילה (₪ קאשבק) — צפייה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>חבר/מנהל קהילה: <code>GET /api/community/cashback-info/:groupId</code> (20446); מנהל: manager-data (20490); SA: <code>GET /api/sa/community-wallets</code> (18738).</div>
+<div>שלבי עיבוד</div><div><ol><li>JOIN family_communities ⋈ communities ⟕ community_wallets → balance, total_earned (COALESCE 0), is_community_manager.</li><li>SA: כל הקהילות ממוינות total_earned DESC, כולל family_count.</li></ol></div>
+<div>ממשק</div><div>תג ₪ על כרטיס קהילה (app.js:6981) — ענבר אם &gt;0. <code>fetchCashbackInfo</code> (6828).</div></div></section>
+
+ <section class="proc" data-f="flow engine awardflow flow_config flow_wallets community wallet fl coins"><h3>מנוע FLOW (awardFlow) וארנק FLOW קהילתי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>פונקציה משותפת <code>awardFlow(entityType, entityId, actionKey, communityId, referenceId)</code> (21709) שמזכה ארנק אישי ו/או קהילתי לפי <code>flow_config</code>.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טוען <code>personal_amount, community_amount, description</code> ל-actionKey; לא קיים → return שקט.</li>
+<li>pa&gt;0 ו-entityId: UPSERT <code>flow_wallets(entity_type, entity_id)</code> balance += pa; INSERT <code>flow_transactions</code>.</li>
+<li>ca&gt;0 ו-communityId: UPSERT flow_wallets('community', communityId) += ca; INSERT flow_transactions.</li></ol>שגיאות נבלעות.</div>
+<div>חישובים</div><div>ערכי זריעה (personal / community), 21681–21699 ו-33961:
+join_community 15/5; referral 20/10; promo_redemption 3/2; profile_complete 12/3; review_business 7/3; bundle_purchase 18/7; daily_login 1/0; ambassador_approved 35/15; promo_community 0/5; bundle_community 0/20; biz_join_approved 20/10; biz_promo_approved 10/5; biz_promo_redeemed 5/5; biz_bundle_sold 10/20; biz_review_received 8/2; biz_lead_received 5/2; pool_join 5/2; pool_bid_accepted 25/10; pool_create 3/1; referral_join 20/0 (36797). מפתחות קונפיג: flow_to_ils_rate=100 (100 Flw = ₪10), flow_min_redeem=100, flow_redeem_quarter=0. CHECK <code>flow_wallets.balance ≥ 0</code> (21678).</div>
+<div>תופעות לוואי</div><div>ארנק FLOW קהילתי: <code>GET /api/flow/community-wallet/:communityId</code> (21929, <code>verifyFamilyOrBiz</code>) — רק משפחה approved או עסק approved בקהילה ("אין הרשאה לקהילה זו"); מחזיר balance ו-20 תנועות. ZM רואה ב-community-detail (19432). SA עורך ערכים <code>PUT /api/sa/flow/config</code> (21748) ומזכה/מחייב ידנית <code>POST /api/sa/flow/grant</code> (21875, entityType ∈ family/business/community, reason חובה, action_key 'sa_manual').</div>
+<div>פערים</div><div>קריאת awardFlow עם entityType='community' ו-actionKey ש-personal_amount=0 מזכה רק דרך ענף הקהילה — תקין; אך <code>promo_used</code> לא קיים בקונפיג. מסלולי מימוש FLOW (redeem/deduct) — מחוץ לתחום; לציין ש-<code>/api/flow/redeem/validate</code> (22029) מחפש status NULL/'pending' בעוד קודים נוצרים 'active' — האימות תמיד נכשל.</div></div></section>
+
+<h2 class="grp">פיד קהילה, תחומי עניין והתראות</h2>
+
+ <section class="proc" data-f="community feed ranking posts fetch pinned score pagination"><h3>שליפת פיד קהילה ודירוג</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:loadFeedSection</code> (17877) / <code>fetchFeedPosts</code> (18014) → <code>GET /api/community/feed?familyId&amp;communityId&amp;groupId&amp;page&amp;limit</code> (36008).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>familyId === req.familyAuth.groupId</code>.</li><li>ללא communityId: כל הקהילות של המשפחה (כל סטטוס). עם communityId: <b>ללא בדיקת חברות</b>.</li><li>is_hidden=false.</li></ul></div>
+<div>חישובים</div><div>מיון: <code>is_pinned DESC</code>, ואז <code>likes×3 + comments×5 + shares×4 + 100/(hours_since_created + 2)</code> DESC (36058). limit ברירת מחדל 20; <code>hasMore = rows == limit</code>. <code>liked_by_me</code> לפי community_post_likes. שם מחבר: <code>name (family_nickname)</code>.</div>
+<div>ממשק</div><div>מסנני קהילה/קבוצה <code>renderFeedCommunityFilters</code>/<code>setFeedFilter</code> (17952/17992); "טען עוד" <code>loadMoreFeedPosts</code>; חיפוש <code>runFeedSearch</code> → <code>GET /api/community/feed/search</code> (36583: ILIKE על content, רק קהילות approved, מיון created_at DESC, 20 לעמוד, hasMore לפי lim+1).</div>
+<div>פערים</div><div>פוסט עסקי מ-<code>/api/biz/community/feed-posts</code> (author_family_id=businessId, is_hidden=false, biz_post_status='pending') מופיע בפיד המשפחות <b>לפני אישור</b> — השאילתה לא מסננת biz_post_status (36017). גישה לפיד של כל קהילה דרך communityId.</div></div></section>
+
+ <section class="proc" data-f="community post create flow interest group posts_count"><h3>יצירת פוסט ע"י משפחה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל פוסט חדש (<code>app.js:onNewPostCommunityChange</code> 18339) → <code>POST /api/community/posts</code> (36068).</div>
+<div>תנאים ואימותים</div><div><ul><li>בעלות familyId; content לא ריק ("תוכן ריק"); המשפחה בקהילה (כל סטטוס) — "לא חבר בקהילה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT community_posts (author_family_id, author_user_id, community_id, group_id, post_type ברירת מחדל 'general', content trim, image_url).</li><li>ניסיון INSERT ל-flow_transactions (3 FLW למשפחה 'community_post', 1 לקהילה) — בתוך try ריק.</li><li>אם group_id: <code>community_interest_groups.posts_count += 1</code>.</li></ol></div>
+<div>פערים</div><div>ה-INSERT ל-flow_transactions כולל עמודה <code>community_id</code> שאינה קיימת בטבלה → נכשל תמיד בשקט; גם לא מעדכן flow_wallets. אותו באג ב"בונוס פוסט פופולרי" (36239). לא נבדק ש-groupId שייך לאותה קהילה.</div></div></section>
+
+ <section class="proc" data-f="community like comment notification share report hide likers sharers public"><h3>לייק, תגובה, שיתוף, דיווח והתראות פיד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>toggleFeedLike</code> (18105), <code>openFeedComments</code> (18144), <code>shareFeedPost</code> (18311), <code>reportFeedPost</code> (18327).</div>
+<div>תנאים ואימותים</div><div><ul><li>כולם: בעלות familyId. אין בדיקת חברות בקהילת הפוסט.</li><li>תגובה: content לא ריק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>לייק</b> (36220) — toggle: קיים → DELETE + <code>likes_count=GREATEST(0,−1)</code>; לא קיים → INSERT + <code>+1</code>; כשהספירה מגיעה בדיוק ל-10 ו-<code>flw_earned=0</code> → <code>flw_earned=5</code> + ניסיון טרנזקציית 'post_popular_bonus'. התראה <code>community_notifications</code> action_type='like' לכותב (אם לא הוא עצמו).</li>
+<li><b>תגובה</b> (36275): INSERT community_post_comments (parent_comment_id לתשובות); comments_count+1; התראה 'comment'. GET (36259, ציבורי) מחזיר רק תגובות שורש לא מוסתרות.</li>
+<li><b>דיווח</b> (36301): INSERT community_post_reports ON CONFLICT DO NOTHING; אם COUNT ≥3 → <code>is_hidden=true</code>; reports_count+1 בכל קריאה.</li>
+<li><b>שיתוף</b> (36318): INSERT community_post_shares (ON CONFLICT); אם targetCommunityId → פוסט חדש בקהילת היעד עם תוכן <code>"[שותף] " + content</code>; shares_count+1.</li>
+<li><b>פוסט ציבורי</b> (36375): מחזיר את הפוסט רק אם <code>familyId</code> (query, לא מאומת) חבר בקהילה, אחרת <code>gated:true</code> + שם הקהילה.</li>
+<li>התראות: <code>GET /api/community/notifications</code> (36165, limit 30), count (36187), mark-read (36200 — יחיד או הכל).</li></ol></div>
+<div>פערים</div><div>reports_count עולה גם בדיווח כפול; שיתוף לקהילה שאינה של המשפחה מותר. likers/sharers/comments ציבוריים ללא אימות.</div></div></section>
+
+ <section class="proc" data-f="feed unread mark-read community_feed_reads badge"><h3>ספירת פוסטים שלא נקראו</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>loadFeedUnreadCounts</code> (app.js:17905) ו-<code>markFeedRead</code> (17895).</div>
+<div>שלבי עיבוד</div><div><ol><li>unread-counts (36134): לכל קהילה approved — אם קיימת שורת <code>community_feed_reads</code>, ספירת פוסטים לא מוסתרים אחרי last_read_at; אם אין שורה — 0.</li><li>mark-read (36103): UPSERT last_read_at=NOW לקהילה או לכל הקהילות המאושרות.</li></ol></div>
+<div>פערים</div><div>משפחה שלא סימנה מעולם קריאה רואה 0 (ולא את כל הפוסטים).</div></div></section>
+
+ <section class="proc" data-f="interest groups community_interest_groups join leave create add remove members notification"><h3>קבוצות/תחומי עניין בקהילה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחות יוצרות ומצטרפות לתחומי עניין בתוך הקהילה.</div>
+<div>תנאים ואימותים</div><div><ul><li>join/create: בעלות + משפחה approved בקהילה ("לא חבר בקהילה").</li><li>create: שם חובה ("שם חובה"); ייחודי בקהילה case-insensitive ("כבר קיים תחום עניין עם שם זה בקהילה").</li><li>add/remove family: רק יוצר הקבוצה ("רק יוצר הקבוצה יכול להוסיף משפחות"); הנוספת חייבת להיות approved בקהילה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>create (36461): INSERT עם members_count=1, icon ברירת מחדל '💬'; היוצר נוסף כחבר; התראה <code>group_new</code> לכל החברים המאושרים (multi-row INSERT).</li><li>join/add: INSERT ON CONFLICT … RETURNING → members_count+1 רק אם נוסף.</li><li>leave/remove: DELETE RETURNING → members_count=GREATEST(0,−1).</li><li>SA יוצר קבוצה: <code>POST /api/sa/community/groups</code> (36883) / <code>/api/sa/feed/groups</code> (37015, icon '📌').</li><li>עסק רואה קבוצות קהילה <code>GET /api/biz/community/:communityId/groups</code> (16646).</li></ol></div>
+<div>פערים</div><div>GET רשימת קבוצות (36408) ו-members (36551) ציבוריים; <code>familyId</code> ב-query קובע is_member ו-addable ללא אימות.</div></div></section>
+
+ <section class="proc" data-f="sa community feed moderation posts hide pin stats ai analyze anthropic claude"><h3>ניהול פיד ע"י SA וניתוח AI</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sa-app.js:loadSACommunityFeed</code> (11663), <code>refreshSAFeedStats</code>, <code>loadSAFeedPosts</code>.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /api/sa/community/posts</code> (36817): מסננים communityId/postType/isHidden, 30 לעמוד, מיון reports_count DESC.</li>
+<li><code>PATCH /api/sa/community/posts/:id</code> (36845): is_hidden / is_pinned (COALESCE), updated_at.</li>
+<li><code>GET /api/sa/community/feed-stats?days=7</code> (36857): סה"כ, חדשים, לייקים, תגובות, דיווחים, לפי סוג, top-10 קהילות, top-5 פוסטים.</li>
+<li>מערכת מקבילה <code>/api/sa/feed/*</code> (36946–37026): stats, posts (hidden=1), reported, toggle, groups.</li>
+<li><code>POST /api/sa/community/ai-analyze</code> (36895): אוסף עד 50 פוסטים מובילים + עד 20 מדווחים, שולח ל-Anthropic Messages API, מודל <code>claude-sonnet-4-6</code>, max_tokens 1500, פרומפט עברי: מגמות, קהילות מובילות, דגלים אדומים, 3 המלצות, הזדמנויות.</li></ol></div>
+<div>פערים</div><div><code>/api/sa/feed/stats</code> מרכיב את <code>days</code> לתוך SQL (parseInt — בטוח מספרית). אין טיפול בתשובת שגיאה מ-Anthropic (מחזיר "לא ניתן לנתח כרגע").</div></div></section>
+
+ <section class="proc" data-f="business feed posts biz posts deal update moderation approve reject hide carousel promos"><h3>פוסטים עסקיים בפיד — הגשה, אישור, קרוסלה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שתי מערכות מקבילות:
+(א) <code>POST /api/biz/community/feed-posts</code> (37036) — postType ∈ {deal, update};
+(ב) לגאסי <code>/api/biz/feed/posts</code> (16685), <code>/api/biz/feed/stats</code> (16657).
+לקוח העסק: <code>business-app.js:submitBizFeedPost</code> (58316) / <code>loadBizFeedPosts</code> (58169).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>(א): content לא ריק; postType deal|update ("סוג פוסט לא תקין"); update ≤3 שורות לא-ריקות ("עדכון קצר — עד 3 שורות בלבד"); עסק approved בקהילה ("העסק אינו חבר מאושר בקהילה זו"). <b>businessId לא מושווה ל-req.bizAuth.</b></li>
+<li>(ב): business_id + content ("חסר תוכן"); ללא בדיקת חברות/בעלות.</li>
+<li>מחיקה (א) (37087): בעלות לפי body.businessId; approved לא נמחק ("לא ניתן למחוק פוסט מאושר"). (ב): DELETE רק pending, ללא בעלות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>(א) INSERT community_posts: author_family_id=businessId, post_type = deal→<code>promo</code>, update→<code>biz_update</code>, biz_post_status='pending', biz_promo_url, biz_valid_until.</li><li>(ב) INSERT ללא author_family_id (NULL) → לעולם לא יוצג בפיד (JOIN family_groups).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>SA</td><td><code>PATCH /api/sa/community/biz-posts/:id</code> (37146) או <code>/:id/approve</code> (16733)</td><td>37146: is_hidden=false</td></tr>
+<tr><td>pending</td><td>rejected</td><td>SA</td><td>37146 דורש rejectionReason ("חובה לציין סיבת דחייה"); 16740 לא</td><td>37146: is_hidden=true</td></tr>
+<tr><td>*</td><td>(is_hidden)</td><td>SA</td><td><code>/:id/hide</code> (16748)</td><td>—</td></tr>
+<tr><td>approved</td><td>expired (תצוגה)</td><td>—</td><td>biz_valid_until &lt; היום (37073, מחושב בלבד)</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>קרוסלה למשפחה: <code>GET /api/community/feed/biz-promos</code> (37164): approved, לא מוסתר, post_type='promo', בתוקף, LIMIT 10.</div>
+<div>ממשק</div><div>SA: <code>sa-app.js:approveSABizPost</code>/<code>confirmSAReject</code>/<code>hideSABizPost</code> (11946–12015), סיבות דחייה כ-radio + "אחר"; badge ממתינים (<code>initSABizFeedBadge</code>, 2 שניות אחרי טעינה).</div>
+<div>פערים</div><div><ul>
+<li>נתיבי 16733/16740/16748 (approve/reject/hide) <b>ללא verifySA</b> — כל אחד יכול לאשר/לדחות/להסתיר.</li>
+<li>הלקוח של SA שולח PATCH ל-37146 ול-<code>/api/sa/community/posts/:id</code> <b>ללא כותרת Authorization</b> → 403, אך מציג toast הצלחה.</li>
+<li>הלקוח העסקי שולח ל-<code>/api/biz/feed/post</code> (יחיד) ו-<code>/api/biz/feed/post/:id</code> — נתיבים שאינם קיימים בשרת (קיים רק <code>/posts</code>), ושמות שדות <code>biz_promo_url</code>/<code>biz_valid_until</code> במקום <code>promo_url</code>/<code>valid_until</code>.</li>
+<li><code>feed/biz-promos</code> ו-GET השני של biz-posts (37111) בוחרים <code>fg.logo_url</code> — עמודה שאינה קיימת ב-family_groups → שגיאת SQL. GET 37111 ממילא מוצל ע"י 16706 (נרשם קודם).</li>
+<li>פוסט pending מופיע בפיד הרגיל (ראו שליפת פיד).</li></ul></div></div></section>
+<h2 class="grp">פולים — קנייה קבוצתית (FlowPool)</h2>
+
+ <section class="proc" data-f="pool flowpool create community family expires initiator"><h3>פתיחת פול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה חברה בקהילה פותחת בקשה קבוצתית לשירות/מוצר: <code>app.js:openCreatePoolModal</code>/<code>createFamPool</code> (6443/6454) → <code>POST /api/community/pool</code> (33982).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>initiatorId === req.familyAuth.groupId</code>; חוסם CHILD; communityId, initiatorType, initiatorId, title חובה ("חסרים שדות חובה").</li><li>המשפחה בקהילה (כל סטטוס) → "היוזם אינו חבר בקהילה".</li><li>לקוח: כותרת ותיאור חובה; <code>minFamilies</code> ברירת מחדל 2; <code>maxPrice</code> 0 = "מחיר פתוח".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>expires_at</code> = היום 23:59:59 (שעון שרת) (33993).</li><li>INSERT flow_pools (status DEFAULT 'open_r1').</li><li>אם initiatorType='family' → INSERT flow_pool_members ליוזם.</li><li>הודעת מערכת "פול חדש נפתח: {title}".</li><li><code>awardFlow(family,'pool_create')</code> (3+1).</li></ol></div>
+<div>חישובים</div><div>תוקף ברירת מחדל: עד סוף היום הנוכחי בלבד.</div>
+<div>פערים</div><div><code>initiatorType</code> חופשי (גם 'business' דרך verifyFamily); <code>min_families</code> נשמר אך לא נאכף בשום מקום.</div></div></section>
+
+ <section class="proc" data-f="pool status machine open_r1 open_r2 closed expired archived renew restore"><h3>מכונת מצבים של פול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ניהול מחזור חיים של <code>flow_pools.status</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>open_r1</td><td>משפחה</td><td>—</td><td>הודעת מערכת, FLOW</td></tr>
+<tr><td>open_r1</td><td>open_r2</td><td>יוזם או CM</td><td><code>/open-round2</code> (34163), חוסם CHILD</td><td>"הפול נפתח לעסקים מחוץ לקהילה"</td></tr>
+<tr><td>open_r1/open_r2</td><td>expired</td><td>מערכת (lazy)</td><td><code>expires_at ≤ NOW</code> — בעת GET רשימת קהילה (34015), GET פולי עסק (34336), או cleanup SA (34320)</td><td>cleanup מוחק גם את כל ההודעות</td></tr>
+<tr><td>*</td><td>closed</td><td>יוזם או CM</td><td><code>/select-bid</code> עם bidId (34135) או closeOnly</td><td>winner_bid_id; הצעה accepted, אחרות rejected; FLOW לעסק הזוכה</td></tr>
+<tr><td>*</td><td>archived</td><td>יוזם</td><td><code>/archive</code> ללא bizArchive (34181)</td><td>"הפול הועבר לארכיב"</td></tr>
+<tr><td>*</td><td>open_r1</td><td>יוזם</td><td><code>/renew</code> (34206): expires = היום + days (ברירת מחדל 7) ב-23:59:59</td><td>הודעה עם תאריך he-IL</td></tr>
+<tr><td>archived</td><td>open_r1</td><td>יוזם</td><td><code>/restore</code> (34243): expires = NOW + 7 ימים (ללא קיצוץ לשעה)</td><td>"הפול הוחזר לפעילות"</td></tr></table></div>
+סטטוסי הצעה: pending → accepted | rejected (רק ב-select-bid).</div>
+<div>ממשק</div><div>תוויות לקוח (app.js:6413): open_r1 "סיבוב 1 פתוח", open_r2 "סיבוב 2 פתוח", closed "סגור", expired "פג תוקף". כפתור "חדש תוקף (7 ימים)"; סגירה ללא הצעה "לסגור את הפול כבוע מול עסק?".</div>
+<div>פערים</div><div>select-bid מאפשר סגירה של פול שכבר closed/archived ובחירה חוזרת (FLOW לעסק שוב). renew מחזיר ל-open_r1 גם מ-closed. CM (מנהל קהילה) יכול לסגור/לבחור הצעה בכל פול בקהילה.</div></div></section>
+
+ <section class="proc" data-f="pool join member remove family flow"><h3>הצטרפות משפחות לפול והסרתן</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>app.js:joinFamPool</code> (6737) → <code>POST /api/community/pool/:id/join</code> (34065); הסרה ע"י יוזם <code>removePoolMember</code> → <code>/remove-member</code> (34050).</div>
+<div>תנאים ואימותים</div><div><ul><li>join: בעלות; פול open_r1/open_r2 ו-expires_at&gt;NOW ("הפול אינו פעיל"); המשפחה בקהילת הפול.</li><li>remove: initiatorId=המאומת, חוסם CHILD, הפול family ושייך ליוזם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT flow_pool_members ON CONFLICT DO NOTHING; הודעת מערכת "משפחה חדשה הצטרפה לפול"; <code>awardFlow(family,'pool_join')</code> (5+2); מחזיר member_count.</li></ol></div>
+<div>פערים</div><div>הודעה ו-FLOW ניתנים גם כשהמשפחה כבר חברה (אין בדיקת rowCount) — קריאה חוזרת מזכה FLOW שוב.</div></div></section>
+
+ <section class="proc" data-f="pool bid business guest round2 price one bid"><h3>הגשת הצעה מעסק לפול</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק בטאב פולים: <code>business-app.js:loadBizPools</code> (16980) → <code>submitBizPoolBid</code> (17158) → <code>POST /api/community/pool/:id/bid</code> (34084, <code>verifyBiz</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>businessGroupId=המאומת ("אין הרשאה להגיש הצעה בשם עסק אחר"); <code>price</code> מספר סופי &gt;0 ("מחיר ההצעה אינו תקין").</li><li>פול של משפחה, open_r1/open_r2, לא פג ("הפול אינו פתוח להצעות").</li><li>לא אורח → עסק approved בקהילה ("העסק אינו חבר בקהילה"); אורח (<code>isGuest</code>) → רק ב-open_r2 ("עסק שאינו חבר בקהילה יכול להגיש הצעה רק בסיבוב 2").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE הצעה קודמת של העסק לפול (הצעה אחת לעסק).</li><li>INSERT flow_pool_bids (status pending).</li><li>הודעת מערכת "הצעה חדשה התקבלה".</li></ol></div>
+<div>תופעות לוואי</div><div>צפייה בהצעות (<code>GET /bids?viewerId</code>, 34112): רק יוזם או CM; ממוין מחיר ASC; כולל טלפון העסק (store_settings.phone). בחירה → <code>awardFlow(business,'pool_bid_accepted')</code> (25+10).</div>
+<div>ממשק</div><div>רשימת פולים לעסק (<code>GET /api/biz/pools/:bizGroupId</code> 34332): פתוחים בקהילות שהעסק approved בהן ושלא הוסתרו, + פגי תוקף שהעסק השתתף בהם. הלקוח לא שולח <code>isGuest</code> כלל.</div>
+<div>פערים</div><div>מסלול האורח לא נגיש מה-UI. <code>GET /api/biz/my-pool-bids</code> (34306) בוחר <code>fpb.created_at</code> שאינה קיימת (העמודה היא <code>submitted_at</code>) → שגיאה 500.</div></div></section>
+
+ <section class="proc" data-f="pool messages chat archive biz hidden family archive"><h3>צ'אט פול וארכיונים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>משפחה ועסק מתכתבים בפול; ארכיון אישי לעסק.</div>
+<div>תנאים ואימותים</div><div><ul><li>GET messages (34263): יוזם; משפחה בקהילה; עסק approved בקהילה או שהגיש הצעה.</li><li>POST message (34286): תוכן לא ריק; senderId/senderType חייבים להתאים למאומת; פול פעיל ולא פג ("הפול לא פעיל"); חיתוך ל-1000 תווים.</li><li>archive (34181, verifyFamilyOrBiz): viewerId=המאומת; <code>bizArchive</code> → INSERT biz_pool_hidden (אישי); אחרת רק היוזם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ארכיון משפחה: <code>GET /api/community/pool/family-archive/:groupId</code> (34376) — פולים שיזמה בסטטוס archived/closed.</li><li>ארכיון עסק: <code>GET /api/biz/pool-archive/:bizGroupId</code> (34393) — מוסתרים + archived שהשתתף בהם.</li></ol></div>
+<div>ממשק</div><div><code>business-app.js:openBizPoolChat</code>/<code>sendBizPoolMsg</code>/<code>archiveBizPool</code> (16917–17043); <code>app.js:sendPoolMessage</code> (6771), <code>loadFamPoolArchive</code> (6651).</div></div></section>
+
+<h2 class="grp">"שוקה" — קמפייני שוק קהילתיים</h2>
+
+ <section class="proc" data-f="shuka market campaign create code community manager zone manager community_campaigns"><h3>יצירת קמפיין שוק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM (<code>zone-manager-app.js:zmCreateCommunityCampaign</code> 1671 → <code>POST /api/zone-manager/community-campaigns</code> 19488) או CM מאפליקציית המשפחה (<code>app.js:cmCreateCampaign</code> 8442 → <code>POST /api/community/manager/campaigns</code> 20575).</div>
+<div>תנאים ואימותים</div><div><ul><li>communityId + code חובה. ZM: קהילה באזורו. CM: <code>verifyCommunityManagerAccess</code> + חוסם CHILD.</li><li><code>cleanCode</code> = lowercase, תווים שאינם <code>[a-z0-9-]</code> → '-', כיווץ מקפים, הסרת מקפים בקצוות; ריק → "קוד לא תקין"; כפול → 409 "קוד זה כבר תפוס, בחרו קוד אחר".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כותרת אופציונלית; ברירת מחדל <code>"קמפיין " + שם הקהילה</code>.</li><li>INSERT community_campaigns (created_by_manager_id = ZM id, או NULL ל-CM). ברירות מחדל: status 'active', ordering_enabled TRUE, recurrence 'none', is_open_for_requests TRUE.</li></ol></div>
+<div>ממשק</div><div>קישור ציבורי <code>/campaign/{code}</code>; שיתוף WhatsApp <code>zmShareCampaignWhatsapp</code>/<code>cmShareCampaignWhatsapp</code>.</div></div></section>
+
+ <section class="proc" data-f="shuka campaign settings patch status suspended active days hours ordering logo slogan share"><h3>הגדרות קמפיין והשעיה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM <code>PATCH /api/zone-manager/community-campaigns/:id</code> (19516), CM <code>PATCH /api/community/manager/campaigns/:id</code> (20600), SA <code>PATCH /api/sa/shuka/campaigns/:id</code> (19770) ו-<code>POST /api/sa/shuka/campaigns/:id/status</code> (19709).</div>
+<div>תנאים ואימותים</div><div><ul><li>בעלות: <code>verifyCampaignOwnership</code> (19459: קמפיין בקהילה באזור ה-ZM) / <code>verifyCampaignOwnershipFamily</code> (20552: CM של הקהילה).</li><li>SA status: רק <code>active|suspended</code>.</li><li>ZM/CM: <code>status</code> חופשי (COALESCE).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>COALESCE לכל שדה: title, description, banner_image_url, status, logo_url, slogan, hide_title, share_description, ordering_enabled; active_days/active_hours נדרסים אם נשלחו (JSON).</li><li>SA בנוסף: start_at, end_at, is_open_for_requests (ללא description/banner/status).</li></ol></div>
+<div>חישובים</div><div>לקוח: <code>activeDays</code> = null אם 0 או 7 ימים מסומנים; <code>activeHours = {start,end}</code> רק אם שניהם מולאו (zone-manager-app.js:1723).</div>
+<div>מכונת מצבים</div><div>community_campaigns.status: active ↔ suspended (SA), ערך חופשי מ-ZM/CM. רק active נגיש בדף הציבורי ובהזמנה.</div>
+<div>ממשק</div><div><code>zmSaveCampaignSettings</code> (1715), <code>cmSaveCampaignSettings</code> (8485), SA <code>saShukaUpdateSettings</code>/<code>saShukaToggleStatus</code> (sa-app.js:16717/16702).</div>
+<div>פערים</div><div><code>start_at</code>/<code>end_at</code>/<code>recurrence</code> לא נאכפים בהזמנה; משמשים רק לסינון ברדאר. אי אפשר לנקות שדה טקסט (COALESCE).</div></div></section>
+
+ <section class="proc" data-f="shuka campaign business add remove request invite respond manager_invite business_request"><h3>שיוך עסקים לקמפיין — הוספה ישירה, בקשות והזמנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מנהל (ZM/CM/SA) מוסיף/מסיר עסק, או זרימת בקשה/הזמנה דרך <code>community_campaign_requests</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>הוספה/הסרה ישירה (ZM 19566, CM 20647): action ∈ add/remove; העסק approved בקהילת הקמפיין ("העסק אינו חלק מקהילה זו"). SA (19795) ללא בדיקת חברות.</li>
+<li>הזמנה (ZM 19935, CM 20790): עסק approved בקהילה; לא כבר בקמפיין ("העסק כבר חלק מהקמפיין"). SA (19865): בודק רק שאין הזמנה ממתינה (409 "כבר קיימת הזמנה ממתינה לעסק זה").</li>
+<li>בקשת עסק (<code>POST /api/biz/market-campaigns/:campaignId/request</code> 20878): קמפיין active; <code>is_open_for_requests !== false</code> ("שוק זה סגור כרגע לבקשות הצטרפות חדשות"); עסק approved בקהילה → אחרת 409 code <code>COMMUNITY_MEMBERSHIP_REQUIRED</code>; לא כבר חבר; אין בקשה ממתינה ("כבר יש בקשה ממתינה לשוק הזה"). אינדקס ייחודי חלקי מונע שתי pending (16561).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: INSERT community_campaign_businesses ON CONFLICT DO NOTHING. remove: DELETE + DELETE כל מוצרי העסק בקמפיין.</li><li>בקשה/הזמנה: INSERT requests (direction <code>business_request</code> / <code>manager_invite</code>, status pending, message).</li><li>תגובה: מנהל (ZM 19908, CM 20764, SA 19847) — approve מוסיף לעסקי הקמפיין; עסק (<code>/api/biz/market-campaigns/requests/:requestId/respond</code> 20912) — רק direction manager_invite שלו.</li><li>עזיבת עסק (20937): DELETE מהקמפיין + מוצריו.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>מנהל / עסק</td><td>לפי direction (ראו פערים)</td><td>INSERT campaign_businesses; responded_at</td></tr>
+<tr><td>pending</td><td>rejected</td><td>מנהל / עסק</td><td>—</td><td>responded_at</td></tr></table></div></div>
+<div>ממשק</div><div>עסק: <code>shukaRequestJoin</code> (business-app.js:61882) "בקשת ההצטרפות נשלחה לאישור מנהל הקהילה"; <code>fetchShukaMine</code>/<code>renderShukaMine</code>/<code>shukaRespondInvite</code>/<code>shukaLeaveMarket</code>. ZM: <code>zmLoadCampaignRequests</code>/<code>zmRespondCampaignRequest</code>/<code>zmInviteCampaignBusiness</code>/<code>zmToggleCampaignBusiness</code> (1878–1928).</div>
+<div>פערים</div><div>נתיבי respond של מנהל לא בודקים direction — מנהל יכול "לאשר" בעצמו הזמנה שהוא שלח (עוקף את העסק). SA invite לא בודק חברות/קיום בקמפיין.</div></div></section>
+
+ <section class="proc" data-f="shuka campaign products assign price_override approval pending approved rejected review takedown"><h3>מוצרי קמפיין — הקצאה ע"י העסק ואישור מנהל</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>העסק בוחר מוצרים מהקטלוג שלו וקובע מחיר לשוק: <code>business-app.js:shukaOpenProducts</code>/<code>shukaToggleProduct</code>/<code>shukaSetPrice</code> (61991–62047) → <code>POST /api/biz/market-campaigns/:campaignId/products</code> (20968).</div>
+<div>תנאים ואימותים</div><div><ul><li>העסק חלק מהקמפיין ("העסק עדיין לא חלק מהשוק הזה").</li><li>add: המוצר בקטלוג העסק ("מוצר לא נמצא בקטלוג שלך"); <code>price</code> ריק → NULL (מחיר קטלוג), אחרת מספר ≥0 ("מחיר לא תקין").</li><li>מנהל (ZM 19620, CM 20696, SA 19812): רק <code>action='remove'</code> ("ניתן רק להסיר מוצר קיים - בחירת מוצרים חדשים מתבצעת ע"י העסק עצמו").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: UPSERT community_campaign_products (PK campaign+catalog) עם price_override, <code>approval_status='pending'</code>, submitted_by_user_id, reviewed_at=NULL — כל שינוי מחיר מחזיר ל-pending.</li><li>review (ZM 19658, CM 20732, SA 19822): approve/reject → approval_status + reviewed_at.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>— / *</td><td>pending</td><td>עסק</td><td>add/שינוי מחיר</td><td>—</td></tr>
+<tr><td>pending/*</td><td>approved / rejected</td><td>ZM/CM/SA</td><td>review</td><td>reviewed_at</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>עסק / מנהל</td><td>remove / הסרת העסק</td><td>—</td></tr></table></div>
+רק approved מוצג בחנות הציבורית ומתקבל בהזמנה.</div>
+<div>ממשק</div><div>תור בקרה <code>products-review?status=</code> (19634/20710), ממוין pending קודם. ZM: <code>zmOpenProductsReview</code>/<code>zmRenderProductsReview</code> עם סינון סטטוס/עסק (1971–2045).</div>
+<div>פערים</div><div>הסרת מוצר ע"י מנהל (19628) לפי catalogId בלבד — תקין כי ה-PK כולל catalog. SA review לא מחזיר 404 כשאין שורה.</div></div></section>
+
+ <section class="proc" data-f="shuka market radar business discover campaigns filter city interest date"><h3>רדאר שווקים לעסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>business-app.js:fetchShukaRadar</code>/<code>renderShukaRadar</code> (61836/61856) → <code>GET /api/biz/market-radar</code> (20823).</div>
+<div>שלבי עיבוד</div><div><ol><li>קמפיינים active בכל הקהילות; מסננים: city (ILIKE), interest (על <code>communities.interest_tags</code>), search (כותרת/שם קהילה), dateFrom (<code>end_at IS NULL OR end_at ≥</code>), dateTo (<code>start_at IS NULL OR start_at ≤</code>).</li><li>לכל קמפיין: business_count, is_community_member, already_joined, pending_request_status. מיון start_at NULLS LAST, LIMIT 100.</li></ol></div></div></section>
+
+ <section class="proc" data-f="shuka public campaign store page og whatsapp community-store order cart single business schedule"><h3>חנות הקמפיין הציבורית והזמנה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>לקוח פותח <code>/campaign/:code</code> (15354, מזריק og:title/og:url ו-<code>window.__CAMPAIGN_CODE__</code> לתוך community-store.html) → <code>community-store-app.js:init</code> (63) → <code>GET /api/campaign/:code</code> (15385). הזמנה: <code>csSubmitOrder</code> (667) → <code>POST /api/campaign/:code/order</code> (15450).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>og: כותרת = share_description || slogan || title || שם קהילה; תיאור קבוע "WEFLOWZ עושה לכם סדר"; תמונה <code>/api/public/logo</code>.</li>
+<li>GET: קמפיין לא קיים 404; לא active → 403 "הקמפיין אינו פעיל כרגע". עסקים ומוצרים (approved) מסוננים <code>account_status != 'frozen'</code>.</li>
+<li>הזמנה: טוקן לקוח sc-auth (<code>_scGetCustomerByToken</code>) חובה (401 "יש להתחבר לפני ביצוע הזמנה"); items לא ריק ("העגלה ריקה"); קמפיין active; <code>ordering_enabled===false</code> → 403 marketClosed reason 'disabled'.</li>
+<li>לוח זמנים (15466): ימים <code>active_days</code> (ריק = כל השבוע), שעות <code>active_hours</code> (ברירת מחדל 00:00–23:59, סיום exclusive). סגור → 403 <code>{marketClosed, reason:'schedule', nextOpenText}</code> "השוק סגור כרגע. הפתיחה הקרובה: ...". חישוב לפי שעון השרת.</li>
+<li>עסק אחד בלבד בהזמנה ("ניתן להזמין מוצרים מעסק אחד בלבד בכל הזמנה"); העסק בקמפיין; כל פריט approved בקמפיין ("פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT store_orders: status <code>pending_approval</code>, order_source <code>community_campaign</code>, campaign_id, family_group_id של הלקוח, total = serverTotal.</li><li>UPDATE items JSON; INSERT store_order_items לכל פריט.</li><li>אחרי 100ms: <code>upsertStoreCustomer</code> אצל <b>כל</b> עסקי הקמפיין (הערה שונה לעסק המזמין ולשאר).</li></ol></div>
+<div>חישובים</div><div>מחיר בסיס = <code>COALESCE(price_override, catalog.price)</code>. <code>maxExtra = _maxOptionsExtra(options_text)</code> (15424): סכום כל מחירי האפשרויות בכל הקבוצות (או בתבנית complex: stepPrice + כל אפשרויות השלב). טולרנס: <code>base − (1%·base + 1) ≤ clientPrice ≤ max + (1%·max + 1)</code> (15535). <code>serverTotal = Σ clientPrice × quantity</code>.</div>
+<div>תופעות לוואי</div><div>היסטוריה: <code>GET /api/campaign/:code/my-orders</code> (15575) — עד 30 הזמנות community_campaign של הלקוח (טלפון או family_group_id) אצל עסקי הקמפיין. קאשבק יופעל רק בהשלמת ההזמנה.</div>
+<div>ממשק</div><div><code>community-store-app.js</code>: <code>_isMarketOpen</code> (16) משכפל את הלוגיקה בצד לקוח וחוסם הוספה לסל; עגלה מעסק יחיד ("אפשר להזמין רק מעסק אחד — רוקנו את העגלה..."); כניסה דרך <code>scAuth.requireLogin</code>; בונה פיצה ומוצר מורכב; תוויות סטטוס CS_STATUS_LABELS (pending_approval "ממתין לאישור" וכו'); פאנל פעילות מוחלף להיסטוריה חוצת-עסקים. משלוח לא נשלח מהלקוח (רק notes).</div>
+<div>פערים</div><div>quantity ללא תקרה (ההערה מזכירה 50, לא נאכף) וגם שלילי מתקבל. start_at/end_at לא נאכפים. my-orders לא מסנן לפי campaign_id — מציג הזמנות מקמפיינים אחרים של אותם עסקים. אזור זמן שרת עלול להיות UTC.</div></div></section>
+
+ <section class="proc" data-f="shuka sa oversight campaigns table gmv delete"><h3>פיקוח SA על קמפייני שוק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sa-app.js:renderSAShukaPanel</code> (16342), <code>openSAShukaDetail</code> (16454).</div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/sa/shuka/campaigns</code> (19679): מסננים search/status/communityId; מדדים: עסקים, מוצרים approved, מוצרים pending, בקשות pending, הזמנות, GMV = Σ total_amount של הזמנות שאינן 'quote'.</li><li><code>GET /api/sa/shuka/campaigns/:id</code> (19721): קמפיין + עסקי הקהילה (included) + מוצרים + בקשות + עד 100 הזמנות.</li><li>מחיקה <code>DELETE</code> (19881) — CASCADE לעסקים/מוצרים/בקשות; store_orders.campaign_id → NULL.</li></ol></div></div></section>
+
+<h2 class="grp">מנהלי אזור (Zone Manager)</h2>
+
+ <section class="proc" data-f="zone manager register login session token reset password forgot email bcrypt"><h3>הרשמה, כניסה, סשן ואיפוס סיסמה של מנהל אזור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>zone-manager.html</code> + <code>zone-manager-app.js</code>: <code>zmRegister</code> (57), <code>zmLogin</code> (38), <code>zmForgotSubmit</code> (77), <code>zmResetSubmit</code> (95).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>register (18760): name/email/password חובה; מייל קיים: pending "בקשת הרשמה כבר קיימת ומחכה לאישור", active "כתובת מייל זו כבר רשומה ופעילה במערכת", אחר "כתובת מייל זו כבר רשומה". לקוח: סיסמה ≥6.</li>
+<li>login (18816): email + status='active'; bcrypt אם ה-hash מתחיל ב-<code>$2</code>, אחרת השוואת טקסט גלוי ושדרוג ל-bcrypt (10 rounds). שגיאה "פרטי גישה שגויים".</li>
+<li>forgot (18777): לא חושף קיום מייל; רק active.</li>
+<li>reset (18804): token+password, סיסמה ≥6 ("טוקן או סיסמה לא תקינים"); טוקן בזיכרון בתוקף שעה ("הקישור לא תקף או שפג תוקפו — בקש קישור חדש").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>register: INSERT zone_managers status 'pending', commission_pct 5, bcrypt.</li><li>login: token <code>ZM_{id}_{timestamp}_{random}</code> נשמר ב-Map <code>zoneManagerSessions</code>; מחזיר manager (id, name, email, commission_pct). לקוח שומר <code>zm_token</code>/<code>zm_manager</code> ב-localStorage.</li><li>forgot: token <code>ZMR_{id}_...</code> ב-Map <code>zmPasswordResets</code> (תוקף 60 דק'), מייל <code>sendSystemEmail</code> "איפוס סיסמה — WEFLOWZ Zone Manager" עם קישור <code>/zone-manager.html?reset=TOKEN</code>.</li></ol></div>
+<div>מכונת מצבים</div><div>zone_managers.status: pending (הרשמה) → active (SA, <code>approveZMRegistration</code> sa-app.js:5307 → PUT status) ↔ inactive (<code>toggleZMStatus</code> 5488). יצירה ע"י SA → active (DEFAULT). דחייה = DELETE.</div>
+<div>תופעות לוואי</div><div><code>verifyZoneManager</code> (6498): אם הטוקן לא ב-Map (אחרי restart) — מפרק <code>ZM_{id}_...</code> ובודק רק שהמנהל active.</div>
+<div>פערים</div><div><b>חמור:</b> כל מחרוזת בצורת <code>ZM_{id}_x</code> מתקבלת כטוקן תקף אחרי restart / עבור טוקן לא מוכר (6509) — התחזות למנהל אזור לפי id. סשנים לא פגים, ומנהל שהושהה (inactive) ממשיך לעבור כל עוד הטוקן ב-cache. טוקני איפוס בזיכרון בלבד.</div></div></section>
+
+ <section class="proc" data-f="zone manager sa crud zones assign community transfer settings max zones commission"><h3>ניהול מנהלי אזור ואזורים ע"י SA</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>sa-app.js:loadZoneManagers</code> (5255), <code>saveNewZoneManager</code> (5419), <code>saveEditZoneManager</code> (5469), <code>addZoneToManagerUI</code> (5628), <code>assignCommunityToZone</code> (5696), <code>transferCommunityToZone</code> (5768), <code>saveZoneSettings</code> (5373).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה (19251): name/email/password חובה; commission_pct ברירת מחדל 5.</li><li>אזור חדש (19291): <code>COUNT(manager_zones) ≥ zone_max_zones_per_manager (ברירת מחדל 4)</code> → 400 "מנהל יכול להחזיק עד N אזורים".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>עדכון (19263): עדכון חלקי דינמי, סיסמה חדשה ב-bcrypt.</li><li>מחיקה (19283): DELETE zone_managers.</li><li>שיוך קהילה (19303): <code>communities.zone_id = zone_id || NULL</code> (העברה/הסרה).</li><li>הגדרות סף (19312/19323): zone_min_communities=5, zone_max_zones_per_manager=4, zone_manager_commission_pct=5, community_min_families=30, community_min_businesses=15 (ב-system_settings).</li><li>רשימה (19160): מנהלים שאינם pending עם zone_count, community_count, total_commissions, total_paid, month_paid.</li></ol></div>
+<div>פערים</div><div>zone_min_communities, community_min_families, community_min_businesses נשמרים ומוחזרים לדשבורד בלבד — לא נאכפים בשום לוגיקה.</div></div></section>
+
+ <section class="proc" data-f="zone manager dashboard commissions payments finance debt"><h3>דשבורד מנהל אזור, עמלות ותשלומים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>zone-manager-app.js:loadDashboard</code> (263) → <code>GET /api/zone-manager/dashboard</code> (18837); <code>loadCommissions</code> (1482) → <code>/commissions</code> (18875, LIMIT 100). SA רושם תשלום <code>POST /api/sa/zone-manager-payments</code> (19232).</div>
+<div>שלבי עיבוד</div><div><ol><li>dashboard: אזורים (community_count, family_count, business_count), קהילות (has_local_manager), סך עמלות וחודשי, סך שולם וחודשי, settings.</li><li>תשלום SA: manager_id+amount חובה; paid_at ברירת מחדל עכשיו; recorded_by.</li><li>סיכום SA (19175): total/month earned מ-zone_manager_commissions, total/month paid; <code>total_debt = max(0, earned − paid)</code>, כנ"ל חודשי.</li></ol></div>
+<div>חישובים</div><div>לקוח: <code>paid% = min(100, round(paid/earned·100))</code> (סה"כ וחודשי). עמלה נוצרת רק ב-<code>triggerCashbackForOrder</code> (ראו קאשבק).</div>
+<div>ממשק</div><div>אם dashboard מחזיר !success → <code>zmLogout</code>. טאבים (<code>zmSwitchTab</code> 294): zones, biz-requests, marketing, leads, inbox, commissions, content, kol-haam. פאנל ממתינים (עסקים, משפחות, הסרות, מוזמנים) מתרענן כל 60 שניות.</div></div></section>
+
+ <section class="proc" data-f="zone manager community detail family detail flow"><h3>צפייה בקהילה ובמשפחה ע"י מנהל אזור</h3>
+<div class="kv"><div>מטרה וטריגר</div><div><code>openCommunityDetail</code> (1506) → <code>GET /api/zone-manager/community-detail/:id</code> (19398); <code>openZMFamilyDetail</code> (2115) → <code>/family-detail/:groupId</code> (19135).</div>
+<div>שלבי עיבוד</div><div><ol><li>community-detail: קהילה באזורו; משפחות (כל הסטטוסים), עסקים approved, 10 מבצעים approved, ארנק FLOW קהילתי ו-20 תנועות.</li><li>family-detail: המשפחה חברה בקהילה כלשהי באזורו; פרטי קבוצה, משתמשים (nickname, role, email), קהילות, יתרת FLOW משפחתית.</li></ol></div>
+<div>ממשק</div><div>טאבים בתוך כרטיס קהילה <code>switchCDTab</code>/<code>renderCDTab</code> (1541/1546), כולל קמפייני שוקה (<code>zmLoadCommunityCampaigns</code> 1644).</div></div></section>
+
+ <section class="proc" data-f="zone manager marketing campaign lead form public token zm_campaigns zm_campaign_leads crm status actions"><h3>קמפייני גיוס (טפסי לידים) ו-CRM לידים</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM יוצר דף נחיתה עם טופס: <code>openZMCreateCampaign</code>/<code>saveZMCampaign</code> (830/892) → <code>POST /api/zone-manager/campaigns</code> (19989). ציבור ממלא ב-<code>campaign.html?t=TOKEN</code> → <code>/api/public/campaign/:token</code> (20040) ו-<code>/submit</code> (20052).</div>
+<div>תנאים ואימותים</div><div><ul><li>title חובה ("כותרת הקמפיין חובה").</li><li>ציבורי: קמפיין active לפי token ("קמפיין לא נמצא או לא פעיל").</li><li>פעולת ליד: action_type חובה ("סוג פעולה חובה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: token <code>CAMP_{managerId}_{ts}_{rand6}</code>; fields_config JSON; campaign_type ברירת מחדל 'general'.</li><li>submit: body כולו נשמר כ-data JSON; <code>lead_type</code> = body.lead_type, אחרת לפי campaign_type (business/family) או 'unknown'.</li><li>CRM: <code>PUT /api/zone-manager/leads/:id</code> (status, crm_notes, lead_type); פעולות <code>zm_lead_actions</code> (20104).</li><li>עדכון/מחיקת קמפיין רק לבעלים (WHERE zone_manager_id).</li></ol></div>
+<div>מכונת מצבים</div><div>zm_campaigns.status: active (DEFAULT) / ערך חופשי ב-PUT. zm_campaign_leads.status (תוויות לקוח 1017): <code>new</code> → <code>contacted</code> / <code>interested</code> / <code>not_interested</code> / <code>converted</code> — מעבר חופשי. lead_type: business/family/unknown. action_type מה-UI: call, whatsapp, meeting, email.</div>
+<div>תופעות לוואי</div><div>AI (Gemini): <code>generate-banner</code> (20114) — SVG 1600×900 ללא טקסט, פלטה לפי סוג, fallback <code>gemini-2.0-flash-lite</code>, מוחזר כ-data URI base64; <code>draft-campaign</code> (20149) — JSON {title, subtitle, text_content} לפי הקשר business/family/community_join, fallback <code>gemini-1.5-flash</code> על 503/overloaded; <code>analyze-leads</code> (20197) — עד 50 לידים ללא ai_score, ציון 1–10 + הערה, שמירה ai_score/ai_notes.</div>
+<div>ממשק</div><div><code>loadCampaigns</code> (686), <code>viewCampaignLeads</code> (956), <code>openLeadCRM</code> (1062), <code>saveLeadCRM</code> (1164), <code>analyzeLeads</code> (1205). SA: מונה קמפיינים ולידים (19200/19208).</div>
+<div>פערים</div><div><code>GET/PUT /api/zone-manager/leads/:id</code> ו-actions לא בודקים שהליד שייך לקמפיין של ה-ZM (20068–20111). submit ציבורי ללא rate-limit/ולידציה על שדות fields_config.</div></div></section>
+
+ <section class="proc" data-f="zone manager inbox thread message broadcast community manager templates ai suggest reply"><h3>תיבת הודעות מנהל אזור ↔ מנהלי קהילה ותבניות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>ZM: <code>loadInbox</code>/<code>openZMThread</code>/<code>sendZMReply</code>/<code>openZMBroadcast</code>/<code>sendZMNewMessage</code> (1225–1362). CM: <code>app.js:openCommunityManagerInbox</code> (9005) → <code>/api/community/inbox/*</code> (20374–20441).</div>
+<div>תנאים ואימותים</div><div><ul><li>ZM new: communityId, groupId, content חובה. broadcast: content חובה; יעדים רק משפחות is_community_manager בקהילות האזור (מסונן גם כשנשלחו targetGroupIds).</li><li>CM new: בעלות; קהילה עם אזור ("לא נמצא מנהל אזור לקהילה זו").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ZM new/broadcast: INSERT zm_inbox_threads + zm_inbox_messages (sender_type 'manager') + עותק ל-<code>inbox_messages</code> של המשפחה (sender_type 'zone_manager').</li><li>ZM reply: הודעה, last_message_at, עותק "תגובה: {subject}".</li><li>CM new/reply: sender_type 'community' (ללא עותק לשום מקום).</li><li>קריאת שיחה מסמנת is_read להודעות הצד השני.</li><li>AI הצעת תשובה (20223): 6 הודעות אחרונות, Gemini 2.5 flash, "תשובה מקצועית, קצרה וחמה בעברית".</li><li>תבניות (20347–20370): name+content חובה, CRUD פר-מנהל.</li></ol></div>
+<div>פערים</div><div>ZM new לא מאמת ש-groupId/communityId באזורו. thread חדש של ZM לא מעדכן last_message_at (DEFAULT בלבד).</div></div></section>
+<h2 class="grp">באנרים בתשלום (Banner Ads, FLOW + מזומן)</h2>
+
+ <section class="proc" data-f="banner slots pricing communities location_key sa seed"><h3>הגדרת שטחי פרסום ומחירון</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA מנהל שטחים: <code>sa-app.js:loadBannerSlotsPanel</code> (10454), <code>saveBannerSlot</code> (10598).</div>
+<div>תנאים ואימותים</div><div><ul><li>יצירה (34545): name + location_key חובה ("שם ומיקום חובה").</li><li>pricing (34586): מערך חובה ("pricing must be array").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>זריעה כשאין שטחים (34498): community_top (500 coins / ₪250), storefront_top (300/₪150), community_feed_card (400/₪200); לכל שטח מחירון community_count=0: 7 ימים 100/₪50, 14 → 180/₪90, 30 → 350/₪175, 60 → 600/₪300, 90 → 800/₪400.</li><li>עדכון שטח (34559): כל השדות נדרסים; is_active = <code>!== false</code>.</li><li>שיוך קהילות (34571): DELETE + INSERT ל-banner_slot_communities; מערך ריק = כל הקהילות.</li><li>מחירון: DELETE כל המחירון לשטח + INSERT לפי (duration_days, community_count) — UNIQUE.</li></ol></div>
+<div>חישובים</div><div>מפתח מחיר: (slot, duration_days, community_count). <code>base_price_*</code> בשטח לא משמש בחישוב הזמנה.</div></div></section>
+
+ <section class="proc" data-f="banner order business submit coins cash flow_rate payment pending_approval"><h3>הזמנת באנר ע"י עסק</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>טאב "פרסום" בעסק: <code>business-app.js:renderBizAdsTab</code> (57827), <code>_loadBizAdSlots</code> (57847) → <code>GET /api/biz/banner/slots?communityId</code> (34823); מחשבון <code>bizAdsCalc</code> (57874); שליחה <code>submitBizAdOrder</code> (57979) → <code>POST /api/biz/banner/orders</code> (34865, <code>verifyBiz, verifyBizAdminOnly</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>slot_id + duration_days חובה ("שדות חסרים").</li><li>מחירון: התאמה מדויקת ל-community_count = אורך community_ids; אחרת fallback ל-community_count 0/NULL; אין → "מחירון לא נמצא".</li><li>coins_used &gt; יתרת ארנק FLOW העסקי → 400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li></ul></div>
+<div>חישובים</div><div>
+<code>flow_rate = flow_config.flow_to_ils_rate || 100</code> (X מטבעות = ₪10).<br>
+<code>coins_used = max(0, clientCoins)</code>; אם <code>coins_used/flow_rate·10 &gt; total</code> → <code>coins_used = floor(total/10 · flow_rate)</code>.<br>
+<code>cash_amount = max(0, total − coins_used/flow_rate·10)</code> (34897). דוגמה: ₪50, rate 100 → מקסימום 500 מטבעות.<br>
+לקוח מחשב אותו דבר (<code>coinValueIls</code>, <code>maxCoinsCanUse</code>), תצוגת "✅ תשלום מלא במטבעות!" כש-cash=0.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT banner_orders (status DEFAULT <code>pending_approval</code>, start/end NULL, payment_method ברירת מחדל 'mixed'). המטבעות <b>אינם</b> מנוכים בשלב זה.</li></ol></div>
+<div>ממשק</div><div>שטחים ללא שיוך קהילות מציגים את כל הקהילות לבחירה. רשימת הזמנות <code>_loadBizAdOrders</code> → <code>GET /api/biz/banner/orders</code> (34910).</div></div></section>
+
+ <section class="proc" data-f="banner order approve sa deduct coins billing record conflict schedule active cancel expired cron"><h3>אישור הזמנת באנר, תזמון, חיוב ותפוגה</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA: <code>loadBannerOrders</code> (10650), <code>openBannerScheduleModal</code>/<code>confirmBannerSchedule</code> (10712/10778) → <code>PUT /api/sa/banner/orders/:id/approve</code> (34664, טרנזקציה BEGIN/COMMIT על client ייעודי).</div>
+<div>תנאים ואימותים</div><div><ul><li>הזמנה קיימת ("הזמנה לא נמצאה") ב-pending_approval ("הזמנה לא ממתינה לאישור").</li><li>coins_used&gt;0: יתרה ≥ coins → אחרת ROLLBACK 400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li><li>התנגשות: הזמנה אחרת <b>active</b> באותו slot עם <code>start &lt; newEnd AND end &gt; newStart</code> → 409 "תפוס ע"י: ..." (ללא בדיקת חפיפת קהילות).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ניכוי: UPDATE flow_wallets business −coins; INSERT flow_transactions action_key 'banner_purchase' "רכישת שטח פרסום" reference_id=order.</li><li>start = <code>body.start_date</code> או עכשיו; <code>end = start + duration_days</code> ימים.</li><li>בדיקת התנגשות (אחרי הניכוי — ROLLBACK מחזיר).</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'unpaid', due_date = היום+7).</li><li>COMMIT; מחזיר billing_id.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>עסק admin</td><td>—</td><td>—</td></tr>
+<tr><td>pending_approval</td><td>active</td><td>SA</td><td>approve</td><td>ניכוי מטבעות, billing_record</td></tr>
+<tr><td>*</td><td>cancelled</td><td>SA</td><td><code>PUT .../cancel</code> (34751) — ללא תנאי</td><td>אין החזר מטבעות</td></tr>
+<tr><td>active</td><td>expired</td><td>cron</td><td><code>runBannerCron</code> (21505): <code>end_date &lt; CURRENT_DATE</code>; רץ באתחול וכל 6 שעות</td><td>—</td></tr></table></div>
+עריכת SA (34735): community_ids / slot_id / notes בכל סטטוס.</div>
+<div>תופעות לוואי</div><div>תצוגה: approved-banners (21482) — active, <code>start ≤ today ≤ end</code>, <code>community_ids @&gt; communityId</code>. זמינות <code>GET /api/sa/banner/slots/:id/availability</code> (34627, כולל pending_approval); ציר זמן <code>/api/sa/banner/timeline</code> (34647).</div>
+<div>פערים</div><div>ביטול הזמנה active לא מחזיר מטבעות ולא מבטל billing. כרון מסמן expired רק כש-end_date &lt; היום → הבאנר מוצג גם ביום end_date (start+N), כלומר N+1 ימים. ערכי NUMERIC מגיעים כמחרוזות ומושווים בכפייה (<code>ord.coins_used &gt; 0</code>).</div></div></section>
+
+ <section class="proc" data-f="billing records payment confirmation signature paid pending_confirm ledger"><h3>חיוב, אישור תשלום בחתימה דיגיטלית וסימון "שולם"</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק: <code>_loadBizBilling</code> (58057) → <code>GET /api/biz/billing</code> (34924); <code>openBizPaymentConfirm</code>/<code>confirmBizPayment</code> (58090/58098) → <code>POST /api/biz/billing/:id/confirm</code> (34941, admin only). SA: <code>GET /api/sa/billing</code> (34763), <code>PUT /api/sa/billing/:id/paid</code> (34787), יומן לקוח <code>/api/sa/clients/:bizId/ledger</code> (34799).</div>
+<div>תנאים ואימותים</div><div><ul><li>confirm: signature_data חובה ("חתימה דיגיטלית חסרה"); רשומה של העסק ("רשומה לא נמצאה"); לא paid ("כבר מסומן כשולם"); אין אישור קודם ("אישור כבר קיים").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT payment_confirmations (signature_data, ip מ-x-forwarded-for/socket, user_agent).</li><li>UPDATE billing_records.payment_status='pending_confirm'.</li><li>SA paid: payment_status='paid', paid_at=NOW, sa_note.</li></ol></div>
+<div>מכונת מצבים</div><div>billing_records.payment_status: unpaid → pending_confirm (עסק) → paid (SA; גם ישירות מ-unpaid).</div>
+<div>חישובים</div><div>SA totals: total_unpaid = Σ cash_amount של unpaid; paid_this_month = Σ cash_amount של paid בחודש הנוכחי (pending_confirm לא נכלל באף אחד).</div></div></section>
+
+ <section class="proc" data-f="legacy system banners settings ad_banner top bottom business family public system-banner"><h3>באנרי מערכת סטטיים (הגדרות SA)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA שומר באנר עליון/תחתון למשפחות ולעסקים: <code>sa-app.js:saveAllBanners</code> (2139) → <code>POST /api/superadmin/banners</code> (9963). תצוגה: <code>GET /api/banners?type=BUSINESS</code> (9024), <code>GET /api/public/system-banner</code> (25235).</div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT ל-system_settings: ad_banner_{text,link,img}_{top,bottom} ו-business_ad_banner_*; אופציונלי global_ai_logo, login_slides, member_welcome_*, member_module_settings, pwa_install_prompt_enabled, smtp_from_*, admin_notification_email.</li><li>/api/banners ממפה למפתחות banner_top_text וכו' (תמונות base64 כפי שהן).</li></ol></div>
+<div>ממשק</div><div><code>app.js:fetchBanners</code>/<code>applyBannersToDOM</code> (243/205), <code>business-app.js</code> (518/470).</div>
+<div>פערים</div><div>BEGIN/COMMIT נשלחים דרך <code>pool.query</code> (9984) — כל שאילתה עשויה לרוץ על חיבור אחר; אין טרנזקציה אמיתית.</div></div></section>
+
+<h2 class="grp">משחקים חיים (טריוויה) וספריית קווסטים</h2>
+
+ <section class="proc" data-f="live games create edit questions sponsor images game_code sa"><h3>יצירה ועריכה של משחק טריוויה חי</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA: <code>sa-app.js:loadSALiveGames</code> (12062), עורך שאלות <code>_renderLGQuestions</code>/<code>_lgAddQuestion</code>, העלאת לוגו/דמות → <code>POST /api/live-games</code> (38765) / <code>PUT /api/live-games/:id</code> (38800).</div>
+<div>תנאים ואימותים</div><div><ul><li>title חובה ("כותרת חובה"). PUT: id מספרי ("מזהה משחק לא תקין").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>generateGameCode</code> (38757): 6 תווים מ-<code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code>, עד 10 ניסיונות ייחודיות.</li><li>INSERT live_games status 'waiting'; תמונות (data URI) נשמרות בעמודות sponsor_logo/character_image, img_version=1.</li><li>שאלות: INSERT live_game_questions (opts JSON, correct_index, time_seconds ברירת מחדל 20, order_num=אינדקס).</li><li>PUT: דורס title…community_id (כולל is_public, is_hidden); תמונה חדשה → img_version+1; שאלות מוחלפות רק אם נשלח מערך לא ריק.</li></ol></div>
+<div>תופעות לוואי</div><div>תמונות מוגשות <code>/api/live-games/:code/image/logo|char</code> (38997) עם Cache-Control no-store; URL כולל <code>?v=img_version</code>.</div></div></section>
+
+ <section class="proc" data-f="live game status waiting active ended disabled next question restart delete visibility"><h3>הפעלת משחק — סטטוסים ושאלות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>מודל בקרה SA: <code>_lgSetStatus</code> (12776), <code>_lgNextQuestion</code> (12788), <code>_lgRestartGame</code> (12136), <code>_lgToggleHidden</code> (12732); polling בקרה כל 2 שניות (<code>_lgControlPoll</code> 12748).</div>
+<div>תנאים ואימותים</div><div><ul><li>status ∈ waiting/active/ended/disabled ("סטטוס לא תקין"). active ללא שאלות → 400 "לא נמצאו שאלות במשחק זה. יש להוסיף שאלות לפני ההתחלה."</li></ul></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>waiting</td><td>SA</td><td>—</td><td>—</td></tr>
+<tr><td>*</td><td>active</td><td>SA</td><td>יש שאלות</td><td>current_question_index=0, ניקוי cache</td></tr>
+<tr><td>active</td><td>ended</td><td>SA / next-question</td><td><code>next ≥ total</code> (38888)</td><td>index=next</td></tr>
+<tr><td>*</td><td>ended / disabled / waiting</td><td>SA</td><td>status</td><td>—</td></tr>
+<tr><td>*</td><td>waiting</td><td>SA</td><td>restart (38911)</td><td>מחיקת תשובות, score=0, index=0</td></tr></table></div>
+is_hidden (PUT 38800 / PATCH visibility 39211) עצמאי — משחק מוסתר חוסם join/state (403 "המשחק אינו זמין").</div>
+<div>תופעות לוואי</div><div>cache מצב 200ms (<code>_lgStateCache</code>, 277) מבוטל בכל שינוי סטטוס/שאלה. מחיקה (38899): תשובות, משתתפים, שאלות, משחק (ללא טרנזקציה).</div></div></section>
+
+ <section class="proc" data-f="live game join participant approve waiting room answer score leaderboard state polling notify"><h3>השתתפות שחקן — הצטרפות, אישור, תשובה וניקוד</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>שחקן ב-<code>/game/:code</code> (game.html). כניסה/הרשמה (<code>/api/login</code>, <code>/api/groups</code> עם registrationSource <code>game:CODE</code>), ואז <code>joinAndStart</code> → <code>POST /api/live-games/:code/join</code> (38924). Polling <code>/state?userId</code> כל שנייה (game.html:450, 488).</div>
+<div>תנאים ואימותים</div><div><ul><li>join: משחק קיים; לא hidden; לא disabled/ended ("המשחק הסתיים"). ללא אימות — userId/displayName/groupId מהגוף.</li><li>answer (38947): שאלה שייכת למשחק; כפילות (question+user) → <code>already_answered</code>; answerIndex −1 = timeout (לא נשמר).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>join: INSERT participant approved=false, join_source (inbox/whatsapp/telegram/direct-internal/external/utm/direct לפי referrer, game.html:291); ON CONFLICT (game,user) DO NOTHING; מחזיר approved הנוכחי.</li><li>SA מאשר בחדר המתנה (<code>/waiting-room</code> 39099, <code>/approve</code> 39114 עם participantIds+approved, <code>/approve-all</code> 39127).</li><li>state: חלק אישי (my_approved; עדכון last_seen_at למאושרים) + חלק משותף ב-cache: סטטוס, שאלה נוכחית (ללא correct_index), answered_count, מאושרים, סה"כ שאלות, חסות, notify_sent_at.</li><li>answer נכון: <code>score += round(100 + (max(0, T·1000 − responseTimeMs) / (T·1000)) · 900)</code>, T=time_seconds (ברירת מחדל 20) — טווח 100–1000.</li><li>notify-start (39135): לכל משתתף מאושר עם group_id → alert_notifications (trigger 'live_game') + inbox_messages "⏰ ... עומד להתחיל!"; notify_sent_at=NOW (הלקוח מזהה דרך polling).</li><li>leaderboard (39083, ציבורי): TOP 50 לפי score; <code>?sa=1</code> כולל לא-מאושרים.</li></ol></div>
+<div>פערים</div><div>answer לא בודק סטטוס active, אישור המשתתף, או שזו השאלה הנוכחית; <code>responseTimeMs</code> מהלקוח → ניקוד מקסימלי בשליחת 0. join/answer ללא אימות זהות — התחזות לפי userId. leaderboard ?sa=1 ציבורי וכולל מספרי טלפון.</div></div></section>
+
+ <section class="proc" data-f="live game assign groups notification inbox community public family list"><h3>הפצת משחק למשפחות וקהילות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>SA משייך משחק לקבוצות (<code>_lgAssignVisible</code>/<code>_lgSendInbox</code>) → <code>POST /api/live-games/:id/assign</code> (38701). משפחה רואה משחקים ב-<code>GET /api/community/:id/live-games?groupId</code> (39161) ו-<code>/api/family/live-games/:groupId</code> (38743, ציבורי).</div>
+<div>תנאים ואימותים</div><div><ul><li>assign: groupIds לא ריק ("חסרות קבוצות"); משחק קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל קבוצה: INSERT live_game_assignments ON CONFLICT; alert_notifications (reference_key <code>game:CODE</code>); inbox_messages "הוזמנת למשחק: …"; הודעה ברירת מחדל עם קישור <code>https://weflowz.co.il/game/CODE</code> ופרס.</li><li>רשימת משחקי קהילה: waiting/active, לא מוסתרים; (is_public וקהילה NULL או אחת מקהילות המשפחה — approved + family_groups.community_id) או משויך ישירות; LIMIT 10.</li></ol></div>
+<div>ממשק</div><div><code>app.js:loadCommHomeGames</code> (נקרא מ-fetchCommunityData).</div></div></section>
+
+ <section class="proc" data-f="quest library share use rate report hide seed builtin community public kid quests"><h3>ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>הורה משתף קווסט שיצר לילד ולוקח קווסטים מהמאגר: <code>app.js:showQuestShareDialog</code> (17472), <code>openQuestLibrary</code> (17529), <code>useLibQuest</code> (17620). SA: <code>sa-app.js:loadSAQuestLib</code>/<code>saEditQuest</code>/<code>runQuestLibSeed</code> (11357–11651).</div>
+<div>תנאים ואימותים</div><div><ul><li>share (3952): הקווסט קיים עם <code>created_by=userId</code> (מהגוף).</li><li>כל הנתיבים הציבוריים ללא אימות (userId/familyGroupId מהגוף).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>רשימה (3906): visibility public/builtin, או community עם <code>community_id = groupId</code> (פרמטר); לא מוסתר; מסננים subject, ageMin (age_max ≥), ageMax (age_min ≤), search; מיון builtin, featured, ואז rating/popular/newest; LIMIT 100.</li>
+<li>share: INSERT quest_library (age 6–16 קבוע, flw_reward, pass_score, visibility, community_id רק ל-community, tags=subject) + העתקת שאלות; <code>kid_quests.shared_to_library = visibility</code>.</li>
+<li>use (3992): יצירת kid_quests חדש (status 'active', library_source_id) + העתקת שאלות; use_count+1.</li>
+<li>rate (4028): UPSERT דירוג; ממוצע ו-count; <code>is_hidden = avg &lt; 2.5 AND count ≥ 5</code>.</li>
+<li>report (4052): INSERT; ≥3 דיווחים → is_hidden=true.</li>
+<li>SA seed (3893): מוחק builtin ושאלותיהם ומריץ <code>runQuestLibrarySeed</code>; עריכה מלאה (4087) מחליפה שאלות (answer_type 'multiple_choice').</li></ol></div>
+<div>פערים</div><div><code>PATCH /api/sa/quest-library/:id/visibility</code> (4114) <b>ללא verifySA</b>. rate מחשב is_hidden מחדש ועלול לבטל הסתרה שנעשתה בגלל דיווחים/SA. פרמטר <code>groupId</code> משמש כ-community_id.</div></div></section>
+
+<h2 class="grp">אפליקציית חבר (Member) ו-Events Hub</h2>
+
+ <section class="proc" data-f="member account create for business link pending approve reject solo password"><h3>יצירת חשבון חבר ע"י עסק ושיוך עסק-חבר</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק (למשל ספורט/שירות) יוצר ללקוח חשבון "חבר WEFLOWZ": <code>POST /api/member/create-for-business</code> (30950). החבר מאשר/דוחה שיוך: <code>POST /api/member/link/:linkId/respond</code> (31016).</div>
+<div>תנאים ואימותים</div><div><ul><li>business_group_id, name, phone חובה ("חסרים שדות חובה"); עסק קיים ("עסק לא נמצא").</li><li>זיהוי חבר קיים <code>_findMemberByIdentifier</code> (30912): קוד בפורמט <code>M\d+</code> → group_code; אחרת טלפון של ADMIN בקבוצה member_type='member'.</li><li>respond: decision ∈ approve/reject.</li><li><b>אין אימות בכלל</b> בשני הנתיבים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה. חדש: INSERT family_groups (name "{name} - WEFLOWZ", group_code <code>'M' + 6 ספרות אחרונות של Date.now()</code>, type FAMILY, member_type 'member', plan 'solo', account_status 'pending_activation', created_by_business_group_id); סיסמה אקראית 8 תווים base36; INSERT users ADMIN active, permissions <code>{"tabs":["feed","members","bank","tasks"]}</code>, must_change_password=true.</li><li>UPSERT member_business_links (status 'pending'; נשאר 'active' אם כבר active), is_active=true.</li><li>COMMIT; מחזיר password (רק לחדש), group_code, link_status.</li><li>approve: status 'active' + alert_notifications לעסק "שיוך אושר ✅". reject: status 'rejected', is_active=false.</li></ol></div>
+<div>מכונת מצבים</div><div>member_business_links.status: pending → active | rejected. family_groups.account_status לחבר חדש: pending_activation.</div>
+<div>תופעות לוואי</div><div>שינוי סטטוס הזמנה אצל עסק מקושר (active) → <code>_sendMemberBizNotif</code> (30937) עם reference_key ייחודי <code>mbiz_order_{id}_{status}</code> (14709).</div>
+<div>פערים</div><div>הסיסמה נשמרת ב-<code>password_hash</code> כטקסט גלוי; <code>solo_temp_password</code> מוכנס NULL כי rawPassword נקבע רק אחרי ה-INSERT (30978–30981). group_code על בסיס זמן עלול להתנגש. ה-INSERT להתראה ב-approve משתמש בעמודות type/title/reference_id — שאינן קיימות ב-alert_notifications (schema: group_id, rule_id, trigger_type, message, is_read, created_at, reference_key) → ההתראה לעסק לעולם לא נשמרת (נבלע ב-catch).</div></div></section>
+
+ <section class="proc" data-f="member app modules unlock request locks my-businesses my-orders upgrade sa"><h3>מודולים נעולים לחבר, בקשות פתיחה ותצוגת עסקים/הזמנות</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>באפליקציית המשפחה כש-<code>member_type==='member'</code> (app.js:1802): <code>applyMemberLocks</code> (13512) נועל כל טאב מלבד <code>feed</code>, <code>myorders</code> ומודולים ב-<code>unlocked_modules</code>; לחיצה → <code>showMemberModuleUpgrade</code> → <code>POST /api/member/request-module</code> (31042).</div>
+<div>שלבי עיבוד</div><div><ol><li>request-module: groupId+moduleKey חובה; הוספה ל-<code>module_requests</code> JSONB (DISTINCT) עם requested_at.</li><li>SA: <code>PATCH /api/sa/groups/:id/modules</code> (31073) — קובע unlocked_modules ומנקה בקשות תואמות; <code>/unlock-module</code> (31093) — פתיחת מודול בודד; <code>/upgrade-member</code> (31063) — member_type family↔member.</li><li><code>GET /api/member/my-businesses/:groupId</code> (31116): קישורים is_active + unlocked_modules.</li><li><code>GET /api/member/my-orders/:biz/:member</code> (31135): רק לקישור active; לפי business_type — sport: מנויים (sport_memberships לפי ref/טלפון); maintenance_repair: service_calls (family_group_id/טלפון/שם); restaurant ואחר: store_orders לפי טלפון/שם (LIMIT 50).</li></ol></div>
+<div>ממשק</div><div>Member Feed: <code>fetchMemberFeedOrders</code>, <code>switchMemberFeedTab</code>, תקלות והצעות מחיר (app.js:13553–13700). אם unlocked_modules משתנה ב-fetchData → applyMemberLocks מחדש (2241).</div>
+<div>פערים</div><div>כל נתיבי <code>/api/member/*</code> ו-<code>PATCH /api/sa/groups/:id/(modules|unlock-module|upgrade-member)</code> ללא middleware אימות. התאמת הזמנות לפי שם לקוח עלולה לחשוף הזמנות של אחרים עם אותו שם.</div></div></section>
+
+ <section class="proc" data-f="events hub new event from menu template quote restaurant guests per person"><h3>Events Hub — אירוע חדש מתבנית תפריט</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>עסק מסעדה יוצר הצעת מחיר לאירוע מתבנית תפריט: כפתור "אירוע חדש מתפריט" → <code>business-app.js:openNewEventFromMenuModal</code> (42716) → <code>submitNewEventFromMenu</code> → <code>POST /api/store/quotes/from-template</code> (27001, <code>verifyBiz</code>).</div>
+<div>תנאים ואימותים</div><div><ul><li>לקוח: אין תבניות → הצעה לעבור ל-<code>menu_templates</code>; שם לקוח חובה; חריגה מ-min/max_guests → אישור "מספר הסועדים חורג מטווח התבנית — להמשיך בכל זאת?".</li><li>שרת: templateId + customerName ("חסרים נתוני תבנית/לקוח"); תבנית של העסק ("תבנית לא נמצאה").</li></ul></div>
+<div>חישובים</div><div><code>guests = max(1, guestCount || min_guests || 1)</code>. פריט = <code>custom_price</code> של menu_item, כמות guests אם <code>pricing_mode='per_person'</code> אחרת 1; per_person עם base_price_per_person → שורת "מחיר בסיס לסועד" × guests. <code>total = Σ price × qty</code>. לקוח: הערכה <code>base_price_per_person × guests</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT store_orders status 'quote', is_event=TRUE, event_guest_count, target_datetime=eventDate, menu_template_id, items JSON.</li><li><code>quote_number = 'QT-' + id מרופד ל-6</code>.</li><li>לקוח מרענן פקודות עבודה והצעות מחיר.</li></ol></div>
+<div>ממשק</div><div>הכפתור מוצג רק כש-<code>business_type==='restaurant'</code> (business-app.js:2956), כשאז טאב פקודות העבודה מתויג "אירועים 🥂".</div>
+<div>פערים</div><div>לעסק מסוג <code>events</code> טאב התפריטים מוצג (menuRelevantTypes כולל 'events', 2969) אך כפתור Events Hub לא. פריטים לא זמינים מסוננים (<code>is_available IS NOT FALSE</code>) אך מחיר 0 אם אין custom_price.</div></div></section>
+
+<h2 class="grp">גישה ואימות בסביבת הקהילה</h2>
+
+ <section class="proc" data-f="community bootstrap-token family token session auth communityfetch"><h3>הנפקת טוקן משפחה לפיצ'רי קהילה (bootstrap-token)</h3>
+<div class="kv"><div>מטרה וטריגר</div><div>כל קריאות הקהילה באפליקציית המשפחה עוברות דרך <code>communityFetch</code> (app.js:846) עם <code>Bearer ofl_family_token</code>. אם אין טוקן, <code>ensureFamilyToken</code> (app.js:832) קורא <code>POST /api/community/bootstrap-token</code> (server.js:10721) עם groupId+userId מ-<code>ofl_session</code> ב-localStorage.</div>
+<div>תנאים ואימותים</div><div><ul><li>groupId+userId חובה ("missing params"); המשתמש active בקבוצה מסוג FAMILY → אחרת 403 "אין הרשאה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>createFamilySession(groupId, userId, userAgent[0..100], 'family')</code> → מחזיר token; הלקוח שומר ב-<code>ofl_family_token</code>.</li></ol></div>
+<div>פערים</div><div><b>חמור:</b> אין סיסמה/הוכחת זהות — כל מי שיודע (groupId, userId) מספריים מקבל טוקן סשן משפחה תקף (עוקף את כל בדיקות <code>verifyFamily</code> בתחום הקהילה, הפולים והפיד).</div></div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

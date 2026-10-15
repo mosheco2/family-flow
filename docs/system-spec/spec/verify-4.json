@@ -1,0 +1,92 @@
+[
+ {
+  "id": 46,
+  "domain": "community",
+  "process": "הצטרפות משפחה לקהילה (קוד) ואישורה",
+  "claim": "קהילה לפי code.toUpperCase().trim() בסטטוס active או pending → אחרת 404 \"קוד קהילה שגוי או שהקהילה אינה קיימת.\" (18489)."
+ },
+ {
+  "id": 47,
+  "domain": "community",
+  "process": "ניהול מנהלי אזור ואזורים ע\"י SA",
+  "claim": "אזור חדש (19291): COUNT(manager_zones) ≥ zone_max_zones_per_manager (ברירת מחדל 4) → 400 \"מנהל יכול להחזיק עד N אזורים\"."
+ },
+ {
+  "id": 48,
+  "domain": "community",
+  "process": "ניהול מנהלי אזור ואזורים ע\"י SA",
+  "claim": "רשימה (19160): מנהלים שאינם pending עם zone_count, community_count, total_commissions, total_paid, month_paid."
+ },
+ {
+  "id": 49,
+  "domain": "community",
+  "process": "ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח",
+  "claim": "רשימה (3906): visibility public/builtin, או community עם community_id = groupId (פרמטר); לא מוסתר; מסננים subject, ageMin (age_max ≥), ageMax (age_min ≤), search; מיון builtin, featured, ואז rating/popular/newest; LIMIT 100."
+ },
+ {
+  "id": 50,
+  "domain": "community",
+  "process": "ספירת פוסטים שלא נקראו",
+  "claim": "mark-read (36103): UPSERT last_read_at=NOW לקהילה או לכל הקהילות המאושרות."
+ },
+ {
+  "id": 51,
+  "domain": "kolhaam",
+  "process": "חישוב ציון טרנדינג (cron)",
+  "claim": "לכל פריט: חישוב ציון ו-UPDATE cem.current_trending_score=score.toFixed(4), last_calculated_at=NOW() (server.js:40849-40855). ללא טרנזקציה; שגיאה עוצרת את כל הלולאה (try חיצוני)."
+ },
+ {
+  "id": 52,
+  "domain": "kolhaam",
+  "process": "הישגים ותגמולי FLOW",
+  "claim": "אם flow_reward > 0 → awardKolHaamFlow (server.js:44722-44750): UPSERT flow_wallets ('family', group_id) balance+amount; INSERT flow_transactions (action_key=triggerKey, description 'תגמול קול העם: X', reference_id=item); INSERT content_flow_rewards; author_profiles.total_earned_flow+amount. ללא טרנזקציה."
+ },
+ {
+  "id": 53,
+  "domain": "kolhaam",
+  "process": "שליחת פריט לאישור",
+  "claim": "לקוח: כותרת, קטגוריה, ותוכן שאינו ריק/'<br>' ('יש לכתוב תוכן') (kol-haam-app.js:1273-1275)."
+ },
+ {
+  "id": 54,
+  "domain": "kolhaam",
+  "process": "תגיות: autocomplete, פופולריות ודף תגית",
+  "claim": "popular: GET /tags/popular?limit=30 — תגיות שיש להן פריט מפורסם לא-מוסגר; מיון usage_count (server.js:46026-46043). community_id מתקבל ולא בשימוש."
+ },
+ {
+  "id": 55,
+  "domain": "kolhaam",
+  "process": "בקשות מחיקה",
+  "claim": "404; 403 אם groupId מהטוקן אינו הבעלים (server.js:40176-40178)."
+ },
+ {
+  "id": 56,
+  "domain": "sa",
+  "process": "מיזוג חשבון משפחה כפול לחשבון ראשי",
+  "claim": "UPDATE בעלות ב-21 טבלאות פשוטות (transactions, tasks, shopping_list, shopping_trips, pantry, time_clock, loans, store_orders, calendar_events.customer_group_id, beauty_*, service_calls, store_customers, storefront_sso_tokens, flw_kid_config, flw_kid_redeem_requests, game_assignments, kid_quests, flow_redemptions, storefront_customers) (2701-2713)."
+ },
+ {
+  "id": 57,
+  "domain": "sa",
+  "process": "מודולים לחשבונות \"חבר WEFLOWZ\" ושדרוג למשפחה",
+  "claim": "PATCH /unlock-module (31093): הוספה למערך אם חסר והסרת הבקשה."
+ },
+ {
+  "id": 58,
+  "domain": "sa",
+  "process": "מיזוג חשבון משפחה כפול לחשבון ראשי",
+  "claim": "ארנק ילדים: אם קיים flw_kid_wallets לכפול — הוספת balance/lifetime למשתמש בראשי ומחיקת ארנק הכפול (2686-2698)."
+ },
+ {
+  "id": 59,
+  "domain": "sa",
+  "process": "גיבויי סביבה (Snapshots) ושחזור",
+  "claim": "יומי: מדלג על קבוצה עם snapshot 'auto' ב-20 השעות האחרונות; השהייה 3 שניות בין קבוצות (6760-6766)."
+ },
+ {
+  "id": 60,
+  "domain": "sa",
+  "process": "מודולים לחשבונות \"חבר WEFLOWZ\" ושדרוג למשפחה",
+  "claim": "PATCH /api/sa/groups/:id/modules (server.js:31073): modules חובה מערך; unlocked_modules=$1 והסרת בקשות (r->>'key') שנפתחו."
+ }
+]

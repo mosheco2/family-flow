@@ -1,0 +1,713 @@
+[
+ {
+  "id": "RTN-01",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — הפעלה",
+  "category": "functional",
+  "severity": "critical",
+  "title": "מופעי task/task_calendar לעולם לא מופעלים (created_by='שגרות' לעמודת INT)",
+  "as_is": "activateDueRoutineOccurrences מכניס ל-tasks.created_by את המחרוזת 'שגרות' (server.js:6955), אך העמודה היא INT REFERENCES users(id) (493, 6473) → שגיאת SQL. כל שגרה עם output 'task' (ברירת המחדל) או 'task_calendar' נשארת planned לנצח, לא ניתנת לסימון ביצוע ולא נכנסת לפיגור; רק work_order_template עובד.",
+  "proposal": "משימה שנוצרת משגרה נשמרת עם created_by=NULL ועם עמודות source='routine' ו-routine_occurrence_id (FK ל-routine_occurrences). בדיקת קבלה: שגרה יומית חדשה עם output task עוברת ל-open ביום ההפעלה ונוצרת משימה pending לאחראי.",
+  "alternatives": [],
+  "refs": [
+   "server.js:493",
+   "server.js:6473",
+   "server.js:6951-6957",
+   "rules-routines.html#הפעלת מופע ויצירת הרשומה המקושרת לעובד"
+  ]
+ },
+ {
+  "id": "RTN-02",
+  "domain": "שגרות (BIZ)",
+  "area": "לוחות מעקב",
+  "category": "functional",
+  "severity": "critical",
+  "title": "u.name בשאילתות השגרות → 500 בכל מסכי המופעים",
+  "as_is": "6 שאילתות עושות LEFT JOIN users u … u.name (server.js:27789, 27901, 27918, 27933, 28173, 28308) — אין עמודה name ב-users. לוח היום, מה פוספס, טווח מופעים, ציר זמן, תור הזזות ועמוד מסמך אישור ביצוע נכשלים; הלקוח מציג 'אין מופעים…' במקום שגיאה כי אינו בודק error (business-app.js:61446-61457, 61355).",
+  "proposal": "שם האחראי נגזר כ-COALESCE(NULLIF(TRIM(first_name||' '||last_name),''), nickname). הלקוח בודק res.ok/data.error ומציג 'שגיאה בטעינה' עם כפתור ניסיון חוזר. בדיקה אוטומטית לכל נתיב שגרות מחזירה 200 על DB ריק ועל DB עם מופעים.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27789",
+   "server.js:27901",
+   "server.js:27918",
+   "server.js:27933",
+   "server.js:28173",
+   "server.js:28308",
+   "business-app.js:61355",
+   "business-app.js:61446-61457",
+   "rules-routines.html#לוחות מעקב",
+   "s1-erd.html#עמודות חסרות — users.name"
+  ]
+ },
+ {
+  "id": "RTN-03",
+  "domain": "שגרות (BIZ)",
+  "area": "זהות מבצע",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "שם המבצע לא נרשם — השרת סומך על currentUser.name שאינו קיים",
+  "as_is": "הלקוח שולח userName/createdBy/changedBy=currentUser?.name (business-app.js:61287, 61474, 61612), אך לשורת users אין name → null. completed_by, submitted_by, internal_decided_by, move_approved_by, created_by, generated_by ו-actor_name הם null או 'עובד'/'מנהל'. השרת לא גוזר זהות מ-req.bizAuth.userId.",
+  "proposal": "השרת מתעלם משדות שם מהלקוח: לכל פעולה נשמרים <action>_by_user_id = req.bizAuth.userId ו-<action>_by_name = snapshot של שם המשתמש בזמן הפעולה (לפי הנוסחה ב-RTN-02). actor_name ביומן נגזר באותו אופן. routines.created_by הופך ל-INT FK + created_by_name.",
+  "alternatives": [],
+  "refs": [
+   "business-app.js:61287",
+   "business-app.js:61474",
+   "business-app.js:61612",
+   "server.js:10711",
+   "rules-routines.html#פערים וחוסרים רוחביים"
+  ]
+ },
+ {
+  "id": "RTN-04",
+  "domain": "שגרות (BIZ)",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "high",
+  "title": "אין הפרדת תפקידים במודול: כל עובד יוצר, משבית, מאשר ומכריע",
+  "as_is": "כל נתיבי השגרות עוברים verifyBiz + verifyRoutinesBizType בלבד (server.js:27210-27224); אין בדיקת role — כל משתמש biz יכול ליצור/להשבית שגרות, לאשר סבבים (גם של עצמו) ולאשר בקשות הזזה. בלקוח הטאב נעול ל-MANAGER/SENIOR/MEMBER כברירת מחדל (business-app.js:3893).",
+  "proposal": "ניהול (יצירה, עריכה, השבתה, אתרים, חוזים, החלת תבניות, הכרעת הזזה, החלפת אחראי לסדרה) — ADMIN או MANAGER או employee_role_type ∈ {branch_manager, shift_manager}. ביצוע (complete/skip/בקשת הזזה) — האחראי על המופע או מנהל. הכרעת סבב פנימי — מנהל ו-internal_decided_by ≠ submitted_by (אחרת 403 'לא ניתן לאשר ביצוע של עצמך'), אלא אם בעסק יש ADMIN יחיד.",
+  "alternatives": [
+   "לאפשר אישור עצמי אך לסמן את הסבב self_approved=true ולהציג זאת בתיק הביקורת."
+  ],
+  "refs": [
+   "server.js:27210-27224",
+   "business-app.js:3893",
+   "rules-routines.html#גידור המודול",
+   "s1-rbac.html#BIZ — הזמנות עבודה / שגרות"
+  ]
+ },
+ {
+  "id": "RTN-05",
+  "domain": "שגרות (BIZ)",
+  "area": "חיוב",
+  "category": "money",
+  "severity": "high",
+  "title": "עקיפת חיוב: אין requireModule('routines') בשרת",
+  "as_is": "החיוב/פתיחת המודול נאכפים רק ב-switchTab בלקוח (business-app.js:2867-2884); enforceRoutinesTabVisibility מציג את הפריט גם בלי חיוב (37896). קריאת API ישירה עובדת לכל עסק restaurant/maintenance_repair גם אם לא שילם (19 ₪/חודש או חבילה).",
+  "proposal": "כל נתיבי /api/routines*, /api/routine-occurrences*, /api/routine-documents* עוברים requireModule('routines') אחרי verifyRoutinesBizType (403 'גישה למודול זה אינה כלולה בחבילה שלך'). ה-cron אינו מייצר/מפעיל מופעים לעסק שהמודול אינו פעיל אצלו. נתיבי קישור ציבוריים (/c/rt, /c/rt-doc) ממשיכים לעבוד.",
+  "alternatives": [
+   "כלול ללא תוספת תשלום לכל עסק restaurant/maintenance_repair — אז להסיר את המודול מהקטלוג ומהחבילות."
+  ],
+  "refs": [
+   "business-app.js:2865-2884",
+   "business-app.js:37896-37907",
+   "server.js:27211",
+   "rules-routines.html#גידור המודול: סוג עסק, תמחור, ניווט והרשאות"
+  ]
+ },
+ {
+  "id": "RTN-06",
+  "domain": "שגרות (BIZ)",
+  "area": "הרשאות",
+  "category": "security",
+  "severity": "low",
+  "title": "GET תבניות לא משווה groupId לטוקן",
+  "as_is": "GET /api/routines/:groupId/templates מחזיר את הקטלוג לפי business_type של req.params.groupId ללא השוואה לסשן (server.js:27284-27290) — חשיפת סוג העסק של כל קבוצה.",
+  "proposal": "כמו כל נתיבי :groupId — groupId חייב להיות req.bizAuth.groupId, אחרת 403 'אין הרשאה'.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27284-27290",
+   "rules-routines.html#ספריית תבניות לפי ענף והחלתן"
+  ]
+ },
+ {
+  "id": "RTN-07",
+  "domain": "שגרות (BIZ)",
+  "area": "תבניות",
+  "category": "functional",
+  "severity": "high",
+  "title": "תבניות certificate_expiry לא מייצרות מופעים לעולם",
+  "as_is": "kashrut_renewal ו-tech_cert_renewal נשמרות עם frequency_type='certificate_expiry' ו-interval 'monthly', אך המנוע מסנן frequency_type='fixed' בלבד (server.js:6863-6867) ולתדירות אין תווית בממשק.",
+  "proposal": "certificate_expiry ממומש: לכל שגרה כזו נוצר מופע open יחיד בתאריך = expiry_date של התעודה האחרונה (ראיה document) פחות reminder_before_hours (ברירת מחדל 60 יום); אם אין תעודה — מופע open מיידי. סגירת המופע עם ראיה document חדשה מתזמנת את הבא. condition_based — יוצר מופעים ידנית בלבד.",
+  "alternatives": [
+   "להמיר את שתי התבניות ל-fixed/yearly ולהסיר certificate_expiry ו-condition_based מה-CHECK."
+  ],
+  "refs": [
+   "server.js:6863-6867",
+   "server.js:27261",
+   "server.js:27280",
+   "business-app.js:61517-61527",
+   "rules-routines.html#ספריית תבניות לפי ענף והחלתן"
+  ]
+ },
+ {
+  "id": "RTN-08",
+  "domain": "שגרות (BIZ)",
+  "area": "ראיות",
+  "category": "functional",
+  "severity": "high",
+  "title": "ראיות photo/document/checklist לא ניתנות להזנה ולא נאכפות",
+  "as_is": "evidence_requirements נשמרות בתבניות (למשל pest_control document, extinguisher_visual checklist+photo) אך אין API/UI להעלאת photo/document/checklist; ה-INSERT היחיד ל-routine_evidence כותב note/numeric_value (server.js:27994). כתוצאה: 'מצב ציות' תמיד 'אין עדיין תעודה' (27562-27592) וספירת תעודות פגות בדוח הכיסוי תמיד 0 (27600-27630).",
+  "proposal": "POST /api/routine-occurrences/:id/evidence עם evidence_type ∈ {note, numeric_value, checklist, photo, document}; photo/document מועלים ל-Cloudinary ונשמר file_url; document מחייב document_issuer ו-expiry_date. /complete נדחה (400 'חסרות ראיות: …') אם חסר סוג שמופיע ב-evidence_requirements (confirm = ללא ראיה). כרטיס המופע מציג טופס ביצוע לפי הדרישות.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27979-27994",
+   "server.js:27562-27630",
+   "server.js:27239-27280",
+   "rules-routines.html#ביצוע מופע — מסלול מהיר",
+   "rules-routines.html#מצב ציות לרישוי",
+   "rules-routines.html#דוח כיסוי חוזי"
+  ]
+ },
+ {
+  "id": "RTN-09",
+  "domain": "שגרות (BIZ)",
+  "area": "ראיות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "ערך מספרי וטווח ערכים: אין הזנה ואין חריגה אוטומטית",
+  "as_is": "הלקוח לעולם לא שולח numericValue (business-app.js:61468); value_range_min/max נשמרים ב-POST בלבד ולא נבדקים; 'חריגה' היא החלטה ידנית בלבד — גם בתבניות temp_log (°C) ו-cash_register_close.",
+  "proposal": "שגרה עם numeric_value ב-evidence_requirements מציגה שדה מספר חובה עם value_unit. אם הערך מחוץ ל-[value_range_min, value_range_max] — is_out_of_range=true והמופע נסגר כ-completed_with_exception אוטומטית (גם אם המשתמש לא סימן חריגה). value_range ניתן לעריכה בטופס השגרה.",
+  "alternatives": [],
+  "refs": [
+   "business-app.js:61468-61480",
+   "server.js:27979-28010",
+   "rules-routines.html#ביצוע מופע — מסלול מהיר"
+  ]
+ },
+ {
+  "id": "RTN-10",
+  "domain": "שגרות (BIZ)",
+  "area": "הגדרת שגרה",
+  "category": "functional",
+  "severity": "medium",
+  "title": "אין עריכת שגרה ואין הפעלה מחדש בממשק",
+  "as_is": "PUT /api/routines/:id קיים (server.js:27377) אך אין לו קורא; ספריית התבניות מבטיחה 'התדירות היא המלצה, אפשר לשנות אחר כך'; כפתור 'מושבתת' לא עושה דבר — 'אין פעולת הפעלה מחדש בשלב זה' (business-app.js:61486).",
+  "proposal": "כרטיס שגרה כולל 'עריכה' (אותו טופס כמו יצירה, ממולא) שקורא ל-PUT, ו'הפעלה מחדש' לשגרה מושבתת (PUT isActive=true) — ההפעלה מחדש מייצרת מופעים מהיום ואילך בלבד (לא רטרואקטיבית).",
+  "alternatives": [],
+  "refs": [
+   "server.js:27377-27414",
+   "business-app.js:61485-61486",
+   "business-app.js:61496-61534",
+   "rules-routines.html#עדכון שגרה, השבתה ויומן שינויים"
+  ]
+ },
+ {
+  "id": "RTN-11",
+  "domain": "שגרות (BIZ)",
+  "area": "הגדרת שגרה",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "עדכון שגרה לא משפיע על מופעים מתוכננים קיימים",
+  "as_is": "שינוי frequency_interval/scheduled_time/assignee/grace ב-PUT לא מעדכן מופעי planned שכבר נוצרו עד 60/365 יום קדימה (server.js:27377-27414).",
+  "proposal": "ב-PUT שמשנה תדירות או ימים — מוחקים מופעי planned עם scheduled_date > today ומייצרים מחדש מיד; שינוי scheduled_time/grace מעדכן scheduled_time ו-grace_deadline של מופעי planned; שינוי אחראי מעדכן assignee_user_id של planned. נרשם event לכל שינוי.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27377-27414",
+   "server.js:6860-6920",
+   "rules-routines.html#עדכון שגרה, השבתה ויומן שינויים"
+  ]
+ },
+ {
+  "id": "RTN-12",
+  "domain": "שגרות (BIZ)",
+  "area": "הגדרת שגרה",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "השבתת שגרה משאירה מופעים פתוחים ורשומות מקושרות",
+  "as_is": "DELETE /api/routines/:id מבטל רק מופעי planned/open (server.js:27416); in_progress/overdue/move_requested נשארים, וכן המשימה/האירוע/פקודת העבודה שכבר נוצרו.",
+  "proposal": "השבתה מבטלת (cancelled) את כל המופעים שאינם סגורים (planned, open, in_progress, overdue, move_requested), מסמנת סבבים pending כ-skipped, ומבטלת משימות pending/אירועים מקושרים (status='cancelled'); פקודת עבודה מקושרת שלא התחילה מבוטלת, ושהתחילה — נשארת עם הערה.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27416-27426",
+   "rules-routines.html#עדכון שגרה, השבתה ויומן שינויים"
+  ]
+ },
+ {
+  "id": "RTN-13",
+  "domain": "שגרות (BIZ)",
+  "area": "תבניות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "החלת תבנית חוזרת יוצרת שגרות כפולות",
+  "as_is": "POST /api/routines/:groupId/templates/apply אינו בודק אם template_source כבר קיים בקבוצה ואינו טרנזקציוני (server.js:27292-27325).",
+  "proposal": "מפתח תבנית שקיימת לו שגרה פעילה עם אותו template_source ואותו site_id מדולג ומוחזר ב-skippedKeys ('כבר קיימת'); כל ההחלה בטרנזקציה אחת. מפתח שאינו בקטלוג → מוחזר ב-invalidKeys במקום דילוג שקט.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27292-27325",
+   "rules-routines.html#ספריית תבניות לפי ענף והחלתן"
+  ]
+ },
+ {
+  "id": "RTN-14",
+  "domain": "שגרות (BIZ)",
+  "area": "הגדרת שגרה",
+  "category": "functional",
+  "severity": "low",
+  "title": "יצירה ידנית: אין ולידציה בשרת (500 על שם חסר או ערך לא חוקי)",
+  "as_is": "POST /api/routines/:groupId לא בודק name (NOT NULL → 500) וערכים מחוץ ל-CHECK מחזירים 500 עם הודעת Postgres (server.js:27341-27383).",
+  "proposal": "ולידציה בשרת לפני INSERT: name חובה (1–150 תווים), כל enum (category, output_type, frequency_type, frequency_interval, assignee_mode, internal_approval_mode, customer_approval_default_policy) מול רשימה; assigneeUserId חייב להיות משתמש פעיל בקבוצה. שגיאה → 400 עם הודעה בעברית.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27341-27383",
+   "rules-routines.html#יצירת שגרה ידנית"
+  ]
+ },
+ {
+  "id": "RTN-15",
+  "domain": "שגרות (BIZ)",
+  "area": "הגדרת שגרה",
+  "category": "scope",
+  "severity": "medium",
+  "title": "שדות טופס חסרים ומצבי שיוך role/external_vendor לא ממומשים",
+  "as_is": "הטופס שולח assignee_mode='employee' תמיד ו-frequencyType='fixed'; אין שדות weekly_days, start/end_date, skip_weekends, max_occurrences, צ'קליסט, טווח ערכים, ספק חיצוני או תפקיד (business-app.js:61547-61612). המנוע משתמש רק ב-assignee_user_id. תיאור נשמר ב-description ולא ב-instructions.",
+  "proposal": "הטופס כולל: תדירות כולל 'ימים בשבוע' (weekly_days + בחירת ימים), תאריך התחלה (ברירת מחדל היום, לא בעבר), תאריך סיום אופציונלי, דילוג סופ\"ש, צ'קליסט (רשימת פריטים), יחידה וטווח ערכים, דרישות ראיה. assignee_mode role: המופע משויך בהפעלה לעובד הפעיל הראשון עם employee_role_type המתאים (או נשאר ללא אחראי וגלוי לכל בעלי התפקיד); external_vendor: נשמרים שם/טלפון ספק, ובהפעלה נשלח לו WhatsApp עם קישור אישור.",
+  "alternatives": [
+   "להסיר את role/external_vendor מה-CHECK ולהשאיר employee בלבד בגרסה הראשונה."
+  ],
+  "refs": [
+   "business-app.js:61547-61612",
+   "server.js:27341-27383",
+   "server.js:6940-6996",
+   "rules-routines.html#יצירת שגרה ידנית"
+  ]
+ },
+ {
+  "id": "RTN-16",
+  "domain": "שגרות (BIZ)",
+  "area": "אתרים",
+  "category": "functional",
+  "severity": "high",
+  "title": "אין שיוך שגרה לאתר/מתקן/פריט/חוזה בממשק",
+  "as_is": "הטופס ותבניות אינם שולחים siteId/facilityId/itemId/serviceContractId (business-app.js:61534, 61597), ולכן 'שגרות פעילות באתר', ההיסטוריה ותיק הביקורת ריקים לכל אתר; GET/POST facilities/items קיימים ללא קורא (server.js:27450-27495); אין עדכון/מחיקה לאתר/מתקן/פריט.",
+  "proposal": "טופס השגרה והחלת התבניות כוללים בחירת אתר (חובה ב-maintenance_repair, ברירת מחדל 'העסק עצמו' — אתר is_internal שנוצר אוטומטית — ב-restaurant), ואופציונלית מתקן/פריט וחוזה. בתיק האתר: ניהול מתקנים ופריטים (הוספה, עריכה, מחיקה רכה). עריכת/מחיקה רכה של אתר נוספת (PUT/DELETE עם archived_at).",
+  "alternatives": [],
+  "refs": [
+   "business-app.js:61534",
+   "business-app.js:61597",
+   "business-app.js:61626-61700",
+   "server.js:27428-27495",
+   "server.js:27640",
+   "rules-routines.html#היררכיית אתר → מתקן → פריט ו\"תיק אתר\""
+  ]
+ },
+ {
+  "id": "RTN-17",
+  "domain": "שגרות (BIZ)",
+  "area": "אתרים",
+  "category": "ux",
+  "severity": "low",
+  "title": "'חריגות פתוחות' בתיק אתר הן בפועל מופעים סגורים עם חריגה",
+  "as_is": "תיק האתר מציג 'חריגות פתוחות' — 20 מופעים אחרונים completed_with_exception (server.js:27640), שכבר נסגרו; אין מצב טיפול בחריגה.",
+  "proposal": "לחריגה מצב טיפול: exception_status ∈ {open, resolved} + resolution_note + resolved_by. 'חריגות פתוחות' מציג רק exception_status='open'; מנהל יכול לסמן 'טופל'.",
+  "alternatives": [
+   "לשנות את הכותרת ל'חריגות אחרונות' בלי מנגנון טיפול."
+  ],
+  "refs": [
+   "server.js:27640-27700",
+   "business-app.js:61684",
+   "rules-routines.html#היררכיית אתר → מתקן → פריט ו\"תיק אתר\""
+  ]
+ },
+ {
+  "id": "RTN-18",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — ייצור",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "עוגן הסדרה: MAX(scheduled_date), ייצור רטרואקטיבי ו-weekdays שמתעלמים",
+  "as_is": "ההמשך מחושב מ-MAX(scheduled_date) של מופעים — אישור הזזה לתאריך מאוחר מזיז את כל המשך הסדרה; start_date בעבר מייצר עד 400 מופעים רטרואקטיביים שמופעלים מיד ונכנסים לפיגור; frequency_weekdays מתעלמים כשה-interval ≠ weekly_days (server.js:6870-6920).",
+  "proposal": "התאריכים נגזרים מ-start_date + k×interval (לא מ-MAX), כך שהזזת מופע בודד לא משנה את הסדרה. ייצור ראשון מתחיל מ-max(start_date, today). weekdays תקפים רק עם weekly_days; שמירת weekdays עם interval אחר → 400.",
+  "alternatives": [],
+  "refs": [
+   "server.js:6860-6920",
+   "rules-routines.html#כללי חזרה וייצור מופעים"
+  ]
+ },
+ {
+  "id": "RTN-19",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — ייצור",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "אין ייחודיות למופע ואין נעילה בין מופעי שרת",
+  "as_is": "בדיקת כפילות היא SELECT לפני INSERT ללא UNIQUE (server.js:6898); אין נעילה כשרצים כמה מופעי שרת; הזזה לתאריך שכבר יש בו מופע יוצרת שניים באותו תאריך (28247-28275).",
+  "proposal": "UNIQUE(routine_id, scheduled_date) + INSERT … ON CONFLICT DO NOTHING; ה-cron רץ תחת pg_try_advisory_lock(<routines_cron>) — מופע שרת שלא קיבל את הנעילה מדלג. אישור הזזה לתאריך תפוס → 409 'כבר קיים מופע בתאריך זה'.",
+  "alternatives": [],
+  "refs": [
+   "server.js:6898-6913",
+   "server.js:7035-7043",
+   "server.js:28247-28275",
+   "rules-routines.html#כללי חזרה וייצור מופעים",
+   "rules-routines.html#בקשת הזזת מופע והחלטת מנהל"
+  ]
+ },
+ {
+  "id": "RTN-20",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — ייצור",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "אזור זמן: חישובי תאריך ב-UTC מול שעון מקומי",
+  "as_is": "today בהפעלה ובלוח היום = toISOString (UTC) (server.js:6924-6930, 27913); תאריכי DATE מ-node-pg הם חצות מקומית ו-toISOString מזיז ביום אחורה בשרת שאינו UTC; grace_deadline TIMESTAMP ללא אזור זמן מושווה ל-NOW() של ה-DB; skip_weekends נבדק על היום המקומי.",
+  "proposal": "כל חישובי התאריכים והשעות במודול נעשים ב-Asia/Jerusalem: תאריכים כמחרוזות YYYY-MM-DD ללא המרת Date, grace_deadline כ-TIMESTAMPTZ שמחושב מ-(scheduled_date + scheduled_time) AT TIME ZONE 'Asia/Jerusalem'. בדיקה: שרת ב-UTC ובשעה 23:30 שעון ישראל מייצר ומפעיל לפי התאריך הישראלי.",
+  "alternatives": [],
+  "refs": [
+   "server.js:6894-6930",
+   "server.js:27913",
+   "rules-routines.html#כללי חזרה וייצור מופעים",
+   "rules-routines.html#סימון פיגור וניקוי לפי תקופת שמירה"
+  ]
+ },
+ {
+  "id": "RTN-21",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — ייצור",
+  "category": "functional",
+  "severity": "low",
+  "title": "חישובי מחזור: גלישת סוף חודש, חלון חסד 0 ו-interval לא מוכר",
+  "as_is": "monthly עם setMonth: 31 בינואר → 3 במרץ (server.js:6833); grace_period_minutes=0 הופך ל-60 (||60, 6904-6911); interval לא מוכר (כולל null) → +7 ימים בשקט.",
+  "proposal": "חודשי/רבעוני/חצי-שנתי/שנתי נצמדים ליום האחרון בחודש כשהיום אינו קיים (31/1 → 28 או 29/2 → 31/3). grace_period_minutes מקבל 0 (?? 60). frequency_interval מאומת מול {daily, weekly, weekly_days, biweekly, monthly, quarterly, semiannual, yearly}; אחר → 400 ביצירה.",
+  "alternatives": [],
+  "refs": [
+   "server.js:6833-6850",
+   "server.js:6904-6911",
+   "rules-routines.html#כללי חזרה וייצור מופעים"
+  ]
+ },
+ {
+  "id": "RTN-22",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — הפעלה",
+  "category": "functional",
+  "severity": "high",
+  "title": "אין סנכרון בין מופע לבין המשימה/פקודת העבודה המקושרת",
+  "as_is": "השלמת המשימה/פקודת העבודה לא מעדכנת את המופע, והשלמת המופע לא סוגרת אותן (server.js:6940-6996); החלפת אחראי לא מעדכנת tasks.assigned_to/work_order_assignees/attendees (28279-28300) — מעקב כפול.",
+  "proposal": "המופע הוא מקור האמת: (1) משימה מקושרת שמגיעה ל-done/approved → /complete של המופע (מסלול מהיר או סבב לפי השגרה); פקודת עבודה ל-done → אותו דבר. (2) השלמת/דילוג/ביטול מופע → המשימה עוברת ל-approved/cancelled בהתאם. (3) החלפת אחראי מעדכנת את assigned_to/assignees/attendees של הרשומות המקושרות הפתוחות.",
+  "alternatives": [
+   "לבטל את יצירת המשימה ולהציג את מופעי השגרה ישירות בטאב המשימות של העובד."
+  ],
+  "refs": [
+   "server.js:6940-6996",
+   "server.js:12023-12078",
+   "server.js:28279-28300",
+   "rules-routines.html#הפעלת מופע ויצירת הרשומה המקושרת לעובד"
+  ]
+ },
+ {
+  "id": "RTN-23",
+  "domain": "שגרות (BIZ)",
+  "area": "מנוע — פיגור",
+  "category": "functional",
+  "severity": "medium",
+  "title": "פיגור: מופע בהמתנה לאישור נכנס לפיגור ומאפשר סבבים מקבילים",
+  "as_is": "markOverdue מסמן גם in_progress (סבב פתוח) כ-overdue (server.js:7005-7020); /complete מתיר overdue ולכן נפתח סבב חדש כשהקודם עדיין pending (27979-28012); move_requested לא נכנס לפיגור לעולם.",
+  "proposal": "פיגור חל רק על open (והזמן נבדק מול grace_deadline). מופע עם סבב pending נשאר in_progress. /complete נדחה (409 'קיים סבב אישור פתוח') כשיש סבב שבו internal_status או customer_status הוא pending. move_requested שלא הוכרע תוך 48 שעות משאיר את המופע במצבו וממתין — אך מוצג ב'מה פוספס' אם התאריך המקורי חלף.",
+  "alternatives": [],
+  "refs": [
+   "server.js:7005-7020",
+   "server.js:27979-28012",
+   "rules-routines.html#סימון פיגור וניקוי לפי תקופת שמירה"
+  ]
+ },
+ {
+  "id": "RTN-24",
+  "domain": "שגרות (BIZ)",
+  "area": "התראות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "אין התראות במודול (פתיחה, פיגור, הגשה, הזזה, תגובת לקוח)",
+  "as_is": "אין שום התראה לעובד או למנהל; reminder_before_hours ו-escalation_user_id/escalation_after_hours לא נקראים בשום מקום; תגובת לקוח בקישור נרשמת רק ב-event log (server.js:28132-28160). נקודת ההתראה החיצונית היחידה היא שליחת מסמך.",
+  "proposal": "התראות in-app (alert_notifications) ו-WhatsApp לפי הגדרה: לאחראי בהפעלת מופע ו-reminder_before_hours לפני grace_deadline; למנהל בהגשה לאישור, בבקשת הזזה ובתגובת לקוח; בפיגור — למנהל, ואחרי escalation_after_hours ל-escalation_user_id. dedup לפי (occurrence_id, event).",
+  "alternatives": [
+   "רק התראות in-app למנהל על פיגור והגשה; להסיר את עמודות reminder/escalation."
+  ],
+  "refs": [
+   "server.js:7005-7020",
+   "server.js:28132-28160",
+   "rules-routines.html#מודל הנתונים המלא",
+   "rules-routines.html#פערים וחוסרים רוחביים"
+  ]
+ },
+ {
+  "id": "RTN-25",
+  "domain": "שגרות (BIZ)",
+  "area": "מודל נתונים",
+  "category": "architecture",
+  "severity": "low",
+  "title": "עמודות וערכי מצב מוגדרים שאינם בשימוש",
+  "as_is": "לא נקראים/נכתבים: internal_approver_user_id/role, internal_approval_mode (נשלף ב-27982 בלבד), skip_holiday_calendar_id, customer_approval_wait_hours/default_policy, routine_documents.file_url; customer_status replied/expired לא נכתבים; customer_id ללא FK בכל הטבלאות (server.js:3577-3799).",
+  "proposal": "כל עמודה שאינה נכללת בהחלטות RTN אחרות מוסרת מהמודל החדש: skip_holiday_calendar_id, internal_approver_role, file_url ב-routine_documents (אלא אם יוטמע PDF), replied. internal_approver_user_id נשמר ומשמש כמאשר ייעודי (אם הוגדר רק הוא רשאי להכריע). customer_id מוחלף ב-FK ל-store_customers.",
+  "alternatives": [],
+  "refs": [
+   "server.js:3577-3799",
+   "server.js:27982",
+   "rules-routines.html#מודל הנתונים המלא של מודול \"שגרות\""
+  ]
+ },
+ {
+  "id": "RTN-26",
+  "domain": "שגרות (BIZ)",
+  "area": "אישורים — לקוח",
+  "category": "functional",
+  "severity": "high",
+  "title": "דחיית לקוח תוקעת את המופע ואין תוקף לקישור",
+  "as_is": "customer rejected משאיר את המופע in_progress/overdue ללא מסלול המשך (server.js:28132-28160); לטוקן אין תוקף (customer_approval_wait_hours ו-default_policy לא נאכפים); דחייה ריקה מתקבלת בשרת.",
+  "proposal": "דחיית לקוח: המופע חוזר ל-open עם event customer_rejected והתראה למנהל; הגשה חוזרת פותחת סבב N+1 עם טוקן חדש. השרת דורש הערה בדחייה (400). תפוגה: אם customer_status=pending יותר מ-customer_approval_wait_hours (ברירת מחדל 48) — expired; policy=proceed → המופע נסגר כ-completed (event 'אושר אוטומטית'); stop_and_alert → נשאר in_progress והתראה למנהל. טוקן שפג → 'קישור לא תקף או פג תוקפו'.",
+  "alternatives": [],
+  "refs": [
+   "server.js:28087-28160",
+   "server.js:27956-27978",
+   "rules-routines.html#אישור לקוח בקישור ציבורי"
+  ]
+ },
+ {
+  "id": "RTN-27",
+  "domain": "שגרות (BIZ)",
+  "area": "אישורים — לקוח",
+  "category": "security",
+  "severity": "high",
+  "title": "XSS בעמודים הציבוריים (/c/rt ו-/c/rt-doc)",
+  "as_is": "שם השגרה, הערות ושמות מוזרקים ל-HTML של עמוד האישור הציבורי ועמודי המסמכים ללא escaping (server.js:28087-28130, 27778-27860).",
+  "proposal": "כל ערך דינמי בעמודים שהשרת מרנדר עובר escapeHtml (& < > \" '); כותרת Content-Security-Policy ללא inline script חיצוני; בדיקה: שם שגרה '<img src=x onerror=alert(1)>' מוצג כטקסט.",
+  "alternatives": [],
+  "refs": [
+   "server.js:28087-28130",
+   "server.js:27778-27860",
+   "rules-routines.html#אישור לקוח בקישור ציבורי",
+   "rules-routines.html#הפקת מסמכים ועמוד צפייה ציבורי"
+  ]
+ },
+ {
+  "id": "RTN-28",
+  "domain": "שגרות (BIZ)",
+  "area": "אישורים — פנימי",
+  "category": "functional",
+  "severity": "low",
+  "title": "מצב אישור פנימי (click_with_note / checklist_review) לא משפיע",
+  "as_is": "internal_approval_mode נשמר (ברירת מחדל click) ונשלף ב-27982 אך decide מתנהג זהה לכל מצב (server.js:28041-28085).",
+  "proposal": "click — אישור בלחיצה; click_with_note — אישור דורש הערה (400 בלעדיה); checklist_review — המאשר רואה את checklist_state של הראיה ומאשר כל פריט. אם לא ממומש בגרסה — השדה מוסר מהמודל.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27982",
+   "server.js:28041-28085",
+   "rules-routines.html#מסלול מלא: סבב אישור פנימי"
+  ]
+ },
+ {
+  "id": "RTN-29",
+  "domain": "שגרות (BIZ)",
+  "area": "תפעול מופע",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "בקשת/אישור הזזה מכל מצב ויצירת רשומות כפולות",
+  "as_is": "move-request לא בודק מצב ולא שהתאריך עתידי (server.js:28230-28245): אפשר להזיז מופע completed/skipped/cancelled ולאשר → planned ומופעל מחדש; אישור מופע open → planned → ה-cron יוצר משימה/פקודת עבודה נוספת (linked_* נדרסים); דחייה מעבירה ל-open גם מופע שהיה planned/in_progress.",
+  "proposal": "בקשת הזזה מותרת רק מ-planned/open/overdue ולתאריך ≥ היום; המצב הקודם נשמר ב-status_before_move. אישור: אם המופע כבר הופעל — מעדכנים את deadline/start_time של הרשומה המקושרת הקיימת במקום ליצור חדשה, והמופע נשאר open עם התאריך החדש; אחרת planned. דחייה מחזירה ל-status_before_move.",
+  "alternatives": [],
+  "refs": [
+   "server.js:28230-28304",
+   "rules-routines.html#בקשת הזזת מופע והחלטת מנהל"
+  ]
+ },
+ {
+  "id": "RTN-30",
+  "domain": "שגרות (BIZ)",
+  "area": "תפעול מופע",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "דילוג על מופע בתהליך משאיר סבב ומשימה פתוחים",
+  "as_is": "skip על in_progress לא סוגר את הסבב הפתוח (נשאר בתור האישורים) ולא מבטל משימה/פקודת עבודה מקושרת (server.js:28216-28228).",
+  "proposal": "דילוג מסמן סבבים pending כ-skipped ומבטל רשומות מקושרות פתוחות (כמו ב-RTN-22). דילוג מותר רק למנהל או לאחראי, עם סיבה חובה (כבר קיים).",
+  "alternatives": [],
+  "refs": [
+   "server.js:28216-28228",
+   "rules-routines.html#דילוג על מופע"
+  ]
+ },
+ {
+  "id": "RTN-31",
+  "domain": "שגרות (BIZ)",
+  "area": "תפעול מופע",
+  "category": "security",
+  "severity": "medium",
+  "title": "החלפת אחראי: משתמש מחוץ לקבוצה וטווח 'מכאן והלאה' שגוי",
+  "as_is": "reassign לא בודק ש-userId שייך לקבוצה ולא את מצב המופע (server.js:28279-28300); scope='series' מעדכן כל planned/open (גם בתאריכים מוקדמים) ולא overdue/in_progress/move_requested.",
+  "proposal": "userId חייב להיות משתמש פעיל בקבוצה (404 אחרת). מופע סגור לא ניתן לשיוך מחדש (400). series: מעדכן routines.assignee_user_id וכל מופע לא-סגור עם scheduled_date ≥ תאריך המופע הנוכחי (כולל overdue/move_requested), ומסנכרן רשומות מקושרות.",
+  "alternatives": [],
+  "refs": [
+   "server.js:28279-28300",
+   "rules-routines.html#החלפת אחראי (שיוך עובד)"
+  ]
+ },
+ {
+  "id": "RTN-32",
+  "domain": "שגרות (BIZ)",
+  "area": "חוזי שירות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "חוזי שירות: אין ממשק, ביטול לא משבית, אין תפוגה/חידוש",
+  "as_is": "GET/POST/PUT contracts קיימים ללא קורא בלקוח (server.js:27502-27560); status='cancelled' לא משבית שגרות (רק ended); אין cron ל-end_date/auto_renew — חוזה שפג נשאר active; שדות תמחור וזמני תגובה נשמרים בלבד.",
+  "proposal": "תת-טאב 'חוזי שירות' כולל רשימה, יצירה ועריכה. cancelled ו-ended משביתים שגרות מקושרות באותו אופן. cron יומי: חוזה עם end_date < today — auto_renew → end_date += שנה (event contract_renewed), אחרת status='ended'. זמני תגובה ותמחור — תצוגה בלבד בגרסה זו (מתועד).",
+  "alternatives": [],
+  "refs": [
+   "server.js:27502-27560",
+   "business-app.js:61744",
+   "rules-routines.html#חוזי שירות (maintenance_repair בלבד)"
+  ]
+ },
+ {
+  "id": "RTN-33",
+  "domain": "שגרות (BIZ)",
+  "area": "חוזי שירות",
+  "category": "functional",
+  "severity": "low",
+  "title": "דוח כיסוי: שנה מתגלגלת וספירת ביקורים מכל השגרות",
+  "as_is": "visitsDone סופר מופעים שהושלמו מכל שגרות החוזה (גם בדיקות שאינן ביקור) בחלון today−1 year ולא בשנת החוזה (server.js:27600-27630).",
+  "proposal": "ביקור = מופע שהושלם של שגרה עם template_source='contract_visit' או עם is_contract_visit=true; החלון = שנת החוזה הנוכחית (מ-start_date או יום השנה האחרון שלו) עד היום. visitsRemaining = max(0, visits_included_per_year − visitsDone).",
+  "alternatives": [],
+  "refs": [
+   "server.js:27600-27630",
+   "rules-routines.html#דוח כיסוי חוזי (maintenance_repair)"
+  ]
+ },
+ {
+  "id": "RTN-34",
+  "domain": "שגרות (BIZ)",
+  "area": "מסמכים",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "מסמכים: מספור לא ייחודי, זמן הפקה שגוי וחשיפת מבצע ללקוח",
+  "as_is": "document_number = RT-<groupId>-<Date.now() base36> ללא UNIQUE (server.js:27679); 'הופק:' מציג את זמן הצפייה (27778); דוח ללקוח חושף completed_by; event של site-file/document_sent נרשם ללא routine_id/occurrence_id; includeImages/embedCertFiles לא מטמיעים קבצים.",
+  "proposal": "document_number רץ פר-עסק (RT-<groupId>-<seq>) עם UNIQUE(group_id, document_number); 'הופק:' = generated_at; exposure customer מציג שם עסק בלבד ולא שם עובד; לאירועי מסמך אתר נשמר site_id ב-event log ומוצגים בתיק האתר; תמונות ותעודות מוטמעות מ-file_url של הראיות (לאחר RTN-08).",
+  "alternatives": [],
+  "refs": [
+   "server.js:27679-27860",
+   "rules-routines.html#הפקת מסמכים ועמוד צפייה ציבורי"
+  ]
+ },
+ {
+  "id": "RTN-35",
+  "domain": "שגרות (BIZ)",
+  "area": "מסמכים",
+  "category": "functional",
+  "severity": "low",
+  "title": "שליחת מסמך: ערוץ לא מאומת וכשל WhatsApp מדווח כהצלחה",
+  "as_is": "POST /api/routine-documents/:id/send רושם כל channel; כשל WhatsApp (no_config/invalid_phone) או מייל עדיין מחזיר success (server.js:27864-27885).",
+  "proposal": "channel ∈ {whatsapp, email, download, view_link} (אחר → 400). התשובה כוללת delivery_status מתוצאת sendWhatsApp/sendSystemEmail; הלקוח מציג 'נשלח' רק ב-sent, ואחרת 'השליחה נכשלה — העתק קישור'.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27864-27885",
+   "services/whatsapp.js:49-78",
+   "rules-routines.html#שליחת מסמך"
+  ]
+ },
+ {
+  "id": "RTN-36",
+  "domain": "שגרות (BIZ)",
+  "area": "ממשק",
+  "category": "scope",
+  "severity": "low",
+  "title": "נתיבים ללא קורא בלקוח — לחווט או להסיר",
+  "as_is": "ללא קורא: GET /api/routines/:id/event-log (28189), GET occurrences טווח (27890), GET approval-rounds (28160), POST period-report (27738); בציר הזמן evidence ו-rounds מוחזרים אך לא מוצגים; אירועי רמת שגרה ללא תוויות (business-app.js:61185).",
+  "proposal": "מחווטים: 'היסטוריית שינויים' בכרטיס שגרה (event-log, עם תוויות routine_created/updated/frequency_changed/deactivated), טבלת סבבים וראיות במודאל 'מה קרה כאן', 'דוח תקופתי' בכרטיס שגרה (period-report עם טווח תאריכים), ותצוגת לוח שנה לטווח מופעים.",
+  "alternatives": [],
+  "refs": [
+   "server.js:27738",
+   "server.js:27890",
+   "server.js:28160",
+   "server.js:28189",
+   "business-app.js:61185-61230",
+   "rules-routines.html#פערים וחוסרים רוחביים"
+  ]
+ },
+ {
+  "id": "RTN-37",
+  "domain": "שגרות (BIZ)",
+  "area": "לוחות מעקב",
+  "category": "ux",
+  "severity": "low",
+  "title": "אין מדדי ביצוע ואין ווידג'ט שגרות בדשבורד",
+  "as_is": "במודול אין KPI (אחוז ביצוע, פיגורים, חריגות) ואין ווידג'ט בדשבורד הראשי או בלוחות התפקיד — רק רשימות כרטיסים (business-app.js:61159).",
+  "proposal": "ווידג'ט 'שגרות היום' בדשבורד (מתוכנן/בוצע/בפיגור להיום) ול-ADMIN גם אחוז ביצוע 30 יום = completed(+with_exception) / (כל המופעים שתאריכם עבר, ללא skipped/cancelled). בלוח תפקיד — המופעים של העובד להיום.",
+  "alternatives": [],
+  "refs": [
+   "business-app.js:61159",
+   "rules-routines.html#לוחות מעקב"
+  ]
+ },
+ {
+  "id": "RTN-38",
+  "domain": "שגרות (BIZ)",
+  "area": "מדריך",
+  "category": "docs",
+  "severity": "low",
+  "title": "המודול אינו מתועד במדריכי מסעדה ותחזוקה",
+  "as_is": "קיימים public/restaurant-guide.html ו-public/maintenance-guide.html, אך אף מדריך אינו מזכיר שגרות (grep 'שגרות|routines' ריק); כלל 6 ב-CLAUDE.md מחייב עדכון מדריך מקביל.",
+  "proposal": "פרק 'שגרות 🔁' בשני המדריכים: ניווט צוות → שגרות, 8 תתי-טאבים, ספריית תבניות, ביצוע/הזזה/דילוג, אישור לקוח, מסמכים; חוזי שירות רק במדריך תחזוקה ומצב ציות רק במדריך מסעדה.",
+  "alternatives": [],
+  "refs": [
+   "public/restaurant-guide.html",
+   "public/maintenance-guide.html",
+   "CLAUDE.md כלל 6",
+   "rules-routines.html#פערים וחוסרים רוחביים"
+  ]
+ },
+ {
+  "id": "RTN-39",
+  "domain": "שגרות (BIZ)",
+  "area": "נהלי SOP",
+  "category": "security",
+  "severity": "critical",
+  "title": "תבניות נהלים (task-set-templates) ללא אימות — קריאה ודריסה לכל עסק",
+  "as_is": "GET/POST /api/task-set-templates/:groupId ללא middleware וללא השוואת groupId (server.js:13039-13060); POST מוחק את כל הנהלים ומכניס את המערך שנשלח, ו-templates שאינו מערך → מחיקת הכל.",
+  "proposal": "שני הנתיבים דורשים verifyBiz; groupId = req.bizAuth.groupId (אחרת 403); POST — ADMIN או MANAGER בלבד; templates שאינו מערך → 400 (לא מחיקה).",
+  "alternatives": [],
+  "refs": [
+   "server.js:13039-13060",
+   "rules-routines.html#ניהול תבניות נהלים (SOP Builder)",
+   "s1-rbac.html#task-set-templates"
+  ]
+ },
+ {
+  "id": "RTN-40",
+  "domain": "שגרות (BIZ)",
+  "area": "נהלי SOP",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "שמירת נהלים: טרנזקציה מדומה, מחיקה שבורה וחיווי שגוי",
+  "as_is": "BEGIN/DELETE/INSERT/COMMIT רצים ב-pool.query (server.js:13048-13060) — כשל באמצע עלול להשאיר עסק בלי נהלים; window.deleteTaskSet נקרא (business-app.js:30494) ואינו מוגדר; saveTaskSetTemplates fire-and-forget — toast הצלחה גם בכשל (30453).",
+  "proposal": "CRUD פר-נוהל (POST/PUT/DELETE /api/task-set-templates/:id) במקום החלפת אוסף; אם נשארת החלפה — בטרנזקציה על client ייעודי. כפתור מחיקה ממומש (confirm → DELETE). toast הצלחה רק אחרי res.ok.",
+  "alternatives": [],
+  "refs": [
+   "server.js:13048-13060",
+   "business-app.js:30453",
+   "business-app.js:30494",
+   "rules-routines.html#ניהול תבניות נהלים (SOP Builder)"
+  ]
+ },
+ {
+  "id": "RTN-41",
+  "domain": "שגרות (BIZ)",
+  "area": "נהלי SOP",
+  "category": "scope",
+  "severity": "medium",
+  "title": "תזמון נוהל ('רוטינה'/'ספציפי') נשמר אך לא מופעל",
+  "as_is": "scheduleType routine/specific, routineDays ו-routineTime נשמרים, אך אין מנגנון שמשגר נוהל אוטומטית (business-app.js:30501-30712); 'רוטינה' כאן אינה קשורה למודול השגרות.",
+  "proposal": "תזמון נוהל ממומש דרך מנוע השגרות: נוהל מתוזמן יוצר routine עם output_type='task', checklist_items = פריטי הנוהל ו-frequency weekly_days לפי routineDays — זמין לכל סוג עסק עבור רכיב זה בלבד. 'ספציפי' = שגרה עם max_occurrences=1.",
+  "alternatives": [
+   "להסיר את שדות התזמון מבונה הנהלים ולהשאיר שיגור ידני בלבד."
+  ],
+  "refs": [
+   "business-app.js:30501-30712",
+   "rules-routines.html#ניהול תבניות נהלים (SOP Builder)"
+  ]
+ },
+ {
+  "id": "RTN-42",
+  "domain": "שגרות (BIZ)",
+  "area": "נהלי SOP",
+  "category": "architecture",
+  "severity": "medium",
+  "title": "נוהל מקודד ב-tasks.title ו-notes נדרסים ב-PROGRESS",
+  "as_is": "משימת נוהל נשמרת כ-title='SOP|'+JSON({title,items,requiresPhoto}) (business-app.js:30712; זיהוי 4960, 5000, 6571); כל סימון דורס notes ב-'PROGRESS:x/y' (30864-30869) ומוחק הערות קודמות.",
+  "proposal": "עמודות ייעודיות: tasks.task_type ∈ {task, shift, sop}, tasks.sop_template_id, tasks.checklist JSONB [{text, done, done_at}]; title = שם הנוהל. התקדמות מחושבת מ-checklist ולא נשמרת ב-notes. מיגרציה ממירה כותרות SOP| קיימות.",
+  "alternatives": [],
+  "refs": [
+   "business-app.js:30712-30880",
+   "business-app.js:4960",
+   "business-app.js:5008",
+   "rules-routines.html#שיגור נוהל לעובד וביצוע ה-checklist",
+   "rules-biz.html#נהלי עבודה (SOP) ותבניות סטים"
+  ]
+ }
+]

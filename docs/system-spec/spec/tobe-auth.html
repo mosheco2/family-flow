@@ -1,0 +1,883 @@
+<div class="intro">
+<p><b>מפרט TO-BE — דומיין אימות והרשאות (AUTH).</b> 40 תהליכים — כל התהליכים של rules-auth.html נשמרו, לא אוחד ולא הושמט אף תהליך. הוחלו 41 פריטי AUTH שאינם כפולים: HARDEN 23, FIX 6, CONSISTENCY 6, BEHAVIOR 5, SCOPE 1. חמישה פריטים כפולים הוחלו דרך הפריט הקנוני שלהם: AUTH-03→ARC-08, AUTH-12→ARC-03, AUTH-14/AUTH-15→ARC-07, AUTH-17→ARC-29. פריטי ARC שנוגעים בדומיין ומוזכרים לפי מזהה בלבד: ARC-01 (טבלת sessions אחת ו-authenticate() אחד), ARC-02 (חסימה כברירת מחדל), ARC-03, ARC-04 (groupId רק מהסשן), ARC-05, ARC-06, ARC-07, ARC-08, ARC-09 (מחזור חיי סשן), ARC-11 (withTransaction), ARC-12 (מיגרציות), ARC-17 (זכאויות), ARC-20, ARC-23, ARC-24, ARC-28 (trust proxy), ARC-29 (rate limit), ARC-31, ARC-32, ARC-33, ARC-39 (קידומת wfz_).</p>
+<p><b>יישוב סתירות בין פריטים מאושרים:</b></p>
+<ul>
+<li>תוקף סשן SA: לפי AUTH-16 התוקף נשאר "30 יום ללא שינוי", ולפי AUTH-20 ו-ARC-09 הוא "12 שעות מתגלגל". נבחרו 12 שעות מתגלגלות, כי שני פריטים כולל פריט ARC קובעים כך (ראו AUTH-16 ברשימת המתוקנים).</li>
+<li>מגבלות OTP: AUTH-17 (3 ניסיונות לקוד) כפול של ARC-29, ולכן חלים המספרים של ARC-29: עד 5 ניסיונות לקוד, תוקף 10 דק', 3 שליחות בשעה ו-10 ביום לכל טלפון, וכניסה בסיסמה ננעלת אחרי 5 כישלונות ב-15 דק' לכל זוג חשבון+IP.</li>
+<li>הטבלה zm_sessions של AUTH-03 לא נוצרת. סשני ZM נשמרים בטבלת sessions המאוחדת עם <code>principal_type='zm'</code> (ARC-01, ARC-08).</li>
+<li>AUTH-43 מעביר ל-cookie HttpOnly, ו-ARC-01 קובע Authorization: Bearer. authenticate() מקבל את שניהם: cookie לאפליקציות הווב של FAMILY/BIZ/SA/ZM, והדר Bearer לחנות, ל-embeds ולתקופת המעבר.</li>
+<li>מפתח האחסון היחיד של AUTH-27 נקרא <code>wfz_token</code> (ARC-39). בטעינה הראשונה הוא ממוגר מ-<code>ofl_family_token</code> או מ-<code>ofl_session.token</code>.</li>
+<li>גיבוב קודים: קודי business_otp נשמרים כ-HMAC-SHA256 עם <code>OTP_SECRET</code> (AUTH-39). סיסמאות, PIN וקודי storefront נשמרים ב-bcrypt (ARC-31). cost 12 לסיסמאות ול-PIN (AUTH-23), ו-10 לקודי storefront.</li>
+</ul>
+<p><b>פריטים שתוקנו לפי כלל השימור (מזהה → למה תוקן → כלל סופי):</b></p>
+<ul>
+<li><code>AUTH-02</code> → ההצעה ביטלה את האישור האוטומטי של קישורי העסק בהפעלת SOLO, וזה שינוי מהותי בזרימת ההפעלה → האבטחה מוחלת במלואה (סשן, ADMIN, pending_activation), וההפעלה ממשיכה לאשר את קישורי ה-pending של הקבוצה, כמו היום, בתוך אותה טרנזקציה.</li>
+<li><code>AUTH-07</code> → whitelist צר היה משמיט שדות לא-סודיים שהלקוחות קוראים היום → <code>sanitizeUser</code> מחזיר רשימה מפורשת שכוללת כל עמודת users לא-סודית שהלקוחות קוראים היום, ומוציאה רק סודות (password_hash, solo_temp_password, pin_hash, טוקנים).</li>
+<li><code>AUTH-16</code> → סתירה עם AUTH-20 ו-ARC-09 בעניין התוקף → סשן SA נשמר כגיבוב, ניתן לביטול ופג אחרי 12 שעות מתגלגלות. כל שאר ההצעה נשאר.</li>
+<li><code>AUTH-28</code> → הניסוח "להסיר את קריאות המפתחות המתים" עלול להתפרש כהסרת tickets/inbox/chat → הקריאות האלה עוברות ל-apiFetch עם הטוקן הנכון, והפיצ'רים נשמרים ומתחילים לעבוד. רק הקריאה למפתחות שלא קיימים מוסרת.</li>
+<li><code>AUTH-30</code> → דחייה ב-400 בהצטרפות הייתה חוסמת עובד שמגיע מקישור הזמנה עם ערך ישן, ומשתמשי FAMILY עם MANAGER/SENIOR היו מאבדים גישה → ב-<code>/api/join</code> ערך employee_role_type לא חוקי נשמר כ-NULL וההצטרפות ממשיכה, ובשאר הנתיבים מוחזר 400. משתמשי FAMILY עם תפקיד מחוץ ל-enum ממוגרים ל-MEMBER עם permissions מותאם ששומר את הטאבים האפקטיביים שהיו להם.</li>
+<li><code>AUTH-31</code> → בלי מיגרציה, הרשאות מותאמות קיימות (בלי הדגל custom) היו אובדות → מיגרציה לפי סוג קבוצה. ב-FAMILY: <code>tabs.length&gt;1</code> הופך ל-<code>{custom:true,tabs}</code>, ו-<code>tabs.length≤1</code> הופך ל-NULL (כך הלקוח מפרש זאת היום). ב-BIZ: כל מערך tabs הופך ל-custom.</li>
+<li><code>AUTH-33</code> → אינדקס UNIQUE ייכשל על כפילויות קיימות, וחסימה הייתה פוגעת במשתמשים קיימים → לפני האינדקס, מיגרציה מוסיפה סיומת מספרית (" 2") לכינוי כפול, בלי למחוק אף משתמש, ושולחת הודעה למנהל. הכניסה הופכת ל-case-insensitive.</li>
+<li><code>AUTH-34</code> → נרמול כפוי ל-05XXXXXXXX היה שובר מספרים קוויים ובינלאומיים שהחנות מקבלת היום (9–15 ספרות) → normalizePhone: ספרות בלבד, וקידומת 972 מוחלפת ב-0. מספר ישראלי נשמר כ-0XXXXXXXXX, ומספר אחר נשמר כספרות בלבד. אותה פונקציה רצה בכל שמירה ובכל השוואה.</li>
+<li><code>AUTH-37</code> → ההצעה הייתה מבטלת את הצגת הסיסמה הזמנית לעסק ואת כפתור "שלח בוואטסאפ", ש-biz-setup-guide.html:7128 ו-beauty-guide.html:1209 מתארים → הסיסמה הזמנית מוגרלת לפני ה-INSERT, נשמרת רק כ-bcrypt ומוחזרת פעם אחת בתגובה, כדי שתוצג וכדי שאפשר יהיה לשלוח אותה בוואטסאפ כמו היום. בנוסף יש שליחת SMS אופציונלית. ב-SA מוצג סטטוס ("סיסמה זמנית הונפקה — טרם הופעלה") במקום הערך, שגם היום לא נשמר.</li>
+<li><code>AUTH-12</code> (הוחל דרך ARC-03) → אם ה-fallback יוסר לפני שהקוראים מתוקנים, ישברו מסכי חנות ולוגיסטיקה ונתיבים ציבוריים → ה-fallback מוסר רק אחרי שכל קריאות הלקוח עוברות ל-apiFetch עם Bearer (מדד: ספירת console.warn של legacy). נתיבים שמשרתים דפים ציבוריים עוברים לרשימה הציבורית (ARC-02), עם זיהוי חנות לפי קוד ציבורי ולא לפי groupId.</li>
+<li><code>ARC-05</code> (יישום בדומיין) → "pending_activation מקבל רק נתיבי הפעלה" היה חוסם את טעינת המסך שבו מוצג מודל ההפעלה → סשן של קבוצה ב-pending_activation מקבל נתיבי GET של טעינת נתונים, את solo/activate ו-solo/status ואת logout. כל נתיב כתיבה אחר מחזיר 403 "יש להשלים הפעלת חשבון".</li>
+</ul>
+<p>כל השאר מועתק מה-as-built כפי שהוא. "שינויים מהקיים" בכל תהליך מפרט רק מה שהחלטה משנה. העדכונים הנדרשים במדריכים (כלל 6) מצוינים בשדה "ממשק".</p>
+</div>
+
+<h2 class="grp">תשתית סשנים ו-Middlewares</h2>
+
+<section class="proc" data-f="family_sessions sessions session token createsession sha256 session_type biz family rolling revoke"><h3>סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טוקן גישה יחיד לסביבות FAMILY ו-BIZ. הוא נוצר בכל זרימת כניסה או הרשמה מאומתת: <code>/api/login</code>, <code>/api/family/login/password</code>, <code>/api/biz/register</code>, <code>/api/biz/login</code>, <code>POST /api/groups</code> (FAMILY), <code>/api/family/sso-login</code>, ו-SA impersonation. הנתיב <code>/api/community/bootstrap-token</code> כבר לא יוצר סשן, כי הוא הוסר (AUTH-01).</div>
+<div>הרשאות</div><div>פונקציה פנימית בלבד. נקראת רק אחרי אימות מוצלח (סיסמה, ticket, verified_token או sso-token), או מ-verifySA עם הרשאת support/all (impersonation).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טבלה אחת <code>sessions</code> (ARC-01, מיגרציה לפי ARC-12) עם העמודות: <code>token_hash CHAR(64) PK</code>, <code>principal_type</code> ∈ {family, biz, sa, zm, storefront}, <code>principal_id</code> (user_id ל-family/biz), <code>group_id</code> FK→family_groups ON DELETE CASCADE, <code>created_at</code>, <code>last_seen</code>, <code>expires_at</code>, <code>revoked_at</code>, <code>device_hint VARCHAR(100)</code>, <code>impersonated_by</code> (sa_user_id, NULL אם אין). אינדקסים על <code>expires_at</code>, <code>group_id</code>, <code>(principal_type, principal_id)</code>.</li>
+<li>מחיקת משתמש או קבוצה מוחקת את כל הסשנים שלהם (CASCADE, כמו היום).</li>
+<li>מיגרציה: שורות family_sessions קיימות מועתקות עם אותו hash, ו-session_type ממופה ל-principal_type. משתמשים מחוברים נשארים מחוברים.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>createSession(groupId, userId, deviceHint=null, opts={})</code>: <code>rawToken = randomBytes(32).hex</code>.</li>
+<li><code>tokenHash = sha256(rawToken).hex</code>.</li>
+<li><code>principal_type</code> נגזר רק מ-<code>family_groups.type</code>: BUSINESS→<code>'biz'</code>, אחרת <code>'family'</code>. ה-endpoint לא קובע אותו (AUTH-27).</li>
+<li><code>expires_at = now + 30 ימים</code> (impersonation: now+1h). INSERT עם device_hint חתוך ל-100 תווים. מוחזר הטוקן הגולמי, וגם Set-Cookie HttpOnly (AUTH-43). ב-DB נשמר רק hash.</li>
+<li><code>destroySession(rawToken)</code> מסמן <code>revoked_at=NOW()</code> (ARC-09).</li>
+<li><code>revokeUserSessions(userId, exceptTokenHash=null)</code> מחליפה את <code>destroyAllFamilySessions(groupId)</code> המתה, ונקראת בכל שינוי סיסמה, הורדת תפקיד, השעיה או מחיקה (AUTH-09, ARC-09).</li>
+</ol></div>
+<div>חישובים</div><div>תוקף מתגלגל: בבקשה מאומתת, אם עברו יותר מ-24 שעות מההארכה האחרונה, <code>expires_at = LEAST(now+30d, created_at+90d)</code> (AUTH-20, ARC-09). לכן סשן לעולם לא פג מוקדם יותר מהיום. impersonation נשאר שעה קבועה בלי הארכה. principal_type: BUSINESS→biz, FAMILY→family, בכל הזרימות.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>active</td><td>זרימת כניסה/הרשמה</td><td>אימות הצליח</td><td>טוקן + cookie</td></tr>
+<tr><td>active</td><td>active (הוארך)</td><td>authenticate()</td><td>עברו יותר מ-24 שעות מההארכה, ולא חורג מ-created_at+90d</td><td>expires_at מתעדכן</td></tr>
+<tr><td>active</td><td>expired</td><td>זמן</td><td>expires_at&lt;now</td><td>401 בבקשה הבאה</td></tr>
+<tr><td>active</td><td>revoked</td><td>משתמש / מנהל / SA / מערכת</td><td>logout, שינוי סיסמה, הורדת תפקיד, השעיה, משתמש או קבוצה לא פעילים</td><td>revoked_at=NOW()</td></tr>
+<tr><td>expired/revoked</td><td>נמחק</td><td>משימת ניקוי</td><td>03:00</td><td>DELETE</td></tr>
+<tr><td>כל מצב</td><td>נמחק</td><td>DB</td><td>מחיקת user/group</td><td>CASCADE</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>impersonation נרשם ב-sa_audit_log (ראו תהליך ההשתלטות).</div>
+<div>ממשק</div><div>ללא שינוי נראה. משתמשים פעילים פשוט לא מתנתקים אחרי 30 יום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-01</code> — טבלת sessions אחת עם principal_type ו-revoked_at במקום family_sessions.</li>
+<li><code>AUTH-27</code> — סוג הסשן נקבע לפי סוג הקבוצה בפונקציה אחת, ולא לפי ה-endpoint.</li>
+<li><code>AUTH-09</code> — revokeUserSessions לפי user_id מחליפה את destroyAllFamilySessions המתה.</li>
+<li><code>AUTH-20</code> — תוקף מתגלגל של 30 יום עם תקרה של 90 יום, במקום 30 יום קבוע.</li>
+<li><code>AUTH-01</code> — bootstrap-token כבר לא בין יוצרי הסשן.</li>
+<li><code>AUTH-21</code> — impersonation לקבוצה בלי ADMIN מחזיר 400 ולא user_id=0.</li>
+<li><code>AUTH-43</code> — הטוקן נשלח גם כ-cookie HttpOnly.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="verifyfamily authenticate requiretype family middleware bearer familyauth 401 status"><h3>Middleware ‏verifyFamily — אלגוריתם מדויק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מאמת סשן משפחה לכל endpoint משפחתי. verifyFamily ממומש כ-<code>authenticate()</code> + <code>requireType('family')</code> (ARC-01, ARC-05). ARC-02: כל /api/* עובר authenticate() כברירת מחדל.</div>
+<div>הרשאות</div><div>סשן principal_type='family' תקף, של משתמש active בקבוצה פעילה. הזהות נגזרת רק מה-DB.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן: cookie, או <code>Authorization</code> (אם הוא מתחיל ב-<code>"Bearer "</code> חותכים 7 תווים, אחרת כל ההדר, כמו היום, בתקופת המעבר).</li>
+<li>אין טוקן → 401 <code>"יש להתחבר תחילה"</code>.</li>
+<li>שורה לא נמצאה או revoked → 401 <code>"פגישה לא תקינה — יש להתחבר מחדש"</code>. שגיאת DB → 500 <code>"שגיאה פנימית"</code>.</li>
+<li><code>expires_at &lt; now</code> → revoke + 401 <code>"פגישה פגה — יש להתחבר מחדש"</code>.</li>
+<li><code>principal_type !== 'family'</code> → 403 <code>"גישה מורשית לסביבת משפחה בלבד"</code> (AUTH-11). לפני האכיפה מתבצעת סקירה: כל endpoint של verifyFamily שנקרא היום עם טוקן biz (business-app, kol-haam, marketplace, storefront) עובר במפורש ל-verifyFamilyOrBiz, כדי שלא תישבר אף יכולת.</li>
+<li><code>users.status!=='active'</code> או <code>family_groups.is_deleted</code> → revoke + 401 <code>"החשבון אינו פעיל"</code>. <code>account_status</code> ∈ {frozen, archived} → revoke + 403 <code>"החשבון מוקפא"</code> + account_status (AUTH-10, ARC-05).</li>
+<li><code>account_status='pending_activation'</code> → מותרים רק נתיבי GET של טעינה, solo/activate, solo/status ו-logout. כל השאר מחזיר 403 "יש להשלים הפעלת חשבון" (ARC-05 בגרסה המתוקנת).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT בשאילתה אחת: sessions JOIN users JOIN family_groups לפי sha256(token).</li><li>בדיקות כנ"ל.</li><li>UPDATE last_seen אסינכרוני, והארכה מתגלגלת לפי הצורך.</li><li><code>req.familyAuth = {groupId, userId, role}</code> נגזר רק מה-DB. אין handler שקורא groupId מהלקוח לצורך הרשאה (ARC-04).</li></ol></div>
+<div>חישובים</div><div>הארכה מתגלגלת: ראו תהליך הסשן.</div>
+<div>מכונת מצבים</div><div>אין, לבד מביטול סשן במקרה של סטטוס לא פעיל.</div>
+<div>תופעות לוואי</div><div>revoke של הסשן כשהמשתמש או הקבוצה לא פעילים.</div>
+<div>ממשק</div><div>apiFetch בלקוח: 401 מוביל להתנתקות ולמסך הכניסה. 403 "החשבון מוקפא" מציג את showFrozenAccountScreen.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-11</code> — טוקן biz נדחה ב-403. endpoints משותפים עוברים ל-verifyFamilyOrBiz.</li>
+<li><code>AUTH-10</code> — בדיקת users.status, account_status ו-is_deleted בכל בקשה.</li>
+<li><code>ARC-05</code> — requireType, וגם הגבלת pending_activation (בגרסה המתוקנת).</li>
+<li><code>ARC-01</code> — מימוש כ-authenticate() אחד. <code>AUTH-43</code> — קריאה גם מ-cookie.</li>
+<li><code>AUTH-20</code> — הארכה מתגלגלת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="verifybiz bizauth role employee_role_type verifybizadminonly verifybeautyclientaccess verifybeautypractitioneraccess"><h3>Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints עסקיים מחייבי טוקן עסקי. ממומש כ-<code>authenticate()</code> + <code>requireType('biz')</code>.</div>
+<div>הרשאות</div><div>סשן biz תקף. הנגזרות בודקות role ו-employee_role_type מה-DB.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>אין טוקן → 401 <code>"נדרש token להתחברות עסקית"</code>. לא נמצא → 401 "פגישה לא תקינה…". פג → revoke + 401 "פגישה פגה…".</li>
+<li><code>principal_type !== 'biz'</code> → 403 <code>"גישה מורשית לעסקים בלבד"</code>.</li>
+<li>בדיקות סטטוס משתמש וקבוצה כמו ב-verifyFamily (AUTH-10).</li>
+<li><code>verifyBeautyClientAccess</code>: עובר אם <code>role==='ADMIN'</code> או אם employeeRoleType ∈ {therapist, senior_therapist, nail_tech, makeup_artist, reception}. אחרת 403 "אין הרשאה לגשת למידע לקוחות". ללא שינוי.</li>
+<li><code>verifyBizAdminOnly</code>: רק ADMIN. אחרת 403 "פעולה זו דורשת הרשאת מנהל/ת עסק". ללא שינוי.</li>
+<li><code>verifyBeautyPractitionerAccess</code>: ADMIN או senior_therapist. אחרת 403 "אין הרשאה לנהל צוות מטפלות". ללא שינוי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מאוחד (sessions, users, family_groups) שכולל role ו-employee_role_type, כך שאין עוד שאילתה נפרדת ששגיאתה נבלעת.</li><li>UPDATE last_seen אסינכרוני והארכה.</li><li><code>req.bizAuth={groupId,userId,role,employeeRoleType}</code>.</li></ol></div>
+<div>חישובים</div><div>ערכי employee_role_type מתוך EMPLOYEE_ROLE_TYPES בלבד (AUTH-30).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-10</code> — בדיקת סטטוס משתמש וקבוצה.</li>
+<li><code>AUTH-46</code> — ההערה המיושנת "לא מחובר לאף endpoint עדיין" (server.js:41913) מוסרת. מסמך האימות היחיד מבוסס על המפרט הזה.</li>
+<li><code>ARC-01</code> — role נטען בשאילתה המאוחדת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="verifybizorlegacy legacy groupid requiremodule managed_modules entitlements modcache fail-closed"><h3>Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כ-101 endpoints עסקיים ישנים (חנות, לוגיסטיקה, תפריט) ואכיפת חבילת מודולים.</div>
+<div>הרשאות</div><div>סשן biz בלבד (ARC-03). זכאות למודול נקבעת מ-tenant_entitlements (ARC-17).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>verifyBizOrLegacy נמחק ומוחלף ב-verifyBiz (כולל role). בלי טוקן → 401 <code>"נדרש token להתחברות עסקית"</code>. טוקן פג או לא תקף → 401 "פגישה לא תקינה…" או "פגישה פגה…", עם revoke.</li>
+<li>groupId מגיע רק מהסשן. groupId שנשלח ב-body או ב-query לא משמש להרשאה (ARC-04).</li>
+<li>תנאי מקדים להסרה (AUTH-12 בגרסה המתוקנת): כל קריאות הלקוח לנתיבים האלה עוברות ל-apiFetch עם Bearer, ומונה ה-console.warn של legacy יורד לאפס. נתיב שמשרת דף ציבורי (חנות או תפריט ללקוח קצה) עובר לרשימה הציבורית המוצהרת (ARC-02), עם זיהוי לפי קוד חנות ציבורי.</li>
+<li><code>requireModule(name)</code> חל על כל סוגי הסשן (אין עוד דילוג כש-!fromToken): אם המודול לא כלול בזכאויות הפעילות של הקבוצה → 403 <code>{error:"גישה למודול זה אינה כלולה בחבילה שלך", module}</code>, כמו היום. שגיאה → 503 <code>"השירות אינו זמין כרגע"</code> (fail-closed, AUTH-13).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>authenticate() + requireType('biz').</li><li>requireModule קורא זכאויות (cache ל-60 שניות לכל קבוצה, כמו היום) ובודק.</li><li>כל עדכון זכאות או מודולים ע"י SA מנקה את ה-cache של הקבוצה מיד.</li></ol></div>
+<div>חישובים</div><div>מיגרציה: קבוצה ש-<code>managed_modules</code> שלה ריק או null ("עסק ותיק") מקבלת רשימת מודולים מפורשת שנגזרת מ-billing_config, כך שהגישה שיש לה היום נשמרת. אחרי המיגרציה, רשימה ריקה פירושה שאין מודולים בתשלום. מודולי core (feed, settings, biz-ads) תמיד זמינים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>ניקוי cache בעדכון ע"י SA.</div>
+<div>ממשק</div><div>מסכים נעולים מוצגים לפי GET /api/me/entitlements (ARC-17), כמו הנעילה הקיימת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-03</code> (AUTH-12) — אין יותר fallback של legacy. הקוראים מתוקנים קודם, והנתיבים הציבוריים מוצהרים.</li>
+<li><code>AUTH-13</code> — fail-closed, ניקוי cache, ומיגרציה שמשמרת את הגישה הקיימת.</li>
+<li><code>ARC-17</code> — מקור אמת אחד לזכאויות.</li>
+<li><code>ARC-04</code> — groupId רק מהסשן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="verifyfamilyorbiz callerauth type business family role"><h3>Middleware ‏verifyFamilyOrBiz</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints שמשרתים במפורש את שתי הסביבות (approve-user, reject-user, change-role, pending-users, user-details, data…), וגם endpoints שהועברו מ-verifyFamily לפי AUTH-11.</div>
+<div>הרשאות</div><div>סשן family או biz תקף. בדיקות role נעשות ב-handler.</div>
+<div>קלט ואימותים</div><div><ul><li>אותן הודעות 401 כמו ב-verifyFamily. פג → revoke. כל שגיאה → 500 "שגיאה פנימית".</li><li>בדיקות סטטוס משתמש וקבוצה (AUTH-10).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מאוחד, UPDATE last_seen והארכה.</li><li><code>req.callerAuth={groupId,userId,role,type: principal_type==='biz'?'business':'family'}</code>.</li><li><code>req.bizAuth</code> מוצב רק לסשן biz (ARC-05). ה-handlers המשותפים קוראים את callerAuth.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-10</code> — בדיקת סטטוס.</li><li><code>ARC-05</code> — bizAuth לא מוצב לסשן משפחתי.</li><li><code>AUTH-11</code> — מקבל את ה-endpoints המשותפים שהועברו.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="verifysa sa_sessions sessions x-sa-token superadmin forbidden requiresapermission saUser rbac"><h3>Middleware ‏verifySA + טבלת sa_sessions</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל endpoint של Super Admin. כולל גם 7 נתיבי /api/sa/* שהיום אין להם verifySA (ARC-07).</div>
+<div>הרשאות</div><div>סשן <code>principal_type='sa'</code> של sa_users פעיל. מעליו <code>requireSAPermission(perm)</code> לכל קבוצת נתיבים (ARC-07, AUTH-14).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן: cookie, או <code>Authorization</code> ואם הוא ריק <code>x-sa-token</code>. קידומת "Bearer " מוסרת אם קיימת.</li>
+<li>אין טוקן, או שאין שורה תקפה (hash, expires_at&gt;NOW, revoked_at NULL) → 403 <code>{error:'Forbidden'}</code>, כמו היום. שגיאה → 500 "Auth error".</li>
+<li>sa_users.status!=='active' → revoke + 403 Forbidden.</li>
+<li>requireSAPermission: למשתמש בלי ההרשאה (ובלי 'all') → 403 <code>{error:'אין הרשאה לפעולה זו', required}</code>. המיפוי זהה ל-checkTabAccess: support→support; devops; stats; comm; biz; content; hr→users; inbox/marketing→marketing; finance/insights→stats; adslots/legal→content; masterconfig→all. pulse, dashboard, clients, templates, partners ו-pricing פתוחים לכל סשן SA תקף.</li>
+<li>בדיקות SA inline (server.js:41090, 41424, 41453) מוסרות. נתיבי המודרציה של קול העם משתמשים ב-middleware משולב <code>saOrZm</code> (AUTH-42).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT sessions JOIN sa_users JOIN sa_teams לפי sha256(token).</li><li>UPDATE last_seen והארכה מתגלגלת של 12 שעות.</li><li><code>req.saUser={id,name,email,permissions}</code>. משמש ליומני ביקורת: <code>req.saUser.name</code> מחליף את ה-fallback הקבוע 'SA'.</li></ol></div>
+<div>חישובים</div><div>טבלה: sessions עם principal_type='sa' ו-principal_id=sa_user_id (ARC-01, ARC-07). הטוקן נשמר כ-sha256 (AUTH-16). תוקף: 12 שעות מתגלגלות (ARC-09, AUTH-20). מיגרציה: טוקנים גולמיים קיימים ב-sa_sessions מגובבים ומקושרים ל-Master.</div>
+<div>מכונת מצבים</div><div>סשן SA: active → revoked (logout, חסימת המשתמש, מחיקה) → נמחק (ניקוי). active → expired אחרי 12 שעות בלי פעילות.</div>
+<div>תופעות לוואי</div><div>שינוי status של sa_users לערך שאינו 'active' (enum: active, blocked) מבטל את כל הסשנים שלו.</div>
+<div>ממשק</div><div>applyUserPermissions ו-checkTabAccess בלקוח נשארים כפי שהם (הצגה). ההרשאות נקראות מתגובת השרת ולא מ-ofl_sa_user שניתן לעריכה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-07</code> (AUTH-14) — sa_user_id בסשן, req.saUser, ו-requireSAPermission בשרת.</li>
+<li><code>AUTH-16</code> — טוקן כגיבוב, ביטול בחסימה, ותוקף של 12 שעות מתגלגל (בגרסה המתוקנת).</li>
+<li><code>AUTH-42</code> — בדיקות inline מוחלפות ב-verifySA או saOrZm.</li>
+<li><code>ARC-01</code> — טבלת sessions המאוחדת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="verifyzonemanager zone manager sessions zm token db status saorzm"><h3>Middleware ‏verifyZoneManager + סשנים בזיכרון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints של מנהל אזור ונתיבי קול העם של ZM.</div>
+<div>הרשאות</div><div>סשן <code>principal_type='zm'</code> של zone_managers ב-status='active'. בכל נתיב שמקבל zone, lead או community id נבדקת בעלות דרך manager_zones (ARC-08).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן: cookie או <code>Authorization</code> (Bearer אופציונלי). ריק → 403 <code>'Unauthorized zone manager'</code>, כמו היום.</li>
+<li>אין שורה תקפה ב-sessions (hash, לא פג, לא revoked) → 403 'Unauthorized zone manager'. ה-fallback לפי קידומת <code>ZM_</code> מבוטל (ARC-08, AUTH-03).</li>
+<li>zone_managers.status!=='active' → revoke + 403.</li>
+<li>אין בעלות על האזור או המשאב → 403 "אין הרשאה לאזור זה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT sessions JOIN zone_managers.</li><li>UPDATE last_seen והארכה.</li><li><code>req.zmSession={managerId,name,email}</code> (אותו מבנה כמו היום).</li></ol></div>
+<div>חישובים</div><div>טוקן randomBytes(32).hex, נשמר כ-sha256. תוקף 30 יום מתגלגל עם תקרה של 90 יום. Map בזיכרון לא קיים יותר (ARC-24).</div>
+<div>מכונת מצבים</div><div>סשן ZM: active → revoked (logout, ושינוי status ע"י SA שמבטל את כל סשני המנהל) → נמחק.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>מעבר חד-פעמי: טוקני ZM שבזיכרון לא ממוגרים, ולכן מנהלי אזור יתבקשו להתחבר פעם אחת. נתיבי המודרציה בקול העם מתחילים לעבוד עבור ZM (היום הם תמיד דוחים).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-08</code> (AUTH-03) — סשן ב-DB, בלי fallback שניתן לזייף, עם בדיקת status ותפוגה.</li>
+<li><code>AUTH-42</code> — middleware בשם saOrZm לנתיבי המודרציה.</li>
+<li><code>ARC-24</code> — אין יותר מצב בזיכרון.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront_sessions scgetcustomerbytoken sliding expiry sc_session_days"><h3>סשן לקוח חנות — storefront_sessions</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>זיהוי לקוח קצה בחנויות. כל endpoint של <code>/api/sc-auth/*</code> מאמת דרך <code>_scGetCustomerByToken</code>, שעכשיו ממומש כ-authenticate() + requireType('storefront').</div>
+<div>הרשאות</div><div>סשן principal_type='storefront' של storefront_customer.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>טוקן = <code>Authorization</code> עם הסרת "Bearer " ו-trim. נשאר בהדר ולא ב-cookie, בשביל חנויות ו-embeds.</li>
+<li>לא נמצא, פג או revoked → 401 <code>{success:false,error:'לא מחובר'}</code>, כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT sessions JOIN storefront_customers לפי sha256(token).</li><li>עדכון expires_at ו-last_seen.</li></ol></div>
+<div>חישובים</div><div>טוקן randomBytes(32).hex (ARC-01), נשמר כ-sha256 (מיגרציה מגבבת את הטוקנים הגולמיים הקיימים). <code>SC_SESSION_DAYS=30</code>. התוקף מתגלגל כמו היום, ועכשיו יש תקרה מוחלטת של 90 יום מ-created_at (ARC-09). אחריה הלקוח נכנס שוב ב-OTP.</div>
+<div>מכונת מצבים</div><div>active → expired / revoked (logout) → נמחק (ניקוי).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי (<code>sc_auth_token</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-01</code> — טבלת sessions המאוחדת וטוקן מגובב.</li><li><code>ARC-09</code> — תקרה של 90 יום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="cron cleanup expired sessions worker login_attempts otp resets"><h3>ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימת worker יומית בשעה 03:00 Asia/Jerusalem, singleton עם נעילה ב-DB (AUTH-40, ARC-23). מחליפה את <code>setInterval</code> של 24 שעות ואת ניקוי <code>_loginRateMap</code>.</div>
+<div>הרשאות</div><div>תהליך מערכת.</div>
+<div>קלט ואימותים</div><div><ul><li>אידמפוטנטית. כשל נרשם בלוג עם התראה (ARC-33).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>DELETE FROM sessions WHERE expires_at&lt;NOW() OR revoked_at IS NOT NULL</code> (כל סוגי הסשן, כולל SA ו-ZM), עם לוג של rowCount.</li>
+<li>DELETE של רשומות שפג תוקפן או שנוצלו מ-business_otp, storefront_otp, storefront_sso_tokens, biz_password_resets, family_password_resets ו-zm_password_resets.</li>
+<li>login_attempts ומוני PIN: מחיקת רשומות בלי נעילה פעילה שלא עודכנו 24 שעות.</li>
+<li>otp_send_log (ARC-29): מחיקת רשומות בנות יותר מ-30 יום.</li>
+</ol></div>
+<div>חישובים</div><div>שעון: Asia/Jerusalem (ARC-25).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין יותר Maps בזיכרון (otpCache, zmPasswordResets, zoneManagerSessions, _scPinLockout, _loginRateMap). כולם עברו לטבלאות (ARC-24).</div>
+<div>ממשק</div><div>אין.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-40</code> — שעה קבועה, כל הטבלאות, ומצב שהיה בזיכרון עבר ל-DB.</li><li><code>ARC-23</code> — worker יחיד. <code>ARC-24</code> — אחסון משותף.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="logout destroy session sc-auth logout zm logout sa logout revoke"><h3>התנתקות (כל הסביבות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור התנתקות בכל לקוח.</div>
+<div>הרשאות</div><div>כל מחזיק טוקן. השרת מחזיר success גם כשהטוקן כבר לא קיים.</div>
+<div>קלט ואימותים</div><div><ul><li>הטוקן מה-cookie או מההדר (Bearer אופציונלי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שרת: handler אחד, <code>POST /api/auth/logout</code> (ARC-09), עם הכינויים הקיימים <code>/api/logout</code> ו-<code>/api/sc-auth/logout</code> והחדשים <code>/api/sa/logout</code> ו-<code>/api/zone-manager/logout</code>. הוא מבצע <code>destroySession</code> (revoked_at), מנקה את ה-cookie ומחזיר תמיד <code>{success:true}</code>.</li>
+<li>FAMILY: <code>logout()</code> כמו היום. מוחק את <code>wfz_token</code> ואת <code>ofl_session</code> (וגם את המפתחות הישנים), ומפנה ל-/.</li>
+<li>BIZ: <code>logout()</code> ב-business-app.js וב-common.js קורא לשרת, מוחק את כל מפתחות הסביבה (<code>ofl_session</code>, <code>wfz_token</code>) ומפנה או מרענן כמו היום.</li>
+<li>SA: <code>logoutSA()</code> מנקה intervals, קורא ל-/api/sa/logout, ומוחק את <code>ofl_sa_token</code> וגם את <code>ofl_sa_user</code>.</li>
+<li>ZM: <code>zmLogout()</code> קורא ל-/api/zone-manager/logout ומוחק את <code>zm_token</code> ואת <code>zm_manager</code>.</li>
+<li>Storefront: ללא שינוי (<code>scAuth.logout()</code> → <code>POST /api/sc-auth/logout</code>).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>סשן active → revoked.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אותם כפתורים ואותה התנהגות נראית.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-19</code> — ב-BIZ, SA ו-ZM ההתנתקות מבטלת את הטוקן בשרת ומנקה את כל המפתחות.</li><li><code>ARC-09</code> — handler אחד שמסמן revoked_at.</li></ul></div>
+</div></section>
+
+<h2 class="grp">FAMILY — כניסה, הרשמה, הצטרפות ושחזור</h2>
+
+<section class="proc" data-f="family login groupcode nickname password rate limit login_attempts bcrypt frozen archived sanitizeuser"><h3>כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טופס "סיסמה" במסך הכניסה של index.html (<code>handleLogin</code>), business-app.js, family-onboarding.html ו-game.html. גם עובדי עסק נכנסים כך.</div>
+<div>הרשאות</div><div>נתיב ציבורי מוצהר (ARC-02).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חסר groupCode, nickname או password → 400 <code>"חסרים פרטי התחברות"</code>.</li>
+<li><code>cleanCode = groupCode.toUpperCase().trim()</code>. ה-IP נלקח מ-<code>req.ip</code> עם <code>trust proxy</code> (AUTH-18, ARC-28).</li>
+<li>Rate limit לפני ה-DB, לפי מפתח (cleanCode+LOWER(nickname), IP) בטבלה <code>login_attempts</code>: אחרי 5 כישלונות ב-15 דק' המפתח ננעל ל-15 דק' → 429 <code>"יותר מדי ניסיונות כניסה. נסה שוב בעוד N שניות."</code> (ARC-29, AUTH-18). הנעילה כבר לא חלה על כל הקבוצה.</li>
+<li>קוד לא קיים, או קבוצה <code>is_deleted</code> → רישום כישלון + 401 <code>"פרטי ההתחברות שגויים"</code> (AUTH-10).</li>
+<li><code>account_status='archived'</code> → 403 + account_status. <code>'frozen'</code> → 403 + <code>days_left = max(0, 30 - floor((now-frozen_at)/86400000))</code>. ללא שינוי.</li>
+<li>משתמש לפי group_id ו-<code>LOWER(nickname)=LOWER($)</code> (ייחודי בקבוצה, AUTH-33). לא נמצא → כישלון + 401 <code>"כינוי או סיסמה שגויים"</code>.</li>
+<li>סיסמה: bcrypt.compare בלבד. אחרי מיגרציית ה-hash אין ענף plaintext (AUTH-23).</li>
+<li>סיסמה שגויה → כישלון + 401 "כינוי או סיסמה שגויים".</li>
+<li><code>users.status!=='active'</code> → 403 <code>"חשבון ממתין לאישור מנהל"</code>. נבדק רק אחרי סיסמה נכונה, כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אימותים כנ"ל.</li><li>ניקוי מפתח ה-rate.</li><li>שליפת שם העסק היוצר אם <code>created_by_business_group_id</code> (SOLO).</li><li><code>createSession(group.id, user.id, UA[0..100])</code>. הסוג נגזר מ-group.type.</li><li>תגובה: <code>{success, user: sanitizeUser(user), group: {...group, created_by_business_name}, token}</code>, ו-Set-Cookie.</li></ol></div>
+<div>חישובים</div><div>מגבלה: 5 כישלונות ב-15 דק' ל-(חשבון+IP), נעילה ל-15 דק'. הצלחה מאפסת את המפתח. bcrypt cost 12 בכל קביעת סיסמה.</div>
+<div>מכונת מצבים</div><div>מונה כניסה: open → locked (5 כישלונות) → open (אחרי 15 דק' או בהצלחה).</div>
+<div>תופעות לוואי</div><div>יצירת סשן.</div>
+<div>ממשק</div><div>app.js: בהצלחה מוחק את <code>ofl_sa_token</code> ומבצע saveSession(user, group, token), שכותב את <code>wfz_token</code> (AUTH-27). BUSINESS → מעבר ל-<code>/business.html</code>, שקורא את <code>wfz_token</code> ולכן verifyBiz עובד. frozen → <code>showFrozenAccountScreen(days_left)</code>. archived → toast. family-onboarding ו-game.html לא מקבלים ולא שומרים password_hash.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-07</code> — sanitizeUser (בגרסה המתוקנת). password_hash לא יוצא מהשרת.</li>
+<li><code>AUTH-10</code> — קבוצה is_deleted מחזירה 401 גנרי.</li>
+<li><code>AUTH-18</code> — מונים בטבלה, ו-IP מ-req.ip.</li>
+<li><code>ARC-29</code> (AUTH-17) — 5 כישלונות ב-15 דק' לכל חשבון+IP, במקום מדרגות לפי IP וקוד קבוצה.</li>
+<li><code>AUTH-23</code> — אין יותר השוואת plaintext ושדרוג.</li>
+<li><code>AUTH-33</code> — חיפוש כינוי לא תלוי רישיות.</li>
+<li><code>AUTH-27</code> — טוקן במפתח אחד, וכניסה לעסק מ-index עובדת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="family phone otp login send-otp verify-otp login_ticket password options business_otp family_login email channel"><h3>כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית "טלפון" במסך הכניסה (app.js, family-onboarding.html).</div>
+<div>הרשאות</div><div>נתיבים ציבוריים מוצהרים. שלב 3 מחייב login_ticket (AUTH-06).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><b>שלב 1</b> <code>POST /api/family/login/send-otp</code>: חסר phone → 400 "מספר טלפון חסר". הטלפון עובר normalizePhone (AUTH-34). <code>channel==='email'</code> מחייב email תקין, אחרת 400 "כתובת מייל לא תקינה". Rate: 3 שליחות בשעה ו-10 ביום לכל טלפון, לפי otp_send_log שלא נמחק עם הקוד → 429 "שלחת יותר מדי בקשות. נסה שוב בעוד שעה." (ARC-29).</li>
+<li><b>שלב 2</b> <code>POST /api/family/login/verify-otp</code>: חסר → 400. אין שורה → 400 "לא נמצאה בקשת אימות פעילה". פג → מחיקה + 400 "פג תוקף הקוד. בקש קוד חדש.". קוד שגוי → attempts+1. ב-5 → מחיקה + "קוד שגוי 5 פעמים. בקש קוד חדש.", ואחרת "קוד שגוי. נותרו N ניסיונות." (ARC-29).</li>
+<li>אחרי הצלחה, האפשרויות הן users עם טלפון מנורמל זהה, <code>status='active'</code>, בקבוצה FAMILY או BUSINESS (ARC-20 ממגר את member_type='biz'), <code>account_status NOT IN ('archived','frozen')</code>, ולא מחוקה. ריק → 404 "לא נמצא חשבון פעיל עם מספר טלפון זה".</li>
+<li><b>שלב 3</b> <code>POST /api/family/login/password</code>: חסר groupId, userId, password או login_ticket → 400. ticket לא תקף, פג, או שלא כולל את userId → 401 "יש לאמת את הטלפון מחדש". Rate לפי (uid:userId, IP), כמו בכניסה בסיסמה. group לא קיים → 401. archived/frozen → 403 (ללא days_left, כמו היום). user לא בקבוצה → כישלון + 401. סיסמה שגויה → כישלון + 401 <code>"סיסמה שגויה"</code>. לא active → 403.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: DELETE של OTP קודם (phone+family_login). רישום ב-otp_send_log. קוד 6 ספרות <code>floor(100000+rand*900000)</code>, hash HMAC-SHA256(OTP_SECRET) (AUTH-39), תוקף 10 דק', INSERT עם channel ו-email. שליחה במייל (<code>sendSystemEmail</code>) או ב-SMS (<code>sendSMSviaTwilio</code>, 0→+972). כשל בשליחה → מחיקת השורה + 502 "שליחת הקוד נכשלה" (AUTH-39).</li><li>verify: מחיקת ה-OTP. יצירת <code>login_ticket</code> (randomBytes 32, hash ב-business_otp עם purpose='login_ticket', תוקף 10 דק', קשור לטלפון ולרשימת user_id). מחזיר <code>{options[{user_id,nickname,role,group_id,group_name}], login_ticket}</code>.</li><li>password: bcrypt בלבד. <code>createSession(...)</code> עם סוג לפי group.type (BUSINESS→biz, AUTH-27). מחיקת ה-ticket. תגובה זהה ל-/api/login (sanitizeUser).</li></ol></div>
+<div>חישובים</div><div>OTP: 6 ספרות, 10 דק', 5 ניסיונות. ticket: 10 דק', חד-פעמי.</div>
+<div>מכונת מצבים</div><div>OTP: נשלח → אומת (נמחק, ticket נוצר) / פג / נפסל אחרי 5 ניסיונות. ticket: תקף → נוצל (בכניסה מוצלחת) / פג.</div>
+<div>תופעות לוואי</div><div>SMS או מייל. רישום ב-otp_send_log.</div>
+<div>ממשק</div><div>אפשרות יחידה → מעבר ישיר לסיסמה. כמה אפשרויות → כפתורי בחירה (nickname + group_name). כפתור "קבל קוד במייל" נשאר. הלקוח שומר את ה-ticket בזיכרון ושולח אותו בשלב 3. כניסה לקבוצת BUSINESS מפנה ל-business.html עם טוקן biz תקין.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-06</code> — שלב הסיסמה מחייב login_ticket מאימות ה-OTP.</li>
+<li><code>AUTH-27</code> — קבוצת BUSINESS מקבלת סשן biz.</li>
+<li><code>AUTH-34</code> — השוואת טלפון מנורמל.</li>
+<li><code>ARC-29</code> — 3 בשעה ו-10 ביום, 5 ניסיונות ו-10 דק' (קודם 5 בשעה, 3 ניסיונות ו-5 דק'). הספירה מלוג שליחות, כי היום המגבלה לא נאכפת.</li>
+<li><code>AUTH-39</code> — HMAC, ומחיקה ו-502 בכשל שליחה.</li>
+<li><code>AUTH-07</code>, <code>AUTH-23</code> — sanitizeUser, ובלי plaintext.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="family register otp family_register family_verified verified_token groups create wizard handlecreate"><h3>הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>family-onboarding.html (wizSendOtp, wizVerifyOtp, wizCreateFamily). לשונית "יצירה" ב-index נשארת כנקודת כניסה ופותחת את הוויזארד במקום הטופס הישן <code>handleCreate</code>. קוד ההפניה <code>ofl_referral_code</code> עובר לוויזארד (AUTH-22).</div>
+<div>הרשאות</div><div>נתיב ציבורי מוצהר. ל-type=FAMILY נדרש verified_token.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>/api/family/send-otp</code>: הטלפון מנורמל. Rate: 3 בשעה ו-10 ביום לפי otp_send_log (ARC-29) → 429.</li>
+<li><code>/api/family/verify-otp</code>: אותם כללי שגיאה, עם 5 ניסיונות. בהצלחה מוחק את ה-OTP ואת family_verified הקודם, ויוצר <code>verified_token</code> (randomBytes 32 hex) שה-hash שלו נשמר כ-purpose <code>family_verified</code>, קשור לטלפון, לתוקף 15 דק'.</li>
+<li><code>POST /api/groups</code> עם type=FAMILY: <b>חובה</b> verified_token שתואם לטלפון שנשלח. חסר או אין שורה → 400 "אימות טלפון נדרש. אנא התחל מחדש.". פג או hash לא תואם → מחיקה + 400 "אימות הטלפון פג תוקף. אנא התחל מחדש." (AUTH-22).</li>
+<li>ללא שינוי: עד 2 קבוצות לא מחוקות לאותו <code>admin_email</code> (פרט ל-<code>sa_email</code>) → 400. lastName ו-city חובה. טלפון חובה מגיל 10. טלפון ייחודי בין קבוצות FAMILY (חריגת טלפון הבדיקות רק כש-NODE_ENV!='production', ARC-31). סיסמה: לפי AUTH-24 (6 ל-ADMIN).</li>
+<li>טלפון null לא מפיל את הבקשה. normalizePhone מטפל ב-null (AUTH-34).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>withTransaction</code> (ARC-11): כל return של ולידציה מבצע ROLLBACK. INSERT family_groups (code מ-<code>generateGroupCode</code> האחיד, AUTH-45; plan='solo' ל-FAMILY; account_status='active').</li><li>INSERT users ADMIN active, bcrypt(12).</li><li>UPDATE owner_user_id. INSERT transaction פתיחה. COMMIT.</li><li>DELETE family_verified. awardFlow להפניה. הפעלת קהילה ב-30 משפחות.</li><li>מיילים ל-SA ולמשתמש: קוד סביבה, כינוי וקישור כניסה, <b>בלי הסיסמה</b> (AUTH-23).</li><li><code>createSession</code> → <code>token</code> בתגובה, יחד עם sanitizeUser.</li></ol></div>
+<div>חישובים</div><div>group_code: 6 תווים A-Z0-9 בלי 0/O/1/I, עד 5 ניסיונות חוזרים על התנגשות (AUTH-45). verified_token: 15 דק'.</div>
+<div>מכונת מצבים</div><div>אימות: OTP נשלח → אומת (verified_token) → נוצל ביצירה / פג.</div>
+<div>תופעות לוואי</div><div>מיילים, awardFlow, הפעלת קהילה. ללא שינוי, למעט הסרת הסיסמה מהמייל.</div>
+<div>ממשק</div><div>family-onboarding שומר <code>ofl_session={user,group}</code> (user אחרי sanitize) ואת <code>wfz_token</code>. הטופס הישן ב-index מוחלף בכפתור שפותח את הוויזארד. כל שדות הטופס (שם, מייל, שם פרטי ומשפחה, עיר, כינוי משפחה, שנת לידה, טלפון, סיסמה, הפניה) קיימים בוויזארד.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-22</code> — verified_token חובה ל-FAMILY. המסלול הכפול handleCreate מוסר, ונקודת הכניסה נשארת ומובילה לוויזארד.</li>
+<li><code>AUTH-23</code> — הסיסמה לא נשלחת במייל.</li>
+<li><code>AUTH-45</code> — generateGroupCode אחיד עם ניסיון חוזר. שגיאת UNIQUE ממופה לפי שם האילוץ.</li>
+<li><code>ARC-11</code> — טרנזקציה אמיתית עם ROLLBACK בכל יציאה.</li>
+<li><code>AUTH-34</code> — נרמול, וטלפון null לא מפיל.</li>
+<li><code>AUTH-24</code> — מדיניות סיסמה אחידה.</li>
+<li><code>ARC-29</code> — מגבלות OTP.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="join group code pending invited member child employee_role_type approval email requested_role pre-invite"><h3>הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טופס "הצטרפות" (app.js <code>handleJoin</code>, business-app.js). קישור הזמנה <code>?code=XXX&amp;role=...&amp;role_type=...</code> פותח את הטופס ממולא. פרופילי invited נוצרים בשלב 3 של ויזארד המשפחה.</div>
+<div>הרשאות</div><div>/api/join: ציבורי מוצהר. <code>/api/family/pre-invite</code>: verifyFamily + ADMIN של קבוצת הסשן (AUTH-08). groupId מהסשן בלבד.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חובה groupCode, nickname, password, email → 400 "חסרים נתונים חובה".</li>
+<li>קוד (uppercase) לא קיים או קבוצה מחוקה → 404 "קוד ארגון/משפחה לא חוקי".</li>
+<li>תפקיד: <code>role==='CHILD' ? 'CHILD' : 'MEMBER'</code>. ADMIN לעולם לא ניתן דרך join. אם נשלח role='ADMIN' (כפתור "הורה") נשמר <code>requested_role='ADMIN'</code> (AUTH-35).</li>
+<li>טלפון חובה מגיל 10, ומנורמל (AUTH-34).</li>
+<li>סיסמה: לפי מדיניות AUTH-24 (CHILD לפחות 4, אחרים לפחות 6, מקסימום 72) → 400.</li>
+<li>כינוי קיים בקבוצה (לא תלוי רישיות) → 409 "הכינוי כבר תפוס בסביבה" (AUTH-33).</li>
+<li>employee_role_type (עסק): ערך מחוץ ל-EMPLOYEE_ROLE_TYPES או לא מורשה → נשמר NULL וההצטרפות ממשיכה (AUTH-30 בגרסה המתוקנת).</li>
+<li>pre-invite: שם לא ריק. טלפון מנורמל שלא קיים בקבוצה. כינוי ייחודי (409 על כפילות).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>bcrypt(password,12). email באותיות קטנות.</li><li>אם יש phone ויש משתמש <code>status='invited'</code> באותה קבוצה עם אותו טלפון מנורמל → UPDATE שלו (nickname, שמות, birth_year, hash, role, requested_role, <code>status='pending'</code>, email, employee_role_type).</li><li>אחרת INSERT users עם <code>status='pending'</code>.</li><li>ברקע: <code>sendAlertEmail</code> למנהל אם יש <code>admin_email</code> (כולל "ביקש/ה הרשאת הורה" כשיש requested_role), ו-<code>sendSystemEmail</code> ל-<code>adminNotificationEmail</code> של SA.</li><li>pre-invite: INSERT users עם <code>status='invited'</code>, <code>password_hash=NULL</code> (AUTH-08). role: 'ילד'→CHILD, 'הורה'→MEMBER + requested_role='ADMIN', אחרת MEMBER.</li></ol></div>
+<div>חישובים</div><div>nickname ייחודי לפי (group_id, LOWER(nickname)).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>invited</td><td>ADMIN בוויזארד (pre-invite)</td><td>סשן ADMIN, שם לא ריק, טלפון וכינוי לא קיימים בקבוצה</td><td>password_hash=NULL, אין אפשרות כניסה</td></tr>
+<tr><td>— / invited</td><td>pending</td><td>המצטרף (/api/join)</td><td>קוד תקף, סיסמה וכינוי תקינים</td><td>מיילים למנהל ול-SA</td></tr>
+<tr><td>pending</td><td>active</td><td>ADMIN (approve-user)</td><td>אותה קבוצה</td><td>role לפי בחירת המנהל, התראה למאושר</td></tr>
+<tr><td>pending</td><td>נמחק</td><td>ADMIN (reject-user)</td><td>אותה קבוצה</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>נמחק</td><td>ADMIN (DELETE /api/users/:id)</td><td>לא ה-ADMIN הפעיל היחיד</td><td>CASCADE סשנים</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>מיילים למנהל ול-SA.</div>
+<div>ממשק</div><div>app.js: חובת סימון תקנון (<code>join-tos</code>). nickname = firstName+lastName. בהצלחה: toast "בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה." ומעבר ל-login. כפתור "הורה" נשמר: הבחירה מגיעה למנהל כבקשה. 409 מוצג כהודעת שגיאה בטופס. בוויזארד, הקריאה ל-pre-invite עוברת דרך apiFetch עם הטוקן שכבר קיים אחרי היצירה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-08</code> — pre-invite מחייב סשן ADMIN. invited נוצר עם password_hash=NULL.</li>
+<li><code>AUTH-35</code> — requested_role לבחירת "הורה".</li>
+<li><code>AUTH-33</code> — כינוי כפול מחזיר 409.</li>
+<li><code>AUTH-24</code> — בדיקת אורך סיסמה (היום אין בדיקה).</li>
+<li><code>AUTH-34</code> — התאמת invited לפי טלפון מנורמל.</li>
+<li><code>AUTH-30</code> — employee_role_type לא חוקי נשמר NULL (בגרסה המתוקנת).</li>
+<li><code>AUTH-23</code> — bcrypt 12.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="approve user reject pending-users admin approval status active notify"><h3>אישור משתמשים ממתינים (pending-users / approve-user)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל רואה "ממתינים לאישור" בדשבורד, עם polling כל 30 שניות למנהל, כמו היום.</div>
+<div>הרשאות</div><div>verifyFamilyOrBiz. ADMIN בלבד, בקבוצת הסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>GET /api/admin/pending-users</code>: הקבוצה נלקחת מהסשן (פרמטר groupId אחר → 403 "אין הרשאה"). role!=='ADMIN' → 403 "רק מנהל/ת יכול/ה לצפות בבקשות ממתינות". מחזיר users עם status IN ('pending','invited') כולל requested_role, ממוינים לפי status ו-nickname.</li>
+<li><code>POST /api/admin/approve-user {userId, role?}</code>: ADMIN בלבד → אחרת 403 "רק מנהל/ת יכול/ה לאשר בקשות". target מקבוצה אחרת → 403 "משתמש לא שייך לקבוצה זו". status invited → 400 "המשתמש טרם השלים הרשמה". status שאינו pending → 400. role אופציונלי מתוך ה-enum של הסביבה (FAMILY: ADMIN, MEMBER, CHILD. BIZ: ADMIN, MANAGER, SENIOR, MEMBER). ברירת המחדל היא requested_role, ואחריה התפקיד הנוכחי.</li>
+<li><code>POST /api/admin/reject-user {userId}</code> (חדש): ADMIN, אותה קבוצה, רק pending.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>approve, בתוך withTransaction: <code>UPDATE users SET status='active', role=$role, requested_role=NULL WHERE id=$1 AND status='pending'</code>. 0 שורות → 409.</li><li>אחרי COMMIT: SMS או מייל "בקשתך אושרה — ניתן להתחבר" לטלפון או למייל שהוזן (AUTH-36).</li><li>reject: DELETE של המשתמש (רק pending).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>pending → active (approve) / נמחק (reject או DELETE). invited אינו ניתן לאישור.</div>
+<div>תופעות לוואי</div><div>התראה למאושר.</div>
+<div>ממשק</div><div><code>fetchPendingUsers</code> ו-<code>approveUser</code> (toast "אושר כבן משפחה!"), וגם business-app.js. invited מוצג עם התג "ממתין להרשמה" ובלי כפתור אישור, כמו היום. לבקשה עם requested_role מוצג "ביקש/ה הרשאת הורה" ובורר תפקיד. נוסף כפתור "דחה". מחיקת משתמש נשארת זמינה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-08</code> — approve רק מ-pending. invited מחזיר 400.</li>
+<li><code>AUTH-36</code> — reject-user מפורש והתראה למאושר. המחיקה הקיימת נשמרת.</li>
+<li><code>AUTH-35</code> — בחירת role באישור, עם ברירת מחדל requested_role.</li>
+<li><code>ARC-11</code> — טרנזקציה עם בדיקת מצב קודם.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="forgot code reset password family_password_resets email link admin user_id"><h3>שחזור קוד סביבה + איפוס סיסמת מנהל משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שכחתי קוד/סיסמה" (app.js <code>submitForgotCode</code>). קישור <code>/?reset=TOKEN&amp;gid=ID</code> פותח את <code>reset-password-modal</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר. ה-token הוא ההוכחה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>/api/forgot-code</code>: חסר email → 400 "אנא הזן כתובת מייל". תמיד <code>{success:true}</code> (אין דליפה, AUTH-44). Rate: 3 בשעה לכל מייל ולכל IP (ARC-29).</li>
+<li><code>/api/reset-password/confirm</code>: חסר token, groupId או newPassword, או סיסמה שלא עומדת במדיניות (6 לפחות) → 400 "פרמטרים חסרים או סיסמה קצרה מדי". אין שורה (hash, group, used=false) → 400 "קישור לא תקין או פג תוקפו". פג → 400 "פג תוקף הקישור. בקש קישור חדש.".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>forgot: מאתר <b>את כל</b> הקבוצות הלא מחוקות שבהן <code>LOWER(admin_email)=LOWER(email)</code>. לכל קבוצה נבחר ה-ADMIN שהמייל שלו תואם, ואם אין כזה ה-owner_user_id. לכל משתמש: rawToken=randomBytes(32).hex, hash sha256, תוקף שעה, DELETE של קודמים לאותו user_id, ו-INSERT <code>family_password_resets(user_id, group_id, token_hash, expires_at, used)</code>.</li><li>מייל אחד עם כל הסביבות: קוד סביבה, כינוי המנהל וקישור <code>BASE_URL/?reset=..&amp;gid=..</code> לכל סביבה (fire-and-forget).</li><li>confirm, בתוך withTransaction: bcrypt(12). <code>UPDATE users SET password_hash WHERE id=token.user_id</code> בלבד. used=true. revokeUserSessions(user_id) (AUTH-09).</li></ol></div>
+<div>חישובים</div><div>תוקף קישור: שעה. חד-פעמי.</div>
+<div>מכונת מצבים</div><div>reset token: נוצר → נוצל / פג (נמחק בניקוי).</div>
+<div>תופעות לוואי</div><div>מייל. ביטול כל סשני המשתמש.</div>
+<div>ממשק</div><div>הלקוח בודק שהסיסמה באורך 6 לפחות ושהאישור תואם. אחרי הצלחה מנקה את ה-URL ומציג login. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-25</code> — user_id בטוקן. מייל אחד לכל הסביבות. confirm משנה רק את המשתמש של הטוקן.</li>
+<li><code>AUTH-09</code> — ביטול סשנים באיפוס.</li>
+<li><code>AUTH-44</code> — תגובה אחידה (כבר כך היום) עם rate limit.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="change password users id password admin user-details set password apifetch"><h3>שינוי סיסמה עצמי ועריכת סיסמה ע"י מנהל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודל פרופיל (<code>submitChangePassword</code>). עריכת חבר ע"י מנהל (<code>PUT /api/admin/user-details/:userId</code>).</div>
+<div>הרשאות</div><div>שינוי עצמי: verifyFamilyOrBiz, ורק על עצמך. user-details: verifyFamilyOrBiz, ADMIN, ו-target באותה קבוצה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>POST /api/users/:id/password</code>: id אחר מהמשתמש בסשן → 403 "אין הרשאה לשנות סיסמה של משתמש אחר". newPassword לפי מדיניות AUTH-24 (CHILD לפחות 4, אחרים לפחות 6, מקסימום 72) → 400. oldPassword נבדק ב-bcrypt בלבד → 401 "סיסמה נוכחית שגויה". rate לפי (userId, IP).</li>
+<li><code>PUT /api/admin/user-details/:userId</code>: password נקבע רק אם הוא עומד במדיניות. role רק מתוך ה-enum של הסביבה (AUTH-30). nickname נחתך ל-100 וייחודי (409, AUTH-33). הורדת ה-ADMIN הפעיל היחיד או שינוי הסטטוס שלו → 400 "חייב להישאר לפחות מנהל/ת אחד/ת" (AUTH-29).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE password_hash=bcrypt(12).</li><li>שינוי עצמי: revokeUserSessions(userId, הסשן הנוכחי). שינוי ע"י מנהל, או הורדת תפקיד: revokeUserSessions(target) (AUTH-09, ARC-09).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין, מלבד ביטול סשנים.</div>
+<div>תופעות לוואי</div><div>ביטול סשנים.</div>
+<div>ממשק</div><div><code>submitChangePassword</code> עובר ל-apiFetch, שמוסיף Bearer, ולכן הפיצ'ר עובד (AUTH-28). הולידציה בלקוח זהה לשרת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-28</code> — שינוי הסיסמה מהפרופיל עובד (נשלח Authorization).</li>
+<li><code>AUTH-09</code> — ביטול סשנים בשינוי סיסמה.</li>
+<li><code>AUTH-24</code> — מינימום 6, ול-CHILD מינימום 4 (היום 4 לכולם).</li>
+<li><code>AUTH-29</code>, <code>AUTH-30</code>, <code>AUTH-33</code> — הגנה על המנהל האחרון, enum לתפקיד, וכינוי ייחודי.</li>
+<li><code>AUTH-23</code> — bcrypt 12, בלי plaintext.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="set-first-password must_change_password force password change member business created"><h3>הגדרת סיסמה ראשונה (must_change_password)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חשבון שנוצר ע"י עסק (<code>/api/member/create-for-business</code>, עם <code>must_change_password=true</code> וסיסמה זמנית). בכניסה, <code>finalizeLoad</code> מציג את <code>showForcePasswordChange</code> אם <code>currentUser.must_change_password</code>.</div>
+<div>הרשאות</div><div>verifyFamily. רק על עצמך.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>POST /api/users/:id/set-first-password</code>: לא עצמך → 403. newPassword לפי AUTH-24 (6 לפחות, ול-CHILD 4) → 400 "סיסמה חייבת להכיל לפחות 6 תווים" (ל-CHILD: 4). משתמש לא קיים → 404. <code>must_change_password</code> false → 403 "לא ניתן לאפס סיסמה בשלב זה".</li>
+<li>שדות אופציונליים, ללא שינוי: <code>id_number</code> (trim, עד 20), <code>email</code> (lower, עד 200), <code>birth_year</code> רק בטווח 1920–2020.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>UPDATE password_hash=bcrypt(12), must_change_password=false, ושאר השדות. revokeUserSessions(userId, הסשן הנוכחי). בלקוח: עדכון currentUser ו-ofl_session, הסרת ה-overlay, <code>checkGlobalWelcome</code>.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>must_change_password: true → false.</div>
+<div>תופעות לוואי</div><div>ביטול סשנים אחרים.</div>
+<div>ממשק</div><div>overlay מסך מלא (z 99999) עם סיסמה ואימות, ת"ז, מייל ושנת לידה. השליחה דרך apiFetch. <b>עדכון מדריך:</b> beauty-guide.html:1210 משתנה מ"לפחות 4 תווים" ל"לפחות 6 תווים".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-24</code> — מינימום 6 (CHILD 4), עם עדכון המדריך.</li>
+<li><code>AUTH-09</code> — ביטול סשנים אחרים.</li>
+<li><code>AUTH-37</code> — <code>/api/member/create-for-business</code> מחייב verifyBiz, ו-business_group_id חייב להיות קבוצת הסשן. הסיסמה הזמנית (randomBytes, 10 תווים) מוגרלת לפני ה-INSERT, נשמרת רק כ-bcrypt, ומוחזרת פעם אחת בתגובה להצגה ולכפתור "שלח בוואטסאפ", כמו היום. solo_temp_password לא נשמר (בגרסה המתוקנת).</li>
+<li><code>AUTH-28</code> — apiFetch אחיד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="solo activate pending_activation member_business_links temp password"><h3>הפעלת חשבון SOLO (pending_activation)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>קבוצת SOLO שנוצרה ע"י עסק במצב <code>account_status='pending_activation'</code>. ב-<code>finalizeLoad</code>, אם המשתמש ADMIN → <code>showSoloActivationModal</code>, לפני בדיקת must_change_password. ללא שינוי.</div>
+<div>הרשאות</div><div>verifyFamily. סשן שנוצר בכניסה עם הסיסמה הזמנית. userId ו-groupId נגזרים מהסשן. המשתמש חייב להיות ADMIN של הקבוצה, והקבוצה חייבת להיות ב-pending_activation, אחרת 403 (AUTH-02).</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST /api/solo/activate {newPassword}</code>: סיסמה חסרה או לא עומדת במדיניות (6 לפחות) → 400 "נתונים חסרים או סיסמה קצרה מדי". groupId ו-userId מה-body לא משמשים להרשאה.</li><li><code>GET /api/solo/status</code>: verifyFamily, וקבוצת הסשן בלבד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction: UPDATE family_groups SET account_status='active', solo_temp_password=NULL WHERE id=session.groupId AND account_status='pending_activation'. 0 שורות → 403.</li><li>UPDATE users SET password_hash=bcrypt(12), must_change_password=false WHERE id=session.userId.</li><li>UPDATE member_business_links SET status='active' WHERE member_group_id AND status='pending' (נשמר כמו היום, AUTH-02 בגרסה המתוקנת).</li><li>COMMIT. revokeUserSessions(userId, הסשן הנוכחי).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>family_groups.account_status: <code>pending_activation</code> → <code>active</code> (המשתמש, בהפעלה). <code>active</code> → <code>frozen</code> (איחוד משפחות) → <code>archived</code>. login חוסם frozen ו-archived בלבד. pending_activation רשאי להתחבר, ומקבל רק נתיבי טעינה והפעלה (ARC-05 בגרסה המתוקנת).</div>
+<div>תופעות לוואי</div><div>קישורי עסק ממתינים מופעלים.</div>
+<div>ממשק</div><div>overlay עם שתי סיסמאות (6 לפחות, תואמות). בהצלחה עדכון ofl_session ו-toast. הקריאה דרך apiFetch.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-02</code> — סשן, ADMIN ו-pending_activation חובה, והמזהים מהסשן. האישור האוטומטי של הקישורים נשמר (בגרסה המתוקנת).</li>
+<li><code>AUTH-09</code>, <code>AUTH-24</code> — ביטול סשנים, ומינימום 6 (היום 4).</li>
+<li><code>ARC-11</code> — טרנזקציה. <code>ARC-05</code> — הגבלת נתיבים במצב pending_activation.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="bootstrap-token ensurefamilytoken community token family removed"><h3>Bootstrap token (השלמת טוקן חסר ללקוח משפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>היום, <code>ensureFamilyToken()</code> ב-fetchData מנפיק טוקן כשחסר. ב-TO-BE הנתיב <code>POST /api/community/bootstrap-token</code> <b>מוסר</b> (AUTH-01). טוקן נוצר רק בזרימות כניסה והרשמה מאומתות.</div>
+<div>הרשאות</div><div>אין. הנתיב לא קיים (404).</div>
+<div>קלט ואימותים</div><div><ul><li>קריאה עם groupId+userId בלבד מחזירה 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטעינה, הלקוח מחפש טוקן לפי הסדר <code>wfz_token</code> → <code>ofl_family_token</code> → <code>ofl_session.token</code>, ומעביר אותו ל-<code>wfz_token</code> (AUTH-27).</li><li>אין טוקן כלל, או ש-apiFetch מקבל 401 → ניקוי הסשן המקומי ומעבר למסך הכניסה עם הודעה "יש להתחבר מחדש".</li><li>כל הזרימות שהסתמכו על bootstrap (handleCreate הישן) מקבלות token בתגובה ושומרות אותו.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>משתמשים ותיקים בלי טוקן מתבקשים להתחבר פעם אחת.</div>
+<div>ממשק</div><div><code>ensureFamilyToken</code> מוחלף בהעברת טוקן מקומית בלבד, בלי קריאה לשרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-01</code> — ה-endpoint מוסר, ולקוח בלי טוקן מועבר לכניסה.</li><li><code>AUTH-27</code> — העברה למפתח יחיד.</li></ul></div>
+</div></section>
+
+<h2 class="grp">תפקידים והרשאות</h2>
+
+<section class="proc" data-f="roles admin member child manager senior change-role enum last admin"><h3>תפקידים ושינוי תפקיד (users.role)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תפקידי משתמש לפי סביבה (AUTH-30, ARC-06): FAMILY = {ADMIN, MEMBER, CHILD}, ו-BIZ = {ADMIN, MANAGER, SENIOR, MEMBER}. מנהל משנה תפקיד דרך כפתור "קדם/הורד" (app.js <code>changeUserRole</code>, ADMIN↔CHILD) או דרך מסכי העסק.</div>
+<div>הרשאות</div><div>verifyFamilyOrBiz, ADMIN בלבד, target באותה קבוצה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>POST /api/admin/change-role {userId,newRole}</code>: newRole מחוץ ל-enum של סוג הקבוצה → 400 "תפקיד לא חוקי". הקורא לא ADMIN → 403 "רק מנהל רשאי לשנות תפקידים". target מקבוצה אחרת → 403.</li>
+<li>target הוא ה-ADMIN הפעיל היחיד ו-newRole≠ADMIN → 400 "חייב להישאר לפחות מנהל/ת אחד/ת" (AUTH-29). אותו כלל חל על user-details, על PUT permissions עם role, על מחיקה ועל שינוי status.</li>
+<li>תפקיד ADMIN ראשון ניתן רק ביצירת קבוצה (<code>/api/groups</code>, <code>/api/biz/register</code>, sc-register, create-for-business), או באישור מנהל קיים (AUTH-35).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE users SET role, permissions=NULL ("ברירת מחדל לתפקיד", AUTH-31).</li><li>בהורדת תפקיד: revokeUserSessions(target) (ARC-09).</li></ol></div>
+<div>חישובים</div><div>permissions=NULL פירושו ROLE_DEFAULTS של התפקיד, שמוגדר פעם אחת בשרת ומוגש ללקוחות. מיגרציית ערכי role: משתמשי FAMILY עם MANAGER או SENIOR עוברים ל-MEMBER עם <code>{custom:true,tabs}</code> שווה ל-ROLE_DEFAULTS של התפקיד הקודם, כך שהגישה האפקטיבית נשמרת.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>כל תפקיד</td><td>ערך מה-enum של הסביבה</td><td>ADMIN (change-role / user-details / PUT permissions)</td><td>אותה קבוצה, ולא הורדת המנהל האחרון</td><td>change-role מאפס את permissions ל-NULL. בהורדה הסשנים מבוטלים</td></tr>
+<tr><td>כל תפקיד</td><td>ערך מה-enum</td><td>SA (PATCH /api/superadmin/users/:id, עם requireSAPermission('users'))</td><td>לא הורדת המנהל האחרון</td><td>גם status וסיסמה. ביטול סשנים</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>ביטול סשנים בהורדה.</div>
+<div>ממשק</div><div>ללא שינוי בכפתורים. רשימות התפקידים בבוררים נטענות מהשרת. MEMBER אחרי change-role מקבל את ברירת המחדל המלאה (feed, tasks, shop, academy) במקום 2 טאבים.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-29</code> — הגנה על המנהל האחרון בכל המסלולים.</li>
+<li><code>AUTH-30</code> — enum לפי סביבה, עם מיגרציה שמשמרת את הגישה (בגרסה המתוקנת).</li>
+<li><code>AUTH-31</code> — change-role מאפס ל-NULL ולא כותב רשימה שגויה.</li>
+<li><code>ARC-06</code> — אכיפה בשרת. <code>ARC-09</code> — ביטול סשנים בהורדה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="permissions json tabs community can_order requiretab role_defaults all_tabs custom"><h3>הרשאות טאבים — users.permissions (JSON)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל פותח את מודל ההרשאות (app.js <code>openPermissionsModal</code> / <code>savePermissions</code>, business-app.js <code>submitPermissions</code>).</div>
+<div>הרשאות</div><div><code>PUT /api/users/:id/permissions</code>: verifyFamilyOrBiz, הקורא ADMIN בקבוצת הסשן. אכיפת הטאבים עצמם: <code>requireTab(tab)</code> בכל endpoint (AUTH-32, ARC-06).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>קורא שאינו ADMIN → 403 "נדרשת הרשאת מנהל". target מחוץ לקבוצה → 404 "משתמש לא נמצא בקבוצה".</li>
+<li><code>tabs</code> חסר או לא מערך → 400 "יש לשלוח רשימת טאבים" (במקום 500). ערכים רק מתוך ALL_TABS של הסביבה.</li>
+<li><code>role</code> אופציונלי, מתוך ה-enum של הסביבה (AUTH-30), בכפוף להגנה על המנהל האחרון (AUTH-29).</li>
+<li><code>community</code> אופציונלי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם <code>'feed'</code> לא במערך, מוסיפים אותו.</li><li><code>permsObj={custom:true, tabs}</code> (+<code>community</code> אם נשלח).</li><li>UPDATE permissions (ו-role אם נשלח).</li></ol></div>
+<div>חישובים</div><div>מבנה: <code>{"custom":true,"tabs":[...], "community":{"can_order","can_post_feed","can_poll","can_live_game","can_store"}}</code>, או NULL לברירת מחדל. הרשאה מותאמת תקפה בכל אורך, כולל feed בלבד (AUTH-31). טאבים אפקטיביים (בשרת, אותו חישוב כמו בלקוח): ADMIN רואה הכל. אחרת custom.tabs, או ROLE_DEFAULTS. ב-FAMILY, CHILD תמיד מקבל community. ב-BIZ מתווספים members לבעל החשבון ו-ROLE_TYPE_TABS[employee_role_type], ו-feed, settings ו-biz-ads תמיד מותרים. requireTab ממפה טאב לקידומת API (pantry→/api/pantry, budget→/api/budget…). טאב לא מורשה → 403 "אין הרשאה למסך זה". הרשאות can_* נבדקות ב-endpoints הקהילה. ברירת המחדל מותרת, אלא אם הערך <code>false</code>, כמו <code>checkCommPerm</code>.<br>מיגרציה (AUTH-31 בגרסה המתוקנת): ב-FAMILY, <code>tabs.length&gt;1</code> הופך ל-custom ו-<code>≤1</code> הופך ל-NULL. ב-BIZ, כל מערך tabs הופך ל-custom. כך הגישה האפקטיבית לא משתנה.</div>
+<div>מכונת מצבים</div><div>permissions: NULL (ברירת מחדל) ↔ custom (שמירה במודל). change-role מחזיר ל-NULL.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי במודלים. <b>משפחה</b>: <code>ALL_TABS</code> (feed, tasks, shop, myorders, bank, cashflow, community, academy, members, budget, pantry, recipes, forecast, home-maintenance). <code>ROLE_DEFAULTS</code> מגיע מהשרת. הסתרה ב-<code>display:none</code>. רענון בכל fetchData. <b>עסק</b>: טאבים לא מורשים מוצגים נעולים, כמו היום. <code>enforcePermissions</code> בשני הלקוחות קורא את <code>custom</code> במקום הכלל <code>tabs.length&gt;1</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-32</code> — requireTab ובדיקות can_* בשרת. tabs חסר מחזיר 400.</li>
+<li><code>AUTH-31</code> — NULL פירושו ברירת מחדל, הדגל custom, ROLE_DEFAULTS אחד בשרת, ומיגרציה שמשמרת את הגישה (בגרסה המתוקנת).</li>
+<li><code>AUTH-30</code>, <code>AUTH-29</code> — role עם whitelist והגנה על המנהל האחרון.</li>
+<li><code>ARC-06</code> — permissions.tabs הוא מקור אמת בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="employee_role_type role-type beauty therapist branch_manager licensed"><h3>סיווג תפקיד עובד (employee_role_type)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודל ההרשאות העסקי (רדיו <code>perm-role-type</code>, מסונן לפי <code>isFeatureLicensed</code>), בהצטרפות, ובשלב <code>my_role</code> בוויזארד.</div>
+<div>הרשאות</div><div><code>PATCH /api/users/:id/role-type</code>: verifyFamilyOrBiz, ADMIN ואותה קבוצה.</div>
+<div>קלט ואימותים</div><div><ul><li>ערך מתוך <code>EMPLOYEE_ROLE_TYPES</code> שמורשה לפי licensed_features של הקבוצה, או null. אחרת 400 "סוג תפקיד לא חוקי" (AUTH-30). חריג: ב-/api/join ערך לא חוקי נשמר NULL.</li></ul></div>
+<div>שלבי עיבוד</div><div>UPDATE users SET employee_role_type.</div>
+<div>חישובים</div><div>הרשימה מוגשת ללקוחות מהשרת.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>משפיע על verifyBeautyClientAccess, על verifyBeautyPractitionerAccess ועל הרחבת הטאבים (ROLE_TYPE_TABS), בשרת ובלקוח.</div>
+<div>ממשק</div><div>שלב <code>my_role</code> בוויזארד (business-app.js:23023) שולח דרך apiFetch עם Bearer, ולכן הבחירה נשמרת (AUTH-28).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-30</code> — whitelist ורישוי.</li><li><code>AUTH-28</code> — שלב הוויזארד עובד.</li></ul></div>
+</div></section>
+
+<h2 class="grp">BIZ — הרשמה, כניסה ושחזור</h2>
+
+<section class="proc" data-f="biz send-otp verify-otp business_otp purpose register login login_disambiguate login_ticket verified sms twilio hmac"><h3>OTP עסקי (send/verify) ותשתית SMS</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>biz-onboarding.html: הרשמה (<code>regSendOtp</code>), כניסה (<code>loginSendOtp</code>), ושליחה חוזרת (<code>resendOtp</code>, עם נעילת כפתור ל-30 שניות).</div>
+<div>הרשאות</div><div>ציבורי מוצהר.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>purpose ∈ {register, login_disambiguate, login} וחובה phone, אחרת 400 "פרמטרים חסרים או לא תקינים". purpose reset_password מוסר (AUTH-39).</li>
+<li>הטלפון עובר normalizePhone בשרת (AUTH-34).</li>
+<li>Rate: 3 בשעה ו-10 ביום לכל טלפון, לפי otp_send_log → 429 (ARC-29).</li>
+<li>verify: אין שורה → 400. פג → מחיקה + 400. קוד שגוי → attempts (עד 5, ואז מחיקה).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: DELETE קודם, רישום ב-otp_send_log, קוד 6 ספרות, HMAC-SHA256(OTP_SECRET), תוקף 10 דק', INSERT, SMS "WEFLOWZ\nקוד האימות שלך: X\nתקף ל-10 דקות…" (0→+972). כשל SMS → מחיקת השורה + 502 "שליחת הקוד נכשלה".</li><li>verify בהצלחה: מחיקת ה-OTP. <code>login</code> או <code>login_disambiguate</code> → options = ADMIN active בקבוצות BUSINESS (ARC-20) לא מחוקות, לפי טלפון מנורמל → <code>{options:[{group_id,business_name}], login_ticket}</code> (AUTH-06). <code>register</code> → <code>verified_token</code> (purpose 'verified', 15 דק').</li></ol></div>
+<div>חישובים</div><div>טבלת <code>business_otp</code>: phone, code_hash (HMAC), purpose, expires_at, attempts, created_at, channel, email. <code>sendSMSviaTwilio</code> נשאר נתיב ה-SMS היחיד.</div>
+<div>מכונת מצבים</div><div>OTP: נשלח → אומת / פג / נפסל. login_ticket: תקף → נוצל / פג.</div>
+<div>תופעות לוואי</div><div><code>sendSMSviaTwilio(to, body)</code>, ללא שינוי. <code>smsService</code> המת מוסר (AUTH-39).</div>
+<div>ממשק</div><div>ללא שינוי. ההודעה "תקף ל-5 דקות" בלקוח מתעדכנת ל-10 דקות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-39</code> — HMAC, מחיקה ו-502 בכשל, והסרת reset_password ו-smsService המתים.</li>
+<li><code>AUTH-06</code> — הנפקת login_ticket.</li>
+<li><code>ARC-29</code> — 3 בשעה ו-10 ביום, 5 ניסיונות ו-10 דק'.</li>
+<li><code>AUTH-34</code> — נרמול בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="biz register business create verified_token dev_phone managed_modules session transaction"><h3>הרשמת עסק (/api/biz/register)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי verify-otp register מוצלח, הלקוח קורא מיד ל-register.</div>
+<div>הרשאות</div><div>ציבורי מוצהר. verified_token הוא ההוכחה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חובה phone, verified_token, password ו-business_name → 400. password לפי AUTH-24 (6 לפחות) → 400 "סיסמה חייבת להכיל לפחות 6 תווים".</li>
+<li>verified_token נצרך אטומית (DELETE … RETURNING). 0 שורות → 400 "אימות הטלפון פג תוקף. יש להתחיל מחדש.".</li>
+<li>טלפון מנורמל שכבר קיים ב-users → 400 "מספר טלפון זה כבר רשום במערכת…" (מותר בהרשמה, AUTH-44, בכפוף ל-rate לכל IP). חריגת <code>DEV_PHONE</code> רק כש-NODE_ENV!='production' (ARC-31).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction (ARC-11): bcrypt(12).</li><li>INSERT family_groups (type BUSINESS, business_type 'other', wizard_completed FALSE, is_onboarded TRUE, group_code מ-generateGroupCode האחיד (AUTH-45), ומודולים לפי ARC-17).</li><li>INSERT users ADMIN active, עם nickname זמני "בעל/ת העסק".</li><li>COMMIT. <code>createSession(...)</code> (biz).</li><li>תגובה <code>{token, group_id, user_id, business_name, wizard_completed:false}</code>. מייל ל-SA ברקע.</li></ol></div>
+<div>חישובים</div><div>קודי קבוצה חדשים: 6 תווים. קודים קיימים בפורמט B… לא משתנים.</div>
+<div>מכונת מצבים</div><div>wizard_completed: false → true (בסיום הוויזארד, ARC-37).</div>
+<div>תופעות לוואי</div><div>מייל ל-SA.</div>
+<div>ממשק</div><div><code>saveSession(d)</code> ב-biz-onboarding כותב את <code>ofl_session</code> ואת <code>wfz_token</code> (AUTH-27). מעבר ל-sec-welcome (ויזארד).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-11</code> — טרנזקציה.</li>
+<li><code>AUTH-45</code> — קוד קבוצה אחיד.</li>
+<li><code>AUTH-34</code> — השוואת טלפון מנורמל.</li>
+<li><code>AUTH-27</code> — מפתח טוקן יחיד.</li>
+<li><code>AUTH-23</code> — bcrypt 12.</li>
+<li><code>AUTH-44</code> — הודעת "כבר רשום" נשארת, עם rate.</li>
+<li><code>ARC-31</code> — DEV_PHONE רק בפיתוח.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="biz login phone password groupid wizard_completed is_onboarded env pick login_ticket rate"><h3>כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>biz-onboarding.html, לשונית "כניסה": <code>loginSendOtp</code> → <code>verifyOtp</code> (purpose login) → <code>pickEnv</code> → <code>doLogin</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר. נדרש login_ticket תקף שכולל את groupId (AUTH-06).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חובה phone, password, groupId ו-login_ticket → 400.</li>
+<li>ticket לא תקף או לא כולל את groupId → 401 "יש לאמת את הטלפון מחדש".</li>
+<li>Rate לפי (phone+groupId, IP): 5 כישלונות ב-15 דק' → 429 (AUTH-06, ARC-29).</li>
+<li>משתמש: טלפון מנורמל, group_id=groupId, קבוצה BUSINESS או <code>is_demo_business</code>, לא <code>is_deleted</code> (AUTH-06, AUTH-10), <code>UPPER(role)='ADMIN'</code>, active. לא נמצא → 400 "סיסמה שגויה". bcrypt נכשל → 400 "סיסמה שגויה". אחרי מיגרציית ה-hash, bcrypt עובד לכל המשתמשים (AUTH-23).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>createSession(...)</code> (biz). מחיקת ה-ticket.</li><li><code>wizardDone = wizard_completed !== false || is_onboarded === true</code>. אם wizardDone ו-wizard_completed!==true → UPDATE wizard_completed=true. ללא שינוי.</li><li>תגובה <code>{token, group_id, user_id, wizard_completed, business_name, group_type}</code>.</li></ol></div>
+<div>חישובים</div><div>כמו בכניסה בסיסמה.</div>
+<div>מכונת מצבים</div><div>ticket: תקף → נוצל.</div>
+<div>תופעות לוואי</div><div>יצירת סשן.</div>
+<div>ממשק</div><div>אפס סביבות → "לא נמצאו סביבות עסקיות עבור מספר זה". אחת → ישר לסיסמה. כמה → רשימת כפתורים. wizard_completed → <code>business.html</code>, אחרת ויזארד. ללא שינוי. רק ADMIN נכנס כך, ועובדים נכנסים בקוד+כינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-06</code> — חובת login_ticket, rate limit ובדיקת is_deleted.</li>
+<li><code>AUTH-23</code> — hash legacy ממוגר, ולכן הכניסה לא נכשלת.</li>
+<li><code>AUTH-34</code> — טלפון מנורמל. <code>ARC-29</code> (AUTH-17) — מגבלה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="biz reset password request confirm biz_password_resets admin_email user_id"><h3>איפוס סיסמת עסק (קישור במייל)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שכחתי סיסמה" במסך הסיסמה (<code>startForgotPassword</code>), אחרי OTP. קישור <code>/biz-onboarding.html?reset=..&amp;gid=..</code> → <code>doResetPassword</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר. ה-token הוא ההוכחה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>request: חסר → 400. אין התאמה (טלפון מנורמל, ADMIN active, BUSINESS), או שאין <code>admin_email</code> → <code>{success:true}</code> שקט (AUTH-44). Rate: 3 בשעה לכל טלפון.</li>
+<li>confirm: הכללים של משפחה (6 לפחות, used=false, תוקף).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>request: token 32 bytes, sha256, תוקף שעה. DELETE + INSERT <code>biz_password_resets(user_id, phone, group_id, token_hash, expires_at)</code>. מייל ל-admin_email.</li><li>confirm: bcrypt(12). <code>UPDATE users … WHERE id=token.user_id</code>. 0 שורות → 400 "קישור לא תקין או פג תוקפו" (AUTH-26). used=true. revokeUserSessions(user_id).</li></ol></div>
+<div>חישובים</div><div>תוקף שעה.</div>
+<div>מכונת מצבים</div><div>reset token: נוצר → נוצל / פג.</div>
+<div>תופעות לוואי</div><div>מייל וביטול סשנים.</div>
+<div>ממשק</div><div><code>startForgotPassword</code> מציג "sec-forgot-sent" רק כשהתשובה היא success. בשגיאת שרת או רשת מוצגת הודעת שגיאה. <code>doResetPassword</code> מציג את תשובת השרת (AUTH-26).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-26</code> — עדכון לפי user_id, 400 אם לא עודכן, והלקוח מציג את התשובה.</li>
+<li><code>AUTH-09</code> — ביטול סשנים. <code>AUTH-34</code> — נרמול.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="biz me session bootstrap filled_by_role wizard explicit fields"><h3>/api/biz/me — טעינת נתוני עסק מהסשן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ויזארד, ורענון impersonation (business-app.js:232).</div>
+<div>הרשאות</div><div>verifyBiz. הקבוצה מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>404 "עסק לא נמצא".</li></ul></div>
+<div>שלבי עיבוד</div><div>במקביל: עמודות הקבוצה, ספירת active לפי employee_role_type, ושם ושנת לידה של המשתמש. התגובה כוללת את עמודות הקבוצה ש-business-app והוויזארד קוראים היום, וגם <code>filled_by_role</code>, first_name, last_name ו-birth_year.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-32</code> — רשימת שדות מפורשת במקום SELECT *. כל שדה שהלקוח קורא נשאר, ושדות סוד (solo_temp_password וכו') לא מוחזרים.</li><li><code>AUTH-10</code> — בדיקת סטטוס דרך verifyBiz.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="impersonation sa biz-impersonate-token isimpersonating sessionstorage audit takeover"><h3>השתלטות SA על סביבת לקוח (Impersonation)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA לוחץ "השתלטות" (sa-app.js <code>impersonateGroup</code>).</div>
+<div>הרשאות</div><div>verifySA + requireSAPermission('support') או 'all' (ARC-07).</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST /api/sa/biz-impersonate-token {groupId,userId}</code>: חסר groupId → 400. קבוצה לא קיימת → 404.</li><li>משתמש: userId שהתבקש, אם הוא שייך לקבוצה. אחרת ה-ADMIN הראשון. אם אין ADMIN → 400 "אין משתמש מנהל בסביבה" (AUTH-21).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שרת: <code>createSession(groupId, userId, 'sa-impersonation', {ttl: 1h, impersonated_by: req.saUser.id})</code>. הסוג נקבע לפי סוג הקבוצה.</li><li>INSERT sa_audit_log (sa_user_id, group_id, user_id, זמן) (AUTH-21, ARC-07).</li><li>לקוח: פותח טאב חדש (<code>/business.html</code> או <code>/</code>) ומעביר את הטוקן לטאב החדש בלבד. הטאב שומר אותו ב-<code>sessionStorage</code> יחד עם <code>{user,group,isImpersonating:true}</code>, בלי לגעת ב-<code>ofl_session</code>, ב-<code>wfz_token</code> או ב-<code>ofl_sa_token</code> של הטאבים האחרים. <code>ofl_sa_return_token</code> מוסר.</li></ol></div>
+<div>חישובים</div><div>תוקף שעה קבוע, בלי הארכה.</div>
+<div>מכונת מצבים</div><div>סשן התחזות: active → expired (שעה) / revoked (התנתקות מהבאנר).</div>
+<div>תופעות לוואי</div><div>רשומת ביקורת.</div>
+<div>ממשק</div><div>business-app.js: <code>checkImpersonationMode</code> מציג פס אדום עם "רענון נתונים", מזעור ו"התנתקות". ללא שינוי, אבל המצב נקרא מ-sessionStorage. <code>exitImpersonationMode</code> מבטל את הסשן בשרת (/api/auth/logout), מנקה את sessionStorage וסוגר את הטאב. app.js מציג באנר לפי sessionStorage. סשן ה-SA בטאב המקורי לא נדרס.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-21</code> — 400 כשאין ADMIN, יומן ביקורת, sessionStorage בלבד, והסרת ofl_sa_return_token.</li>
+<li><code>ARC-07</code> (AUTH-14) — דרישת הרשאת support או all.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">SUPER-ADMIN</h2>
+
+<section class="proc" data-f="superadmin login sa_users sa_teams rbac master credentials bcrypt sa_initial_password"><h3>כניסת SA בשם משתמש/מייל + סיסמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>sa.html <code>handleSALogin</code>. גם business-app.js:447 (פאנל SA ישן), דרך אותו endpoint.</div>
+<div>הרשאות</div><div>ציבורי מוצהר, עם rate limit.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חיפוש ב-<code>sa_users</code> לפי <code>email = code</code> או <code>username = code</code> (שם המשתמש של Master נשמר כ-username בשורת ה-Master), עם JOIN לצוות. סיסמה ב-bcrypt בלבד (AUTH-15, AUTH-23). נכונה, אבל status!=='active' → 403 "החשבון שלך נחסם. פנה למנהל המערכת.".</li>
+<li>Master הוא שורה ב-sa_users עם <code>permissions=['all']</code> (ARC-07). מיגרציה: system_settings.sa_username, sa_email ו-sa_password עוברים לשורת Master, והסיסמה מגובבת. אם הסיסמה היא ברירת המחדל '123456' או ריקה, היא לא ממוגרת, וכניסת Master חסומה עד שמוגדרת סיסמה מ-<code>SA_INITIAL_PASSWORD</code> בעלייה הראשונה.</li>
+<li>Rate: 5 כישלונות ב-15 דק' לכל (code, IP) → 429 (ARC-29).</li>
+<li>אחרת 401 "פרטי גישה שגויים לניהול מערכת".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><code>createSession</code> עם principal_type='sa' ו-principal_id=sa_user.id, לתוקף 12 שעות מתגלגלות. תגובה: <code>user:{id,name,email,team,permissions}</code>. ל-Master: <code>{id, name:'מנהל על (Master)', permissions:['all']}</code>, באותו מבנה כמו היום.</div>
+<div>חישובים</div><div>bcrypt(12).</div>
+<div>מכונת מצבים</div><div>אין, מלבד הסשן.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>שומר <code>ofl_sa_token</code> ו-<code>ofl_sa_user</code>. <code>applyUserPermissions</code> ו-<code>checkTabAccess</code> ממשיכים להסתיר טאבים לפי אותה מפה. האכיפה האמיתית בשרת. polling של pending ושל online-count כל 60 שניות, ללא שינוי. <code>/api/superadmin/credentials</code> נשמר: הוא מעדכן את שורת ה-Master (username, email, ו-password ב-bcrypt) ודורש requireSAPermission('all'). <code>PUT /api/settings/tour</code> עובר ל-verifySA במקום השוואת סיסמה בהדר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-07</code> (AUTH-15) — Master כשורה ב-sa_users, bcrypt, בלי ברירת מחדל admin/123456, ו-SA_INITIAL_PASSWORD.</li>
+<li><code>AUTH-23</code> — אין יותר השוואת plaintext.</li>
+<li><code>ARC-29</code> (AUTH-17) — rate limit.</li>
+<li><code>AUTH-16</code> — סשן מגובב לתוקף 12 שעות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="superadmin otp sms superadmin_phone otp table master sms_login_enabled"><h3>כניסת SA Master ב-SMS (SUPERADMIN_PHONE)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>sa.html, שלב master. מוסתר אם <code>/api/settings/login-mode</code> מחזיר <code>smsEnabled=false</code> (system_settings <code>sms_login_enabled</code>, ברירת מחדל true).</div>
+<div>הרשאות</div><div>ציבורי מוצהר. כש-<code>sms_login_enabled=false</code>, ה-endpoints מחזירים 403 (AUTH-17, שהוחל דרך ARC-29).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>send: <code>phone !== process.env.SUPERADMIN_PHONE</code> (אחרי נרמול) או env חסר → <code>{success:false, error:"מספר הטלפון שהוזן אינו מורשה…"}</code> (200), כמו היום. Rate: 3 בשעה ו-10 ביום.</li>
+<li>verify: אין רשומה → "לא נמצאה בקשת התחברות פעילה למספר זה". פג (10 דק') → מחיקה. קוד שגוי → "הקוד שהוקלד אינו תקין". אחרי 5 ניסיונות הקוד נפסל (ARC-07, ARC-29).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>קוד 6 ספרות נשמר בטבלת OTP ב-DB (purpose 'sa_master', HMAC) במקום ב-<code>otpCache</code> (ARC-24). SMS. ב-verify: מחיקה, ו-<code>createSession</code> לשורת ה-Master (sa) לתוקף 12 שעות. התגובה באותו מבנה: <code>user:{id,name:'Super Admin Master',role:'master',email,permissions:['all']}</code>.</div>
+<div>חישובים</div><div>6 ספרות, 10 דק', 5 ניסיונות.</div>
+<div>מכונת מצבים</div><div>OTP: נשלח → אומת / פג / נפסל.</div>
+<div>תופעות לוואי</div><div>SMS.</div>
+<div>ממשק</div><div>הלקוח ממיר <code>05…</code> ל-<code>+972…</code> לפני שליחה. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>ARC-29</code> (AUTH-17) — הגבלת ניסיונות ושליחות, ו-403 כש-SMS כבוי.</li>
+<li><code>ARC-07</code> — הסשן מקושר לשורת ה-Master.</li>
+<li><code>ARC-24</code> — OTP ב-DB.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="sa staff teams rbac permissions sa_users create status blocked revoke"><h3>ניהול צוות SA (RBAC)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב HR ב-SA.</div>
+<div>הרשאות</div><div>verifySA + requireSAPermission('users') (ARC-07).</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST/PUT/DELETE /api/sa/teams</code>: <code>permissions</code> הוא JSONB, מערך מחרוזות מתוך {support, devops, marketing, stats, biz, comm, users, content, all}.</li><li><code>POST /api/sa/staff</code>: email כפול → 400 "כתובת המייל הזו כבר קיימת במערכת". סיסמה לפי AUTH-24 (6 לפחות).</li><li><code>PUT /api/sa/staff/:id</code>: סיסמה רק אם לא ריקה. status ∈ {active, blocked} (AUTH-16).</li></ul></div>
+<div>שלבי עיבוד</div><div>bcrypt(12). שינוי status לערך שאינו 'active', שינוי סיסמה או מחיקה → ביטול כל סשני ה-SA של המשתמש (AUTH-16). שינוי הרשאות צוות נכנס לתוקף בבקשה הבאה, כי verifySA טוען הרשאות מה-DB.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>sa_users.status: active ↔ blocked. במעבר ל-blocked כל הסשנים מבוטלים.</div>
+<div>תופעות לוואי</div><div>ביטול סשנים. רישום ב-audit_log (ARC-19).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-16</code> — status כ-enum וביטול סשנים בחסימה.</li><li><code>ARC-07</code> (AUTH-14) — ההרשאות נאכפות בשרת.</li><li><code>AUTH-23</code>, <code>AUTH-24</code> — bcrypt 12 ואורך מינימלי.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ZONE-MANAGER</h2>
+
+<section class="proc" data-f="zone manager register pending approve sa status commission"><h3>הרשמת מנהל אזור ואישור SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>zone-manager.html <code>zmRegister</code>. SA מאשר ב-PUT.</div>
+<div>הרשאות</div><div>הרשמה: ציבורי מוצהר, עם rate לכל IP. נתיבי SA: verifySA + requireSAPermission('users').</div>
+<div>קלט ואימותים</div><div><ul><li>חובה name, email ו-password → 400. סיסמה 6 לפחות בשרת ובלקוח. email קיים: pending → "בקשת הרשמה כבר קיימת ומחכה לאישור". active → "כתובת מייל זו כבר רשומה ופעילה במערכת". אחר → "כתובת מייל זו כבר רשומה". ההודעות נשארות, כי בזרימות הרשמה מותר לציין קיום חשבון (AUTH-44). מוגבל ל-30 בקשות בדקה לכל IP.</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT zone_managers(status 'pending', commission_pct 5, bcrypt 12). SA: <code>GET /api/sa/zone-managers/pending</code>. <code>PUT /api/sa/zone-managers/:id</code> עם <code>status</code>. <code>POST /api/sa/zone-managers</code> יוצר ישירות (status 'active').</div>
+<div>חישובים</div><div>commission_pct ברירת מחדל 5.</div>
+<div>מכונת מצבים</div><div>pending → active (SA, PUT status). active → כל ערך אחר (SA): כל סשני המנהל מבוטלים (ARC-08). מחיקה (SA DELETE): CASCADE סשנים. כניסה רק ל-active.</div>
+<div>תופעות לוואי</div><div>ביטול סשנים בשינוי status.</div>
+<div>ממשק</div><div>אחרי הרשמה מוצגת לשונית "pending". ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-08</code> (AUTH-03) — שינוי status מבטל סשנים.</li><li><code>AUTH-44</code> — ההודעות נשמרות, עם rate.</li><li><code>AUTH-24</code> — מינימום 6 גם בשרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager login zm_token zm_manager session db"><h3>כניסת מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zmLogin</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר, עם rate limit.</div>
+<div>קלט ואימותים</div><div><ul><li>Rate: 5 כישלונות ב-15 דק' לכל (email, IP) → 429 (ARC-29).</li><li>SELECT לפי email (lower) ו-status='active'. לא נמצא → 401 "פרטי גישה שגויים". bcrypt בלבד (AUTH-23).</li></ul></div>
+<div>שלבי עיבוד</div><div><code>createSession</code> עם principal_type='zm' (randomBytes(32), sha256 ב-DB, תוקף 30 יום מתגלגל). תגובה <code>{token, manager:{id,name,email,commission_pct}}</code>, ללא שינוי. לקוח: <code>zm_token</code> ו-<code>zm_manager</code>, ו-cookie HttpOnly (AUTH-43).</div>
+<div>חישובים</div><div>ראו verifyZoneManager.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>יצירת סשן.</div>
+<div>ממשק</div><div>ללא שינוי נראה. Authorization נשלח כ-Bearer (נתמך גם בלי קידומת בתקופת המעבר).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-08</code> (AUTH-03) — טוקן אקראי ב-DB במקום ZM_{id}_{ts}_{rand}.</li><li><code>ARC-29</code> (AUTH-17) — rate limit.</li><li><code>AUTH-23</code> — בלי plaintext.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager forgot reset password zm_password_resets base_url"><h3>שחזור סיסמת מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zmForgotSubmit</code> ו-<code>zmResetSubmit</code>. קישור <code>/zone-manager.html?reset=TOKEN</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר.</div>
+<div>קלט ואימותים</div><div><ul><li>forgot: email חובה. תמיד success, בלי רמז אם המייל קיים (AUTH-41, AUTH-44). Rate: 3 בשעה לכל מייל.</li><li>reset: token וסיסמה באורך 6 לפחות, אחרת 400 "טוקן או סיסמה לא תקינים". לא קיים, נוצל או פג → 400 "הקישור לא תקף או שפג תוקפו — בקש קישור חדש".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>forgot: אם קיים מנהל active → randomBytes(32), ו-INSERT <code>zm_password_resets(manager_id, token_hash, expires_at=now+1h, used=false)</code>. הקישור נבנה מ-<code>BASE_URL</code> בלבד. נשלח מייל.</li><li>reset: UPDATE bcrypt(12). used=true. ביטול כל סשני המנהל.</li></ol></div>
+<div>חישובים</div><div>תוקף שעה.</div>
+<div>מכונת מצבים</div><div>reset token: נוצר → נוצל / פג.</div>
+<div>תופעות לוואי</div><div>מייל וביטול סשנים.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-41</code> — טבלה ב-DB, טוקן קריפטוגרפי, BASE_URL ובלי רמזים.</li><li><code>AUTH-09</code> — ביטול סשנים.</li></ul></div>
+</div></section>
+
+<h2 class="grp">STOREFRONT — לקוח קצה</h2>
+
+<section class="proc" data-f="storefront sc-auth send-otp verify-otp storefront_otp registration_token email channel isnew"><h3>OTP לקוח חנות (sc-auth send/verify)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "🔑 כניסה" צף בחנות (sc-auth.js <code>_injectHeaderBtn</code>) → מודל טלפון → קוד.</div>
+<div>הרשאות</div><div>ציבורי מוצהר.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>send: phone חובה. <code>cleanPhone</code> מחושב ב-normalizePhone (ספרות בלבד, 972→0), ונדרשות 9–15 ספרות, אחרת "מספר טלפון לא תקין". ערוץ email: email מה-body או מהלקוח הקיים, עם regex, אחרת "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li>
+<li>Rate: 3 בשעה ו-10 ביום לכל טלפון, לפי otp_send_log → "נשלחו יותר מדי קודים — נסה שוב מאוחר יותר" (ARC-29).</li>
+<li>verify: OTP אחרון שלא נוצל ובתוקף. <code>attempts&gt;=5</code> → used=true + "יותר מדי ניסיונות — שלח קוד חדש". bcrypt.compare נכשל → attempts+1 + "קוד שגוי". ללא שינוי.</li>
+<li>כל התגובות HTTP 200 עם <code>success:false</code>, כמו היום. כל handler עטוף ב-try/catch, ושגיאה מחזירה 500 (AUTH-38, ARC-33).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: קוד 6 ספרות, bcrypt(10) (ARC-31), תוקף 10 דק', INSERT storefront_otp(channel, email). שליחה במייל או ב-SMS (E.164). הדפסת הקוד ללוג רק בסביבה שאינה production. תגובה <code>{isNew, smsSent, channel}</code>.</li><li>verify בהצלחה: used=true. אין לקוח, או לקוח "שקט" בלי PIN → <code>{isNew:true, phone, registration_token}</code>. registration_token הוא randomBytes(32), ה-hash שלו נשמר ב-storefront_otp עם purpose='register', תוקף 15 דק', חד-פעמי וקשור לטלפון (AUTH-04). לקוח עם PIN → <code>createSession</code> (storefront) → <code>{token, customer}</code> בלי pin_hash.</li></ol></div>
+<div>חישובים</div><div>OTP: 10 דק' (כמו היום ל-OTP כניסה), 5 ניסיונות.</div>
+<div>מכונת מצבים</div><div>OTP: נשלח → אומת / פג / נפסל. registration_token: תקף → נוצל ב-register / פג.</div>
+<div>תופעות לוואי</div><div>SMS או מייל.</div>
+<div>ממשק</div><div>שמירה: <code>sc_auth_token</code>, <code>sc_customer</code>. ב-init, <code>_verifySession</code> קורא ל-<code>/api/sc-auth/me</code>, וכישלון מנקה. ה-registration_token נשמר בזיכרון ונשלח בטופס ההרשמה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-04</code> — הנפקת registration_token.</li>
+<li><code>AUTH-38</code> — try/catch בכל handler.</li>
+<li><code>ARC-29</code> — 3 בשעה ו-10 ביום (במקום 3 ל-10 דק').</li>
+<li><code>ARC-31</code> — bcrypt cost 10. <code>AUTH-34</code> — normalizePhone.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront sc-auth register pin customer family_group solo shopper registration_token"><h3>הרשמת לקוח חנות (sc-auth/register)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי verify עם isNew → טופס הרשמה (sc-auth.js <code>register</code>).</div>
+<div>הרשאות</div><div>ציבורי מוצהר. נדרש registration_token תקף לטלפון (AUTH-04).</div>
+<div>קלט ואימותים</div><div><ul><li>registration_token חסר, לא תואם לטלפון, פג או נוצל → 400 "יש לאמת את הטלפון מחדש". הוא נצרך אטומית (DELETE … RETURNING).</li><li>חובה phone, firstName, lastName ו-pin → "חסרים שדות חובה". pin חייב להיות בדיוק 6 ספרות → "PIN חייב להיות 6 ספרות".</li><li>לקוח קיים עם pin_hash → "מספר טלפון זה כבר רשום — נסה להתחבר". לקוח קיים בלי PIN ("שקט") → השלמה, אחרי הוכחת OTP.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction. pinHash=bcrypt(12).</li><li>קישור משפחה, ללא שינוי: user עם טלפון מנורמל זהה בקבוצה active (עדיפות FAMILY, אחר כך BUSINESS) → family_group_id שלה. אחרת INSERT family_groups (FAMILY, plan solo, code מ-generateGroupCode האחיד (AUTH-45), account_kind shopper (ARC-20)), ו-user ADMIN active עם הטלפון המנורמל ובלי סיסמה.</li><li>UPDATE או INSERT storefront_customers.</li><li>COMMIT. <code>createSession</code> (storefront) → <code>{token, customer}</code>.</li></ol></div>
+<div>חישובים</div><div>קוד קבוצה ייחודי עם ניסיון חוזר, במקום 'SC'+6 ספרות שעלול להתנגש.</div>
+<div>מכונת מצבים</div><div>storefront_customer: לא קיים / שקט → רשום (עם PIN).</div>
+<div>תופעות לוואי</div><div>יצירת קבוצת shopper אם צריך.</div>
+<div>ממשק</div><div>ללא שינוי בטופס. ה-token מצורף אוטומטית.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-04</code> — הוכחת OTP חובה.</li><li><code>AUTH-45</code> — קוד קבוצה אחיד.</li><li><code>ARC-11</code> — טרנזקציה. <code>AUTH-23</code> — bcrypt 12 ל-PIN.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront pin verify-pin change-pin forgot-pin reset-pin lockout sa reset table"><h3>PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אישור פעולות רגישות (verify-pin), פרופיל (change-pin) ו"שכחתי PIN". ללא שינוי.</div>
+<div>הרשאות</div><div>verify-pin ו-change-pin: סשן storefront. forgot-pin ו-reset-pin: ציבורי מוצהר. איפוס ע"י SA: verifySA + requireSAPermission('support').</div>
+<div>קלט ואימותים</div><div><ul>
+<li>verify-pin: מונה בטבלה <code>pin_attempts(customer_id, attempts, locked_until)</code> (AUTH-38, ARC-24). <code>SC_PIN_MAX_ATTEMPTS=5</code>, <code>SC_PIN_LOCKOUT_MINUTES=15</code>. נעול → "יותר מדי ניסיונות — נסה שוב בעוד N דקות" + <code>locked:true</code>. שגוי → "PIN שגוי (X ניסיונות נוספים)". הצלחה מוחקת את המונה. <b>בסיום הנעילה המונה מתאפס.</b></li>
+<li>change-pin: currentPin ו-newPin. newPin בן 6 ספרות. current נבדק (נספר במונה).</li>
+<li>forgot-pin: תגובה אחידה תמיד, "אם המספר רשום — נשלח קוד" (AUTH-44). Rate: עד 3 קודים ל-10 דק' לכל טלפון (AUTH-38). OTP purpose <code>pin_reset</code>, bcrypt(10), תוקף 10 דק'.</li>
+<li>reset-pin: OTP אחרון בתוקף, bcrypt.compare, עד 5 ניסיונות לקוד ואז הוא מבוטל (AUTH-38). UPDATE pin (bcrypt 12).</li>
+<li>SA: <code>POST /api/sa/sc-customers/:id/reset-pin</code> שולח OTP pin_reset ב-SMS, בתוקף 10 דק' (ARC-29).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>כל handler עטוף ב-try/catch, ושגיאה מחזירה 500. איפוס PIN מבטל את סשני הלקוח האחרים.</div>
+<div>חישובים</div><div>5 כישלונות → נעילה ל-15 דק' → איפוס המונה.</div>
+<div>מכונת מצבים</div><div>מונה PIN: open → locked (5 כישלונות) → open (מונה=0) אחרי 15 דק' או בהצלחה.</div>
+<div>תופעות לוואי</div><div>SMS.</div>
+<div>ממשק</div><div>ללא שינוי, חוץ מהודעת forgot-pin האחידה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-38</code> — מונה בטבלה שמתאפס, rate ל-forgot-pin, הגבלת ניסיונות ל-reset-pin, ו-try/catch.</li>
+<li><code>AUTH-44</code> — forgot-pin לא חושף קיום חשבון.</li>
+<li><code>ARC-29</code> — תוקף אחיד של 10 דק' (איפוס SA: 30 דק' → 10 דק').</li>
+<li><code>ARC-07</code> — הרשאת support לאיפוס ע"י SA.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront sso token family sso-login my-families goToOFL phone match"><h3>SSO מהחנות לאפליקציית המשפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור מעבר ל-OFL (sc-auth.js <code>goToOFL</code>) → טאב חדש <code>/?sso_token=…</code> → app.js.</div>
+<div>הרשאות</div><div>my-families ו-sso-token: סשן storefront. sso-login: ציבורי מוצהר, וה-sso_token הוא ההוכחה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>GET /api/sc-auth/my-families</code>: לכל לקוח מוחזר רק <code>family_group_id</code>. מסלול ריבוי המשפחות של <code>SC_MULTI_FAMILY_TEST_PHONE</code> פעיל רק כש-NODE_ENV!='production' (ARC-31).</li>
+<li><code>GET /api/sc-auth/sso-token[?familyGroupId]</code>: ברירת המחדל היא family_group_id של הלקוח. בחירה ידנית רק במסלול הבדיקה, עם אימות users.phone.</li>
+<li><code>GET /api/family/sso-login?token</code>: token שלא נוצל ובתוקף, אחרת "טוקן לא תקין או פג". אין family_group_id → "אין חשבון משפחה מקושר". type BUSINESS → 403 "חשבון עסקי אינו נגיש דרך חנות לקוח". <b>המשתמש נבחר לפי טלפון</b>: users active בקבוצה שהטלפון המנורמל שלהם שווה לטלפון של storefront_customer. אין התאמה → 403 "לא נמצא משתמש משפחה תואם למספר זה", בלי fallback ל-ADMIN (AUTH-05). כמה התאמות → <code>{choose:[{user_id,nickname}]}</code>, והלקוח בוחר ושולח שוב עם user_id (ה-token נשאר תקף עד שנוצל או פג).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>sso-token: randomBytes(48).hex, תוקף 60 שניות, INSERT storefront_sso_tokens. sso-login: used=true. <code>createSession(fgId, matchedUser.id, 'storefront-sso')</code> → <code>{familyGroup, user: sanitizeUser, sessionToken}</code>. לקוח: חוסם BUSINESS, ושומר את <code>ofl_session</code> ואת <code>wfz_token</code>. ללא שינוי, חוץ מהמפתח. מוחק את <code>ofl_sa_token</code>.</div>
+<div>חישובים</div><div>תוקף sso-token: 60 שניות.</div>
+<div>מכונת מצבים</div><div>sso-token: תקף → נוצל / פג.</div>
+<div>תופעות לוואי</div><div>יצירת סשן משפחה.</div>
+<div>ממשק</div><div>ללא שינוי, חוץ ממסך בחירה כשיש כמה משתמשים תואמים. לקוח חנות שנרשם יצר משתמש ADMIN עם הטלפון שלו, ולכן ההתאמה קיימת במסלול הרגיל.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-05</code> — הסשן נפתח למשתמש בעל הטלפון בלבד, עם בחירה כשיש כמה, ובלי fallback ל-ADMIN.</li><li><code>ARC-31</code> — טלפון הבדיקה רק בפיתוח.</li><li><code>AUTH-07</code> — sanitizeUser.</li></ul></div>
+</div></section>
+
+<h2 class="grp">אחסון טוקנים בלקוח וצירופם לבקשות</h2>
+
+<section class="proc" data-f="localstorage ofl_session wfz_token ofl_family_token ofl_sa_token zm_token sc_auth_token authorization bearer cookie apifetch"><h3>מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירת זהות בין טעינות. ב-TO-BE: cookie HttpOnly; Secure; SameSite=Lax לטוקני FAMILY, BIZ, SA ו-ZM, עם הגנת CSRF (double-submit) לבקשות כתיבה (AUTH-43). הדר Authorization: Bearer נתמך (ARC-01) לחנות, ל-embeds ולתקופת המעבר.</div>
+<div>הרשאות</div><div>לקוח.</div>
+<div>קלט ואימותים</div><div><div class="tbl-wrap"><table><tr><th>מפתח</th><th>תוכן</th><th>נכתב ע"י</th><th>נקרא ע"י / צירוף</th></tr>
+<tr><td><code>ofl_session</code></td><td>JSON <code>{user, group}</code>, כש-user עבר sanitizeUser. בלי token ובלי isImpersonating</td><td>saveSession בכל הלקוחות, SSO</td><td>onload של כל אפליקציה. type BUSINESS↔FAMILY מנתב בין <code>/</code> ל-<code>/business.html</code>. ללא שינוי</td></tr>
+<tr><td><code>wfz_token</code> (חדש, AUTH-27, ARC-39)</td><td>טוקן הסשן FAMILY/BIZ</td><td>כל זרימות הכניסה וההרשמה. מיגרציה חד-פעמית מ-<code>ofl_family_token</code> או <code>ofl_session.token</code></td><td><code>apiFetch</code> בכל הלקוחות (app.js, business-app.js, kol-haam-app.js, marketplace, storefront-btype, family-onboarding) מוסיף <code>Authorization: Bearer</code> (בנוסף ל-cookie). 401 מוביל להתנתקות ולמסך הכניסה</td></tr>
+<tr><td><code>window._bizToken</code></td><td>מוחלף</td><td>—</td><td>business-app קורא דרך apiFetch מ-<code>wfz_token</code>, ולכן כניסה מ-index או מ-family-onboarding עובדת</td></tr>
+<tr><td><code>ofl_sa_token</code>, <code>ofl_sa_user</code></td><td>טוקן SA, ופרטי משתמש להצגה</td><td>sa-app</td><td><code>saFetch</code> ו-<code>_saHeaders</code>: <code>Authorization: Bearer</code>. ההרשאות להצגה בלבד, והאכיפה בשרת</td></tr>
+<tr><td><code>ofl_sa_return_token</code></td><td>מוסר</td><td>—</td><td>— (AUTH-21)</td></tr>
+<tr><td>sessionStorage (התחזות)</td><td>טוקן התחזות ו-<code>{user,group,isImpersonating}</code></td><td>הטאב שנפתח בהשתלטות</td><td>apiFetch מעדיף sessionStorage בטאב הזה</td></tr>
+<tr><td><code>zm_token</code>, <code>zm_manager</code></td><td>טוקן ZM, ופרטי מנהל</td><td>zmLogin</td><td><code>Authorization: Bearer</code></td></tr>
+<tr><td><code>sc_auth_token</code>, <code>sc_customer</code></td><td>טוקן storefront, ולקוח</td><td>scAuth._saveSession</td><td><code>Authorization: Bearer</code>. ללא שינוי</td></tr>
+<tr><td><code>ofl_token</code>, <code>token</code>, <code>family_token</code></td><td>—</td><td>לא קיימים</td><td>הקריאות ב-app.js (tickets, inbox, chat: 10042-11486, 8851, 16016) עוברות ל-apiFetch. הפיצ'רים נשמרים ומתחילים לעבוד (AUTH-28 בגרסה המתוקנת)</td></tr>
+</table></div></div>
+<div>שלבי עיבוד</div><div><ol><li>wrapper אחד <code>apiFetch</code> לכל קריאה מאומתת (AUTH-28): מצרף Bearer מהמפתח היחיד ואת כותרת ה-CSRF. ב-401: ניקוי מפתחות הסביבה ומעבר לכניסה.</li><li>כשה-quota מלא בשמירת session ב-app.js: מחיקת כל המפתחות פרט ל-ofl_sa_token, ofl_session ו-wfz_token, ונסיון חוזר. הלוגו נשמר בנפרד ב-<code>ofl_logo_&lt;groupId&gt;</code>. ללא שינוי.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי נראה. משתמשים מחוברים נשארים מחוברים בזכות המיגרציה המקומית של המפתח.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>AUTH-27</code> — מפתח טוקן יחיד (<code>wfz_token</code>), ו-business.html עובד אחרי כניסה מכל מסלול.</li>
+<li><code>AUTH-28</code> — apiFetch אחיד, וקריאות מפתחות מתים מתוקנות ולא מוסרות (בגרסה המתוקנת).</li>
+<li><code>AUTH-43</code> — cookie HttpOnly עם CSRF. Bearer נתמך.</li>
+<li><code>AUTH-21</code> — התחזות ב-sessionStorage, והסרת ofl_sa_return_token.</li>
+<li><code>AUTH-07</code> — אין password_hash באחסון.</li>
+</ul></div>
+</div></section>

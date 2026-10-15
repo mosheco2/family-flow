@@ -1,0 +1,795 @@
+<div class="intro">
+<p><b>מפרט TO-BE — ארכיטקטורה ופלטפורמה (ARC).</b> המסמך מגדיר את כללי היעד החוצים שכל מפרטי הדומיין (tobe-auth, tobe-family, tobe-biz, tobe-store, tobe-restaurant, tobe-sport, tobe-beauty ואחרים) נשענים עליהם בהפניה לפי מזהה. הוא בנוי מ-35 סעיפים ב-8 קבוצות. בכל סעיף מופיעים: מצב קיים (קצר, עם ציטוט), כלל יעד, החלטות שהוחלו ו<b>הערות מיגרציה</b> שמבטיחות שאף נתון ואף גישה קיימת לא אובדים. מקורות המצב הקיים: s1-rbac, s1-erd, s1-bizmatrix, s1-seed, s1-messages, s1-prompts ו-ops.html, וקריאה ישירה של הקוד במקומות שבהם נדרש אימות.</p>
+<p><b>כלל-העל (גובר על כל הצעה):</b> המפרט שומר על מהות המערכת ועל כל יכולת ופעולה שמשתמש יכול לבצע היום. מתקנים את מה ששבור, מאבטחים את מה שפתוח ומאחדים את מה שאינו עקבי, אבל לא מסירים, לא מצמצמים ולא מגדירים מחדש באופן מהותי יכולת קיימת.</p>
+<p><b>החלטות שהוחלו:</b> כל 43 פריטי ARC (אין ביניהם פריטי dup_of). סיווג: HARDEN 21, CONSISTENCY 13, FIX 6, BEHAVIOR 1, SCOPE 2. בנוסף הוחלו 19 פריטים כפולים דרך הפריט הקנוני שלהם ב-ARC: AUTH-03, COM-02→<code>ARC-08</code>; AUTH-12, BIZ-01, STR-01, LOG-01→<code>ARC-03</code>; AUTH-14, AUTH-15, SA-02→<code>ARC-07</code>; AUTH-17→<code>ARC-29</code>; SA-01→<code>ARC-10</code>; FAM-12, BIZ-25, COM-27, SA-30→<code>ARC-11</code>; BIZ-16→<code>ARC-17</code>; STR-24, LOG-08→<code>ARC-21</code>; STR-43→<code>ARC-14</code>. פריטי SA ו-AUTH קנוניים שמפרטים את הכללים החוצים מוזכרים לפי מזהה בסעיפים הרלוונטיים (SA-03, SA-06..SA-09, SA-11..SA-16, SA-22, SA-23, SA-42, SA-46, SA-47, SA-49..SA-51, SA-54, SA-55, SA-58, SA-59; AUTH-13, AUTH-18, AUTH-20, AUTH-30..AUTH-32, AUTH-34, AUTH-40, AUTH-42, AUTH-43). כך גם תיקוני דומיין שכבר נקבעו ומחייבים את השכבה החוצה: STR-02, STR-03, STR-36, STR-49, BIZ-12, RST-03, BTY-46, SPT-19, FAM-02.</p>
+<p><b>יישוב סתירות בין פריטים מאושרים:</b></p>
+<ul>
+<li>נשיאת טוקן: <code>ARC-01</code> קובע Authorization: Bearer, ו-AUTH-43 קובע cookie HttpOnly. <code>authenticate()</code> מקבל את שניהם: cookie (עם CSRF double-submit בכתיבה) לאפליקציות FAMILY/BIZ/SA/ZM, ו-Bearer לחנות, ל-embeds ולתקופת המעבר. זהה ל-tobe-auth.</li>
+<li>תוקף סשן: FAMILY/BIZ/ZM/storefront — 30 יום מתגלגלים (הארכה לכל היותר פעם ב-24 שעות) עם תקרה של 90 יום מ-created_at. SA — 12 שעות מתגלגלות. התחזות — שעה קבועה (<code>ARC-09</code>, AUTH-20, SA-06).</li>
+<li>OTP: חלים המספרים של <code>ARC-29</code> (6 ספרות, 10 דק', 5 ניסיונות לקוד, 3 שליחות בשעה ו-10 ביום לטלפון) על כל הזרימות, כולל SA ו-AUTH-17.</li>
+<li>חיוב סוללת AI: SA-13 מחייב סוללה בכל נתיב AI של לקוח, ו-STR-36 (מתוקן) קובע שיצירת תמונה, שאינה נספרת היום, לא תצרוך סוללה. הכלל האחיד כאן: סוללה נצרכת בדיוק בפיצ'רים שצורכים אותה היום (handleAITokens), ורק על תשובה מוצלחת (SA-14). פיצ'רים שאינם נספרים היום מקבלים אימות, rate limit ולוג שימוש, בלי סוללה (ראו <code>ARC-30</code>).</li>
+<li>מגבלת ייחודיות טלפון ללקוח: <code>ARC-14</code> הציע UNIQUE(group_id, phone_normalized). BTY-46 ו-SPT-19 (מתוקנים) מתירים טלפון משותף. האילוץ חל רק על לקוחות שאינם מסומנים <code>shared_phone</code>.</li>
+</ul>
+<p><b>פריטים שתוקנו לפי כלל-העל (24), בפורמט: מזהה → למה תוקן → כלל סופי:</b></p>
+<ul>
+<li><code>ARC-02</code> → רשימת הנתיבים הציבוריים בהצעה חסרה משטחים ציבוריים שעובדים היום (קטלוגים וזמינות יופי, רכישה ציבורית בספורט, הזמנת שולחן, סקר ציבורי, טופס ליד, חזית חנות מורחבת, מדריכים, קול העם לקריאה, הגדרות ציבוריות) → default-deny נשמר, וה-allowlist הוא רשימה מפורשת של <b>כל</b> משטח ציבורי שקיים היום (סעיף "רשימת נתיבים ציבוריים"), כל אחד עם נימוק, מזהה ציבורי (קוד חנות/טוקן) במקום groupId והגבלת קצב.</li>
+<li><code>ARC-03</code> → הסרה מיידית של ה-fallback תשבור מסכי חנות, לוגיסטיקה ותפריטים שהלקוח שולח בלי טוקן → ה-fallback מוסר אחרי שכל קריאות הלקוח עוברות ל-apiFetch עם Bearer (מדד: ספירת לוג legacy = 0). נתיבים שמשרתים דפים ציבוריים עוברים ל-allowlist עם קוד חנות ציבורי (זהה ל-AUTH-12 ב-tobe-auth).</li>
+<li><code>ARC-05</code> → "pending_activation מקבל רק נתיבי הפעלה" היה חוסם את טעינת המסך שמציג את מודל ההפעלה → קבוצה ב-pending_activation מקבלת נתיבי GET של טעינה, solo/activate, solo/status ו-logout. כל כתיבה אחרת מחזירה 403 "יש להשלים הפעלת חשבון".</li>
+<li><code>ARC-06</code> → מטריצת פעולות חדשה לפי תפקיד עלולה לחסום פעולות שעובדים מבצעים היום. בנוסף, משתמשי FAMILY עם MANAGER/SENIOR היו מאבדים גישה → מטריצת השרת <b>נגזרת</b> מנראות הטאבים הקיימת (ROLE_DEFAULTS, permissions.tabs, ROLE_TYPE_TABS, בעלים, טאבים תמיד-פתוחים). אכיפת route→tab חלה רק על נתיבים ייעודיים לטאב (BIZ-12). נתיבים משותפים וגישה עצמית פתוחים לכל משתמש פעיל. MANAGER/SENIOR במשפחה ממוגרים ל-MEMBER עם permissions מותאם ששומר את הטאבים האפקטיביים (AUTH-30).</li>
+<li><code>ARC-07</code> → מפת לשוניות→הרשאה שמבוססת רק על applyUserPermissions הייתה חוסמת לשוניות שצוות SA פותח היום (◐ דרך חיפוש ו-?tab=, ולשוניות "ברירת מחדל: מותר"). בנוסף, כפתור "כניסה לסביבה" זמין היום לכל איש צוות בלשונית הלקוחות (sa-app.js:2571) → הרשאת השרת לכל לשונית נגזרת מ-checkTabAccess (מה שנגיש היום), ולשונית לא ממופה ממופה ל-'open'. התחזות היא הרשאה חדשה <code>impersonate</code>, שהמיגרציה מעניקה לכל צוות קיים, ו-Master יכול להסיר אותה בהמשך. כל השאר כפי שהוצע (sa_user_id בסשן, bcrypt, audit, OTP).</li>
+<li><code>ARC-10</code> → "זריעת דמו דורשת devops" הייתה חוסמת את כפתור "🌱 הזן נתוני דוגמה" בלשונית קול העם ב-SA, שזמין היום לכל צוות (sa-app.js:14542) → נתיבי HTTP שמריצים DDL, איפוס או דיבאג מוסרים מהייצור. זריעת תוכן דמו מה-SA נשארת זמינה מאותם מסכים לאותו צוות, דרך נתיב <code>/api/sa/*</code> מאומת עם audit ותיוג is_demo. הסוד הקבוע מוסר. <code>/api/sa/test-email</code> נשמר.</li>
+<li><code>ARC-14</code> → UNIQUE קשיח על טלפון היה חוסם כרטיסים לבני משפחה עם טלפון משותף, שאפשריים היום (BTY-46, SPT-19). בנוסף, מיגרציה גסה הייתה מאחדת לקוחות שונים → UNIQUE חלקי (WHERE NOT shared_phone). המיגרציה מאחדת רק התאמה ודאית (טלפון ושם). התאמה לא ודאית יוצרת לקוחות נפרדים עם shared_phone=true. כל עמודות הוורטיקל נשמרות בטבלאות ההרחבה.</li>
+<li><code>ARC-15</code> → כלל "אין יתרה שלילית" היה חוסם הוצאות במשפחה שמורידות את יתרת ההורה מתחת לאפס, ומותרות היום → allow_negative נקבע לכל מטבע לפי ההתנהגות של היום: ILS_FAMILY מותר, ושאר המטבעות (FLW_KID, FLOW, ILS_CASHBACK, ILS_STORE_CREDIT) אסורים, כמו שהקוד בודק היום.</li>
+<li><code>ARC-17</code> → "העסק לא יכול לשנות זכאות בתשלום" היה מבטל את הפעלת "ממשקי תפקיד" (₪/חודש לממשק) שה-ADMIN מפעיל היום בעצמו במסך ההגדרות (business-app.js:42122) → ההפעלה העצמית נשמרת, ויוצרת זכאות <code>source='addon'</code> שנכנסת לחיוב לפי המחירון. מתגי "פעולות שירות עצמי" (ss_*) אינם זכאות בתשלום, והם עוברים להגדרות הקבוצה. מיגרציה מעניקה לכל עסק קיים זכאות לכל מה שנגיש לו היום (STR-02, AUTH-13).</li>
+<li><code>ARC-18</code> → ההחלטה "kds מודול נפרד או יימחק" וביטול ההבדלים בין שתי הרשימות עלולים להעלים מודולים שמוצגים היום → ברירת המחדל לכל סוג עסק היא <b>האיחוד</b> של BUSINESS_TYPES ו-BIZ_TYPE_MODULES. kds נשמר כמודול של מסעדה. store_only מקבל את רשימת STR-49. מודולי יופי ולוגיסטיקה נמכרים גם כחבילה וגם כמודול בודד, כמו במחירון היום.</li>
+<li><code>ARC-19</code> → האיחודים (ב)-(ה) כלשונם היו מבטלים צירי זמן שמוצגים בממשק, ומאחדים מושגים שאינם זהים (שיעורי ספורט קבוצתיים, קטלוג ספקים, מלאי) → appointments מאחדת תורים 1:1 בלבד. sport_classes נשאר ישות, ומשתתף במנוע הזמינות. catalog_items מאחד פריטים שהעסק מוכר, ומלאי וקטלוג ספקים נשארים נפרדים. צירי הזמן התחומיים (routine_event_log, work_order_timeline, logistics_order_events) נשארים, וכותבים גם ל-audit_log. טבלאות לא-בשימוש ולגאסי לא נבנות כטבלאות פעילות, והנתונים שלהן מועברים לסכמת archive ולא נמחקים.</li>
+<li><code>ARC-20</code> → ביטול member_type='biz' בלי מיגרציה היה חוסם כניסה לעסקי "member biz" (FAMILY עם member_type='biz', server.js:8184) → קבוצה כזו ממוגרת ל-tenant_type='BUSINESS'. הכניסה, הנתונים וקישורי member_business_links נשמרים.</li>
+<li><code>ARC-21</code> → "ערך מע"מ לא נשמר בלקוח" היה מבטל את שדה המע"מ ואת "ללא מע"מ" בהצעת מחיר (business-app.js:12353), שהמשתמש עורך היום → ברירת המחדל מגיעה מ-calcVat, והעקיפה לכל מסמך (vatRate, noVat) נשמרת במסמך עצמו, כמו ב-tobe-store. רק ההעדפה ב-localStorage מוסרת.</li>
+<li><code>ARC-26</code> → רשימת סוגים מצומצמת, ואיסור SVG, היו חוסמים העלאות שעובדות היום (<code>accept="image/*"</code>: לוגו SVG, HEIC ממצלמה) ואת ייבוא Excel/CSV → png/jpg/webp/gif/pdf נשמרים כפי שהם. HEIC/HEIF מומר ל-JPEG. SVG מומר לרסטר PNG ולעולם לא מוגש כ-image/svg+xml. ייבוא xlsx/xls/csv מנותח ולא נשמר כקובץ מוגש.</li>
+<li><code>ARC-27</code> → "sanitize לתוכן עשיר בקול העם בלבד" היה הופך לטקסט פשוט שדות HTML עשיר נוספים שקיימים היום → sanitize לפי allowlist חל על כל שדה עשיר שקיים היום: קול העם, מסמכים משפטיים (SA-55), תוכן אתר מקצועי, סקשני מיתוג וגופי ניוזלטר/שיווק.</li>
+<li><code>ARC-28</code> → מגבלת גוף של 1MB הייתה שוברת נתיבים שמקבלים היום base64 בגוף JSON (לוגו, רקע, חתימה, צרופת PDF למייל, parse-pdf) → 1MB כברירת מחדל. 10MB מוגדר במפורש לנתיבים שמקבלים base64 או קבצים, עד שהמעבר לאחסון אובייקטים (ARC-26) מסתיים בכל אחד מהם.</li>
+<li><code>ARC-30</code> → חיוב מכסה בכל קריאת AI, וחיוב סשן לכל קריאה, היו מצמצמים פיצ'רים שזמינים היום בלי סוללה (יצירת תמונה, פיצ'רי SA ו-ZM) ואת עוזר המדריך הציבורי → סוללה רק בפיצ'רים שצורכים אותה היום, ורק על הצלחה. עוזר המדריך ציבורי דרך השרת עם הגבלת IP (SA-12). פיצ'רי SA ו-ZM נשמרים במלואם עם לוג. ניתוח הפיד הקהילתי ב-Claude נשמר.</li>
+<li><code>ARC-31</code> → "סיסמת דמו מוצגת פעם אחת ולא נשמרת" הייתה מבטלת את היכולת של SA לראות פרטי כניסה לעסק דמו ולמסור אותם → SA יכול בכל רגע ללחוץ "אפס והצג סיסמת דמו", שמגרילה סיסמה חדשה, מציגה אותה פעם אחת ושומרת רק bcrypt.</li>
+<li><code>ARC-32</code> → מחיקה אוטומטית 30 יום אחרי archived הייתה מבטלת את היכולת של SA לשחזר חשבון מארכיון (SA-22) → תקופת השמירה ניתנת להגדרה. בתום התקופה הקבוצה נכנסת לרשימת "מועמדים לאנונימיזציה" שדורשת אישור SA. המחיקה הרכה של SA-23 (30 יום) נשארת כפי שהיא. בקשות ייצוא ומחיקה של נושא מידע מבוצעות.</li>
+<li><code>ARC-34</code> → מעבר ל-/api/v1 ושינוי שמות היו שוברים קישורים שכבר נשלחו (/c/*, מעקב משלוח, קמפיינים), embeds ודפים ציבוריים → הנתיבים הישנים נשארים aliases לאותו handler. קישורי טוקן שנשלחו ללקוחות נתמכים ללא הגבלת זמן.</li>
+<li><code>ARC-35</code> → ברירת המחדל "להשמיט נתיב בלי קורא" עלולה להסיר יכולת → ברירת המחדל היא לשמור. מסירים רק (א) נתיבי DDL, איפוס ודיבאג (ARC-10), (ב) רישום כפול של אותו method+path, ו-(ג) מימוש כפול שהיכולת שלו ניתנת במלואה על ידי נתיב אחר עם קורא, אחרי אימות. נתיב ייחודי בלי ממשק נשמר ומסומן "API ללא ממשק (backlog)".</li>
+<li><code>ARC-36</code> → "להסיר את הכפתור" (identify-product, ai-bg) מסיר יכולת שהממשק מציע → כל קריאת לקוח לנתיב חסר ממומשת כנתיב המיועד או ממופה לנתיב קיים שמבצע אותה פעולה. אף כפתור לא מוסר.</li>
+<li><code>ARC-38</code> → העברת public/docs לתיקייה שאינה מוגשת הייתה שוברת את מציג המסמכים הפנימיים ב-SA (DOCS_CONFIG) → מסמכים פנימיים מוגשים ל-SA בנתיב מאומת (system_docs, SA-59). דפי שיווק ומדריכים ציבוריים נשארים ציבוריים. מוסרים רק קבצי גיבוי, לגאסי וקבצים לא קשורים.</li>
+<li><code>ARC-40</code> → "עברית בלבד" היה מבטל תוכן עסקי דו-לשוני שקיים היום (name_en, slogan_en, welcome_message_en, שמחולל העסקים מפיק כשנבחרה אנגלית) → ממשק המערכת בעברית בלבד. שדות התוכן הדו-לשוניים של העסק והצגתם בחזית נשמרים.</li>
+</ul>
+<p>מקרא: "סשן" = <code>req.principal</code> (ARC-01). ציוני file:line מתייחסים לקוד הנוכחי (server.js, public/*). בכל סעיף, "מצב קיים" מתאר את ה-as-built, ו"כלל יעד" מתאר רק מה שמחייב את כל הדומיינים.</p>
+</div>
+
+<h2 class="grp">עקרונות יעד</h2>
+
+<section class="proc" data-f="principles governing rule default deny server source of truth stateless idempotent"><h3>עקרונות היעד של הפלטפורמה</h3>
+<div class="kv">
+<div>מצב קיים</div><div>מונוליט אחד: server.js עם 46,397 שורות ו-1,511 נתיבים, וכ-2,200 שורות נתיבים אחרי <code>app.listen</code> (44130). business-app.js כ-62 אלף שורות. אין router מאוחד ואין auth גלובלי (ops.html, שרשרת middleware). 299 טבלאות נוצרות בזמן ריצה (s1-erd). שבעה מנגנוני אימות, שבעה מקורות זכאות, שבעה ייצוגי לקוח, תשעה ערוצי הודעות, 17 תהליכי רקע ב-setInterval.</div>
+<div>כלל יעד</div><div><ol>
+<li><b>שימור יכולות:</b> כל שינוי ארכיטקטוני מוגדר כך שכל משתמש, תפקיד ואיש צוות שומר כל פעולה שהוא מבצע היום. כל מיגרציה מוכחת בדוח "לפני/אחרי" (גישות, יתרות, ספירות רשומות).</li>
+<li><b>השרת הוא מקור האמת:</b> הרשאות, זכאות למודולים, מחירים, מע"מ, יתרות ומכסות מחושבים ונאכפים בשרת. הלקוח מציג את מה שהשרת מחזיר. localStorage משמש רק כמטמון ולהעדפות תצוגה.</li>
+<li><b>Default-deny:</b> כל נתיב דורש סשן, חוץ מ-allowlist מוצהרת (ARC-02).</li>
+<li><b>זהות ודיירות מהסשן:</b> groupId, userId ותפקיד נלקחים רק מ-<code>req.principal</code>, וכל גישה לנתון מסוננת לפי group_id (ARC-04).</li>
+<li><b>אטומיות ואידמפוטנטיות:</b> כל פעולה שכותבת לכמה טבלאות, או משנה כסף, רצה בטרנזקציה אחת. כל תופעת לוואי כספית מתבצעת פעם אחת בלבד (ARC-11, ARC-15, ARC-23).</li>
+<li><b>Stateless:</b> שרת ה-web לא מחזיק מצב בזיכרון. סשנים, OTP, נעילות ומונים נשמרים ב-Postgres (ARC-24).</li>
+<li><b>סכמה מגורסת:</b> אין DDL בקוד אפליקציה (ARC-12).</li>
+<li><b>ישות אחת למושג אחד:</b> לקוח, ארנק, הודעה, התראה, זכאות, תור, ביקורת (ARC-14..ARC-19), עם מיגרציה שלא מאבדת נתון.</li>
+<li><b>תיעוד מחייב:</b> יומן ההחלטות, ואחריו המפרט החדש, ואחריו הקוד (ARC-42).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-34</code> (מבנה), <code>ARC-42</code> (סדר עדיפות מסמכים); כלל-העל.</div>
+<div>הערות מיגרציה</div><div>המעבר מתבצע בשלבים, נתיב אחר נתיב, מאחורי אותם URLs (aliases, ARC-34). כל שלב משוחרר רק כשבדיקות ההרשאות וההתאמה בין לקוח לשרת עוברות (ARC-43).</div>
+</div></section>
+
+<h2 class="grp">זהות, הרשאות ודיירות</h2>
+
+<section class="proc" data-f="identity session sessions authenticate middleware principal family biz sa zm storefront cookie bearer token rolling revoke logout"><h3>מודל זהות וסשן — כל סוגי השחקנים, שרשרת middleware אחת</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>FAMILY/BIZ: <code>family_sessions</code> עם hash SHA-256 ו-session_type, 30 יום קבועים (server.js:41849-41863). verifyFamily לא בודק session_type (41876), ו-verifyFamilyOrBiz מציב bizAuth גם לסשן משפחתי (43109).</li>
+<li>SA: <code>sa_sessions</code> עם טוקן גולמי ובלי user_id, 30 יום (568-572, 6661-6680). ההרשאות נשמרות ב-localStorage.ofl_sa_user (sa-app.js:40-55).</li>
+<li>ZM: Map בזיכרון (6495), ו-fallback שמקבל כל <code>ZM_&lt;id&gt;_x</code> (6507-6520). שלושה נתיבי קול העם שואלים את הטבלה הלא קיימת zone_manager_sessions (41097, 41428, 46160).</li>
+<li>Storefront: <code>storefront_sessions</code> עם טוקן גולמי של 96 תווים, 30 יום מתגלגלים, ובדיקה inline ב-<code>_scGetCustomerByToken</code> (43183-43207).</li>
+<li>שבעה middleware (verifyFamily 160 נתיבים, verifyFamilyOrBiz 98, verifyBiz 224, verifyBizOrLegacy 101, verifySA 353, verifyZoneManager 65, sc inline 14). אין JWT, ו-routes/auth.js, middleware/auth.js ו-services/authService.js לא מחוברים (s1-rbac, Middlewares).</li>
+<li>התנתקות ב-BIZ/SA/ZM מוחקת רק localStorage (business-app.js:2390, sa-app.js:418, zone-manager-app.js:118).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li><b>טבלה אחת</b> <code>sessions</code>: token_hash CHAR(64) PK (SHA-256 של 32 בתים אקראיים), principal_type ∈ {family, biz, sa, zm, storefront}, principal_id (users.id / sa_users.id / zone_managers.id / storefront_customers.id), group_id (NULL ל-SA/ZM, ולחנות: העסק שבו נוצר הסשן), created_at, last_seen, expires_at, revoked_at, device_hint, impersonated_by_sa_user_id. אינדקסים: expires_at, (principal_type, principal_id), group_id.</li>
+<li><b>נשיאה:</b> cookie HttpOnly; Secure; SameSite=Lax, עם CSRF double-submit בכתיבה (AUTH-43), או Authorization: Bearer (חנות, embeds, תקופת מעבר).</li>
+<li><b>שרשרת אחת</b> (סדר קבוע): <code>requestId → securityHeaders → cors → bodyLimit → rateLimit → authenticate → [requireType] → [requireRole/requirePermission/requireSAPermission/requireTab] → [requireModule] → validate(schema) → handler → errorHandler</code>.</li>
+<li><code>authenticate()</code> בונה <code>req.principal = {type, userId, groupId, role, employeeRoleType, effectiveTabs, saUserId, saPermissions, zmId, customerId, impersonatedBy}</code>. ב-SA הוא גם מצמיד req.saUser (AUTH-42).</li>
+<li>בדיקות סטטוס בכל בקשה (ARC-05): users.status='active' (אחרת 401). family_groups.account_status ∈ {frozen, archived} או is_deleted מחזירים 403 "החשבון מוקפא" (SA-22, SA-23). קבוצה ב-pending_activation מקבלת רק נתיבי GET של טעינה, solo/activate, solo/status ו-logout (מתוקן). sa_users.status='active'. zone_managers.status='active'. storefront_customers פעיל.</li>
+<li><code>requireType</code> אוכף התאמה בין סוג הסשן לסוג הנתיב. נתיב שמשרת גם family וגם biz מצהיר על כך במפורש. req.bizAuth לא מוצב לסשן משפחתי, ופעולות משפחה לא נרשמות ב-audit העסקי.</li>
+<li><b>תוקף:</b> family/biz/zm/storefront — 30 יום מתגלגלים, הארכה לכל היותר פעם ב-24 שעות, ותקרה של created_at+90d. sa — 12 שעות מתגלגלות. התחזות — שעה קבועה, בלי הארכה (ARC-09, AUTH-20).</li>
+<li><b>ביטול:</b> <code>POST /api/auth/logout</code> מסמן revoked_at, וכל אפליקציה קוראת לו בהתנתקות. כל הסשנים של principal מבוטלים בשינוי סיסמה, הורדת תפקיד, השעיה, מחיקה, חסימת איש צוות SA או השבתת ZM. ניקוי יומי ב-03:00 שעון ישראל, עם נעילה, של כל טבלאות הטוקנים, ה-OTP והאיפוס (AUTH-40).</li>
+<li>אין JWT. קוד ה-JWT המת מוסר (ARC-38).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-01</code>, <code>ARC-05</code> (מתוקן), <code>ARC-08</code> (מכסה את AUTH-03, COM-02), <code>ARC-09</code>, <code>ARC-24</code>; AUTH-20, AUTH-40, AUTH-42, AUTH-43, SA-06, SA-51.</div>
+<div>הערות מיגרציה</div><div><ul>
+<li>family_sessions מועתקת ל-sessions עם אותו hash, ו-session_type ממופה ל-principal_type. משתמשים מחוברים נשארים מחוברים.</li>
+<li>sa_sessions: הטוקן הגולמי מגובב בזמן ההעתקה. שורות בלי זהות משתמש מבוטלות, כי אין להן sa_user_id. כל איש צוות מתחבר מחדש פעם אחת.</li>
+<li>storefront_sessions: הטוקן מגובב בזמן ההעתקה, והסשן נשמר.</li>
+<li>ZM: הסשנים בזיכרון ממילא אינם שורדים restart, ולכן כל ZM מתחבר מחדש פעם אחת.</li>
+<li>הלקוחות עוברים למפתח יחיד <code>wfz_token</code> (ממוגר מ-ofl_family_token / ofl_session.token, AUTH-27, ARC-39) ול-apiFetch אחד שמוסיף את הטוקן ומנתק ב-401.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="rbac family biz roles tabs permissions role_defaults role_type_tabs requireTab effectiveTabs admin manager senior member child"><h3>מודל הרשאות בשרת — FAMILY ו-BIZ</h3>
+<div class="kv">
+<div>מצב קיים</div><div>השרת מבחין רק בין ADMIN ללא-ADMIN. permissions.tabs והרשאות community.can_* נבדקים רק בלקוח (אין אף הפניה ב-server.js). MANAGER/SENIOR קיימים רק בלקוח. change-role מקבל ADMIN/CHILD/MEMBER (11612), אבל PUT /api/users/:id/permissions שומר role חופשי (11574). employee_role_type נשמר בלי whitelist (26446). verifyBizAdminOnly מוצמד ל-3 נתיבים בלבד (41959-41963). מטריצה A ב-s1-rbac מתעדת את הנראות בפועל.</div>
+<div>כלל יעד</div><div><ol>
+<li><b>Enum תפקידים בשרת:</b> FAMILY {ADMIN, MEMBER, CHILD}; BIZ {ADMIN, MANAGER, SENIOR, MEMBER}. employee_role_type נבדק מול EMPLOYEE_ROLE_TYPES בשרת, ומותר רק כשהממשק המתאים ברישוי (licensed_features/addon) או כשהמבצע ADMIN. ב-<code>/api/join</code> ערך לא חוקי נשמר כ-NULL וההצטרפות ממשיכה (AUTH-30).</li>
+<li><b>effectiveTabs</b> מחושב בשרת פעם אחת לכל בקשה, באותו אלגוריתם שהלקוח מריץ היום:
+<ul>
+<li>FAMILY: ADMIN = הכל. אחרת: <code>permissions.custom ? permissions.tabs : ROLE_DEFAULTS[role]</code>. CHILD מקבל תמיד community.</li>
+<li>BIZ: ADMIN = הכל. אחרת: <code>(permissions.custom ? permissions.tabs : ROLE_DEFAULTS[role]) ∪ ROLE_TYPE_TABS[employee_role_type] ∪ {members אם owner_user_id} ∪ {feed, settings, biz-ads}</code>.</li>
+<li>אחר כך מצטמצם לפי זכאות (ARC-17), סוג עסק (data-beauty-only, verifyRoutinesBizType) ו-kill-switch של features.</li>
+</ul>ROLE_DEFAULTS, ROLE_TYPE_TABS ו-ALL_TABS מוגדרים פעם אחת בשרת ומוגשים ללקוח (AUTH-31).</li>
+<li><b>requireTab(tab)</b> חל רק על נתיבים <b>ייעודיים לטאב</b> (למשל צפייה בתנועות של אחרים, עדכון תקציב, דוחות, ניהול מזווה). נתיבים משותפים (/api/data, יתרה ותנועות של עצמי, החתמה, משימות ומשמרות שלי, פרופיל) פתוחים לכל משתמש פעיל בקבוצה (BIZ-12, AUTH-32).</li>
+<li><b>פעולות ADMIN בלבד</b> (עם ADMIN שהוגדר בהזמנה כ"בעלים" או כ"שותף מנהל"): הגדרות עסק ושם עסק, חיוב ואישור חיוב, רישוי וממשקי תפקיד, הרשאות ושינוי תפקיד, סיסמת קיוסק, הגדרות WhatsApp, הזמנת באנר, החתמה ידנית, הרצת שכר ותשלום חד-פעמי, קביעת מיקום החתמה, הגדרות קבוצה (logo/inventory/doc settings). אלה הפעולות שהממשק מציג היום רק ל-ADMIN. הגדרות אישיות בטאב settings פתוחות לכל משתמש, כמו היום.</li>
+<li><b>הרשאות קהילה</b> (can_order, can_post_feed, can_poll, can_live_game, can_store) נבדקות בנתיבי הקהילה המתאימים. ברירת המחדל: מותר, כמו היום. CHILD נחסם בפעולות הכתיבה שבהן הוא נחסם היום (blockIfChildFamilyUser, fail-closed).</li>
+<li><b>מטריצות תחומיות</b> (יופי, מסעדה, ספורט, שגרות) מוגדרות במפרטי הדומיין, ונגזרות מאותה נראות (RST-03, BTY-04).</li>
+<li>הגנה מפני הורדת ה-ADMIN האחרון (AUTH-29).</li>
+</ol>
+<div class="tbl-wrap"><table><tr><th>FAMILY — טאב</th><th>ADMIN</th><th>MEMBER</th><th>CHILD</th><th>אכיפה בשרת (יעד)</th></tr>
+<tr><td>feed</td><td>✓</td><td>✓</td><td>✓</td><td>משותף</td></tr>
+<tr><td>tasks</td><td>✓</td><td>✓</td><td>✓</td><td>ADMIN יוצר/עורך/מאשר; מבצע מגיש (כקיים)</td></tr>
+<tr><td>shop</td><td>✓</td><td>✓</td><td>✓</td><td>בעל טאב</td></tr>
+<tr><td>myorders</td><td>✓</td><td>✗*</td><td>✗*</td><td>בעל טאב; ההזמנות של עצמי משותפות</td></tr>
+<tr><td>bank</td><td>✓</td><td>✗*</td><td>✓</td><td>כתיבה ADMIN; CHILD צופה, מבקש הלוואה, מפקיד ליעד (כקיים)</td></tr>
+<tr><td>cashflow</td><td>✓</td><td>✗*</td><td>✓</td><td>כמו bank</td></tr>
+<tr><td>community</td><td>✓</td><td>✗*</td><td>✓ תמיד</td><td>בעל טאב + can_* + חסימות CHILD</td></tr>
+<tr><td>academy</td><td>✓</td><td>✓</td><td>✓</td><td>ADMIN מקצה; כל חבר מגיש</td></tr>
+<tr><td>members</td><td>✓</td><td>✗*</td><td>✗</td><td>ADMIN</td></tr>
+<tr><td>budget</td><td>✓</td><td>✗*</td><td>✗*</td><td>ADMIN כתיבה</td></tr>
+<tr><td>pantry</td><td>✓</td><td>✗*</td><td>✗*</td><td>בעל טאב (היום כל חבר כותב דרך API — נסגר)</td></tr>
+<tr><td>recipes, forecast, home-maintenance</td><td>✓</td><td>✗*</td><td>✗*</td><td>בעל טאב</td></tr>
+</table></div>
+<p>* = ניתן להענקה דרך permissions.tabs. משתמשי FAMILY שהם היום MANAGER (feed, tasks, shop, academy, pantry, recipes, home-maintenance) או SENIOR (feed, tasks, shop, academy, pantry) ממוגרים ל-MEMBER עם <code>{custom:true, tabs: ROLE_DEFAULTS_הקודם}</code> (AUTH-30).</p>
+<div class="tbl-wrap"><table><tr><th>BIZ — טאב</th><th>ADMIN / MANAGER / SENIOR / MEMBER (ברירת מחדל)</th><th>נפתח גם ל-employee_role_type</th><th>שער נוסף</th></tr>
+<tr><td>feed, settings, biz-ads</td><td>✓ / ✓ / ✓ / ✓</td><td>—</td><td>תמיד (core)</td></tr>
+<tr><td>timeclock</td><td>✓ / ✓ / ✓ / ✓</td><td>כל סוגי התפקיד</td><td>זכאות</td></tr>
+<tr><td>shifts</td><td>✓ / ✓ / ✓ / ✓</td><td>salesperson, field_tech, instructor, delivery, warehouse, cleaner, cashier, shift_manager, branch_manager, waiter, cook</td><td>זכאות</td></tr>
+<tr><td>tasks, academy</td><td>✓ / ✓ / ✓ / ✓</td><td>tasks: כל סוגי התפקיד</td><td>זכאות</td></tr>
+<tr><td>calendar</td><td>✓ / ✓ / ✗ / ✗</td><td>salesperson, field_tech, instructor, support, waiter</td><td>זכאות</td></tr>
+<tr><td>shop</td><td>✓ / ✓ / ✗ / ✗</td><td>warehouse</td><td>זכאות</td></tr>
+<tr><td>pantry</td><td>✓ / ✓ / ✓ / ✗</td><td>warehouse, branch_manager, cook</td><td>זכאות</td></tr>
+<tr><td>sales, customers</td><td>✓ / ✓ / ✗ / ✗</td><td>sales: salesperson, cashier, shift_manager, branch_manager, waiter; customers: salesperson, support, shift_manager, branch_manager</td><td>זכאות</td></tr>
+<tr><td>pos</td><td>✓ / ✓ / ✓ / ✗</td><td>salesperson, cashier, shift_manager, branch_manager, waiter, reception</td><td>זכאות</td></tr>
+<tr><td>equipment</td><td>✓ / ✓ / ✗ / ✗</td><td>field_tech, instructor, branch_manager</td><td>זכאות</td></tr>
+<tr><td>deliveries</td><td>✓ / ✗ / ✗ / ✗</td><td>delivery</td><td>זכאות</td></tr>
+<tr><td>reviews</td><td>✓ / ✗ / ✗ / ✗</td><td>shift_manager, branch_manager</td><td>זכאות</td></tr>
+<tr><td>foodcost</td><td>✓ / ✗ / ✗ / ✗</td><td>cook</td><td>זכאות</td></tr>
+<tr><td>cashflow</td><td>✓ / ✗ / ✗ / ✗</td><td>shift_manager, branch_manager</td><td>זכאות</td></tr>
+<tr><td>budget, reports</td><td>✓ / ✗ / ✗ / ✗</td><td>branch_manager</td><td>זכאות</td></tr>
+<tr><td>members</td><td>✓ / ✗ / ✗ / ✗</td><td>shift_manager, branch_manager, waiter; owner תמיד</td><td>ניהול הרשאות ותפקידים: ADMIN</td></tr>
+<tr><td>bank, forecast, community, surveys, cases, timelog, content, leads, documents, whatsapp-alerts, menu_templates</td><td>✓ / ✗ / ✗ / ✗</td><td>—</td><td>זכאות</td></tr>
+<tr><td>routines</td><td>✓ / ✗ / ✗ / ✗</td><td>—</td><td>זכאות + business_type ∈ {restaurant, maintenance_repair}</td></tr>
+<tr><td>beauty_calendar, beauty_clients</td><td>✓ / ✗ / ✗ / ✗</td><td>reception, therapist, senior_therapist, nail_tech, makeup_artist</td><td>business_type=beauty; גישת תיק לקוח לפי BEAUTY_CLIENT_DATA_ROLES</td></tr>
+<tr><td>beauty_practitioners, beauty_commissions</td><td>✓ / ✗ / ✗ / ✗</td><td>senior_therapist</td><td>business_type=beauty</td></tr>
+<tr><td>beauty_inventory, beauty_services, beauty_subscriptions, beauty_rfq</td><td>✓ / ✗ / ✗ / ✗</td><td>—</td><td>business_type=beauty</td></tr>
+<tr><td>logistics_* (11 טאבים)</td><td>✓ / ✗ / ✗ / ✗</td><td>—</td><td>זכאות logistics (בודד או logistics_all)</td></tr>
+</table></div></div>
+<div>החלטות שהוחלו</div><div><code>ARC-06</code> (מתוקן); AUTH-29, AUTH-30, AUTH-31, AUTH-32; BIZ-12, RST-03.</div>
+<div>הערות מיגרציה</div><div><ul>
+<li>permissions: ב-FAMILY, tabs.length&gt;1 הופך ל-{custom:true,tabs}, ו-tabs.length≤1 הופך ל-NULL (= ברירת מחדל לתפקיד), כפי שהלקוח מפרש היום. ב-BIZ כל מערך tabs הופך ל-custom (AUTH-31).</li>
+<li>employee_role_type שאינו ברשימה: הערך נשמר בעמודת legacy_role_type לצורך דוח, והעמודה הפעילה מקבלת NULL רק אחרי אישור ADMIN במסך הצוות. עד אז ה-ROLE_TYPE_TABS הקודמים נשמרים כ-permissions custom.</li>
+<li>לפני ההפעלה רץ דוח השוואה: effectiveTabs שהשרת מחשב מול מה שהלקוח מציג היום, לכל משתמש. פער חוסם את השחרור.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="rbac super admin sa permissions teams tabs zone manager community manager storefront customer kiosk demo capability link public"><h3>מודל הרשאות בשרת — SA, ZM, מנהל קהילה, לקוח חנות, קיוסק וקישורי טוקן</h3>
+<div class="kv">
+<div>מצב קיים</div><div>verifySA מאמת רק קיום טוקן, וכל איש צוות הוא Master בפועל ב-353 נתיבים. שבעה נתיבי /api/sa/* פתוחים בלי verifySA (4114, 16733, 16740, 16748, 31063, 31073, 31093). שתי מפות לקוח סותרות: applyUserPermissions (sa-app.js:91) מול checkTabAccess (126). כל טוקן SA יכול להתחזות לכל קבוצה (44011). ZM: תפקיד יחיד, כל המסכים, ובדיקת אזור חלקית (leads/:id 20068-20095). CM: דגל family_communities.is_community_manager, בלי בדיקת status (20545). Storefront: inline. קיוסק: kiosk_password ו-groupId מה-body (24591-24662).</div>
+<div>כלל יעד</div><div><ol>
+<li><b>SA:</b> sessions.principal_id = sa_users.id. ההרשאות נטענות מ-sa_teams.permissions בכל בקשה. Master הוא שורה ב-sa_users עם permissions=['all'] (לא סיסמה ב-system_settings). כל <code>/api/sa/*</code> ו-<code>/api/superadmin/*</code> עוברים <code>authenticate→requireType('sa')→requireSAPermission(perm)</code>, כולל שבעת הנתיבים הפתוחים (SA-03). מפה יחידה <code>SA_TAB_PERMS</code> משמשת את השרת ואת הלקוח (SA-09), ונטענת מ-<code>GET /api/superadmin/me</code>.</li>
+<li><b>התחזות</b> דורשת את ההרשאה <code>impersonate</code> (או 'all'). היא מוגבלת לשעה, נרשמת ב-sa_audit_log עם actor, group_id ו-user_id, ומציגה באנר בסביבה. אם אין ADMIN בקבוצה מוחזר 409 (SA-08, AUTH-21).</li>
+<li><b>ZM:</b> requireType('zm') ו-zone_managers.status='active'. בכל נתיב שמקבל zone, community, lead, campaign, article או inbox id נבדקת בעלות דרך manager_zones.manager_id (כולל leads/:id ו-POST /api/zm/articles). נתיבי המודרציה של קול העם משתמשים ב-middleware משולב saOrZm (AUTH-42).</li>
+<li><b>מנהל קהילה:</b> סשן family + שורת family_communities עם is_community_manager=TRUE ו-status='approved' + לא CHILD בפעולות כתיבה. המינוי נעשה על ידי SA (הרשאת comm) או ZM בעל האזור.</li>
+<li><b>לקוח חנות:</b> principal_type='storefront', customerId ו-groupId של החנות. מותרים לו רק נתיבי sc-auth, ההזמנות, ההצעות, בקשות השירות והצ'אט שלו, לפי בעלות.</li>
+<li><b>קיוסק:</b> רץ בתוך סשן BIZ של המכשיר, ו-groupId נלקח מהסשן. קוד היציאה מאומת בשרת (tobe-store).</li>
+<li><b>משתמש עסק דמו:</b> ADMIN רגיל של עסק עם is_demo_business. הכניסה נחסמת כשהדמו בוטל (SA-56).</li>
+<li><b>מחזיק קישור טוקן</b> (/c/po, /c/rt, /c/q, /c/camp, מעקב משלוח): ללא סשן. הטוקן האקראי נבדק מול DB, ונותן רק את הפעולה של אותו קישור (ראו allowlist).</li>
+</ol>
+<div class="tbl-wrap"><table><tr><th>לשונית SA</th><th>הרשאת שרת (יעד)</th><th>מי ניגש היום (checkTabAccess)</th><th>הערה</th></tr>
+<tr><td>pulse, clients, templates, sysmap</td><td>open (כל איש צוות)</td><td>כולם</td><td>כקיים</td></tr>
+<tr><td>feed, shuka, games, marketing, kol-haam, livegames, partners, auditlog, archive, whatsapp, pricing, ai-builder</td><td>open</td><td>כולם (חלקם ◐ — כפתור מוסתר, נגיש בחיפוש)</td><td>הכפתור יוצג לכולם, כי הגישה כבר קיימת. Master יכול לצמצם בעתיד דרך SA_TAB_PERMS</td></tr>
+<tr><td>insights, stats, finance</td><td>stats</td><td>stats</td><td>כקיים</td></tr>
+<tr><td>comm</td><td>comm</td><td>comm</td><td>כקיים</td></tr>
+<tr><td>biz</td><td>biz</td><td>biz</td><td>שינוי business_type ורישוי (ARC-37)</td></tr>
+<tr><td>support</td><td>support</td><td>support</td><td>כקיים</td></tr>
+<tr><td>devops</td><td>devops</td><td>devops</td><td>כקיים</td></tr>
+<tr><td>content, legal, adslots</td><td>content</td><td>content</td><td>legal: checkTabAccess=content גובר</td></tr>
+<tr><td>inbox</td><td>marketing</td><td>marketing</td><td>כקיים</td></tr>
+<tr><td>hr (ניהול צוות SA)</td><td>users</td><td>users</td><td>כקיים</td></tr>
+<tr><td>masterconfig, אישורי SA רגישים (sa_*, smtp_*, sms_debug_code)</td><td>all</td><td>Master</td><td>SA-54</td></tr>
+<tr><td>כפתור "כניסה לסביבה"</td><td>impersonate</td><td>כולם (בלשונית clients)</td><td>הרשאה חדשה שהמיגרציה מעניקה לכל צוות קיים</td></tr>
+</table></div></div>
+<div>החלטות שהוחלו</div><div><code>ARC-07</code> (מתוקן; מכסה את AUTH-14, AUTH-15, SA-02), <code>ARC-08</code>; SA-03, SA-08, SA-09, SA-54, SA-56; AUTH-21, AUTH-42.</div>
+<div>הערות מיגרציה</div><div><ul>
+<li>sa_users: ל-Master נוצרת שורה עם permissions=['all'] ו-bcrypt של סיסמה חדשה שמוגדרת ב-CLI. הערכים sa_username/sa_password ב-system_settings נמחקים אחרי ההגדרה. אין fallback ל-admin/123456.</li>
+<li>sa_teams.permissions: ההרשאה <code>impersonate</code> מתווספת לכל צוות קיים.</li>
+<li>מנהלי קהילה עם is_community_manager=TRUE על שורה שאינה approved: המינוי עצמו מעיד על אישור, ולכן השורה מעודכנת ל-approved ונרשמת ב-audit. אין ביטול שקט.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="tenancy groupId session ownership filter rls repository ctx tenant_type account_kind member_type community"><h3>דיירות ובידוד בין קבוצות</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>הבידוד נעשה רק באפליקציה, בלי RLS. אותרו 11 דפוסי כשל: groupId מה-URL או מה-body (PUT /api/biz/whatsapp-settings/:groupId 44253), UPDATE לפי id בלבד (PUT /api/calendar/events/:id/status 22977), בדיקת בעלות רק אם נשלח groupId (service-calls 25821, 25874), FK מה-body בלי בדיקה, וקריאות בלי סינון.</li>
+<li>verifyBizOrLegacy: בלי טוקן, groupId נלקח מה-body (43080-43085), ו-requireModule מדלג (43128). כ-101 נתיבים מושפעים. לוגיסטיקה משתמשת ב-group_id מה-body גם עם טוקן (32736-32740).</li>
+<li>סוג הסביבה נקבע משילוב type, member_type ו-plan. "member biz" = FAMILY עם member_type='biz' (8184). family_groups.community_id עדיין נקרא (13865), ו-quest_library.community_id מצביע ל-family_groups (3291) (s1-erd, מושג הדיירות).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li>אף handler לא קורא groupId מ-params, body או query לצורך הרשאה. groupId נלקח מ-<code>req.principal.groupId</code>.</li>
+<li>שכבת repository מקבלת <code>ctx = {principal, groupId}</code> כפרמטר חובה. כל שאילתה על משאב לפי id כוללת <code>AND group_id = ctx.groupId</code>, ואם לא נמצאה שורה מוחזר 404. כל מזהה זר שמגיע ב-body (equipmentId, technicianId, childUserId, work_order_id, customer_id וכו') נבדק כשייך לאותה קבוצה לפני כתיבה.</li>
+<li>נתיבים חדשים מוגדרים בלי :groupId. נתיבים קיימים עם :groupId נשמרים כ-aliases בתקופת המעבר: אם הערך שונה מקבוצת הסשן מוחזר 403. נתיבי SA פועלים על כל קבוצה לפי הרשאת SA. נתיבים ציבוריים מזהים עסק לפי קוד ציבורי (store code / alias) ולא לפי groupId.</li>
+<li>verifyBizOrLegacy מוסר. כל הנתיבים שלו עוברים ל-authenticate+requireType('biz')+requireModule, בהסרה מדורגת (מתוקן, כמו AUTH-12).</li>
+<li><b>מודל דיירות:</b> <code>tenant_type ∈ {FAMILY, BUSINESS}</code> הוא השדה היחיד שקובע סביבה. <code>account_kind ∈ {full, member, shopper}</code> מותר רק כש-tenant_type=FAMILY. member_type='biz' מבוטל. קהילה היא ישות נפרדת עם חברות M:N (family_communities, community_businesses). quest_library.community_id מצביע ל-communities.</li>
+<li><b>הגנת עומק (אופציונלי, שלב 2):</b> PostgreSQL RLS על טבלאות עם group_id, עם <code>SET LOCAL app.group_id</code> בתחילת כל טרנזקציה. התפקיד של ה-worker ושל SA עוקף RLS במפורש.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-04</code>, <code>ARC-03</code> (מתוקן; מכסה את AUTH-12, BIZ-01, STR-01, LOG-01), <code>ARC-20</code> (מתוקן).</div>
+<div>הערות מיגרציה</div><div><ul>
+<li>family_groups.type → tenant_type. member_type: family→full, member→member, shopper→shopper. member_type='biz': אם type='BUSINESS' → רק מוסר. אם type='FAMILY' → tenant_type='BUSINESS', כדי שהכניסה העסקית, הנתונים וה-member_business_links יישמרו (מתוקן).</li>
+<li>family_groups.community_id: לכל ערך לא-NULL נוצרת שורת family_communities (approved) אם אין כזו, ורק אחר כך העמודה נמחקת.</li>
+<li>quest_library.community_id שמצביע ל-family_groups: ממופה לקהילה שהקבוצה חברה בה. אם אין התאמה, הערך נשמר בעמודת legacy_group_id לבדיקה.</li>
+<li>plan נשאר (standard/solo/member/premium/enterprise). is_premium=true ממופה ל-plan='enterprise', כפי שהקוד עושה היום (832-833).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="public routes allowlist default deny 401 storefront menu live game token links track campaign otp login register"><h3>רשימת נתיבים ציבוריים (allowlist)</h3>
+<div class="kv">
+<div>מצב קיים</div><div>488 נתיבים בלי middleware ובלי אימות inline, מתוכם 260 נתיבי כתיבה. ביניהם כל 87 נתיבי /api/sport, 81 נתיבי מסעדה, יומן, רכש, התראות, סקרים ואינבוקס, 55 נתיבי /api/store, 17 מתוך 18 נתיבי נוכחות ושכר, /api/solo/activate (2469) ו-/api/community/bootstrap-token (10721) (s1-rbac, מטריצה B).</div>
+<div>כלל יעד</div><div><ol>
+<li>router ה-API מפעיל <code>authenticate()</code> על כל <code>/api/*</code>. נתיב ציבורי מוצהר ב-<code>public: {reason, rateLimit, identifier}</code>, ומופיע ברשימה שלהלן. כל נתיב אחר מחזיר 401 בלי טוקן.</li>
+<li>נתיב ציבורי מזהה עסק לפי מזהה ציבורי (קוד חנות, alias, קוד סקר, טוקן), ולא לפי groupId פנימי שהלקוח שולח. הוא מחזיר רק שדות ציבוריים מפורשים (ARC-32), ונתון אישי של אחרים לא חוזר לעולם (למשל זמינות יומן מוחזרת בתצורת תפוסה בלבד).</li>
+<li>לכל נתיב ציבורי כותב יש rate limit (ARC-29), וכל נתיב ששולח SMS או מייל מוגבל לפי SA-50.</li>
+<li>בדיקת CI עוברת על כל הנתיבים: בקשה בלי טוקן מחזירה 401, חוץ מהרשימה (ARC-43).</li>
+</ol>
+<div class="tbl-wrap"><table><tr><th>קטגוריה</th><th>נתיבים (מייצגים)</th><th>מזהה / הגנה</th></tr>
+<tr><td>כניסה, הרשמה ו-OTP</td><td>/api/login, /api/family/login/*, /api/groups (יצירת סביבה), /api/join, /api/biz/register|login|send-otp|verify-otp, /api/forgot-code, /api/reset-password, /api/sa/login|send-otp|verify-otp, /api/zone-manager/register|login|forgot-password|reset-password, /api/sc-auth/send-otp|verify-otp|register|login|forgot-pin|reset-pin</td><td>ARC-29: נעילה ומגבלות OTP. הרשמת לקוח חנות מחייבת OTP מאומת (AUTH-04)</td></tr>
+<tr><td>חזית חנות</td><td>רשימת STR-03: GET /api/storefront/:code, /:alias, /storefront*.html, item-image, ביקורות ציבוריות (3 aliases), /api/public/* (פופאפים, גלריה, לוגו), promotions פעילים, coupons/validate, banner-promos, products, public/alias, POST /api/store/orders (ערוץ חזית), leads, service-request (sc-auth), צ'אט לקוח (sc-auth), target-date ללקוח בעלים</td><td>קוד חנות; מחירים מחושבים בשרת</td></tr>
+<tr><td>תפריטים</td><td>/menu, /menus, /api/menu/public/*, menu-quote-requests (יצירה)</td><td>קוד תבנית/עסק</td></tr>
+<tr><td>יופי ציבורי</td><td>קטלוג שירותים, slots/availability (תפוסה בלבד), בקשת תור (BTY)</td><td>קוד חנות; SMS 6 ספרות</td></tr>
+<tr><td>ספורט ציבורי</td><td>מחירון מנויים, רכישה ציבורית, ליד ציבורי, GET /api/sport/me (sc-auth) (SPT)</td><td>קוד חנות; sc-auth לזיהוי עצמי</td></tr>
+<tr><td>מסעדה ציבורית</td><td>בקשת הזמנת שולחן ואימות SMS, צ'ק-אין עצמי (sc-auth) (RST)</td><td>קוד עסק; SMS 6 ספרות</td></tr>
+<tr><td>מקצועי</td><td>טופס ליד (28803), דף אתר ציבורי</td><td>alias</td></tr>
+<tr><td>סקרים</td><td>מילוי סקר ציבורי לפי קוד (survey.html)</td><td>קוד סקר; 30 לדקה ל-IP</td></tr>
+<tr><td>קישורי טוקן</td><td>/c/po/:id/:token, /c/rt/:occurrenceId/:token, /c/q/:id/:token, /c/camp/:token, /api/public/campaign/:token, /api/logistics/track/:token, leave-at-door</td><td>טוקן אקראי ≥128 ביט; תוקף לפי סוג; פעולה אחת</td></tr>
+<tr><td>קמפיינים ושוק קהילתי</td><td>/campaign/:code, /api/campaign/* (קריאה ובקשה)</td><td>קוד קמפיין</td></tr>
+<tr><td>משחק חי</td><td>/api/live-games/join|answer|state</td><td>קוד משחק; 30 לדקה ל-IP</td></tr>
+<tr><td>קול העם — קריאה</td><td>תוכן שפורסם, קטגוריות (39513), מונה צפיות</td><td>מונה צפייה בלי userId מה-URL (אנונימי, dedup לפי IP+יום)</td></tr>
+<tr><td>הגדרות ותצורה ציבורית</td><td>/api/public/settings/:key (PUBLIC_READABLE_SETTINGS בלבד, 8996), GET biz_type_visibility (25339), GET מסמכים משפטיים, GET page-images</td><td>allow-list מפתחות</td></tr>
+<tr><td>מדריכים ועוזר מדריך</td><td>public/*-guide.html, POST /api/guide/chat</td><td>20 שאלות לשעה ל-IP (SA-12)</td></tr>
+<tr><td>שונות</td><td>POST /api/pilot-waitlist, /api/health, הפניית 301 מ-oneflowlife.co.il, הזרקת OG לתבניות storefront</td><td>5 לשעה ל-IP (SA-50)</td></tr>
+</table></div></div>
+<div>החלטות שהוחלו</div><div><code>ARC-02</code> (מתוקן); STR-03, SA-12, SA-50, AUTH-04; מפרטי הדומיין (BTY, SPT, RST, STR) לרשימות המפורטות.</div>
+<div>הערות מיגרציה</div><div>כל נתיב שנמצא היום בלי אימות ואינו ברשימה מקבל authenticate, ובמקביל כל קריאות הלקוח אליו עוברות ל-apiFetch. נתיבים שנשארים ציבוריים ומקבלים היום groupId מקבלים בנוסף פרמטר קוד חנות. groupId נשאר נתמך בתקופת מעבר רק לקריאה, ורק לשדות ציבוריים.</div>
+</div></section>
+
+<h2 class="grp">פלטפורמת נתונים</h2>
+
+<section class="proc" data-f="migrations schema ddl node-pg-migrate knex seed ghost tables missing columns explain ci create table alter"><h3>ניהול סכמה: מיגרציות, זריעה ובדיקת סכמה</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>299 פקודות CREATE TABLE IF NOT EXISTS ו-503 פקודות ADD COLUMN IF NOT EXISTS, מפוזרות בבלוק העלייה (484-3811), ב-initDB (4406), ב-IIFEs וב-setTimeout של 5-13 שניות. 20 handlers מריצים DDL בכל בקשה (POST /api/store/settings 13116 עם 26 פקודות, POST /api/store/orders 14447, GET /api/storefront/:code 15286). רוב הפקודות עטופות ב-catch ריק (s1-seed, סדר ההרצה).</li>
+<li>שש טבלאות רפאים: zone_manager_sessions, cashflow_entries, group_notifications, employees, membership_plan_types, content_item_tags. כ-35 עמודות לא קיימות (alert_notifications.type/title/reference_id, tasks.assignee_id, users.full_name/name, sport_memberships.business_group_id, banner_orders.total_price ועוד; s1-erd).</li>
+<li>הזריעה מפוזרת ב-11 מנגנונים בלי טרנזקציה (games_catalog, quest_library, whatsapp_global_defaults ×2, flow_config ב-3 מקומות, banner_slots/pricing, content_categories, achievement_types, kh_ai_copilot_daily_limit).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li>סכמה אחת בתיקיית <code>migrations/</code>, עם כלי מגורסות (node-pg-migrate). המיגרציות רצות פעם אחת בשלב ה-deploy (<code>npm run migrate</code>), לא בעליית האפליקציה. מיגרציה שנכשלת עוצרת את ה-deploy.</li>
+<li>אין DDL בקוד אפליקציה, ו-GET לעולם לא כותב (SA-59).</li>
+<li>נתוני ייחוס בקבצי seed אידמפוטנטיים עם UNIQUE מתאים: games_catalog(title), quest_library(title), flow_config(key) (ON CONFLICT DO NOTHING, כדי שערך שה-SA שינה לא יידרס, כמו היום), banner_slots(key), content_categories(scope, name), achievement_types(code), whatsapp_global_defaults(id=1), system_settings (מפתחות עם ברירת מחדל). כל ערכי הזריעה של היום נשמרים כפי שהם (s1-seed).</li>
+<li>טבלאות הרפאים ממופות: zone_manager_sessions→sessions (ARC-08); cashflow_entries→transactions(type='income'); group_notifications→notifications (ARC-16); employees→users של קבוצת BUSINESS; membership_plan_types→sport_membership_types; content_item_tags→content_items_tags. כל עמודה חסרה מוחלפת בעמודה הקיימת לפי s1-erd (למשל trigger_type, reference_key, assigned_to, nickname/first_name, group_id, membership_type_id, total_price_ils, home_community_id, submitted_at). עמודה שאין לה מקבילה (author_profiles.pen_name, content_categories.icon) מתווספת במיגרציה אם הפיצ'ר מציג אותה.</li>
+<li>אסור catch ריק סביב SQL (lint). כשל SQL נרשם ומוחזר כשגיאה (ARC-33).</li>
+<li>CI מריץ את כל המיגרציות על DB ריק, ואחר כך EXPLAIN לכל מחרוזת SQL בקוד. הבדיקה נכשלת על טבלה או עמודה לא קיימת.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-12</code>, <code>ARC-13</code>, <code>ARC-10</code> (DDL לא ב-HTTP); SA-59.</div>
+<div>הערות מיגרציה</div><div>מיגרציית הבסיס (baseline) נוצרת מהסכמה הקיימת בייצור באמצעות pg_dump --schema-only, ומסומנת כ"הורצה" ב-DB הקיים. אין DROP בבסיס. כל שינוי מבני (איחודים ב-ARC-14..ARC-19) הוא מיגרציה נפרדת עם שלב העתקה, שלב אימות ספירות וסכומים, ושלב הסרה שרץ רק אחרי שחרור שמוכיח שאין קוראים לטבלה הישנה.</div>
+</div></section>
+
+<section class="proc" data-f="customer customers crm store_customers storefront_customers restaurant_customers logistics_customers beauty_client_records sport_memberships routine_sites phone_normalized shared_phone merge"><h3>ישות קנונית: לקוח של עסק</h3>
+<div class="kv">
+<div>מצב קיים</div><div>שבעה ייצוגים: store_customers (708), storefront_customers (1898), restaurant_customers (1248), logistics_customers (2426), beauty_client_records (2088), sport_memberships.member_* (1667), routine_sites.customer_id (3578, בלי FK). הקישור המשותף היחיד הוא טלפון או family_group_id. מיזוג חשבונות נוגע ב-21 טבלאות (2701-2710).</div>
+<div>כלל יעד</div><div><ol>
+<li>טבלה <code>customers</code>: id, group_id, type ∈ {person, business}, name, phone_normalized, email, family_group_id NULL, shared_phone BOOL DEFAULT false, tags, notes, created_at, updated_at, merged_into_customer_id.</li>
+<li>אילוץ: <code>UNIQUE(group_id, phone_normalized) WHERE NOT shared_phone AND phone_normalized IS NOT NULL</code> (מתוקן לפי BTY-46, SPT-19). הממשק מציג "קיים לקוח עם טלפון זה" ומאפשר "צור בכל זאת", שמסמן shared_phone.</li>
+<li>טלפון מנורמל ב-normalizePhone (AUTH-34): ספרות בלבד, קידומת 972 מוחלפת ב-0. מספר ישראלי נשמר כ-0XXXXXXXXX, ומספר אחר כספרות בלבד.</li>
+<li>טבלאות הרחבה 1:1 או 1:N עם FK ל-customers, שמחזיקות את <b>כל</b> העמודות התחומיות של היום: <code>beauty_client_profile</code> (מידע רפואי מוצפן, ARC-32; פורמולות, תמונות ומנויים נשארים צאצאים), <code>sport_member_profile</code> (sport_memberships עוברת להפנות ל-customer_id, ויכולים להיות כמה מנויים ללקוח), <code>restaurant_guest_profile</code> + restaurant_visits, <code>logistics_customer_profile</code> (מזמין/נמען, כתובות, תנאי תשלום), routine_sites.customer_id עם FK.</li>
+<li>יתרת זיכוי החנות עוברת לארנק ILS_STORE_CREDIT (ARC-15). credit_balance נשאר שדה נגזר לקריאה.</li>
+<li><code>storefront_customers</code> נשאר זהות ההתחברות של הלקוח (credential: טלפון, PIN, OTP). בהזמנה או בפעולה הראשונה בעסק הוא מקושר ל-customers של אותו עסק לפי טלפון.</li>
+<li>מיזוג חשבונות (SA) מעדכן את customers.family_group_id ואת טבלאות הרחבה, ולא 21 טבלאות.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-14</code> (מתוקן; מכסה את STR-43); AUTH-34, BTY-46, SPT-19, RST-22.</div>
+<div>הערות מיגרציה</div><div><ol>
+<li>לכל עסק, ובכל מקור (store_customers תחילה, אחריו beauty, restaurant, logistics, sport, routine_sites): מחפשים customers עם אותו phone_normalized.</li>
+<li>התאמה ודאית (טלפון זהה ושם זהה אחרי נרמול רווחים, או אותו family_group_id) → קישור לאותו customer.</li>
+<li>טלפון זהה ושם שונה → customer נפרד עם shared_phone=true. אין איחוד כפוי.</li>
+<li>בלי טלפון → customer חדש.</li>
+<li>כל שורה ישנה מקבלת customer_id, והעמודות התחומיות עוברות לטבלת ההרחבה 1:1. הטבלה הישנה נשארת לקריאה בלבד עד שחרור שמוכיח שאין קוראים.</li>
+<li>דוח אימות: מספר הלקוחות לכל עסק לפני ואחרי, סכום credit_balance, ומספר תיקי יופי ומנויי ספורט — חייבים להיות זהים.</li>
+</ol></div>
+</div></section>
+
+<section class="proc" data-f="wallet ledger wallet_entries balance users.balance flw_kid_wallets flow_wallets community_wallets credit_balance currency idempotency for update"><h3>ישות קנונית: ארנקים ויתרות (ledger)</h3>
+<div class="kv">
+<div>מצב קיים</div><div>ארבעה מטבעות בחמישה מקומות: users.balance (₪ משפחתי, מטמון שמתעדכן ידנית עם כל תנועה, 11402-11403), flw_kid_wallets (3149), flow_wallets (21646), community_wallets (552) ו-store_customers.credit_balance. היתרה לא נגזרת מתנועות, והעדכונים לא אטומיים. מימוש בסכום שלילי מגדיל יתרה, וזיכויים חוזרים (system-doc §43).</div>
+<div>כלל יעד</div><div><ol>
+<li><code>wallets</code>: id, owner_type ∈ {user, group, customer, community}, owner_id, currency ∈ {ILS_FAMILY, FLW_KID, FLOW, ILS_CASHBACK, ILS_STORE_CREDIT}, balance NUMERIC(12,2) (מטמון), allow_negative, UNIQUE(owner_type, owner_id, currency).</li>
+<li><code>wallet_entries</code> append-only: wallet_id, amount &gt; 0, direction ∈ {credit, debit}, reason, reference_type, reference_id, actor_type, actor_id, idempotency_key UNIQUE, created_at. אין UPDATE ואין DELETE. תיקון הוא תנועה הפוכה עם reason='reversal'.</li>
+<li>כל שינוי יתרה מתבצע בפונקציה אחת <code>postEntry(tx, …)</code>: <code>SELECT … FOR UPDATE</code> על שורת הארנק, בדיקת allow_negative, INSERT של התנועה, ועדכון balance באותה טרנזקציה (ARC-11). העברה בין ארנקים היא שתי תנועות באותה טרנזקציה.</li>
+<li><b>allow_negative לפי מטבע, כמו היום (מתוקן):</b> ILS_FAMILY — מותר (היום אין בדיקה בהוצאה). FLW_KID, FLOW, ILS_CASHBACK, ILS_STORE_CREDIT — אסור. חריגה מחזירה 409 עם הודעה ולא 500 (SA-35).</li>
+<li>שערי המרה ב-config אחד: flow_to_ils_rate (100 Flw = ₪10) ו-flow_min_redeem (100), מתוך flow_config, כמו היום.</li>
+<li>תנועות הכסף המשפחתי (transactions) נשארות יומן התזרים שהמשפחה רואה. כל transaction שמשנה יתרה יוצרת wallet_entry עם reference_type='transaction'.</li>
+<li>users.balance, flw_kid_wallets.balance וכו' נשארים זמינים ב-API כשדות נגזרים, כדי שהלקוחות לא ישתנו.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-15</code> (מתוקן), <code>ARC-11</code>; SA-24, SA-35.</div>
+<div>הערות מיגרציה</div><div><ol>
+<li>לכל מקור נוצר ארנק: users.balance→(user, ILS_FAMILY); flw_kid_wallets→(user, FLW_KID); flow_wallets→(לפי entity_type: user/group/community, FLOW); community_wallets→(community, ILS_CASHBACK); store_customers.credit_balance→(customer, ILS_STORE_CREDIT).</li>
+<li>תנועות היסטוריות (flow_transactions, community_wallet_transactions, היסטוריית FLW, transactions) מועתקות כ-entries עם חותמות הזמן המקוריות.</li>
+<li>אם סכום התנועות אינו שווה ליתרה השמורה, נוספת תנועת <code>migration_reconcile</code> בהפרש, כך שכל יתרה אחרי המיגרציה זהה בדיוק ליתרה לפני.</li>
+<li>דוח: יתרה לכל ארנק לפני ואחרי (חייבת להיות שוויון מלא), ורשימת הפרשי reconcile לבדיקת SA.</li>
+</ol></div>
+</div></section>
+
+<section class="proc" data-f="messages notifications conversations notification_deliveries inbox customer_chats biz_dm team_chat team_posts service_call_messages work_order_messages zm_inbox sa_internal_chat alert_notifications whatsapp_log email_log dedup"><h3>ישויות קנוניות: שיחות, הודעות והתראות</h3>
+<div class="kv">
+<div>מצב קיים</div><div>תשעה ערוצי הודעות: inbox_messages, customer_chats(+messages), biz_dm_messages, team_chat, team_posts, service_call_messages, work_order_messages, zm_inbox_*, sa_internal_chat. ההתראות מפוצלות בין alert_notifications (שאליה נכתבות עמודות שלא קיימות, 25703), group_notifications (לא קיימת), community_notifications, whatsapp_log ומיילים ישירים (s1-messages). שום התראה פנימית מהסוגים type/title לא נוצרת בפועל (SA-52).</div>
+<div>כלל יעד</div><div><ol>
+<li><code>conversations</code>: id, kind ∈ {inbox, customer_chat, team_chat, team_board, dm, service_call, work_order, zm_inbox, sa_internal}, group_id, subject_ref_type, subject_ref_id, participants, created_at. <code>messages</code>: conversation_id, sender_type, sender_id, body, attachments, meta, created_at, read_by. inbox (הודעות נכנסות לעסק) ו-team_board (לוח פוסטים של הצוות) נוספו לרשימה כדי ששני המסכים הקיימים יישמרו (team_chat ו-team_posts הם שני ממשקים שונים).</li>
+<li><code>notifications</code>: id, recipient_type ∈ {user, group, sa, zm, customer}, recipient_id, group_id, type, title, body, ref_type, ref_id, created_at, read_at. <code>notification_deliveries</code>: notification_id, channel ∈ {in_app, email, sms, whatsapp, push}, status ∈ {queued, sent, failed, skipped_no_config, invalid_phone}, provider_id, error, attempted_at.</li>
+<li>פונקציה אחת <code>notify(tx, {type, recipient, ref, channels})</code>. ה-dedup לפי (type, ref, recipient) בחלון שמוגדר לכל type. ברירת המחדל ל-WhatsApp היא 23 שעות (dedup_hours של היום, 4466).</li>
+<li>כל המסכים הקיימים (פעמון ב-business-app.js:34858 ו-app.js:13880, אינבוקס, צ'אטים, לוח צוות, אינבוקס ZM, צ'אט פנימי SA, יומן WhatsApp ב-SA) נשמרים, ומוזנים מהישויות המאוחדות דרך אותם נתיבים (aliases).</li>
+<li>הצ'אט הפנימי ב-SA מציג את ההודעות האחרונות (SA-40).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-16</code>, <code>ARC-13</code>; SA-40, SA-44, SA-52; BTY-14.</div>
+<div>הערות מיגרציה</div><div>כל טבלת הודעות מועתקת ל-conversations/messages עם המזהים המקוריים בעמודת legacy_id, כך שקישורים קיימים ממשיכים לעבוד. alert_notifications→notifications (trigger_type→type, message→body, reference_key→ref). community_notifications→notifications. whatsapp_log→notification_deliveries(channel='whatsapp'), כולל message_body. היסטוריית ההודעות נשמרת במלואה. ספירות לכל ערוץ לפני ואחרי חייבות להיות שוות.</div>
+</div></section>
+
+<section class="proc" data-f="unification service_areas appointments catalog_items promotions audit_log time_entries delivery zones family_groups lat lng legacy unused archive"><h3>איחוד שאר המושגים הכפולים</h3>
+<div class="kv">
+<div>מצב קיים</div><div>אזורי משלוח ×4, תורים ×4, קטלוג ×5, מבצעים ×6, יומן ביקורת ×7, שעות עבודה ×4, team_chat מול team_posts, sa_product_matrix מול sa_product_book, community_interests מול communities.interest_tags. בתוך family_groups: location_lat/lng מול lat/lng, is_premium מול plan, community_id הישן מול family_communities. 7 טבלאות לא-בשימוש ו-3 לגאסי (s1-erd, מושגים כפולים, סיכום סיווג).</div>
+<div>כלל יעד</div><div><ol>
+<li><b>(א) service_areas</b>: id, group_id, type ∈ {named, radius, polygon}, name/city, center, radius_km, polygon, fee, min_order, active. מכסה את delivery_zones (named) ואת biz_radius_delivery_zones (radius), עם הכללים של STR-15. biz_service_areas (אזורי שירות קהילתיים) עוברת לאותה טבלה עם purpose='community'. logistics_pricing_zones עוברת עם purpose='logistics_pricing', ו-logistics_rate_cards נשארת טבלת המחירון שלה.</li>
+<li><b>(ב) appointments</b> (מתוקן): ליבה משותפת לתורים 1:1 — calendar_events (תורים והזמנות), beauty_appointments+segments, sport_appointments: id, group_id, customer_id, resource_type, resource_id (מטפלת, מאמן, שולחן, משאב), service_ref, start_at, end_at, status, source, segments. הוורטיקלים שומרים טבלת הרחבה לשדות שלהם. <b>sport_classes נשאר ישות נפרדת</b> (שיעור קבוצתי עם רישום ורשימת המתנה), ומשתתף במנוע הזמינות כחסימת משאב.</li>
+<li><b>(ג) catalog_items</b> (מתוקן): kind ∈ {product, service, dish}. מאחד פריטים שהעסק מוכר: store_catalog, calendar_services, beauty_service_catalog. המלאי (pantry, beauty_inventory) וקטלוג הספקים (supplier_products) נשארים ישויות נפרדות, ומקושרים דרך טבלאות הקישור הקיימות.</li>
+<li><b>(ד) promotions</b>: scope ∈ {store, community}. מאחד את store_promotions ואת community_promotions. קופונים (store_coupons), חבילות קהילה ומימושי FLOW נשארים ישויות נפרדות.</li>
+<li><b>(ה) audit_log אחד</b>: actor_type, actor_id, group_id, action, entity, entity_id, diff, ip, request_id, created_at. מאחד את activity_log, biz_audit_log, family_audit_log ו-sa_audit_log. <b>צירי הזמן התחומיים</b> (routine_event_log, work_order_timeline, logistics_order_events) נשארים, כי הם מוצגים בממשק, וכל רשומה בהם נכתבת גם ל-audit_log (מתוקן).</li>
+<li><b>(ו) time_entries</b>: source ∈ {clock, manual, work_order, trainer_session}. מאחד את time_clock, time_logs, work_order_assignees.hours_worked ו-sport_trainer_sessions. כל חישוב שכר ודוח נותן את אותה תוצאה מספרית.</li>
+<li><b>(ז) family_groups</b>: lat/lng בלבד (COALESCE מ-location_lat/lng), plan בלבד, community_id נמחק אחרי מיגרציה (סעיף הדיירות).</li>
+<li>team_chat ו-team_posts → conversations (ARC-16). sa_product_matrix ו-sa_product_book → טבלה אחת. community_interests → communities.interest_tags.</li>
+<li><b>טבלאות לא-בשימוש</b> (global_products, work_order_notes_history, store_retail_promotions, logistics_cod_sessions, kh_html_backup, comment_mentions, sa_qa_runs) <b>ולגאסי</b> (quiz_bundles, community_banner_requests, message_acknowledgments) לא נבנות כטבלאות פעילות. הנתונים שלהן מועברים לסכמת <code>archive</code> ולא נמחקים. כל יכולת שקוראת היום מטבלת לגאסי ממופה לטבלה המחליפה, למשל אישורי הודעות SA (מתוקן).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-19</code> (מתוקן); STR-15, STR-37, BTY-42.</div>
+<div>הערות מיגרציה</div><div>כל איחוד הוא מיגרציה נפרדת: יצירה, העתקה עם legacy_id, אימות ספירות (וסכומים לתורים ושעות), ומעבר הקוראים. הטבלאות הישנות נשארות לקריאה בלבד עד שחרור שמוכיח שאין קוראים, ורק אז עוברות ל-archive.</div>
+</div></section>
+
+<section class="proc" data-f="entitlements tenant_entitlements module_catalog business_type_modules requireModule billing_config managed_modules features licensed_features unlocked_modules module_requests group_licenses bundle addon trial kill switch business type wizard"><h3>זכאות למודולים — מקור אמת יחיד, קטלוג מודולים וסוג עסק</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>שבעה מקורות מקבילים: family_groups.features, licensed_features, billing_config, managed_modules, unlocked_modules, module_requests ו-group_licenses. רק managed_modules נאכף בשרת (requireModule, 43120-43150), ורק כשנשלח טוקן עסקי. ריק = הכל פתוח, cache של 60 שניות, ו-fail-open בשגיאה. billing_config ו-features נאכפים רק בלקוח (business-app.js:37909-37976) (s1-rbac §4).</li>
+<li>licensed_features נקבע ב-PATCH /api/groups/:id/business-settings וב-POST /api/groups/:id/licenses בלי אימות (26373, 26472). ה-ADMIN מפעיל "ממשקי תפקיד" (₪/חודש לממשק) ומתגי שירות עצמי (ss_*) במסך ההגדרות (business-app.js:42122-42164, toggleFeatureLicense 42219). unlock-module של חשבון חבר פתוח בלי verifySA (31093).</li>
+<li>שתי רשימות מודולים לסוג עסק בלקוח: BUSINESS_TYPES[].modules (business-app.js:37526) ו-BIZ_TYPE_MODULES (sa-app.js:14751), עם אי-התאמות (s1-bizmatrix). getEnabledModules לא נקרא (37599). PRICING_CATALOG_DEFAULT קבוע בלקוח, ומשולם ב-patch בעלייה (3829).</li>
+<li>business_type נכתב דרך PATCH business-settings הפתוח, בכל שמירת הגדרות (42231) ובשלושה מסלולי ויזארד (19435, 19535, 19630). PATCH /api/biz/wizard/complete (8331) לא בודק wizard_completed.</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li><b>module_catalog</b>(id, name_he, gnav_group, price_monthly, is_core, kind ∈ {module, bundle, addon, role_interface, ai_plan}, bundle_members, active) ו-<b>business_type_modules</b>(business_type, module_id, default_on). שני הלקוחות (BIZ ו-SA) קוראים אותם מ-API, ו-SA עורך אותם (pricing). זה מחליף את BUSINESS_TYPES[].modules, BIZ_TYPE_MODULES ו-PRICING_CATALOG_DEFAULT.</li>
+<li><b>tenant_entitlements</b>(group_id, module_id, source ∈ {bundle, addon, trial, sa_grant, free, migration}, status ∈ {active, suspended, ended}, valid_from, valid_to, granted_by, note). זה מקור האמת היחיד.</li>
+<li><code>requireModule(module_id)</code> מוצמד לכל נתיב של מודול, לכל סוג סשן. הוא fail-closed (שגיאה מחזירה 503, ואין רשומה פעילה מחזירה 403 "גישה למודול זה אינה כלולה בחבילה שלך"). ה-cache הוא 60 שניות, ומתבטל במפורש בכל שינוי זכאות (ARC-24, AUTH-13).</li>
+<li>הלקוח קורא <code>GET /api/me/entitlements</code> ומציג נעילה לפי התשובה בלבד.</li>
+<li><code>features</code> נשאר רק kill-switch של SA (מכבה, לא מדליק). הסתרת מודול לפי בחירת המשתמש נשמרת כהעדפת תצוגה <code>hidden_modules</code> (FAM-02), ולא כזכאות.</li>
+<li><b>שינוי זכאות:</b> SA (הרשאת biz) מעניק או מסיר. אישור module_request על ידי SA יוצר רשומה. ה-ADMIN של העסק <b>שומר את ההפעלה העצמית של ממשקי תפקיד</b> (role_interface): ההפעלה יוצרת זכאות source='addon' ושורת חיוב לפי המחיר בקטלוג, והכיבוי מסיים אותה (מתוקן). מתגי ss_* עוברים ל-<code>group_settings.self_service</code>, שה-ADMIN עורך כמו היום, כי הם אינם זכאות בתשלום.</li>
+<li><b>ברירת המחדל לסוג עסק</b> (מוצעת בויזארד ובחבילה) היא האיחוד של BUSINESS_TYPES ו-BIZ_TYPE_MODULES של היום (מתוקן): feed, settings ו-biz-ads הם core לכל סוג. kds נשמר כמודול של restaurant. maintenance_repair כולל sales ו-timelog. store_only = budget, cashflow, customers, pantry, pos, reports, sales, shop (STR-49). beauty מקבל את 8 מודולי היופי ואת pos. logistics מקבל את 11 מודולי הלוגיסטיקה. other = כל המודולים. מודולי יופי ולוגיסטיקה נמכרים גם כחבילה (beauty_all ₪89, logistics_all ₪109) וגם כמודול בודד, כמו במחירון.</li>
+<li><b>סוג עסק</b> נכתב רק בשני מסלולים: (1) <code>PATCH /api/biz/wizard/complete</code>, על ידי ADMIN, רק כש-wizard_completed=false, והפעולה מסמנת את הוויזארד כהושלם; (2) <code>PATCH /api/sa/groups/:id</code> עם requireSAPermission('biz') ו-audit. שדה business_type שנשלח לכל נתיב אחר נדחה ב-400. business-settings ממשיך לשמור את table_count ואת send_order_email. בממשק אין בחירת סוג עסק מחוץ לוויזארד ולמסך SA (CLAUDE.md כלל 5). ערכי business_type מאוחדים לפי SA-20.</li>
+<li>משתמש FAMILY מסוג account_kind='member': feed ו-myorders הם free. מודולים שנפתחו (unlocked_modules) הם רשומות sa_grant. בקשת מודול (31042) עוברת לסשן family.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-17</code> (מתוקן; מכסה את BIZ-16), <code>ARC-18</code> (מתוקן), <code>ARC-37</code>; AUTH-13, SA-10, SA-17, SA-18, SA-19, SA-20, SA-21, SA-26; STR-02, STR-49, FAM-02.</div>
+<div>הערות מיגרציה</div><div><ol>
+<li>לכל קבוצת BUSINESS מחושב "מה נגיש היום":
+<ul><li>אם קיים billing_config: המודולים שמסומנים open, ועוד core.</li>
+<li>אחרת: כל הטאבים שהלקוח מציג היום לסוג העסק (BUSINESS_TYPES[type].modules ∪ BIZ_TYPE_MODULES[type]; other = הכל).</li>
+<li>∪ managed_modules (sales, logistics, menu_templates).</li>
+<li>∪ licensed_features/group_licenses שערכם true (role_interface, source='addon').</li></ul>
+לכל אחד נוצרת רשומה source='migration' (או bundle/addon כשמזוהה מ-billing_config.bundle_id), status='active'. trial_until הופך ל-valid_to של רשומות trial.</li>
+<li>features=false נשמר כ-kill-switch כפי שהוא, כך שמה שנעול היום נשאר נעול.</li>
+<li>FAMILY: unlocked_modules → sa_grant. module_requests (JSONB) → טבלה module_requests עם status.</li>
+<li>דוח: לכל עסק, רשימת הטאבים הנגישים לפני ואחרי. חייבת להיות זהות מלאה. פער חוסם את השחרור.</li>
+<li>אחרי המיגרציה: managed_modules, billing_config.modules ו-unlocked_modules נשארים לקריאה בלבד עד שחרור, ואז נמחקים. billing_config ממשיך להחזיק את תנאי החיוב (bundle_id, extra_users, discount).</li>
+</ol></div>
+</div></section>
+
+<h2 class="grp">עיבוד: טרנזקציות, רקע וחיוב</h2>
+
+<section class="proc" data-f="transactions withTransaction begin commit rollback pool.query client for update idempotency idempotency_key money side effects once"><h3>טרנזקציות ואידמפוטנטיות — תופעות כספיות פעם אחת</h3>
+<div class="kv">
+<div>מצב קיים</div><div>ב-11 מקומות הקוד מריץ <code>pool.query('BEGIN')</code> ואחריו שאילתות נוספות דרך pool, כך שכל שאילתה עלולה לרוץ על חיבור אחר, ואין טרנזקציה בפועל: 9987, 11055, 11528, 11807, 11858 (payroll-run), 12049 (אישור משימה ותגמול), 12142 (academy submit), 13052, 13891, 13952, 23288. במקומות אחרים הקוד נכון (client.query).</div>
+<div>כלל יעד</div><div><ol>
+<li>helper יחיד <code>withTransaction(async tx =&gt; …)</code>: pool.connect, BEGIN, COMMIT או ROLLBACK, release. כל פעולה שכותבת ליותר מטבלה אחת, או משנה יתרה, רצה דרכו. כלל lint אוסר <code>pool.query('BEGIN')</code>.</li>
+<li>פעולות כסף משתמשות ב-<code>SELECT … FOR UPDATE</code> על שורת היתרה (ARC-15).</li>
+<li><b>אידמפוטנטיות:</b> כל פעולה שיוצרת תופעה כספית או הודעה (אישור משימה ותגמול, payday, מימוש, החזר, השלמת הזמנה, הרצת שכר, תשלום עמלה, זיכוי קאשבק) מקבלת מפתח אידמפוטנטיות: מהלקוח (כותרת Idempotency-Key בכפתורי כסף) או טבעי (סוג פעולה ומזהה ישות ותקופה, למשל <code>task_reward:{taskId}</code>, <code>payroll:{groupId}:{yyyy-mm}</code>). המפתח נשמר ב-wallet_entries.idempotency_key או בטבלת idempotency_keys(key, result, created_at) עם UNIQUE. חזרה על הבקשה מחזירה את התוצאה הראשונה.</li>
+<li>שומרי מצב (guards): מעבר סטטוס שמפעיל כסף מתבצע ב-<code>UPDATE … WHERE status IN (…) RETURNING</code>. אם לא עודכנה שורה, התופעה לא מופעלת (למשל BIZ-29).</li>
+<li>תופעות חיצוניות (WhatsApp, מייל, SMS) נשלחות אחרי COMMIT, דרך תור (outbox ב-notification_deliveries), ולא בתוך הטרנזקציה.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-11</code> (מכסה את FAM-12, BIZ-25, COM-27, SA-30), <code>ARC-15</code>; BIZ-29.</div>
+<div>הערות מיגרציה</div><div>11 המקומות מתוקנים בראש סדר העדיפויות, לפני כל שינוי אחר. בדיקת lint חוסמת חזרה. לפני השחרור רצה בדיקת עומס של לחיצה כפולה על כל כפתור כסף, ומוכיחה שהתנועה נרשמת פעם אחת.</div>
+</div></section>
+
+<section class="proc" data-f="background jobs scheduler cron worker pg-boss advisory lock singleton idempotent setInterval asia/jerusalem in-memory state stateless redis"><h3>תהליכי רקע ומצב משותף</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>17 תהליכי רקע רצים כ-setInterval בתוך תהליך ה-web, בלי תור ובלי נעילה (ops.html). בכמה מופעים, כל משימה תרוץ בכל מופע ותיצור הודעות ומשימות כפולות. ה"חודשי" של קול העם רץ כל 20 יום (44905). השעה נלקחת משעון השרת.</li>
+<li>מצב קריטי נשמר ב-Maps בזיכרון: zoneManagerSessions, otpCache (OTP של SA), _loginRateMap, _scPinLockout, zmPasswordResets, _modCache (TTL 60 שניות, לא מתנקה באישור מודול) ו-_khErrLog (235, 6495, 10439-10482, 43124, 43184-43188).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li>המשימות עוברות לתהליך worker נפרד, עם תור מבוסס Postgres (pg-boss). לוח הזמנים בשעון Asia/Jerusalem.</li>
+<li>כל משימה מתוזמנת רצה פעם אחת בכל חלון בכל המערכת (singleton, או advisory lock לפי שם המשימה), ופועלת באידמפוטנטיות (מפתח dedup לכל ריצה ולכל ישות). כשל נרשם ללוג עם התראה (ARC-33).</li>
+<li>שרת ה-web stateless. סשנים, OTP, נעילות PIN ו-login, איפוסי סיסמה ומוני rate limit נשמרים ב-Postgres עם expires_at וניקוי. cache הזכאויות מתבטל במפורש בכל שינוי זכאות.</li>
+</ol>
+<div class="tbl-wrap"><table><tr><th>משימה (היום)</th><th>תזמון היום</th><th>תזמון יעד</th><th>הערות</th></tr>
+<tr><td>runWhatsAppCron (4719)</td><td>כל דקה</td><td>כל דקה</td><td>שעות השליחה לפי שעון ישראל (SA-45); כללים אפקטיביים (SA-42); dedup (SA-44)</td></tr>
+<tr><td>dispatchRecurringTasks (6816)</td><td>5 דק'</td><td>5 דק'</td><td>dedup לפי (task, assignee, יום ישראלי)</td></tr>
+<tr><td>runRoutinesCron (7040)</td><td>15 דק'</td><td>15 דק'</td><td>scheduled_date לפי יום ישראלי</td></tr>
+<tr><td>cleanupExpiredRoutineRecords (7042)</td><td>יומי מרגע העלייה</td><td>יומי 03:10</td><td>retention_period_days (365) כקיים</td></tr>
+<tr><td>ניקוי Map כניסות (10477) ו-anonymous (42519)</td><td>2 שע' / שעה</td><td>מוחלף בניקוי TTL יומי</td><td>המצב עובר ל-DB</td></tr>
+<tr><td>runBannerCron (21512)</td><td>6 שע'</td><td>6 שע'</td><td>—</td></tr>
+<tr><td>runAlertEngine, checkSLABreaches (25104-25105)</td><td>5 דק'</td><td>5 דק'</td><td>כתיבה ל-notifications (ARC-16)</td></tr>
+<tr><td>runRetentionCron — שימור יופי (32675)</td><td>יומי</td><td>יומי 09:00</td><td>notifications type=beauty_retention (BTY-14)</td></tr>
+<tr><td>ארכוב קבוצות קפואות (36802)</td><td>6 שע'</td><td>6 שע' + בעלייה</td><td>frozen &gt; 30 יום → archived, עם audit (SA-22)</td></tr>
+<tr><td>recalculateTrendingScores (40860)</td><td>15 דק'</td><td>15 דק'</td><td>—</td></tr>
+<tr><td>ניקוי סשנים וטוקנים (43835)</td><td>יומי מרגע העלייה</td><td>יומי 03:00</td><td>כל טבלאות הטוקנים, OTP ואיפוס (AUTH-40)</td></tr>
+<tr><td>runPhase3DailyCron (44849)</td><td>יומי</td><td>יומי 00:15</td><td>—</td></tr>
+<tr><td>runPhase3WeeklyCron (44885)</td><td>7 ימים מרגע העלייה</td><td>ראשון 00:30</td><td>שבוע ראשון–שבת</td></tr>
+<tr><td>runPhase3MonthlyCron (44905)</td><td>כל 20 יום</td><td>1 לחודש 00:45</td><td>תיקון: חודשי באמת</td></tr>
+<tr><td>runDemoBusinessesResetCron (44919)</td><td>6 שע'</td><td>6 שע'</td><td>pre_restore לפני השחזור (SA-25)</td></tr>
+<tr><td>— (חדש)</td><td>—</td><td>יומי 03:20</td><td>מחיקה סופית של קבוצות שנמחקו לפני 30 יום, עם snapshot (SA-23)</td></tr>
+<tr><td>— (חדש)</td><td>—</td><td>יומי 03:30</td><td>סיום זכאויות trial שפגו (ARC-17); רשימת מועמדים לאנונימיזציה (ARC-32)</td></tr>
+<tr><td>— (חדש)</td><td>—</td><td>רציף</td><td>שליחת notification_deliveries מה-outbox, עם retry</td></tr>
+</table></div></div>
+<div>החלטות שהוחלו</div><div><code>ARC-23</code>, <code>ARC-24</code>, <code>ARC-25</code>; SA-22, SA-23, SA-25, SA-42, SA-44, SA-45, SA-51, AUTH-18, AUTH-40.</div>
+<div>הערות מיגרציה</div><div>בשלב הראשון ה-worker רץ כתהליך יחיד ליד ה-web, עם אותו קוד משימה, ו-setInterval מוסר מה-web באותו שחרור. מצב בזיכרון שאובד במעבר (נעילות כניסה, OTP פתוחים) מתאפס פעם אחת, וזו אותה התנהגות כמו restart של היום.</div>
+</div></section>
+
+<section class="proc" data-f="billing payments billing_records pending_confirm paid void invoice numbering manual no gateway tranzila cardcom"><h3>חיוב ותשלומים — היקף גרסה 1</h3>
+<div class="kv">
+<div>מצב קיים</div><div>אין אינטגרציה לשער תשלום (לא נמצאו Stripe, Tranzila, Cardcom או PayPlus). חיוב עסקים עובר דרך billing_records שה-SA יוצר. העסק מאשר בחתימה דיגיטלית, הסטטוס עובר ל-pending_confirm (34941-34961), וה-SA מסמן paid (4882). הזמנות storefront וחשבוניות לוגיסטיקה מתועדות בלי גבייה מקוונת. עמלות ZM ותשלומים להן ידניים.</div>
+<div>כלל יעד</div><div><ol>
+<li>בגרסה 1 החיוב נשאר ידני, וכל יכולות החיוב של היום נשמרות (יצירה על ידי SA, חתימת העסק, סימון paid, עמלות ותשלומי ZM, תיעוד הזמנות וחשבוניות).</li>
+<li>מכונת מצבים מפורשת לרשומת חיוב: draft → issued → pending_confirm (חתימת ADMIN בלבד, verifyBizAdminOnly כקיים) → paid (SA עם הרשאת stats/finance, אסמכתה ותאריך חובה) / void (SA, סיבה חובה). כל מעבר נרשם ב-audit.</li>
+<li>מספור חשבוניות רציף לכל מנפיק (UNIQUE(issuer, number), הקצאה בטרנזקציה). מסמך שהופק שומר את שיעור המע"מ שהיה בתוקף (ARC-21).</li>
+<li>זכאויות addon (למשל ממשקי תפקיד, ARC-17) מתווספות כשורות בחשבון החודשי.</li>
+<li>פרטי כרטיס אשראי לא נשמרים בשום מקום.</li>
+<li>שלב 2 (backlog): שער סליקה ישראלי בדף מתארח עם tokenization, למנוי חודשי, ובאופן אופציונלי להזמנות storefront.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-22</code>; SA-36.</div>
+<div>הערות מיגרציה</div><div>סטטוסים קיימים ממופים: רשומה שנוצרה ועדיין לא אושרה → issued; pending_confirm → pending_confirm; paid → paid. מספרי חשבונית קיימים נשמרים, והרצף ממשיך מהמקסימום לכל מנפיק.</div>
+</div></section>
+
+<h2 class="grp">אינטגרציות, AI וקבצים</h2>
+
+<section class="proc" data-f="integrations whatsapp ultramsg sms twilio email smtp nodemailer gmail pixabay pexels cloudinary secrets env config system_settings"><h3>אינטגרציות חיצוניות: WhatsApp, SMS, דוא"ל ותמונות — תצורה וסודות</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>WhatsApp: UltraMsg (services/whatsapp.js:29-47), ULTRAMSG_INSTANCE_ID/TOKEN. בלי תצורה ההודעה נרשמת ב-whatsapp_log עם status='no_config'. formatPhone מנרמל ל-972. dedup של 23 שעות לפי whatsapp_log. החתימה היא "Oneflow Life" (whatsapp.js:15). שתי סכמות ל-whatsapp_settings (4409 מול 44304), וה-cron שואל עמודות שלא קיימות (SA-42, SA-43).</li>
+<li>SMS: Twilio (server.js:231-265). smsService עם SMS_SERVICE=test הוא קוד מת (55-85).</li>
+<li>דוא"ל: nodemailer smtp.gmail.com:465 עם SMTP_USER/SMTP_PASS (4279-4326). admin_notification_email עם fallback קשיח לכתובת אישית (4290). ארבעה טרנספורטים עוקפים (6369, 11303, 18148, 18209).</li>
+<li>תמונות: Pixabay, Pexels, Pollinations, HF ו-Cloudinary. cloudinary_api_secret נשמר ב-system_settings (5848, 7048, 13708).</li>
+<li>18 משתני סביבה (ops.html). קישורי wa.me שנבנים בלקוח (WM-01..WM-40) נשלחים על ידי המשתמש עצמו.</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li>שכבת adapters אחת, <code>integrations/</code>: whatsapp, sms, email, images, ai (ARC-30), storage (ARC-26). כל adapter מחזיר סטטוס אחיד ({sent, failed, skipped_no_config, invalid_phone}), ונרשם ב-notification_deliveries (ARC-16). השליחה מתבצעת מה-outbox אחרי COMMIT, עם retry מוגבל.</li>
+<li>WhatsApp: סכמה אחת ל-whatsapp_settings עם 12 מפתחות WA_TYPE_KEYS, ov_* ו-tpl_*. הכלל האפקטיבי הוא <code>ov ?? setting ?? global ?? true</code>, ושליחה רק כש-enabled (SA-41, SA-42). סדר בחירת התבנית נשמר: תבנית העסק, אחריה ברירת המחדל הגלובלית, ואחריה WA_DEFAULTS (4508-4523). החתימה היא WEFLOWZ (SA-46, ARC-39). כל קישורי wa.me בלקוח נשמרים כפי שהם.</li>
+<li>SMS: Twilio בלבד. smsService המת מוסר. sms_debug_code וטלפון הבדיקה פעילים רק כש-NODE_ENV!='production' (SA-49, ARC-31).</li>
+<li>דוא"ל: כל שליחה עוברת דרך sendSystemEmail. התבניות מוגדרות פעם אחת (emailTemplates עם render ו-auto-escape, ARC-27). אין כתובת קשיחה: כש-admin_notification_email ריק, מיילי SA לא נשלחים ונרשמת אזהרה. כל שליחה נרשמת (email_log או notification_deliveries) (SA-47). הערות פנימיות לא נשלחות לנמען חיצוני (SA-48).</li>
+<li><b>סודות</b> רק במשתני סביבה או ב-secret manager, לעולם לא ב-DB או ב-API: DATABASE_URL, GEMINI_API_KEY (מוחלף מיד, ARC-30), ANTHROPIC_API_KEY, HF_TOKEN, PIXABAY_API_KEY, PEXELS_API_KEY, TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER, SMTP_USER/SMTP_PASS (+SMTP_HOST/PORT עם ברירת מחדל Gmail כמו היום), ULTRAMSG_INSTANCE_ID/TOKEN, CLOUDINARY_API_KEY/API_SECRET (עוברים מ-system_settings), OTP_SECRET (AUTH-39), CSRF_SECRET, SENTRY_DSN. SEED_SECRET ו-SMS_SERVICE מוסרים.</li>
+<li><b>תצורה לא סודית</b> ב-system_settings, עם allow-list לכתיבה (SA-54) ו-audit: smtp_from_email, smtp_from_name, admin_notification_email, cloudinary_cloud_name, cloudinary_upload_preset (ציבוריים), מודלי AI ומכסות (ARC-30), קבועים עסקיים (סעיף הקבועים). APP_URL הוא כתובת הבסיס היחידה, ו-BASE_URL נשאר alias.</li>
+<li>Pixabay, Pexels ו-Pollinations נקראים רק מהשרת, אחרי אימות (ARC-30).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-31</code>, <code>ARC-39</code>, <code>ARC-16</code>; SA-41..SA-49, AUTH-39.</div>
+<div>הערות מיגרציה</div><div>הערכים cloudinary_api_secret ו-SMTP שנמצאים היום ב-system_settings מועברים למשתני סביבה ונמחקים מה-DB. מפתחות שנחשפו (GEMINI_API_KEY דרך /api/guide-config, Cloudinary secret) מוחלפים. whatsapp_settings: notify_* מועתקים ל-owner_* (SA-42), כך שהעדפות קיימות נשמרות.</div>
+</div></section>
+
+<section class="proc" data-f="ai gateway quota battery handleAITokens gemini anthropic claude huggingface pollinations ai_usage_log ai_tokens standard premium enterprise guide-config copilot"><h3>AI gateway ומכסות</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>GET /api/guide-config (12795) מחזיר את GEMINI_API_KEY לכל אחד, ו-biz-setup-guide.html קורא ל-Gemini מהדפדפן. 6 מתוך 7 נתיבי /api/ai פתוחים. /api/ai/generate (13907) לא קורא ל-handleAITokens. /api/store/catalog/generate-image (13658) מנצל בלי אימות את Pixabay, Pexels ו-Cloudinary.</li>
+<li>המכסה (4170-4199): family_groups.ai_tokens, last_token_reset ו-plan. standard 10, premium 50, enterprise ללא הגבלה, איפוס יומי. הבדיקה היא קריאה ואחריה הפחתה, לא אטומית. בכניסה ובטעינת SA, ai_tokens מאופס ל-10 גם ל-premium (10766, 9048).</li>
+<li>ספקים: Gemini בשתי ספריות SDK (@google/generative-ai בשימוש, @google/genai לא נקרא), callGeminiDirect מוגדר פעמיים (6054, 6260), Anthropic (claude-sonnet-4-6 לקופיילוט קול העם ולניתוח פיד קהילתי ב-SA), HF FLUX ו-Pollinations. מודלים קשיחים (gemini-2.5-flash, 2.0-flash-lite, 1.5-flash). קופיילוט קול העם עם מכסה נפרדת של 20 ביום (43153). 40 פיצ'רי AI מקוטלגים (s1-prompts).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li>/api/guide-config נמחק, ו-GEMINI_API_KEY מוחלף מיד (rotation). אף מפתח לא יוצא מהשרת.</li>
+<li>שירות <code>aiGateway.callModel({feature, actor, prompt, json, vision, images})</code> אחד בשרת. כל 40 הפיצ'רים הקיימים עוברים דרכו, עם אותם פרומפטים (s1-prompts). הוא בוחר ספק ומודל לפי תצורה (system_settings: ai_model_text, ai_model_lite, ai_model_vision, ai_model_claude, ai_image_chain), עם רשימת מודלים במטמון של 24 שעות, timeout של 30 שניות ו-retry רק על 429/503 (SA-15). הגדרת callGeminiDirect הכפולה מוסרת. SDK אחד ל-Gemini.</li>
+<li><b>אימות:</b> כל נתיב AI דורש סשן (family/biz/sa/zm/kh), חוץ מעוזר המדריך: <code>POST /api/guide/chat</code> ציבורי, עם 20 שאלות לשעה ל-IP אנונימי, או מכסת הקבוצה כשהמשתמש מחובר (SA-12). עוזר מדריך ההקמה שקרא ל-Gemini מהדפדפן עובר לנתיב הזה, והפיצ'ר נשמר.</li>
+<li><b>זכאות:</b> נבדקים kill-switch של ai (features.ai=false מסתיר ומחסום, כמו היום) וזכאות המודול שהפיצ'ר שייך לו.</li>
+<li><b>מכסה (סוללה):</b> לפי plan, מ-system_settings: ai_daily_quota_standard=10 (גם solo ו-member), ai_daily_quota_premium=50, enterprise ללא הגבלה. האיפוס lazy בחצות לפי שעון ישראל, רק בתוך ה-gateway. GET לעולם לא כותב, ו-UPDATE האיפוס ב-9048 וב-10766 מוסר (SA-11). ההפחתה אטומית: <code>UPDATE family_groups SET ai_tokens=ai_tokens-1 WHERE id=$1 AND ai_tokens&gt;0 RETURNING ai_tokens</code>. אחרי החיוב מתבצעת הקריאה למודל, ובכשל או fallback מוחזרת היחידה (SA-14). חריגה מחזירה תמיד HTTP 429 {error:'BATTERY_EMPTY'}, והממשק מציג את ai-battery-modal כמו היום.</li>
+<li><b>אילו פיצ'רים צורכים סוללה (מתוקן):</b> בדיוק אלה שצורכים היום (handleAITokens: שף, לומדה, משימות, תובנות familAI, מורה, רשימת קניות, סריקת קבלה, אימות הוכחה, FamilAI, FamliAI, אשף קטלוג, תיאורי מוצר, תוכנית אימונים, parse-pdf, generate-image). בקשה אחת = יחידה אחת, גם כשיש סבב NEED_DATA שני. פיצ'רים שלא צורכים היום (/api/ai/generate, יצירת תמונת מוצר STR-36, פיצ'רי SA ו-ZM) מקבלים אימות, rate limit (ARC-29) ולוג, בלי סוללה.</li>
+<li>קופיילוט קול העם שומר את המכסה הנפרדת שלו: kh_ai_copilot_daily_limit=20, חריגה מחזירה 429.</li>
+<li>FLOW AI ב-SA: פעולות EXECUTE שכותבות ל-DB מוחזרות כ-pending_action ומבוצעות רק אחרי אישור איש צוות עם ההרשאה המתאימה (SA-16). ניווט נשאר מיידי.</li>
+<li><b>לוג:</b> כל קריאה נרשמת ב-ai_usage_log עם feature_key, actor_type, group_id, provider, model, הצלחה או כשל, ומשך. דוח ai-usage ב-SA מציג את כל סוגי הסביבות (SA-14).</li>
+<li><b>ספקים לפי פיצ'ר (ברירת מחדל, ניתן לשינוי ב-SA בלי פריסה):</b> טקסט ו-vision ב-Gemini. קופיילוט קול העם וניתוח הפיד הקהילתי ב-SA ב-Anthropic Claude. תמונות: HF FLUX, ואחריו Pollinations. תמונת מוצר: Pixabay, אחריו Pexels, ואחריו Pollinations.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-30</code> (מתוקן); SA-11..SA-16, STR-36.</div>
+<div>הערות מיגרציה</div><div>ai_tokens ו-last_token_reset נשמרים, והמכסה הנוכחית ממשיכה מהערך השמור. ערכי ברירת המחדל של המכסות נזרעים ל-system_settings עם הערכים של היום (10/50/ללא הגבלה, 20 לקופיילוט). הקריאה מהדפדפן ב-biz-setup-guide.html מוחלפת בקריאה לשרת באותו שחרור שבו /api/guide-config נמחק.</div>
+</div></section>
+
+<section class="proc" data-f="files uploads multer cloudinary object storage s3 signed upload magic bytes svg heic base64 data uri nosniff public/uploads"><h3>קבצים והעלאות</h3>
+<div class="kv">
+<div>מצב קיים</div><div>POST /api/upload/product-image (13648) פתוח בלי אימות, ו-multer בודק רק את ה-MIME שהלקוח מצהיר (<code>/image\//</code>, 53), כך שאפשר לשמור קובץ HTML שמוגש מאותו origin. נתיבי base64 לוקחים סיומת מה-data URL (5859, 35204). endpoints ציבוריים של תמונות מגישים את ה-MIME שנשמר ב-DB (25190, 25206, 25221, 15600, 38981). תמונות נשמרות כ-data URI ב-DB (logo_url, image_url, logo_base64, image_base64, signature_data). הקבצים נכתבים לדיסק המקומי public/uploads, שנמחק ב-deploy. ניקוי Cloudinary שולח api_key:'' (7073) ומאפס את ה-DB גם כשהמחיקה נכשלת. בלקוח: <code>accept="image/*"</code> ב-60 מקומות, ".pdf,image/*" ו-".xlsx,.xls,.csv".</div>
+<div>כלל יעד</div><div><ol>
+<li>כל העלאה דורשת סשן (או sc-auth להעלאות של לקוח חנות), ונשמרת באחסון אובייקטים (Cloudinary signed upload או S3-compatible). ה-DB שומר רק URL ו-metadata (owner, group_id, kind, size, mime, created_at) בטבלת <code>files</code>.</li>
+<li><b>סוגים (מתוקן):</b> png, jpg, webp, gif ו-pdf, נבדקים לפי magic bytes. HEIC/HEIF מומרים ל-JPEG. SVG מומר לרסטר PNG, ולעולם לא נשמר או מוגש כ-image/svg+xml. כך כל העלאה שעובדת היום ממשיכה לעבוד. קבצי ייבוא (xlsx, xls, csv, json ב-SA) מנותחים ולא נשמרים כקובץ מוגש.</li>
+<li>גודל מקסימלי: 8MB לתמונה (כמו היום, 53) ו-15MB ל-PDF.</li>
+<li>שם הקובץ נוצר בשרת. כל הגשה עם Content-Type מהרשימה המותרת ו-X-Content-Type-Options: nosniff. endpoints ציבוריים של תמונה מפנים (302) ל-URL באחסון.</li>
+<li>מחיקה או החלפה מוחקות את האובייקט הישן, עם בדיקת תגובה. ה-DB לא מתאפס כשהמחיקה נכשלת.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-26</code> (מתוקן); STR-36, FAM-35, BTY-47.</div>
+<div>הערות מיגרציה</div><div>מיגרציה חד-פעמית עוברת על כל עמודות ה-data URI (logo_url, image_url, logo_base64, image_base64, signature_data, תמונות לקוח יופי, הוכחות משימה) ועל public/uploads, מעלה כל קובץ לאחסון ומחליפה בעמודה ל-URL. קובץ שנכשל נשאר כפי שהוא ומדווח. נתיבי ה-base64 הקיימים ממשיכים לקבל base64 בתקופת המעבר (עם מגבלת גוף של 10MB, ARC-28), אבל ממירים אותו לאחסון בשרת.</div>
+</div></section>
+
+<h2 class="grp">אבטחה ותפעול</h2>
+
+<section class="proc" data-f="security headers helmet csp hsts nosniff cors trust proxy body limit static path traversal error handler 404"><h3>בסיס אבטחה: כותרות, CORS, trust proxy ומגבלות גוף</h3>
+<div class="kv">
+<div>מצב קיים</div><div>אין helmet, CSP, HSTS או nosniff. cors() פתוח לכל origin (91). trust proxy לא מוגדר, ולכן ה-IP נלקח מהערך השמאלי של X-Forwarded-For, שהלקוח שולט בו (10563), ו-req.protocol מדווח http. express.json ו-urlencoded עם 20MB לכל נתיב (102, 145). אין error handler ואין 404 JSON. שורש ה-static יחסי ל-cwd, ותיקיות ההעלאה לפי __dirname. path traversal אפשרי בהגשת webp (147-154).</div>
+<div>כלל יעד</div><div><ol>
+<li>helmet עם CSP: script-src 'self' ו-CDNs מאושרים (Tailwind, Font Awesome, cdnjs/jsdelivr לפי השימוש של היום), frame-ancestors לפי embeds מוצהרים. HSTS ו-nosniff. בשלב המעבר CSP רץ ב-Report-Only עד שה-inline handlers מוסרים (ARC-27).</li>
+<li>CORS מוגבל ל-https://weflowz.co.il ותתי-דומיינים. origins של storefront ו-embeds מוצהרים במפורש. הפניית 301 מ-oneflowlife.co.il נשמרת (94-100).</li>
+<li><code>app.set('trust proxy', 1)</code> לפי מספר ה-proxies בפועל (Render). ה-IP הוא req.ip.</li>
+<li><b>מגבלת גוף (מתוקן):</b> 1MB כברירת מחדל. 10MB מוגדר במפורש לנתיבים שמקבלים היום base64 או קבצים: הגדרות חנות (לוגו, רקע), לוגו קבוצה, חתימות (חיוב, מסמכים), צרופות PDF במייל (ספירת מלאי, הזמנות רכש), parse-pdf, vision (קבלה, הוכחת משימה, identify-product), תמונות יופי, באנרים ב-SA. ברגע שנתיב עובר להעלאה ישירה לאחסון (ARC-26), המגבלה שלו חוזרת ל-1MB.</li>
+<li>static מנתיב מוחלט אחד, של תוצרי build בלבד (ARC-38), בלי traversal. הגשת webp אוטומטית נשמרת, עם נרמול נתיב.</li>
+<li>404 JSON ל-/api/*, ו-error handler מרכזי (ARC-33).</li>
+<li>compression נשמר. הזרקת OG לתבניות storefront נשמרת, עם escape של הערכים (ARC-27).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-28</code> (מתוקן); AUTH-18.</div>
+<div>הערות מיגרציה</div><div>רשימת הנתיבים עם מגבלת 10MB נגזרת מסריקה של קריאות הלקוח ששולחות base64. הבדיקה ב-CI נכשלת אם נתיב כזה נשאר עם 1MB.</div>
+</div></section>
+
+<section class="proc" data-f="xss escape esc innerHTML textContent sanitize sanitize-html rich html email templates auto-escape lint csp"><h3>סניטציה ומניעת XSS</h3>
+<div class="kv">
+<div>מצב קיים</div><div>ב-business-app.js יש 1,479 שימושים ב-innerHTML מול כ-85 קריאות escape. escHtml מוגדר פעמיים (19, 9038), ויש גם _mtEsc, _esc ו-_escHtml, ואף אחד מהם לא מקודד גרש בודד. שדות מלקוח ציבורי מוצגים בלי escape (customer_name בלוגיסטיקה 52623, הערות תור ביופי 50685, לידים 48544). בשרת אין escapeHtml משותף: מיילים ודפי HTML משלבים ערכים גולמיים (10199, 42747, 25110, 27682). מייל הברוכים הבאים שולח סיסמה בטקסט גלוי (10204). התנאי content.includes('') ב-Inbox תמיד true. sanitize-html קיים ב-package.json, ו-sanitizeKHHtml בשימוש בקול העם.</div>
+<div>כלל יעד</div><div><ol>
+<li>בלקוח: helper אחד <code>esc()</code> שמקודד &amp; &lt; &gt; " ', ו-textContent כברירת מחדל. innerHTML מותר רק עם תבנית שמעבירה כל ערך דרך esc(). כלל lint חוסם template literal לא מוגן ב-innerHTML.</li>
+<li><b>תוכן עשיר (מתוקן):</b> sanitize בשרת לפי allowlist של תגים ותכונות, על כל שדה עשיר שקיים היום: קול העם (sanitizeKHHtml, כולל cover_image_url עם http/https בלבד), מסמכים משפטיים (SA-55), תוכן אתר מקצועי, סקשני מיתוג החנות, גופי ניוזלטר ושיווק (SA ו-ZM) ותבניות WhatsApp ומייל שנערכות ב-SA. אף שדה לא מומר לטקסט פשוט.</li>
+<li>בשרת: מנוע תבניות עם auto-escape לכל מייל ודף HTML (emailTemplates, SA-47), כולל הזרקת OG.</li>
+<li>סיסמה לא נשלחת במייל או ב-SMS לעולם. מייל הברוכים הבאים כולל קוד סביבה, שם משתמש וקישור כניסה (ARC-31, AUTH-23).</li>
+<li>תיקון התנאי ב-Inbox.</li>
+<li>CSP בלי inline script (ARC-28) הוא שכבת הגנה נוספת.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-27</code> (מתוקן); SA-47, SA-48, SA-55, AUTH-23.</div>
+<div>הערות מיגרציה</div><div>sanitize רץ פעם אחת על כל התוכן העשיר הקיים (עם גיבוי ב-archive), כך שתוכן ישן מוצג בצורה בטוחה בלי לאבד עיצוב מותר. ההחלפה של innerHTML בלקוח מתבצעת לפי מודולים (ARC-34), תחילה בשדות שמגיעים מלקוח ציבורי.</div>
+</div></section>
+
+<section class="proc" data-f="rate limit otp lockout login attempts 429 sms codes 6 digits public write ip account"><h3>Rate limiting ומגבלות OTP</h3>
+<div class="kv">
+<div>מצב קיים</div><div>אין express-rate-limit, ויש 11 מנגנונים ידניים. שלוש מגבלות שליחת OTP לא יורות לעולם, כי כל route מוחק את הקודים הקודמים לפני הספירה (7613, 7717, 10500). מגבלת IP עקיפה דרך X-Forwarded-For. נעילת הכניסה לפי code:&lt;groupCode&gt; משותפת לכל הקבוצה. אין הגבלה על /api/biz/login, SA login ו-OTP, ZM login, sc-auth/reset-pin ועל קודי SMS בני 4 ספרות להזמנת שולחן ותור (s1-seed, טבלת הקבועים).</div>
+<div>כלל יעד</div><div><ol>
+<li>middleware אחד של rate limit עם אחסון משותף (טבלת rate_counters ו-login_attempts ב-Postgres, AUTH-18).</li>
+<li>כניסה בסיסמה: 5 כישלונות ב-15 דק' לכל זוג (חשבון+IP), ואז נעילה של החשבון בלבד, לא של הקבוצה.</li>
+<li>שליחת OTP: 3 בשעה ו-10 ביום לכל טלפון, נספרות מטבלת לוג שליחות שלא נמחקת בשליחה חדשה. אימות OTP: 5 ניסיונות לקוד, ואז הקוד נפסל.</li>
+<li>כל קודי ה-SMS (OTP עסק, משפחה, חנות, איפוס PIN, הזמנת שולחן, תור) באורך 6 ספרות ותקפים 10 דק'.</li>
+<li>PIN לקוח חנות: 5 ניסיונות ו-15 דק' נעילה (כמו היום), ב-DB.</li>
+<li>נתיבים ציבוריים כותבים: 30 לדקה לכל IP. נתיבים ששולחים SMS או מייל: 3 ל-10 דק' לכל טלפון או מייל ו-20 לשעה לכל IP (SA-50). pilot-waitlist: 5 לשעה ל-IP. עוזר המדריך: 20 לשעה ל-IP.</li>
+<li>נתיבים מאומתים: מגבלת שימוש הוגן לכל principal (למשל 600 לדקה), ומגבלות ייעודיות שהוגדרו בדומיין (שידור ספורט 30 לדקה לעסק, SPT-04).</li>
+<li>חריגה מחזירה HTTP 429 עם הודעה בעברית ו-Retry-After.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-29</code> (מכסה את AUTH-17); AUTH-18, AUTH-38, SA-05, SA-50.</div>
+<div>הערות מיגרציה</div><div>המונים בזיכרון מתאפסים פעם אחת במעבר. הודעות הממשק שמציגות "נותרו N ניסיונות" מתעדכנות לפי הערכים החדשים. אורך קוד SMS של 6 ספרות מחייב עדכון שדות הקלט בדפי הזמנת שולחן ותור, באותו שחרור.</div>
+</div></section>
+
+<section class="proc" data-f="passwords secrets bcrypt plaintext sa_password demo_password_plain solo_temp_password sms_debug_code test phone cloudinary secret"><h3>סיסמאות, קודים וסודות</h3>
+<div class="kv">
+<div>מצב קיים</div><div>סיסמת SA נשמרת ומושווית בטקסט גלוי (8603, 8632), ו-PUT /api/settings/tour משווה Authorization ל-sa_password (8947). demo_password_plain ו-solo_temp_password נשמרים בטקסט גלוי (1966, 17967). system_settings.sms_debug_code מחליף כל קוד SMS של הזמנת שולחן ותור בקוד קבוע (33690-33692), גם בייצור. SC_MULTI_FAMILY_TEST_PHONE='0526626619' קבוע בקוד (43492). הגדרות Cloudinary, כולל api_secret, נשמרות ב-system_settings.</div>
+<div>כלל יעד</div><div><ol>
+<li>כל סיסמה, PIN או קוד זמני נשמר כ-bcrypt (cost 12 לסיסמאות ול-PIN, 10 לקודים קצרי חיים). קודי OTP נשמרים כ-HMAC-SHA256 עם OTP_SECRET (AUTH-39). אין השוואת plaintext בשום מקום. PUT /api/settings/tour עובר ל-requireSAPermission('content').</li>
+<li><b>סיסמת דמו (מתוקן):</b> SA לוחץ "אפס והצג סיסמת דמו". נוצרת סיסמה חדשה, מוצגת פעם אחת ונשמרת רק כ-bcrypt. כך SA יכול תמיד למסור פרטי כניסה לעסק דמו, בלי שהסיסמה נשמרת בגלוי.</li>
+<li>סיסמה זמנית של SOLO: מוגרלת, מוחזרת פעם אחת בתגובה כדי שהעסק יציג אותה או ישלח אותה בוואטסאפ כמו היום, ונשמרת רק כ-bcrypt (AUTH-37).</li>
+<li>קודי דיבאג (sms_debug_code) וטלפון בדיקה פעילים רק כש-NODE_ENV!='production' (SA-49).</li>
+<li>סודות צד שלישי רק במשתני סביבה או ב-secret manager (ראו סעיף האינטגרציות).</li>
+<li>מדיניות סיסמה אחידה: מינימום 6 תווים בכל endpoint (AUTH-24).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-31</code> (מתוקן); AUTH-23, AUTH-24, AUTH-37, AUTH-39, SA-04, SA-32, SA-49, SA-56.</div>
+<div>הערות מיגרציה</div><div>demo_password_plain ו-solo_temp_password מגובבים במיגרציה (כשאין hash קיים), והעמודה הגלויה נמחקת. sa_password מוחלף ב-sa_users.password_hash (סעיף הרשאות SA). קוד שמשווה plaintext מוסר באותו שחרור.</div>
+</div></section>
+
+<section class="proc" data-f="maintenance debug seed setup-db force-upgrade init-promotions init-procurement test-email seed_secret cli db:reset db:seed demo"><h3>נתיבי תחזוקה, דיבאג וזריעה</h3>
+<div class="kv">
+<div>מצב קיים</div><div>GET /setup-db (6439) מריץ DROP TABLE … CASCADE על טבלאות הליבה בלי אימות. /api/force-upgrade (6391), /api/debug/* (25782, 25790, 34982-35007), /api/test-email (6369), GET /api/init-promotions (17035, מוחק את store_promotions) ו-/api/init-procurement (17120) פתוחים כולם, ואין להם קורא בלקוח. נתיבי seed של קול העם מוגנים רק בסוד הקבוע 'SEED_DEMO_2026' (39530, 41624, 45018). כפתור "🌱 הזן נתוני דוגמה" ב-SA שולח את הסוד מהלקוח (sa-app.js:14542). SA קורא ל-/api/sa/test-email (sa-app.js:2129) ול-/api/sa/quest-library/run-seed (11361).</div>
+<div>כלל יעד</div><div><ol>
+<li>בייצור אין אף נתיב HTTP שמריץ DDL, איפוס או דיבאג. /setup-db, /api/force-upgrade, /api/debug/*, /api/test-email (הלא מאומת), /api/init-promotions ו-/api/init-procurement מוסרים. הטבלאות שהם יצרו מוגדרות במיגרציות (ARC-12).</li>
+<li>איפוס וזריעה הם סקריפטי CLI בלבד (<code>npm run db:reset</code>, <code>npm run db:seed</code>), שרצים רק כש-NODE_ENV!='production'.</li>
+<li>נתיבי דיבאג נרשמים רק בסביבת פיתוח.</li>
+<li><b>זריעת תוכן דמו מה-SA (מתוקן):</b> נשארת זמינה מאותם מסכים ולאותו צוות שרואה אותם היום (לשונית קול העם: הזן נתוני דוגמה ו-seed-sample; ספריית קווסטים: run-seed), דרך נתיבי <code>/api/sa/*</code> מאומתים. כל ריצה נרשמת ב-audit, והתוכן מתויג is_demo כדי שאפשר יהיה לזהות ולהסיר אותו. שאר נתיבי ה-seed של קול העם (seed-version-history, seed-approval-queue, seed-editor-draft, fix-covers, seed-author-sample, seed-list-sample, seed-full-demo) עוברים לאותו מסלול (requireSAPermission('devops')), כי אין להם כפתור בממשק היום. SEED_SECRET נמחק.</li>
+<li><code>/api/sa/test-email</code> נשמר (הרשאת devops או all), ומשתמש באותן תבניות של emailTemplates (SA-47).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-10</code> (מתוקן; מכסה את SA-01); SA-59.</div>
+<div>הערות מיגרציה</div><div>לפני ההסרה, בדיקת לוג גישה של 30 יום מאשרת שאין קריאות לנתיבים שמוסרים מחוץ ל-SA. הכפתור ב-sa-app.js מפסיק לשלוח את הסוד, ומשתמש ב-saFetch עם הסשן.</div>
+</div></section>
+
+<section class="proc" data-f="observability logging pino request_id sentry error handler asyncHandler unhandledRejection health audit log coverage sa_audit_log biz audit"><h3>Observability, טיפול שגיאות ויומן ביקורת</h3>
+<div class="kv">
+<div>מצב קיים</div><div>אין error middleware ואין process.on('unhandledRejection'). handlers בלי try/catch (כל /api/sc-auth/*, /api/family/sso-login 43791) יכולים להפיל את התהליך. ב-1,466 מקומות e.message מוחזר ללקוח, ויש 733 catch ריקים. הלוג הוא console בלבד, בלי request id. audit אוטומטי לכל כתיבה עם req.bizAuth.groupId (105-144), כולל בטעות סשנים משפחתיים. sa_audit_log בלי זהות מבצע (SA-07).</div>
+<div>כלל יעד</div><div><ol>
+<li>wrapper <code>asyncHandler</code> לכל נתיב, ו-error middleware אחד שמחזיר <code>{success:false, error:{code, message_he}}</code> בלי stack ובלי הודעת DB. הודעות הולידציה העסקיות בעברית, שהממשק מציג היום, נשמרות כ-message_he. קודים: 400 ולידציה, 401, 403, 404, 409 התנגשות או מצב, 429, 502 ספק חיצוני, 503 תלות לא זמינה, 500 אחר. success:false עם HTTP 200 לא בשימוש (SA-58).</li>
+<li>process.on('unhandledRejection'/'uncaughtException') רושם ללוג ומבצע graceful restart.</li>
+<li>לוגר מובנה (pino) עם request_id, principal_type, principal_id, group_id, route ומשך. שירות מעקב שגיאות (Sentry או דומה). catch ריק אסור ב-lint.</li>
+<li><code>/api/health</code> בודק גם חיבור DB ואת זמינות ה-worker.</li>
+<li><b>audit_log אחד</b> (ARC-19): ה-audit האוטומטי של היום (POST/PUT/PATCH/DELETE מוצלחים, 12 שדות ראשונים בלי password/token/secret/signature, עם רשימות ההחרגה) נשמר, ומורחב לכל סוגי ה-principal עם actor_type הנכון. סשן משפחתי לא נרשם כעסקי (ARC-05).</li>
+<li>אירועי SA חובה (SA-07): SA_LOGIN/LOGIN_FAILED/LOGOUT, IMPERSONATE, UPDATE_SA_CREDENTIALS, STAFF_CREATE/UPDATE/DELETE, FLOW_GRANT, BILLING_MARK_PAID, PRICING_UPDATE, BILLING_CONFIG_UPDATE, MODULE_REQUEST_APPROVE/DENY, EDIT_GROUP, SA_AI_&lt;action&gt;, DEMO_SEED. כשל ברישום audit נרשם בלוג השרת ולא נבלע.</li>
+<li>אירועים רגישים נוספים: שינוי business_type, שינוי זכאות, שינוי מע"מ, גישה לשדה מוצפן (ARC-32), שינוי הרשאות ותפקיד.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-33</code>; SA-07, SA-58.</div>
+<div>הערות מיגרציה</div><div>טבלאות ה-audit הקיימות מועתקות ל-audit_log עם actor_type לפי המקור. רשומות sa_audit_log ישנות בלי מבצע מקבלות actor='unknown_legacy'. מסך יומן הביקורת ב-SA (auditlog) ממשיך להציג את כל ההיסטוריה.</div>
+</div></section>
+
+<section class="proc" data-f="privacy pii id_number medical encryption pgcrypto blind index retention anonymization data subject export delete select star password_hash privacy.html amendment 13"><h3>פרטיות ו-PII</h3>
+<div class="kv">
+<div>מצב קיים</div><div>נתונים אישיים חשופים בלי אימות: טלפונים והערות של לקוחות יומן (GET /api/calendar/:groupId 22800), טלפון, מייל וכתובת של כל קבוצה (GET /api/groups/search-all), תוצאות סקרים עם ת"ז (/api/surveys/:id/results), ו-check-oneflow מחזיר id_number (31781). /api/superadmin/data מריץ SELECT * FROM users (9051), ו-password_hash יוצא ללקוח (AUTH-07). id_number ומידע רפואי של לקוחות יופי נשמרים בלי הצפנה. אין מדיניות שמירה או מחיקה, חוץ משגרות. קבוצה קפואה מאורכבת אחרי 30 יום (36802), ו-SA יכול לשחזר מארכיון.</div>
+<div>כלל יעד</div><div><ol>
+<li>כל נתיב שמחזיר PII דורש אימות והרשאה מתאימה, ומחזיר רשימת שדות מפורשת. אין SELECT * בתגובות, ואין password_hash, pin_hash או טוקנים (sanitizeUser, AUTH-07). נתיבים ציבוריים מחזירים מידע בתצורה מצומצמת (תפוסה בלי שמות, טלפון ממוסך, STR-05).</li>
+<li>שדות רגישים (id_number, medical_notes, אלרגיות, הצהרות בריאות בספורט) מוצפנים ברמת עמודה (הצפנה באפליקציה עם מפתח מסביבה, AES-GCM). לחיפוש שוויון (למשל ת"ז כפולה, BTY-46) נשמר blind index (HMAC). כל גישה לשדה מפוענח נרשמת ב-audit.</li>
+<li><b>מדיניות שמירה (מתוקן):</b> שגרות — כמו היום (retention_period_days). קבוצה שנמחקה רך — מחיקה סופית אחרי 30 יום, עם snapshot (SA-23). קבוצה ב-archived — אחרי תקופת שמירה שניתנת להגדרה (system_settings.archived_retention_days) היא נכנסת לרשימת "מועמדים לאנונימיזציה" ב-SA, והאנונימיזציה מתבצעת רק באישור SA. עד אז השחזור מארכיון נשמר (SA-22).</li>
+<li>ייצוא ומחיקה לבקשת נושא המידע (חוק הגנת הפרטיות, תיקון 13): נתיב SA (הרשאת support) שמפיק ייצוא JSON של כל נתוני המשתמש או הלקוח, ומבצע מחיקה או אנונימיזציה עם audit.</li>
+<li>privacy.html מתעדכן לפי המדיניות. נוסח ברירת המחדל ב-LEGAL_DEFAULTS.legal_privacy מתעדכן בהתאם.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-32</code> (מתוקן); AUTH-07, STR-05, SA-22, SA-23.</div>
+<div>הערות מיגרציה</div><div>הצפנת העמודות הקיימות היא מיגרציה עם גיבוי, שמחשבת גם את ה-blind index. הקריאה מפענחת בשקיפות בשכבת ה-repository, כך שמסכי תיק לקוח ממשיכים להציג את אותו מידע למורשים.</div>
+</div></section>
+
+<h2 class="grp">חוויה, תצורה ומיתוג</h2>
+
+<section class="proc" data-f="i18n rtl hebrew he.json intl he-IL ils currency dates bdi dir ltr name_en bilingual"><h3>i18n ו-RTL</h3>
+<div class="kv">
+<div>מצב קיים</div><div>כל הדפים lang=he dir=rtl, ומחרוזות עברית קשיחות בקוד הלקוח ובהודעות השגיאה של השרת. יש עמודת name_en ב-family_groups, ומחולל העסקים מפיק name_en, slogan_en ו-welcome_message_en כשנבחרה אנגלית (s1-prompts, בונה עסק AI). עיצוב מספרים ותאריכים לא אחיד: חלק עם Intl/he-IL, חלק en-US או ידני.</div>
+<div>כלל יעד</div><div><ol>
+<li>בגרסה 1 ממשק המערכת (FAMILY, BIZ, SA, ZM) בעברית בלבד, RTL.</li>
+<li>כל מחרוזות הממשק מרוכזות בקובץ he.json. השרת מחזיר קוד שגיאה עם message_he (ARC-33).</li>
+<li>מספרים, מטבע (₪, ILS) ותאריכים מוצגים דרך Intl עם he-IL ו-Asia/Jerusalem בלבד.</li>
+<li>רכיבים שמכילים טלפון, מספר, קוד או אנגלית מסומנים dir=ltr או bdi.</li>
+<li><b>תוכן עסקי דו-לשוני (מתוקן):</b> השדות name_en, slogan_en, welcome_message_en והתוכן הדו-לשוני שהחזית מציגה היום נשמרים, ונערכים כמו היום.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-40</code> (מתוקן).</div>
+<div>הערות מיגרציה</div><div>חילוץ המחרוזות ל-he.json מתבצע לפי מודולים (ARC-34), בלי שינוי בנוסח.</div>
+</div></section>
+
+<section class="proc" data-f="accessibility a11y wcag is 5568 aria label focus trap dialog contrast aria-live accessibility statement axe"><h3>נגישות</h3>
+<div class="kv">
+<div>מצב קיים</div><div>0 מאפייני aria- ב-business-app.js, 1 ב-app.js, 5 ב-index.html ו-4 ב-business.html. כפתורי אייקון בלי תווית, מודאלים בלי focus trap, טוגלים מבוססי sr-only בלי label מקושר. קיים מפתח legal_accessibility ב-LEGAL_DEFAULTS (25251-25273), אבל אין הצהרת נגישות מלאה עם פרטי רכז.</div>
+<div>כלל יעד</div><div><ol>
+<li>יעד WCAG 2.1 AA, שמכסה את IS 5568.</li>
+<li>לכל כפתור אייקון aria-label. לכל שדה label. ניווט מלא במקלדת עם focus גלוי. מודאלים עם role=dialog, aria-modal ו-focus trap. ניגודיות 4.5:1. הודעות toast ב-aria-live. טוגלים עם label מקושר ו-role=switch.</li>
+<li>דף הצהרת נגישות עם פרטי רכז נגישות, שמוזן מ-legal_accessibility.</li>
+<li>בדיקת axe אוטומטית ב-CI על המסכים הראשיים של כל סביבה.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-41</code>.</div>
+<div>הערות מיגרציה</div><div>התיקונים לא משנים זרימות או פריסה. הם מתבצעים לפי מודולים, ומתחילים בזרימות הציבוריות (חזית, הזמנת תור ושולחן) ובכניסה.</div>
+</div></section>
+
+<section class="proc" data-f="timezone asia/jerusalem timestamptz todayIL business day current_date utc toisostring"><h3>שעון עסקי: Asia/Jerusalem</h3>
+<div class="kv">
+<div>מצב קיים</div><div>תאריכים "של היום" מחושבים לפי שעון השרת או UTC: <code>toISOString().split('T')[0]</code> מופיע 67 פעמים, ו-Asia/Jerusalem מוזכר רק 7 פעמים בשרת. זה משפיע על cron ההתראות, היומן, הציוד, הכניסה היומית ל-FLW ושגרות (scheduled_date ≤ היום לפי UTC). runWhatsAppCron משתמש ב-new Date().getHours() של השרת.</div>
+<div>כלל יעד</div><div><ol>
+<li>כל עמודות הזמן TIMESTAMPTZ.</li>
+<li>"יום עסקי" מחושב תמיד ב-Asia/Jerusalem דרך helper אחד (<code>todayIL()</code>, <code>toILDate(ts)</code>, <code>ilHour()</code>).</li>
+<li>ה-session timezone של ה-DB הוא 'Asia/Jerusalem', כך ש-CURRENT_DATE מחזיר את היום הישראלי.</li>
+<li>גבולות חלונות זמן (חצות, שבוע ראשון–שבת, ראשון לחודש) מוגדרים לפי שעון ישראל. איפוס מכסת AI, מגבלות יומיות, תזמוני worker ו-WhatsApp לפי השעון הזה.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-25</code>; SA-45.</div>
+<div>הערות מיגרציה</div><div>עמודות TIMESTAMP ממוגרות ל-TIMESTAMPTZ בהנחה שהערכים נשמרו ב-UTC (שעון השרת ב-Render). עמודות DATE נשארות. הבדיקה משווה מדגם של רשומות לפני ואחרי.</div>
+</div></section>
+
+<section class="proc" data-f="constants config vat 18 calcVat vat_exempt commission cashback trial ai quota otp session flow rate platform_config system_settings"><h3>קבועים ותצורה — כולל מע"מ 18% שניתן להגדרה</h3>
+<div class="kv">
+<div>מצב קיים</div><div>חשבונית לוגיסטיקה מחשבת מע"מ 17% קבוע בקוד (32780). store_settings.vat_rate DEFAULT 18 (924, 13126). בהצעת מחיר בלקוח הערך נשמר ב-localStorage.ofl_vat_rate (ברירת מחדל 18) ויש "ללא מע"מ" (business-app.js:12353). מיגרציה בלקוח מ-17 ל-18 (31405). 47 מפתחות system_settings עם fallback בקוד, ורק אחד נזרע (s1-seed §2). קבועים עסקיים מפוזרים בשרת ובלקוח (s1-seed §8).</div>
+<div>כלל יעד</div><div><ol>
+<li><b>מרשם תצורה</b> אחד (platform_config): key, type, default, scope (system / group override), editable_by (perm), audit. מחליף את ה-fallbacks המפוזרים. ערכי ברירת המחדל זהים לערכים של היום.</li>
+<li><b>מע"מ:</b> system_settings.vat_rate=18 עם vat_effective_from הוא מקור האמת, ושינוי בו נרשם ב-audit (הרשאת all). כל חישוב מע"מ (חשבונית, הצעה, קבלה, קופה, לוגיסטיקה, PDF רכש) מתבצע בשרת דרך <code>calcVat(amount, groupId, date)</code>. עסק עם store_settings.vat_exempt=true מקבל 0%. כל מסמך שומר את השיעור שהיה בתוקף בזמן ההפקה. <b>עקיפה לכל מסמך (מתוקן):</b> בהצעת מחיר נשארים שדה שיעור המע"מ ו"ללא מע"מ" (vatRate, noVat), עם ברירת מחדל מ-calcVat, והערך נשמר במסמך. רק ההעדפה ב-localStorage מוסרת.</li>
+<li>שאר הקבועים נשמרים בערכים של היום:</li>
+</ol>
+<div class="tbl-wrap"><table><tr><th>קבוע</th><th>ערך</th><th>מקום</th></tr>
+<tr><td>vat_rate</td><td>18 (לוגיסטיקה: 17→18)</td><td>system_settings + vat_exempt לעסק</td></tr>
+<tr><td>platform_commission_pct / community_cashback_pct / zone_manager_commission_pct</td><td>3% / 30% / 5%</td><td>system_settings (18571, 18572, 18603)</td></tr>
+<tr><td>zone_max_zones_per_manager</td><td>4</td><td>system_settings</td></tr>
+<tr><td>wizard_free_months</td><td>3</td><td>system_settings (SA-21)</td></tr>
+<tr><td>מכסת AI יומית</td><td>standard/solo/member 10, premium 50, enterprise ללא הגבלה</td><td>system_settings ai_daily_quota_*</td></tr>
+<tr><td>kh_ai_copilot_daily_limit</td><td>20</td><td>system_settings</td></tr>
+<tr><td>מגבלת ייבוא קטלוג</td><td>standard 50 / premium 100 / enterprise 500</td><td>platform_config (13628)</td></tr>
+<tr><td>OTP</td><td>6 ספרות, 10 דק', 5 ניסיונות, 3 בשעה ו-10 ביום</td><td>ARC-29</td></tr>
+<tr><td>verified token בהרשמה</td><td>15 דק'</td><td>כקיים (7690)</td></tr>
+<tr><td>תוקף סשן</td><td>30 יום מתגלגל, תקרה 90; SA 12 שע'; התחזות שעה</td><td>ARC-09</td></tr>
+<tr><td>PIN לקוח חנות</td><td>5 ניסיונות / 15 דק'</td><td>כקיים</td></tr>
+<tr><td>חשבון מוקפא עד ארכוב / snapshot</td><td>30 יום / 30 יום</td><td>כקיים</td></tr>
+<tr><td>העלאה</td><td>תמונה 8MB, PDF 15MB</td><td>ARC-26</td></tr>
+<tr><td>flow_to_ils_rate / flow_min_redeem</td><td>100 Flw = ₪10 / 100 Flw</td><td>flow_config</td></tr>
+<tr><td>ערכי תגמול Flow (22 מפתחות)</td><td>כמו בזריעה (21681-21699, 33961-33963, 36797)</td><td>flow_config</td></tr>
+<tr><td>SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS</td><td>14</td><td>platform_config</td></tr>
+<tr><td>איפוס עסקי דמו</td><td>כל 6 שעות</td><td>worker</td></tr>
+<tr><td>WhatsApp dedup_hours</td><td>23</td><td>whatsapp_notification_types</td></tr>
+<tr><td>ברירות מחדל קווסט / משחק</td><td>flw 15, ציון 70, גיל 5-16 / גיל 5-12, קושי 1, flw 10</td><td>seed</td></tr>
+<tr><td>מחירון</td><td>עובד נוסף ₪9; AI Premium ₪29, Enterprise ₪79; מודולים לפי PRICING_CATALOG_DEFAULT (routines ו-menu_templates ₪19)</td><td>module_catalog (ARC-18)</td></tr>
+<tr><td>KIOSK_HOLD_MS</td><td>3000</td><td>לקוח</td></tr>
+<tr><td>cache זכאויות</td><td>60 שניות + ביטול יזום</td><td>ARC-17, ARC-24</td></tr>
+</table></div></div>
+<div>החלטות שהוחלו</div><div><code>ARC-21</code> (מתוקן; מכסה את STR-24, LOG-08); SA-21, SA-54.</div>
+<div>הערות מיגרציה</div><div>עסק שבו store_settings.vat_rate=0, או שהגדיר מע"מ כבוי בלקוח, מקבל vat_exempt=true (tobe-store). מסמכים שכבר הופקו לא מחושבים מחדש. חשבוניות לוגיסטיקה חדשות מחושבות ב-18%, וחשבוניות קיימות שומרות 17%.</div>
+</div></section>
+
+<section class="proc" data-f="branding weflowz oneflow ofl_ wfz_ localStorage og 301 platform_customer oneflow_verified signature"><h3>מיתוג: השלמת המעבר ל-WEFLOWZ</h3>
+<div class="kv">
+<div>מצב קיים</div><div>'oneflow' מופיע 166 פעמים ב-business-app.js, 33 ב-server.js ו-9 ב-business.html: /api/store/oneflow-customers (13850), /api/store/oneflow-message (13872), /store/quotes/:id/send-to-oneflow, sendQuoteToOneflow, equipment_technicians.oneflow_verified, oneflow_user_id, oneflow-og.svg, ומפתחות localStorage עם קידומת ofl_ (כ-230 פעמים). חתימת WhatsApp "Oneflow Life" (whatsapp.js:15). oneflowlife.co.il מופנה ב-301 (94-100).</div>
+<div>כלל יעד</div><div><ol>
+<li>כל טקסט שמוצג למשתמש, מייל, SMS, WhatsApp ו-OG — WEFLOWZ בלבד.</li>
+<li>מזהים פנימיים מקבלים שם נייטרלי: platform_customer, platform_user_id, platform_verified, /api/store/platform-customers, /api/store/platform-message, send-to-platform. הנתיבים הישנים נשארים aliases (ARC-34).</li>
+<li>קידומת localStorage היא wfz_, עם מיגרציה חד-פעמית מ-ofl_ בטעינה הראשונה (כולל wfz_token, AUTH-27).</li>
+<li>הפניית 301 מהדומיין הישן נשמרת. oneflow-og.svg מוחלף בנכס WEFLOWZ, והנתיב הישן מפנה אליו.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-39</code>; SA-46.</div>
+<div>הערות מיגרציה</div><div>שינויי שמות עמודות (oneflow_verified, oneflow_user_id) הם מיגרציית RENAME עם view תואם בתקופת המעבר. מיגרציית localStorage שומרת את כל ההעדפות והמטמונים של המשתמש.</div>
+</div></section>
+
+<h2 class="grp">קוד, נתיבים, מאגר ואיכות</h2>
+
+<section class="proc" data-f="code structure routers service repository validation zod schema rest v1 response envelope naming es modules monolith"><h3>מבנה קוד ו-API</h3>
+<div class="kv">
+<div>מצב קיים</div><div>server.js הוא קובץ אחד של 46,397 שורות עם 1,511 נתיבים, וכ-2,200 שורות נתיבים נרשמות אחרי app.listen (44130). business-app.js כ-62 אלף שורות. אין עטיפת תגובה אחידה (SYSTEM_SPEC מבטיח {success,data}). שמות לא עקביים (/api/transaction מול /api/transactions, /api/zone-manager מול /api/zm). אין ולידציית סכמה לקלט, ולכן מתקבלים סכומים שליליים (POST /api/transaction 11387, kids/redeem 35377).</div>
+<div>כלל יעד</div><div><ol>
+<li>routers לפי תחום: auth, family, biz (core), store, verticals (restaurant, sport, beauty, logistics, services, routines, professional), community, kol-haam, sa, zm, public. כל ה-routers נרשמים לפני app.listen.</li>
+<li>שכבת service ו-repository שמקבלת ctx (principal, groupId) (ARC-04). handlers דקים.</li>
+<li>כל נתיב מצהיר על סכמת קלט (zod), והבקשה נדחית ב-400 לפני ה-handler. כללים חוצים: סכום כספי &gt; 0 עם direction מפורש כשנדרש סימן (FAM-11), NUMERIC(12,2) לכסף, טקסט עם אורך מקסימלי, טלפון דרך normalizePhone.</li>
+<li>מוסכמות REST: שמות משאבים ברבים, קידומת /api/v1, ותגובה <code>{success:true, data}</code> או <code>{success:false, error:{code, message_he}}</code>. בתקופת המעבר התגובה שומרת גם את השדות ברמה העליונה שהלקוח קורא היום.</li>
+<li><b>תאימות לאחור (מתוקן):</b> כל נתיב קיים נשאר alias ל-handler החדש עד שכל הקוראים עברו. קישורי טוקן שכבר נשלחו ללקוחות (/c/po, /c/rt, /c/q, /c/camp, /api/logistics/track/:token, קישורי איפוס בתוקף), נתיבי embeds ודפים ציבוריים נתמכים ללא הגבלת זמן.</li>
+<li>הלקוח מפוצל ל-ES modules לפי אותם תחומים, עם apiFetch אחד (AUTH-28) ו-esc אחד (ARC-27).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-34</code> (מתוקן); FAM-11, AUTH-28.</div>
+<div>הערות מיגרציה</div><div>הפיצול מתבצע בהעברה מכנית (strangler): router אחר router, עם אותם URLs, ובדיקות ההתאמה בין לקוח לשרת (ARC-43) רצות אחרי כל שלב.</div>
+</div></section>
+
+<section class="proc" data-f="routes duplicate shadowed no caller dead missing routes identify-product ai-bg cases documents templates banner-promos products zm zones cloudinary public settings"><h3>נתיבים: כפולים, ללא קורא וחסרים</h3>
+<div class="kv">
+<div>מצב קיים</div><div><ul>
+<li>230 מתוך 1,511 נתיבים לא נקראים מאף קובץ לקוח (sa 42, biz 23, kol-haam 15, family 11, routines 11, logistics 10, restaurant 10, debug 5 ועוד). 15 נתיבים רשומים פעמיים או שלוש, וההגדרה הראשונה מסתירה את השנייה: SA QA/versions/dev-tasks (23714-24377), GET /api/kol-haam/content/:id/versions (39803 מול 46152), GET /api/sa/community/biz-posts (16706 מול 37111).</li>
+<li>הלקוח קורא לנתיבים שאינם קיימים: POST /api/shopping/identify-product (app.js:2818, business-app.js:4933), POST /api/store/ai-bg (business-app.js:16039, יצירת רקע מלוגו), POST /api/cases ו-/api/documents/templates (business-app.js:22963, 22985), GET /api/store/products ו-/api/store/banner-promos (storefront-logistics/professional/repairs.html), GET /api/zm/zones (zone-manager-app.js:2182), GET /api/settings/public/cloudinary_* (app.js:3249-3250), כשהנתיב הקיים הוא /api/public/settings/:key (8997).</li>
+</ul></div>
+<div>כלל יעד</div><div><ol>
+<li><b>נתיבים בלי קורא (מתוקן):</b> ברירת המחדל היא לשמור. מסירים רק:
+<ul><li>(א) נתיבי DDL, איפוס, דיבאג ו-seed לא מאומת (ARC-10);</li>
+<li>(ב) רישום כפול של אותו method+path. נשמרת ההתנהגות של ההגדרה האפקטיבית (הראשונה), ומוזגת אליה כל התנהגות ייחודית מההגדרה המוסתרת;</li>
+<li>(ג) מימוש כפול שהיכולת שלו ניתנת במלואה על ידי נתיב אחר עם קורא, אחרי אימות שאין קורא בלקוח, בדפים ציבוריים, בקישורים שנשלחו או בצרכן חיצוני מתועד (למשל /approve מול to-work-order, STR-29).</li></ul>
+נתיב ייחודי בלי ממשק נשמר, מאובטח לפי ARC-01..ARC-06, ומסומן "API ללא ממשק (backlog)" (כמו STR-48). רשימת 230 הנתיבים מסווגת לכל אחד: "נשמר", "alias", "ממוזג לנתיב X" או "מוסר לפי (א)/(ב)/(ג)", עם נימוק.</li>
+<li><b>נתיבים חסרים (מתוקן):</b> כל קריאת לקוח לנתיב חסר ממומשת כנתיב המיועד, או ממופה לנתיב קיים שמבצע אותה פעולה. אף כפתור לא מוסר:
+<ul><li>identify-product — ממומש: זיהוי מוצר מתמונה דרך aiGateway (vision), צורך סוללה כמו סריקת קבלה (tobe-family).</li>
+<li>ai-bg — ממומש: aiGateway vision מקבל את הלוגו ומחזיר <code>{success, gradient}</code>, שהלקוח כבר יודע לצייר. צורך סוללה, כי הלקוח כבר מטפל ב-BATTERY_EMPTY.</li>
+<li>/api/cases, /api/documents/templates — ממופים לנתיבי /api/professional הקיימים (תיקים, תבניות מסמכים).</li>
+<li>/api/store/products, /api/store/banner-promos — ממומשים כנתיבים ציבוריים לפי קוד חנות (tobe-store, STR-03), מעל אותו קטלוג ציבורי של /api/storefront/:code.</li>
+<li>/api/zm/zones — alias ל-/api/zone-manager/zones.</li>
+<li>cloudinary — הלקוח עובר ל-/api/public/settings/:key. כשההעלאה עוברת ל-signed upload (ARC-26), הקריאה מוחלפת בבקשת חתימה מהשרת.</li></ul></li>
+<li>CI: נכשל על method+path כפול, ועל fetch בלקוח שאינו תואם לנתיב רשום (ARC-43).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-35</code> (מתוקן), <code>ARC-36</code> (מתוקן); STR-29, STR-40, STR-48, SPT-34.</div>
+<div>הערות מיגרציה</div><div>לפני הסרה לפי (ג) נבדק לוג גישה של 30 יום. נתיב שנקרא מחוץ ללקוחות המוכרים לא מוסר, ומסומן כצרכן חיצוני.</div>
+</div></section>
+
+<section class="proc" data-f="repository hygiene backups public static build allowlist secure_vault docs old 030426 servertemp routes middleware dead code ci check"><h3>היגיינת מאגר ונכסים מוגשים</h3>
+<div class="kv">
+<div>מצב קיים</div><div><code>express.static('public')</code> מגיש לכולם את כל התיקייה, כולל קבצי גיבוי (app030426.js, business-app030426.js, business-appold1.js, index030426.html, indexgithub.html, businessold1.html), public/old (16 קבצים), public/docs (48 מסמכים, כולל spec-community-security-audit.md ו-spec-db-schema.md), Secure_Vault (אפליקציית Firebase לא קשורה), AdminPanel.jsx, *.spec.js, qa-results.json ו-package.json. בשורש: server030426.js, server1.js, servergithub.js, servertemp.js, old/, services/'server (1).js', ו-routes/ ו-middleware/ שלא מחוברים. server.js דורש רק את ./services/whatsapp (s1-prompts).</div>
+<div>כלל יעד</div><div><ol>
+<li>המאגר מכיל רק קוד פעיל, וההיסטוריה נשמרת ב-git.</li>
+<li>public/ מוגש מתוצרי build: שלב build מעתיק רשימה מותרת של נכסים (דפי אפליקציה, storefront*, menu, survey, track, campaign, game, kol-haam*, zone-manager, sa*, privacy, מדריכים *-guide.html, דפי שיווק ציבוריים: biz-landing, biz-pitch, ecosystem-pitch, launch-presentation, marketplace, community-store, nikdim-pilot, comic, demo-login, qa-book וכו', תמונות, משחקים). כל דף שמוגש היום ואינו גיבוי או לגאסי נשאר מוגש.</li>
+<li><b>מסמכים פנימיים (מתוקן):</b> מסמכי מפרט ודוחות אבטחה עוברים ל-docs/ שאינו מוגש. מציג המסמכים ב-SA (DOCS_CONFIG) מקבל אותם מנתיב מאומת (system_docs, SA-59), כך שהיכולת ב-SA נשמרת. SPECIFICATION.html נשאר נגיש רק דרך הנתיב הזה.</li>
+<li>מוסרים: קבצי גיבוי (*030426*, *old*, servertemp, servergithub, server1, 'server (1).js'), public/old, Secure_Vault, AdminPanel.jsx, qa-results.json, ו-routes/, middleware/ ו-services/authService.js המתים (קוד JWT, ARC-01). *.spec.js עוברים ל-tests/.</li>
+<li>CI נכשל על קבצים בשמות *old*, *030426*, *backup* או *temp* תחת public/ או בשורש, ועל package.json או .md בתוצר המוגש.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-38</code> (מתוקן); SA-59.</div>
+<div>הערות מיגרציה</div><div>לפני ההסרה מאמתים שאף דף פעיל לא מקשר לקובץ שמוסר (סריקת href/src), ושהקבצים לא נטענים על ידי server.js. מסמכי public/docs נטענים ל-system_docs כדי שמציג ה-SA ימשיך להציג אותם.</div>
+</div></section>
+
+<section class="proc" data-f="docs governance decision log spec priority historical specification system_spec env_spec guides claude.md rule 6"><h3>ממשל מסמכים: מה מחייב</h3>
+<div class="kv">
+<div>מצב קיים</div><div>29 מסמכי כוונה סותרים: SPECIFICATION.md (ינואר 2026, 3 סביבות), SYSTEM_SPEC.md ו-docs/*_ENV_SPEC.md (אוקטובר 2026; ב-BIZ_ENV_SPEC יש 85 נתיבים ו-140 פונקציות שלא קיימים), docs/spec-*.md (יוני 2026, מבוססים על server1.js), וכפילויות ב-public/docs. מדריכי המשתמש תואמים לממשק רק ב-16%–47% מנתיבי הניווט שלהם (היוריסטיקה). CLAUDE.md כלל 6 מחייב עדכון מדריך, אבל רק beauty-guide מוגדר (s1-docsvscode).</div>
+<div>כלל יעד</div><div><ol>
+<li>סדר עדיפות: (1) יומן ההחלטות המאושר, כפוף לכלל-העל; (2) המפרט החדש (system-doc, עמודי rules-*, s1-* ו-tobe-*); (3) הקוד הקיים, כשאין התייחסות.</li>
+<li>SPECIFICATION.md, SYSTEM_SPEC.md, docs/*_ENV_SPEC.md ו-docs/spec-*.md מסומנים "היסטורי – לא מחייב" ועוברים ל-docs/archive (AUTH-46, SA-61).</li>
+<li>מדריכי המשתמש נגזרים מהמפרט החדש לכל סוג עסק, עם טבלת מיפוי מדריך↔סוג עסק (beauty→beauty-guide, restaurant→restaurant-guide, sport→sport-guide, logistics→logistics-guide, maintenance_repair→maintenance-guide, professional→professional-guide, retail→retail-guide, services→services-guide, ומדריכים כלליים: biz-guide, biz-setup-guide, guide, community-guide, kol-haam-guide, flow-guide, flowpool-guide, marketing-guide). כלל 6 מורחב לכל המדריכים.</li>
+<li>הבטחה במדריך שאין לה מימוש לא נמחקת בשקט. היא עוברת לרשימת backlog מתועדת, ומסומנת במדריך עד המימוש (כמו BTY-63, RST-47).</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-42</code>; AUTH-46, SA-61.</div>
+<div>הערות מיגרציה</div><div>כל מפרט דומיין (tobe-*) מציין בשדה "ממשק" את עדכוני המדריך הנדרשים, והם מבוצעים באותו קומיט של השינוי.</div>
+</div></section>
+
+<section class="proc" data-f="tests ci pipeline lint migrations schema check rbac matrix 401 403 client route match smoke e2e playwright axe deploy gate"><h3>בדיקות אוטומטיות ו-CI כחלק מהגדרת "בוצע"</h3>
+<div class="kv">
+<div>מצב קיים</div><div>יש playwright.config.js וכמה קבצי spec בודדים (חלקם בתוך public/: auth.spec.js, familycore.spec.js, tasks.spec.js), ותיקיות test/, tests/ ו-'QA tests' לא אחידות. אין pipeline שמריץ בדיקות לפני deploy.</div>
+<div>כלל יעד</div><div><ol>
+<li>pipeline CI על כל PR, שחוסם deploy כשבדיקה נכשלת:
+<ul>
+<li>lint: איסור pool.query('BEGIN') (ARC-11), innerHTML לא מוגן (ARC-27), catch ריק ו-e.message בתגובה (ARC-33).</li>
+<li>מיגרציות על DB ריק, ובדיקת סכמה: EXPLAIN לכל SQL בקוד (ARC-12, ARC-13).</li>
+<li>מטריצת הרשאות: כל נתיב לא ציבורי מחזיר 401 בלי טוקן, ו-403 או 404 עם טוקן של קבוצה אחרת (ARC-02, ARC-04). כל /api/sa/* בלי הרשאה מחזיר 403 (ARC-07).</li>
+<li>שימור גישה: לכל תפקיד ולכל סוג עסק במאגר הבדיקות, effectiveTabs בשרת זהה לנראות שהלקוח מציג (ARC-06, ARC-17).</li>
+<li>התאמה בין קריאות הלקוח לנתיבים הרשומים, ונתיב כפול (ARC-35, ARC-36).</li>
+<li>אידמפוטנטיות: לחיצה כפולה על כל כפתור כסף רושמת תנועה אחת (ARC-11, ARC-15).</li>
+<li>smoke E2E (Playwright) לכל סביבה: FAMILY, BIZ (לכל סוג עסק עם מסלול ייעודי), SA, ZM, חזית חנות.</li>
+<li>axe על המסכים הראשיים (ARC-41). בדיקת קבצים אסורים ב-public (ARC-38).</li>
+</ul></li>
+<li>כל ה-spec עוברים לתיקיית tests/ אחת.</li>
+</ol></div>
+<div>החלטות שהוחלו</div><div><code>ARC-43</code>.</div>
+<div>הערות מיגרציה</div><div>הבדיקות נבנות לפני השינויים שהן מגינות עליהם. בדיקת מטריצת ההרשאות רצה תחילה במצב "דיווח" כדי למפות את הקיים, ועוברת למצב "חוסם" לפי התקדמות ה-default-deny.</div>
+</div></section>

@@ -1,0 +1,497 @@
+<h2 class="grp">תשתית סשנים ו-Middlewares</h2>
+
+<section class="proc" data-f="family_sessions session token createfamilysession sha256 session_type biz family"><h3>סשן משפחה/עסק — family_sessions (יצירה, מבנה, ביטול)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טוקן גישה יחיד לסביבות FAMILY ו-BIZ. נוצר בכל זרימת התחברות/הרשמה מוצלחת: <code>/api/login</code> (server.js:10706), <code>/api/family/login/password</code> (10605), <code>/api/biz/register</code> (8151), <code>/api/biz/login</code> (8200), <code>POST /api/groups</code> ל-FAMILY בלבד (10211), <code>/api/community/bootstrap-token</code> (10733), <code>/api/family/sso-login</code> (43827), ו-SA impersonation (44034, INSERT ישיר).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>הטבלה: <code>token_hash CHAR(64) PK</code>, <code>group_id</code> FK→family_groups ON DELETE CASCADE, <code>user_id</code> FK→users ON DELETE CASCADE, <code>created_at</code>, <code>last_seen</code>, <code>expires_at</code>, <code>device_hint VARCHAR(100)</code> (server.js:41809-41818); עמודה <code>session_type VARCHAR(20) DEFAULT 'family'</code> נוספת ב-ALTER (516). אינדקסים על <code>expires_at</code>, <code>group_id</code> (41819-41820).</li>
+<li>מחיקת משתמש/קבוצה מוחקת את כל הסשנים שלו (CASCADE).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>createFamilySession(groupId, userId, deviceHint=null, sessionType='family')</code> (41853): <code>rawToken = randomBytes(32).hex</code> (64 תווים).</li>
+<li><code>tokenHash = sha256(rawToken).hex</code> (<code>_hashToken</code>, 41849).</li>
+<li><code>expires_at = now + 30 ימים</code> (41856).</li>
+<li>INSERT ל-<code>family_sessions</code> עם <code>device_hint</code> חתוך ל-100 תווים (41857-41861). מוחזר הטוקן הגולמי בלבד; ה-DB שומר רק hash.</li>
+<li><code>destroyFamilySession(rawToken)</code> — DELETE לפי hash (41865). <code>destroyAllFamilySessions(groupId)</code> (41871) — מוגדרת אך <b>לא נקראת בשום מקום</b>.</li>
+</ol></div>
+<div>חישובים</div><div>תוקף 30 יום קבוע (לא sliding — <code>last_seen</code> מתעדכן אך <code>expires_at</code> לא מוארך). Impersonation: שעה (44035). <code>session_type</code>: <code>'biz'</code> אם <code>family_groups.type='BUSINESS'</code> ב-<code>/api/login</code> (10706); תמיד <code>'family'</code> ב-<code>/api/family/login/password</code> (10605); <code>'biz'</code> ב-register/login עסקי; ב-impersonation <code>'family'</code> אם type=FAMILY אחרת <code>'biz'</code> (44019).</div>
+<div>מכונת מצבים</div><div>סשן: קיים-תקף → פג (expires_at&lt;now; נמחק עצלנית ב-middleware או בקרון יומי) → נמחק (logout / cron / CASCADE).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>פערים</div><div><ul><li>שינוי/איפוס סיסמה אינו מבטל סשנים קיימים (destroyAllFamilySessions מת).</li><li>impersonation עם קבוצה ללא משתמשים מכניס <code>user_id=0</code> (44028) → הפרת FK → 500.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="verifyfamily middleware bearer familyauth 401"><h3>Middleware ‏verifyFamily — אלגוריתם מדויק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מאמת סשן משפחה (וגם עסק) לכל endpoint שמסומן <code>verifyFamily</code> (server.js:41876).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>טוקן = <code>Authorization</code>; אם מתחיל ב-<code>"Bearer "</code> חותכים 7 תווים, אחרת כל ההדר נלקח כטוקן (41878).</li>
+<li>אין טוקן → 401 <code>"יש להתחבר תחילה"</code> (41879).</li>
+<li>שורה לא נמצאה → 401 <code>"פגישה לא תקינה — יש להתחבר מחדש"</code> (41893). שגיאת DB → 500 <code>"שגיאה פנימית"</code>.</li>
+<li><code>expires_at &lt; now</code> → מחיקה אסינכרונית + 401 <code>"פגישה פגה — יש להתחבר מחדש"</code> (41895-41899).</li>
+<li><b>לא נבדק <code>session_type</code></b> — טוקן biz עובר verifyFamily.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT group_id,user_id,expires_at לפי sha256(token).</li><li>UPDATE last_seen=NOW() אסינכרוני (fire-and-forget, 41902).</li><li><code>req.familyAuth = {groupId, userId}</code> — נגזר מה-DB בלבד (41908).</li></ol></div>
+<div>פערים</div><div>לא בודק <code>users.status</code> / <code>account_status</code> של הקבוצה לאחר יצירת הסשן — משתמש שהוקפא/נמחק-רך ממשיך לעבוד עד פקיעה.</div>
+</div></section>
+
+<section class="proc" data-f="verifybiz bizauth role employee_role_type verifybizadminonly verifybeautyclientaccess verifybeautypractitioneraccess"><h3>Middleware ‏verifyBiz ונגזרותיו (Admin-only, Beauty)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints עסקיים מחייבי טוקן עסקי (server.js:41914).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>אין טוקן → 401 <code>"נדרש token להתחברות עסקית"</code> (41917); לא נמצא → 401 "פגישה לא תקינה…"; פג → מחיקה + 401 "פגישה פגה…".</li>
+<li><code>session_type !== 'biz'</code> → 403 <code>"גישה מורשית לעסקים בלבד"</code> (41936).</li>
+<li><code>verifyBeautyClientAccess</code> (41952): עובר אם <code>role==='ADMIN'</code> או <code>employeeRoleType</code> ∈ {therapist, senior_therapist, nail_tech, makeup_artist, reception} (41951); אחרת 403 "אין הרשאה לגשת למידע לקוחות".</li>
+<li><code>verifyBizAdminOnly</code> (41959): רק ADMIN; אחרת 403 "פעולה זו דורשת הרשאת מנהל/ת עסק".</li>
+<li><code>verifyBeautyPractitionerAccess</code> (41967): ADMIN או senior_therapist; אחרת 403 "אין הרשאה לנהל צוות מטפלות".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT group_id,user_id,expires_at,session_type.</li><li>UPDATE last_seen אסינכרוני.</li><li><code>req.bizAuth={groupId,userId}</code>.</li><li>SELECT role, employee_role_type FROM users → <code>req.bizAuth.role</code>, <code>.employeeRoleType</code> (שגיאה נבלעת, 41940-41946).</li></ol></div>
+<div>פערים</div><div>ההערה "לא מחובר לאף endpoint עדיין" (41913) מיושנת. אין בדיקת <code>users.status</code>.</div>
+</div></section>
+
+<section class="proc" data-f="verifybizorlegacy legacy groupid requiremodule managed_modules modcache fail-open"><h3>Middleware ‏verifyBizOrLegacy + requireModule (גידור מודולים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints עסקיים ישנים שתומכים גם בקריאה ללא טוקן (server.js:43056), ואכיפת חבילת מודולים (43126).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>יש טוקן: שורה תקפה (<code>expires_at &gt;= now</code>) ו-<code>session_type!=='biz'</code> → 403 <code>"נדרש token מסוג עסקי"</code> (43070); תקפה+biz → <code>req.bizAuth={groupId,userId,fromToken:true}</code>. טוקן קיים אך לא נמצא/פג/שגיאה → 401 <code>"token לא תקף"</code> (43078) — <b>ללא מחיקה</b>.</li>
+<li>אין טוקן: legacy — <code>groupId</code> נלקח מ-<code>req.body.groupId</code> או <code>req.query.groupId</code>, <code>fromToken:false</code>, console.warn (43082-43085). אין שום אימות.</li>
+<li><code>requireModule(name)</code>: אם <code>!fromToken</code> → next (ללא בדיקה, 43128); אם אין groupId → next; קורא <code>family_groups.managed_modules</code> עם cache בזיכרון 60 שניות (<code>_MOD_CACHE_TTL=60000</code>, 43124); מערך ריק/null → next ("עסק ותיק"); אחרת אם השם לא כלול → 403 <code>{error:"גישה למודול זה אינה כלולה בחבילה שלך", module}</code> (43143); חריגה → next (fail-open, 43147).</li>
+</ul></div>
+<div>פערים</div><div>legacy fallback = גישה מלאה לכל group לפי פרמטר מהלקוח. לא ממלא <code>role</code> (שלא כמו verifyBiz).</div>
+</div></section>
+
+<section class="proc" data-f="verifyfamilyorbiz callerauth type business family role"><h3>Middleware ‏verifyFamilyOrBiz</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints משותפים (approve-user, change-role, pending-users, data…) (server.js:43089).</div>
+<div>תנאים ואימותים</div><div><ul><li>אותן הודעות 401 כמו verifyFamily; פג → מחיקה אסינכרונית (43101-43103). כל שגיאה בבלוק → 500 "שגיאה פנימית".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT כולל session_type; UPDATE last_seen.</li><li><code>req.callerAuth={groupId,userId,type: session_type==='biz'?'business':'family'}</code> (43106).</li><li>alias <code>req.bizAuth={groupId,userId}</code> (43109).</li><li>SELECT role → <code>callerAuth.role</code> + <code>bizAuth.role</code> (43111-43112).</li></ol></div>
+</div></section>
+
+<section class="proc" data-f="verifysa sa_sessions x-sa-token superadmin forbidden"><h3>Middleware ‏verifySA + טבלת sa_sessions</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל endpoint של Super Admin (server.js:6661).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>raw = <code>Authorization</code> ואם ריק <code>x-sa-token</code> (6662-6664); אם מתחיל ב-"Bearer " לוקחים את החלק שאחרי הרווח (6665).</li>
+<li>אין טוקן → 403 <code>{error:'Forbidden'}</code>; <code>SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at&gt;NOW()</code> ריק → 403 Forbidden; שגיאה → 500 "Auth error".</li>
+<li>טבלה: <code>token VARCHAR(64) PK, expires_at TIMESTAMPTZ, created_at</code> (568-572) — טוקן גולמי (לא hash), ללא user_id.</li>
+<li>בדיקות SA inline נוספות משתמשות ב-authHeader הגולמי (ללא הסרת Bearer) — server.js:41090, 41424, 41453.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>אין הצמדת זהות ל-req (אין <code>req.saUser</code>); קוד שמשתמש ב-<code>req.saUser?.name</code> (19237) תמיד מקבל fallback 'SA'.</div>
+<div>פערים</div><div><ul><li>אין RBAC בצד שרת — הרשאות צוות SA (<code>sa_teams.permissions</code>) נאכפות רק בלקוח.</li><li>אין logout בשרת ואין ניקוי sa_sessions בקרון; חסימת משתמש צוות לא מבטלת טוקנים קיימים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="verifyzonemanager zonemanagersessions zm_ token in-memory"><h3>Middleware ‏verifyZoneManager + סשנים בזיכרון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>endpoints של מנהל אזור (server.js:6498).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>טוקן = <code>Authorization</code> עם הסרת "Bearer " (6499). ריק → 403 <code>'Unauthorized zone manager'</code>.</li>
+<li>אם קיים ב-<code>zoneManagerSessions</code> (Map בזיכרון, 6495) → <code>req.zmSession={managerId,name,email}</code> ו-next — ללא בדיקת סטטוס.</li>
+<li>אחרת, אם מתחיל ב-<code>ZM_</code>: split('_'), אם ≥3 חלקים, <code>managerId=parseInt(parts[1])</code>; אם קיים <code>zone_managers</code> עם id זה ו-<code>status='active'</code> → נוצר סשן חדש במפה ו-next (6507-6523). אחרת 403.</li>
+</ul></div>
+<div>חישובים</div><div>פורמט טוקן שנוצר בלוגין: <code>ZM_{id}_{Date.now()}_{Math.random().toString(36).slice(2)}</code> (18830). ללא תפוגה.</div>
+<div>פערים</div><div><b>קריטי:</b> ה-fallback מקבל כל מחרוזת בצורת <code>ZM_&lt;id&gt;_x</code> — טוקן ניתן לזיוף עבור כל מנהל אזור פעיל (6507-6520). סשן במפה לא נבדק מול סטטוס (מנהל שהושבת ממשיך עד ריסטארט). אין logout בשרת.</div>
+</div></section>
+
+<section class="proc" data-f="storefront_sessions scgetcustomerbytoken sliding expiry sc_session_days"><h3>סשן לקוח חנות — storefront_sessions</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>זיהוי לקוח קצה בחנויות (sc-auth). כל endpoint של <code>/api/sc-auth/*</code> מאמת inline דרך <code>_scGetCustomerByToken</code> (server.js:43192).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>טוקן = <code>Authorization</code> עם <code>.replace('Bearer ','').trim()</code>.</li>
+<li>JOIN storefront_sessions↔storefront_customers <code>WHERE s.token=$1 AND s.expires_at&gt;NOW()</code>; לא נמצא → null → 401 <code>{success:false,error:'לא מחובר'}</code>.</li>
+<li>טבלה: <code>token VARCHAR(128) UNIQUE</code> (גולמי), <code>customer_id</code> FK CASCADE, <code>expires_at</code>, <code>last_activity</code> (1928-1935).</li>
+</ul></div>
+<div>חישובים</div><div>טוקן <code>randomBytes(48).hex</code> = 96 תווים (43190). <code>SC_SESSION_DAYS=30</code> (43183); תפוגה <b>מתגלגלת</b>: כל אימות מעדכן <code>expires_at=NOW()+30 days</code>, <code>last_activity=NOW()</code> (43202-43205).</div>
+</div></section>
+
+<section class="proc" data-f="cron cleanup expired sessions setinterval loginratemap"><h3>ניקוי סשנים ונתונים זמניים (קרונים בזיכרון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>setInterval</code> כל 24 שעות מרגע עליית השרת (server.js:43835-43845); ניקוי <code>_loginRateMap</code> כל שעתיים (10477-10482).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>DELETE FROM family_sessions WHERE expires_at&lt;NOW()</code> + לוג אם rowCount&gt;0.</li>
+<li><code>DELETE FROM storefront_sessions / storefront_otp / storefront_sso_tokens WHERE expires_at&lt;NOW()</code>.</li>
+<li>‏_loginRateMap: מוחק כל entry שאין לו <code>lockedUntil</code> או ש-<code>lockedUntil &lt; now-1h</code>.</li>
+</ol></div>
+<div>פערים</div><div>לא מנוקים: <code>sa_sessions</code>, <code>business_otp</code>, <code>biz_password_resets</code>, <code>family_password_resets</code>, <code>zmPasswordResets</code>, <code>otpCache</code>, <code>_scPinLockout</code>, <code>zoneManagerSessions</code>. הקרון לא רץ אם השרת מאותחל לעתים קרובות מ-24ש'.</div>
+</div></section>
+
+<section class="proc" data-f="logout destroy session sc-auth logout zmlogout logoutsa"><h3>התנתקות (כל הסביבות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור התנתקות בכל לקוח.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>FAMILY: <code>logout()</code> ב-app.js:851 — שולח fire-and-forget <code>POST /api/logout</code> עם Bearer; מוחק <code>ofl_session</code>, <code>ofl_family_token</code>; redirect ל-/. שרת: <code>/api/logout</code> (server.js:10740) — מחלץ טוקן (Bearer אופציונלי), <code>destroyFamilySession</code>, תמיד <code>{success:true}</code> גם בשגיאה.</li>
+<li>BIZ: <code>logout()</code> ב-business-app.js:2390 — רק <code>removeItem('ofl_session')</code> ו-redirect; <b>לא קורא לשרת ולא מוחק ofl_family_token</b>. common.js:364 זהה (reload).</li>
+<li>SA: <code>logoutSA()</code> sa-app.js:418 — מנקה intervals, מוחק <code>ofl_sa_token</code> (לא <code>ofl_sa_user</code>), אין קריאת שרת.</li>
+<li>ZM: <code>zmLogout()</code> zone-manager-app.js:118 — מוחק <code>zm_token</code>, <code>zm_manager</code>; אין קריאת שרת.</li>
+<li>Storefront: <code>scAuth.logout()</code> sc-auth.js:1008 → <code>POST /api/sc-auth/logout</code> (server.js:43483) מוחק את השורה; תמיד success.</li>
+</ol></div>
+<div>פערים</div><div>BIZ/SA/ZM — הטוקן נשאר תקף בשרת אחרי התנתקות (30 יום / ללא תפוגה ל-ZM).</div>
+</div></section>
+
+<h2 class="grp">FAMILY — כניסה, הרשמה, הצטרפות ושחזור</h2>
+
+<section class="proc" data-f="family login groupcode nickname password rate limit loginratemap bcrypt legacy plaintext frozen archived"><h3>כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טופס "סיסמה" במסך הכניסה של index.html (<code>handleLogin</code> app.js:590), business-app.js:2325, family-onboarding.html:591, game.html.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חסר groupCode/nickname/password → 400 <code>"חסרים פרטי התחברות"</code> (server.js:10621).</li>
+<li><code>cleanCode = groupCode.toUpperCase().trim()</code>; IP = ערך ראשון של <code>x-forwarded-for</code> או <code>socket.remoteAddress</code> (10626).</li>
+<li>Rate limit לפני DB: <code>_checkLoginRate(ip, cleanCode)</code> → 429 <code>"יותר מדי ניסיונות כניסה. נסה שוב בעוד N שניות."</code>.</li>
+<li>קוד לא קיים → רישום כישלון + 401 <code>"פרטי ההתחברות שגויים"</code>.</li>
+<li><code>account_status='archived'</code> → 403 + <code>account_status</code>; <code>'frozen'</code> → 403 + <code>days_left = max(0, 30 - floor((now-frozen_at)/86400000))</code> (ברירת מחדל 30) (10650-10656).</li>
+<li>משתמש לפי <code>group_id</code> + <code>nickname</code> מדויק (case-sensitive, שורה ראשונה) — לא נמצא → כישלון + 401 <code>"כינוי או סיסמה שגויים"</code>.</li>
+<li>סיסמה: אם ה-hash מתחיל ב-<code>$2</code> → bcrypt.compare; אחרת השוואת plaintext ו-upgrade ל-bcrypt(10) בהצלחה (10673-10682).</li>
+<li>סיסמה שגויה → כישלון + 401 "כינוי או סיסמה שגויים".</li>
+<li><code>users.status!=='active'</code> → 403 <code>"חשבון ממתין לאישור מנהל"</code> (נבדק רק אחרי סיסמה נכונה).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אימותים כנ"ל.</li><li><code>_clearLoginRate(ip, cleanCode)</code>.</li><li>שליפת שם העסק היוצר אם <code>created_by_business_group_id</code> (SOLO).</li><li><code>createFamilySession(group.id, user.id, UA[0..100], type==='BUSINESS'?'biz':'family')</code>.</li><li>תגובה: <code>{success, user: SELECT * (כולל password_hash), group: {...group, created_by_business_name}, token}</code>.</li></ol></div>
+<div>חישובים</div><div><code>_recordLoginFailure</code> (10457) מעדכן שני מפתחות: <code>ip:&lt;ip&gt;</code> ו-<code>code:&lt;groupCode&gt;</code>: attempts++; ≥10 → נעילה 30 דק'; ≥5 → 5 דק'; ≥3 → 30 שניות. בדיקה: אם אחד המפתחות נעול → חסום (secsLeft=ceil). ניקוי בהצלחה מוחק את שני המפתחות.</div>
+<div>ממשק</div><div>app.js: בהצלחה מוחק <code>ofl_sa_token</code>, <code>saveSession(user, group, token)</code> (user ללא <code>password_hash</code>/<code>profile_image</code>), BUSINESS → redirect ל-<code>/business.html</code>; frozen → <code>showFrozenAccountScreen(days_left)</code>; archived → toast.</div>
+<div>פערים</div><div><ul><li><code>password_hash</code> מוחזר ללקוח; family-onboarding.html:606 ו-game.html שומרים אותו ב-localStorage.</li><li>לא נבדק <code>is_deleted</code> של הקבוצה.</li><li>IP מ-<code>x-forwarded-for[0]</code> ניתן לזיוף.</li><li>כניסת BUSINESS דרך index: הטוקן נשמר רק ב-<code>ofl_family_token</code>, וב-business.html <code>window._bizToken = session.token</code> (business-app.js:330) → null → קריאות verifyBiz נכשלות.</li><li>Rate-map בזיכרון — מתאפס בריסטארט.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="family phone otp login send-otp verify-otp password options business_otp family_login email channel"><h3>כניסת משפחה בטלפון: OTP → בחירת פרופיל → סיסמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית "טלפון" במסך הכניסה (app.js:628-740, family-onboarding.html).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><b>שלב 1</b> <code>POST /api/family/login/send-otp</code> (server.js:10486): חסר phone → 400 "מספר טלפון חסר". <code>channel==='email'</code> מחייב email תקין (regex) → אחרת 400 "כתובת מייל לא תקינה". Rate limit: ≥5 שורות <code>business_otp</code> עם purpose=<code>family_login</code> בשעה האחרונה → 429 "שלחת יותר מדי בקשות. נסה שוב בעוד שעה.".</li>
+<li><b>שלב 2</b> <code>POST /api/family/login/verify-otp</code> (10520): חסר → 400; אין שורה → 400 "לא נמצאה בקשת אימות פעילה"; פג → מחיקה + 400 "פג תוקף הקוד. בקש קוד חדש."; קוד שגוי → attempts+1; ב-3 → מחיקה + "קוד שגוי 3 פעמים. בקש קוד חדש."; אחרת "קוד שגוי. נותרו N ניסיונות.".</li>
+<li>אחרי הצלחה: אפשרויות = users עם <code>phone</code> זהה (השוואה מדויקת), <code>status='active'</code>, קבוצה מסוג FAMILY או <code>member_type='biz'</code> או BUSINESS, <code>account_status NOT IN ('archived','frozen')</code>, לא מחוקה (10542-10549). ריק → 404 "לא נמצא חשבון פעיל עם מספר טלפון זה".</li>
+<li><b>שלב 3</b> <code>POST /api/family/login/password</code> (10558): חסר groupId/userId/password → 400. Rate limit עם מפתחות <code>ip:</code> ו-<code>code:uid:&lt;userId&gt;</code>. group לא קיים → 401; archived/frozen → 403 (ללא days_left); user לא בקבוצה → כישלון+401; סיסמה שגויה → כישלון+401 <code>"סיסמה שגויה"</code>; לא active → 403.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: DELETE OTP קודם (phone+family_login), קוד 6 ספרות <code>floor(100000+rand*900000)</code>, hash sha256, תוקף 5 דק', INSERT עם <code>channel</code> ו-<code>email</code>; שליחה במייל (<code>sendSystemEmail</code>; כישלון → 500 "שליחת המייל נכשלה") או SMS (<code>sendSMSviaTwilio</code>, טלפון שמתחיל ב-0 → <code>+972</code>).</li><li>verify: מחיקת OTP, החזרת <code>options[{user_id,nickname,role,group_id,group_name}]</code>.</li><li>password: bcrypt / plaintext-upgrade כמו /api/login; <code>createFamilySession(..., 'family')</code>; תגובה זהה ל-/api/login.</li></ol></div>
+<div>ממשק</div><div>אפשרות יחידה → מעבר ישיר לסיסמה; כמה → כפתורי בחירה (nickname + group_name). כפתור "קבל קוד במייל" — <code>window.prompt</code> לכתובת.</div>
+<div>פערים</div><div><ul><li><b>שלב 3 אינו מחייב שהשלב 2 הושלם</b> — groupId+userId+password בלבד; ה-OTP הוא ממשקי בלבד.</li><li>session_type תמיד 'family' גם לקבוצת BUSINESS (10605) → בעסק verifyBiz מחזיר 403.</li><li>השוואת טלפון מדויקת (ללא נרמול).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="family register otp family_register family_verified verified_token groups create wizard"><h3>הרשמת משפחה עם אימות טלפון (ויזארד) — אספקט האימות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>family-onboarding.html (wizSendOtp/wizVerifyOtp/wizCreateFamily 833-945); גם טופס "יצירה" ב-index (<code>handleCreate</code> app.js:748) ללא OTP.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>/api/family/send-otp</code> (server.js:7708): rate ≥3 בשעה ל-purpose <code>family_register</code> → 429.</li>
+<li><code>/api/family/verify-otp</code> (7729): אותם כללי שגיאה/3 ניסיונות; בהצלחה מוחק OTP ו-<code>family_verified</code> קודם, יוצר <code>verified_token</code> (randomBytes 32 hex) שה-hash שלו נשמר כ-purpose <code>family_verified</code>, תוקף 15 דק'.</li>
+<li><code>POST /api/groups</code> (10064): <b>רק אם נשלח</b> <code>verified_token</code> ו-type=FAMILY נבדק: אין שורה → 400 "אימות טלפון נדרש. אנא התחל מחדש."; פג/hash לא תואם → מחיקה + 400 "אימות הטלפון פג תוקף. אנא התחל מחדש.". ללא טוקן — ממשיך (legacy).</li>
+<li>מגבלה: עד 2 קבוצות לא מחוקות לאותו <code>admin_email</code> (פרט ל-<code>sa_email</code>) → 400 (10094-10099). lastName ו-city חובה. טלפון חובה מגיל 10 (<code>year-birthYear&gt;=10</code>). טלפון ייחודי בין קבוצות FAMILY (חוץ מסיומת <code>526626619</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>BEGIN; INSERT family_groups (code = 6 תווים A-Z0-9, <code>generateGroupCode</code> 4141; plan='solo' ל-FAMILY, 'standard' ל-BUSINESS; account_status='active').</li><li>INSERT users ADMIN active, bcrypt(10).</li><li>UPDATE owner_user_id; INSERT transaction פתיחה; COMMIT.</li><li>DELETE family_verified; awardFlow להפניה; הפעלת קהילה ב-30 משפחות.</li><li>מיילים (SA + משתמש — כולל הסיסמה בטקסט גלוי, 10204).</li><li>FAMILY: <code>createFamilySession</code> (type ברירת מחדל family) → <code>token</code> בתגובה.</li></ol></div>
+<div>ממשק</div><div>family-onboarding שומר <code>ofl_session={user,group}</code> (user מלא) ו-<code>ofl_family_token</code>. <code>handleCreate</code> ב-app.js לא מעביר את token ל-saveSession — מסתמך על <code>ensureFamilyToken</code> (bootstrap).</div>
+<div>פערים</div><div><ul><li><code>phone.replace</code> כש-phone=null (10147) → TypeError → 500 למי שלא הזין טלפון.</li><li>return ללא ROLLBACK בבדיקות lastName/city (10125-10126).</li><li>אימות טלפון עוקף-בקלות (token אופציונלי).</li><li>סיסמה נשלחת במייל בטקסט גלוי.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="join group code pending invited member child employee_role_type approval email"><h3>הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טופס "הצטרפות" (app.js <code>handleJoin</code> 797; business-app.js:2380). קישור הזמנה <code>?code=XXX&amp;role=...&amp;role_type=...</code> פותח את הטופס ממולא.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חובה groupCode, nickname, password, email → 400 "חסרים נתונים חובה" (server.js:10362).</li>
+<li>קוד (uppercase) לא קיים → 404 "קוד ארגון/משפחה לא חוקי".</li>
+<li>תפקיד: <code>role==='CHILD' ? 'CHILD' : 'MEMBER'</code> — ADMIN לעולם לא דרך join (10370).</li>
+<li>טלפון חובה אם גיל ≥10.</li>
+<li>אין בדיקת אורך סיסמה, אין בדיקת כפילות nickname.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>bcrypt(password,10); email lowercase.</li><li>אם יש phone ויש משתמש <code>status='invited'</code> באותה קבוצה עם אותו phone → UPDATE שלו (nickname, שמות, birth_year, hash, role, <code>status='pending'</code>, email, employee_role_type).</li><li>אחרת INSERT users <code>status='pending'</code>.</li><li>ברקע: <code>sendAlertEmail(group.id, subject, body)</code> למנהל אם <code>admin_email</code>, ו-<code>sendSystemEmail</code> ל-<code>adminNotificationEmail</code> של SA (נושא שונה לעסק/משפחה).</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>invited</td><td>ויזארד (<code>/api/family/pre-invite</code> 7757)</td><td>שם לא ריק, טלפון לא קיים בקבוצה</td><td>hash placeholder <code>bcrypt('__invited__'+groupId)</code>; role: 'ילד'→CHILD, אחרת MEMBER</td></tr>
+<tr><td>— / invited</td><td>pending</td><td>המצטרף (/api/join)</td><td>קוד תקף</td><td>מיילים למנהל ול-SA</td></tr>
+<tr><td>pending / invited</td><td>active</td><td>ADMIN (approve-user)</td><td>אותה קבוצה</td><td>אין התראה</td></tr>
+<tr><td>כל מצב</td><td>נמחק</td><td>ADMIN (DELETE /api/users/:id)</td><td>לא המנהל היחיד</td><td>CASCADE סשנים</td></tr>
+</table></div></div>
+<div>ממשק</div><div>app.js: חובת סימון תקנון (<code>join-tos</code>); nickname = firstName+lastName. בהצלחה: toast "בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה." ומעבר ל-login. כפתור "הורה" ב-UI (<code>setJoinRole('ADMIN')</code>) — השרת מוריד ל-MEMBER.</div>
+<div>פערים</div><div><code>/api/family/pre-invite</code> ללא אימות — כל אחד יכול להוסיף משתמשי invited לכל קבוצה. התאמת invited לפי טלפון גולמי.</div>
+</div></section>
+
+<section class="proc" data-f="approve user pending-users admin approval status active"><h3>אישור משתמשים ממתינים (pending-users / approve-user)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל רואה "ממתינים לאישור" בדשבורד; polling כל 30 שניות למנהל (app.js:1854).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>GET /api/admin/pending-users?groupId</code> (server.js:11584, verifyFamilyOrBiz): groupId חייב להיות זהה לסשן → 403 "אין הרשאה"; role!=='ADMIN' → 403 "רק מנהל/ת יכול/ה לצפות בבקשות ממתינות". מחזיר users עם status IN ('pending','invited') ממוינים לפי status, nickname.</li>
+<li><code>POST /api/admin/approve-user {userId}</code> (11597): role ADMIN בלבד → אחרת 403 "רק מנהל/ת יכול/ה לאשר בקשות"; target.group_id חייב להיות של הקורא → 403 "משתמש לא שייך לקבוצה זו".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><code>UPDATE users SET status='active' WHERE id=$1</code> — ללא טרנזקציה, ללא בדיקת מצב קודם.</div>
+<div>ממשק</div><div><code>fetchPendingUsers</code>/<code>approveUser</code> app.js:5908-5919 (toast "אושר כבן משפחה!"); business-app.js:8132-8140. דחייה = מחיקת משתמש.</div>
+<div>פערים</div><div>ניתן "לאשר" גם invited שמעולם לא השלים הרשמה (עם hash placeholder). אין התראה למאושר.</div>
+</div></section>
+
+<section class="proc" data-f="forgot code reset password family_password_resets email link admin"><h3>שחזור קוד סביבה + איפוס סיסמת מנהל משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שכחתי קוד/סיסמה" (app.js <code>submitForgotCode</code> 6164); לחיצה על קישור <code>/?reset=TOKEN&amp;gid=ID</code> פותחת <code>reset-password-modal</code> (app.js:106).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>/api/forgot-code</code> (server.js:10247): חסר email → 400 "אנא הזן כתובת מייל". חיפוש קבוצה עם <code>LOWER(admin_email)=LOWER(email)</code> ומשתמש ADMIN; לא נמצא → <code>{success:true}</code> (ללא דליפה).</li>
+<li><code>/api/reset-password/confirm</code> (10305): חסר token/groupId/newPassword או אורך &lt;6 → 400 "פרמטרים חסרים או סיסמה קצרה מדי"; אין שורה (hash+group+used=false) → 400 "קישור לא תקין או פג תוקפו"; פג → 400 "פג תוקף הקישור. בקש קישור חדש.".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>forgot: לוקח את השורה הראשונה; rawToken=randomBytes(32).hex, hash sha256 (<code>_bizHashOtp</code>), תוקף שעה; DELETE קודמים ל-email+group; INSERT <code>family_password_resets</code>; קישור <code>BASE_URL/?reset=..&amp;gid=..</code> (ברירת מחדל family-flow.onrender.com); מייל עם קוד הסביבה, כינוי המנהל וקישור (fire-and-forget).</li><li>confirm: bcrypt(12); <code>UPDATE users SET password_hash WHERE group_id=$2 AND role='ADMIN'</code> — <b>לכל המנהלים בקבוצה</b>; UPDATE used=true.</li></ol></div>
+<div>ממשק</div><div>לקוח מוודא ≥6 ותאימות אישור; אחרי הצלחה מנקה URL ומציג login.</div>
+<div>פערים</div><div>איפוס אחד משנה סיסמה לכל ה-ADMINs בקבוצה. אם לאותו מייל 2 קבוצות — רק הראשונה מטופלת. סשנים קיימים לא מבוטלים.</div>
+</div></section>
+
+<section class="proc" data-f="change password users id password admin user-details set password"><h3>שינוי סיסמה עצמי ועריכת סיסמה ע"י מנהל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודל פרופיל (<code>submitChangePassword</code> app.js:6089); עריכת חבר ע"י מנהל (<code>PUT /api/admin/user-details/:userId</code>).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>POST /api/users/:id/password</code> (server.js:11689, verifyFamily): רק על עצמך → 403 "אין הרשאה לשנות סיסמה של משתמש אחר"; newPassword ≥4 → אחרת 400; oldPassword נבדק (bcrypt או plaintext) → 401 "סיסמה נוכחית שגויה".</li>
+<li><code>PUT /api/admin/user-details/:userId</code> (11668, verifyFamilyOrBiz): ADMIN בלבד, target באותה קבוצה; password נקבע רק אם <code>trim().length&gt;=4</code>; role רק מתוך ADMIN/CHILD/MEMBER; nickname נחתך ל-100.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>UPDATE password_hash=bcrypt(10). ללא ביטול סשנים.</div>
+<div>פערים</div><div><code>submitChangePassword</code> שולח <code>fetch</code> ללא Authorization (app.js:6089) → verifyFamily מחזיר 401 תמיד; הפיצ'ר שבור בלקוח.</div>
+</div></section>
+
+<section class="proc" data-f="set-first-password must_change_password force password change member business created"><h3>הגדרת סיסמה ראשונה (must_change_password)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חשבון שנוצר ע"י עסק (<code>/api/member/create-for-business</code>, server.js:30983 — <code>must_change_password=true</code>, סיסמה זמנית 8 תווים <code>Math.random().toString(36).slice(-8)</code>). בכניסה, <code>finalizeLoad</code> (app.js:1876) מציג <code>showForcePasswordChange</code> אם <code>currentUser.must_change_password</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>POST /api/users/:id/set-first-password</code> (11709, verifyFamily): רק עצמך → 403; newPassword ≥4 → 400 "סיסמה חייבת להכיל לפחות 4 תווים"; משתמש לא קיים → 404; <code>must_change_password</code> false → 403 "לא ניתן לאפס סיסמה בשלב זה".</li>
+<li>שדות אופציונליים: <code>id_number</code> (trim, ≤20), <code>email</code> (lower, ≤200), <code>birth_year</code> רק אם 1920–2020.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>UPDATE password_hash=bcrypt(10), must_change_password=false + שדות. בלקוח: עדכון currentUser ו-ofl_session, הסרת overlay, <code>checkGlobalWelcome</code>.</div>
+<div>ממשק</div><div>overlay מסך מלא (z 99999) עם סיסמה+אימות, ת"ז, מייל, שנת לידה (ולידציה 1920–2020 בלקוח); שליחה עם <code>communityFetch</code> (Bearer ofl_family_token).</div>
+<div>פערים</div><div>ב-create-for-business הסיסמה הזמנית נשמרת plaintext ב-<code>password_hash</code> (שודרג ב-login), ו-<code>solo_temp_password</code> מקבל null כי <code>rawPassword</code> מוגדר אחרי ה-INSERT (30976-30981). ה-endpoint ללא אימות.</div>
+</div></section>
+
+<section class="proc" data-f="solo activate pending_activation member_business_links temp password"><h3>הפעלת חשבון SOLO (pending_activation)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>קבוצת SOLO שנוצרה ע"י עסק במצב <code>account_status='pending_activation'</code>; ב-<code>finalizeLoad</code> אם המשתמש ADMIN → <code>showSoloActivationModal</code> (app.js:1874, 1908) — קודם לבדיקת must_change_password.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>POST /api/solo/activate</code> (server.js:2469): חסר groupId/userId/newPassword או אורך &lt;4 → 400 "נתונים חסרים או סיסמה קצרה מדי". <b>אין middleware ואין בדיקת שייכות userId↔groupId.</b></li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE family_groups SET account_status='active', solo_temp_password=NULL WHERE id AND status='pending_activation'.</li><li>UPDATE users SET password_hash=bcrypt(10), must_change_password=false WHERE id=userId.</li><li>UPDATE member_business_links SET status='active' WHERE member_group_id AND status='pending'.</li></ol></div>
+<div>מכונת מצבים</div><div>family_groups.account_status: <code>pending_activation</code> → <code>active</code> (משתמש) ; <code>active</code> → <code>frozen</code> (איחוד משפחות) → <code>archived</code>. login חוסם frozen/archived בלבד; pending_activation מותר להתחבר.</div>
+<div>ממשק</div><div>overlay עם שתי סיסמאות (≥4, תואמות); בהצלחה עדכון ofl_session ו-toast.</div>
+<div>פערים</div><div><b>קריטי:</b> כל אחד יכול לאפס סיסמה של כל userId בשרת (2478).</div>
+</div></section>
+
+<section class="proc" data-f="bootstrap-token ensurefamilytoken community token family"><h3>Bootstrap token (השלמת טוקן חסר ללקוח משפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>ensureFamilyToken()</code> (app.js:832) — נקרא בתחילת כל <code>fetchData</code> (2235): אם אין <code>ofl_family_token</code> ויש <code>ofl_session</code> עם group.type=FAMILY.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>POST /api/community/bootstrap-token {groupId,userId}</code> (server.js:10721): חסר → 400 'missing params'; נדרש user active בקבוצה מסוג FAMILY → אחרת 403 "אין הרשאה".</li></ul></div>
+<div>שלבי עיבוד</div><div><code>createFamilySession(groupId, userId, UA, 'family')</code> → <code>{token}</code>; הלקוח שומר ב-<code>ofl_family_token</code>.</div>
+<div>פערים</div><div><b>קריטי:</b> ללא אימות כלשהו — ידיעת groupId+userId (מספרים רציפים) מספיקה לקבלת סשן מלא של כל משתמש משפחה פעיל.</div>
+</div></section>
+
+<h2 class="grp">תפקידים והרשאות</h2>
+
+<section class="proc" data-f="roles admin member child manager senior change-role autoperms"><h3>תפקידים ושינוי תפקיד (users.role)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תפקידי משתמש: <code>ADMIN</code>, <code>MEMBER</code>, <code>CHILD</code> (משפחה); בעסק גם <code>SENIOR</code>, <code>MANAGER</code> (business-app.js:1989-1992). שינוי ע"י מנהל: כפתור "קדם/הורד" (app.js <code>changeUserRole</code> 5985 — ADMIN↔CHILD בלבד).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>POST /api/admin/change-role {userId,newRole}</code> (server.js:11609): newRole ∉ {ADMIN,CHILD,MEMBER} → 400 "תפקיד לא חוקי"; לא ADMIN → 403 "רק מנהל רשאי לשנות תפקידים"; target מקבוצה אחרת → 403.</li>
+<li>תפקיד ראשון ADMIN רק ביצירת קבוצה (<code>/api/groups</code>, <code>/api/biz/register</code>, sc-register, create-for-business).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>UPDATE users SET role, permissions = autoPerms (11617-11621):<br>ADMIN → <code>{tabs:[feed,shop,tasks,budget,members,goals,pantry,loans,academy,cashflow,community]}</code>; CHILD → <code>{tabs:[feed,shop,tasks,goals,academy,bank,cashflow,community]}</code>; MEMBER → <code>{tabs:[feed,community]}</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>כל תפקיד</td><td>ADMIN/CHILD/MEMBER</td><td>ADMIN (change-role / user-details)</td><td>אותה קבוצה</td><td>change-role דורס permissions</td></tr>
+<tr><td>כל תפקיד</td><td>כל ערך</td><td>ADMIN (PUT permissions עם role)</td><td>אין whitelist</td><td>permissions={tabs,community}</td></tr>
+<tr><td>כל תפקיד</td><td>כל ערך</td><td>SA (PATCH /api/superadmin/users/:id 8878)</td><td>—</td><td>גם status/סיסמה</td></tr>
+</table></div></div>
+<div>פערים</div><div>אין הגנה מפני הורדת המנהל האחרון (רק במחיקה, 11646-11650). MEMBER אחרי change-role מקבל 2 טאבים ⇒ בלקוח "custom" (‎&gt;1) ומאבד tasks/shop/academy של ROLE_DEFAULTS.</div>
+</div></section>
+
+<section class="proc" data-f="permissions json tabs community can_order users permissions enforcepermissions role_defaults all_tabs"><h3>הרשאות טאבים — users.permissions (JSON)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל פותח מודל הרשאות (app.js <code>openPermissionsModal</code> ~10175 / <code>savePermissions</code> 10224; business-app.js <code>submitPermissions</code> 3787).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>PUT /api/users/:id/permissions</code> (server.js:11555, verifyFamily): הקורא חייב ADMIN בקבוצת הסשן → 403 "נדרשת הרשאת מנהל"; target בקבוצה → אחרת 404 "משתמש לא נמצא בקבוצה".</li>
+<li>body: <code>tabs</code> (מערך, חובה בפועל), <code>role</code> אופציונלי, <code>community</code> אופציונלי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם <code>'feed'</code> לא במערך — מוסיפים.</li><li><code>permsObj={tabs}</code> (+<code>community</code> אם נשלח).</li><li>UPDATE permissions=JSON (ו-role אם נשלח).</li></ol></div>
+<div>חישובים</div><div>מבנה: <code>{"tabs":[...], "community":{"can_order":bool,"can_post_feed":bool,"can_poll":bool,"can_live_game":bool,"can_store":bool}}</code> (app.js:10201-10207). ברירת מחדל קהילה: מותר אם לא <code>false</code> (<code>checkCommPerm</code> 10262).</div>
+<div>ממשק</div><div><b>משפחה</b> — <code>ALL_TABS</code> (app.js:9461): feed, tasks, shop, myorders, bank, cashflow, community, academy, members, budget, pantry, recipes, forecast, home-maintenance. <code>ROLE_DEFAULTS</code> (9478): ADMIN=הכל; MANAGER=[feed,tasks,shop,pantry,academy,recipes,home-maintenance]; SENIOR=[feed,tasks,shop,pantry,academy]; MEMBER=[feed,tasks,shop,academy]; CHILD=[feed,tasks,shop,academy,bank,cashflow,community]. <code>enforcePermissions</code> (9486): custom רק אם <code>tabs.length&gt;1</code>; CHILD תמיד מקבל community; ADMIN רואה הכל; הסתרה <code>display:none</code>. ההרשאות מתרעננות בכל fetchData (hook 11554-11597, polling 30s).<br><b>עסק</b> — <code>ROLE_DEFAULTS</code> (business-app.js:3893): MANAGER/SENIOR/MEMBER משלו; <code>enforcePermissions</code> (3903): <code>perms.tabs || ROLE_DEFAULTS</code>; בעל החשבון (<code>owner_user_id</code>) מקבל members; הרחבה לפי <code>ROLE_TYPE_TABS[employee_role_type]</code> (37506); feed/settings/biz-ads תמיד מותרים; טאבים לא מורשים מוצגים נעולים.</div>
+<div>פערים</div><div>האכיפה בצד לקוח בלבד — השרת לא בודק permissions.tabs ב-endpoints. <code>tabs</code> חסר → TypeError → 500. role ללא whitelist (11573).</div>
+</div></section>
+
+<section class="proc" data-f="employee_role_type role-type beauty therapist branch_manager"><h3>סיווג תפקיד עובד (employee_role_type)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודל ההרשאות העסקי (רדיו <code>perm-role-type</code>, מסונן לפי <code>isFeatureLicensed</code>), בהצטרפות (<code>employee_role_type</code> ב-/api/join), ובשלב <code>my_role</code> בוויזארד.</div>
+<div>תנאים ואימותים</div><div><ul><li><code>PATCH /api/users/:id/role-type</code> (server.js:26446, verifyFamily): ADMIN + אותה קבוצה; ערך חופשי או null.</li></ul></div>
+<div>תופעות לוואי</div><div>משפיע על verifyBeautyClientAccess / verifyBeautyPractitionerAccess (41951, 41966) ועל הרחבת טאבים בלקוח.</div>
+<div>פערים</div><div>business-app.js:23023 שולח PATCH ללא Authorization → 401 תמיד (שלב הוויזארד לא שומר).</div>
+</div></section>
+
+<h2 class="grp">BIZ — הרשמה, כניסה ושחזור</h2>
+
+<section class="proc" data-f="biz send-otp verify-otp business_otp purpose register login login_disambiguate reset_password verified sms twilio"><h3>OTP עסקי (send/verify) ותשתית SMS</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>biz-onboarding.html: הרשמה (<code>regSendOtp</code>), כניסה (<code>loginSendOtp</code>), שליחה חוזרת (<code>resendOtp</code>, נעילת כפתור 30 שניות).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>purpose ∈ {register, reset_password, login_disambiguate, login} וחובה phone → אחרת 400 "פרמטרים חסרים או לא תקינים" (server.js:7599, 7639).</li>
+<li>Rate: ≥3 שורות לאותו phone+purpose בשעה → 429 (7604-7610).</li>
+<li>verify: אין שורה → 400; פג → מחיקה + 400; שגוי → attempts (מקס' 3, ואז מחיקה).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: DELETE קודם, קוד 6 ספרות, sha256, תוקף 5 דק', INSERT, SMS "WEFLOWZ\nקוד האימות שלך: X\nתקף ל-5 דקות…" (0→+972).</li><li>verify הצלחה: מחיקת OTP. <code>login</code>/<code>login_disambiguate</code> → options = ADMIN active בקבוצות <code>member_type='biz'</code> או BUSINESS, לא מחוקות, עם השוואת טלפון אחרי הסרת '-' ורווחים בצד ה-DB → <code>{options:[{group_id,business_name}]}</code>. <code>register</code> → יצירת <code>verified_token</code> (purpose <code>'verified'</code>, 15 דק'). <code>reset_password</code> → <code>{success:true}</code> בלבד.</li></ol></div>
+<div>חישובים</div><div>טבלת <code>business_otp</code>: phone VARCHAR(20), code_hash VARCHAR(64), purpose VARCHAR(20), expires_at, attempts, created_at, channel (ברירת מחדל 'sms'), email (1973-1985). כל ה-OTP ב-business_otp: sha256 ללא salt.</div>
+<div>תופעות לוואי</div><div><code>sendSMSviaTwilio(to, body)</code> (237): POST ל-Twilio Messages API עם Basic auth; חסרים <code>TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER</code> → throw; תשובה לא ok → throw. <code>smsService</code> (56-85) עם <code>SMS_SERVICE</code> (test/twilio) — <b>לא בשימוש</b> (dead code).</div>
+<div>פערים</div><div>purpose <code>reset_password</code> ללא המשך (מת). כישלון SMS לאחר INSERT עדיין סופר ל-rate limit. אין נרמול טלפון בצד send (מנורמל בלקוח: הסרת '-' ורווחים, regex <code>^05\d{8}$</code>).</div>
+</div></section>
+
+<section class="proc" data-f="biz register business create verified_token dev_phone managed_modules session"><h3>הרשמת עסק (/api/biz/register)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי verify-otp register מוצלח, הלקוח קורא מיד ל-register (biz-onboarding.html:1378).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חובה phone, verified_token, password, business_name → 400; password ≥6 → 400 "סיסמה חייבת להכיל לפחות 6 תווים".</li>
+<li>verified_token נצרך אטומית: <code>DELETE … WHERE phone AND purpose='verified' AND code_hash AND expires_at&gt;NOW() RETURNING id</code>; 0 שורות → 400 "אימות הטלפון פג תוקף. יש להתחיל מחדש." (8107-8116).</li>
+<li>טלפון קיים ב-users (כל תפקיד/קבוצה, השוואה מדויקת) → 400 "מספר טלפון זה כבר רשום במערכת…", חוץ מ-<code>DEV_PHONE='0526626619'</code> (8119).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>bcrypt(10).</li><li>INSERT family_groups (type BUSINESS, member_type 'biz', business_type 'other', wizard_completed FALSE, is_onboarded TRUE, group_code <code>'B'+randomBytes(4).hex.upper.slice(0,7)</code>, managed_modules JSON או null).</li><li>INSERT users ADMIN active, nickname זמני "בעל/ת העסק".</li><li><code>createFamilySession(...,'biz')</code>.</li><li>תגובה <code>{token, group_id, user_id, business_name, wizard_completed:false}</code>; מייל ל-SA ברקע. ללא טרנזקציה.</li></ol></div>
+<div>ממשק</div><div><code>saveSession(d)</code> ב-biz-onboarding (1196): <code>ofl_session={user:{id,nickname,role:'ADMIN'}, group:{id,type:'BUSINESS',wizard_completed,name}, token}</code> — לא כותב ofl_family_token. מעבר ל-sec-welcome (ויזארד).</div>
+</div></section>
+
+<section class="proc" data-f="biz login phone password groupid wizard_completed is_onboarded env pick"><h3>כניסת עסק: OTP → בחירת סביבה → סיסמה (/api/biz/login)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>biz-onboarding.html לשונית "כניסה": <code>loginSendOtp</code> → <code>verifyOtp</code> (purpose login) → <code>pickEnv</code> → <code>doLogin</code> (1440-1497).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>חובה phone, password, groupId → 400 (server.js:8175).</li>
+<li>משתמש: טלפון מנורמל ב-DB (הסרת '-' ורווח) = phone, group_id=groupId, קבוצה biz/BUSINESS/<code>is_demo_business</code>, <code>UPPER(role)='ADMIN'</code>, active. לא נמצא → 400 "סיסמה שגויה"; bcrypt נכשל → 400 "סיסמה שגויה".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>createFamilySession(...,'biz')</code>.</li><li><code>wizardDone = wizard_completed !== false || is_onboarded === true</code> (8207); אם wizardDone ו-wizard_completed!==true → UPDATE wizard_completed=true אסינכרוני.</li><li>תגובה <code>{token, group_id, user_id, wizard_completed, business_name, group_type}</code>.</li></ol></div>
+<div>ממשק</div><div>אפס סביבות → "לא נמצאו סביבות עסקיות עבור מספר זה"; אחת → ישר לסיסמה; כמה → רשימת כפתורים. wizard_completed → <code>business.html</code>, אחרת ויזארד.</div>
+<div>פערים</div><div><b>אין rate limit ואין חובת OTP בשרת</b> — ניחוש סיסמה ישיר עם phone+groupId. <code>bcrypt.compare</code> נכשל על hash legacy plaintext (אין upgrade כמו ב-/api/login). רק ADMIN יכול להיכנס כך; עובדים נכנסים דרך /api/login (קוד+כינוי). לא נבדק is_deleted.</div>
+</div></section>
+
+<section class="proc" data-f="biz reset password request confirm biz_password_resets admin_email"><h3>איפוס סיסמת עסק (קישור במייל)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שכחתי סיסמה" במסך הסיסמה (<code>startForgotPassword</code> biz-onboarding.html:1500) — אחרי OTP; קישור <code>/biz-onboarding.html?reset=..&amp;gid=..</code> → <code>doResetPassword</code>.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>request (server.js:8220): חסר → 400; אם אין התאמה (טלפון מנורמל, ADMIN active, biz/BUSINESS) או אין <code>admin_email</code> → <code>{success:true}</code> שקט.</li>
+<li>confirm (8265): כללים זהים למשפחה (≥6, used=false, תוקף).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>request: token 32 bytes, sha256, שעה; DELETE + INSERT <code>biz_password_resets(phone, group_id, token_hash, expires_at)</code>; מייל ל-admin_email (await).</li><li>confirm: bcrypt(12); <code>UPDATE users … WHERE phone=$2 AND group_id=$3 AND role='ADMIN'</code>; used=true.</li></ol></div>
+<div>ממשק</div><div>הלקוח תמיד מציג "sec-forgot-sent" גם אם השרת נכשל (לא בודק תגובה).</div>
+<div>פערים</div><div>request משווה טלפון מנורמל אך confirm משווה <code>phone=</code> מדויק → טלפון ששמור עם מקפים לא יתעדכן (success בלי שינוי).</div>
+</div></section>
+
+<section class="proc" data-f="biz me session bootstrap filled_by_role wizard"><h3>/api/biz/me — טעינת נתוני עסק מהסשן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ויזארד, רענון impersonation (business-app.js:232).</div>
+<div>שלבי עיבוד</div><div>verifyBiz; במקביל: <code>SELECT * FROM family_groups</code>, ספירת active לפי employee_role_type, ושם/שנת לידה של המשתמש; 404 "עסק לא נמצא"; תגובה = כל עמודות הקבוצה + <code>filled_by_role</code> + first_name/last_name/birth_year (server.js:8296-8329).</div>
+</div></section>
+
+<section class="proc" data-f="impersonation sa biz-impersonate-token isimpersonating ofl_sa_return_token takeover"><h3>השתלטות SA על סביבת לקוח (Impersonation)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA לוחץ "השתלטות" (sa-app.js <code>impersonateGroup</code> 5891).</div>
+<div>תנאים ואימותים</div><div><ul><li><code>POST /api/sa/biz-impersonate-token {groupId,userId}</code> (server.js:44011, verifySA): חסר groupId → 400; קבוצה לא קיימת → 404.</li><li>משתמש: userId שהתבקש אם שייך לקבוצה; אחרת ADMIN ראשון; אחרת 0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שרת: טוקן 32 bytes, INSERT family_sessions (hash, session_type לפי type, תוקף שעה).</li><li>לקוח: שומר <code>ofl_sa_return_token</code>, מוחק <code>ofl_sa_token</code>/<code>ofl_session</code>/<code>ofl_token</code>, כותב <code>ofl_session={user,group,isImpersonating:true,token}</code>, פותח טאב חדש (<code>/business.html</code> או <code>/</code>), ואחרי 2 שניות מחזיר <code>ofl_sa_token</code>.</li><li>עסק אין משתמשים → user מזויף id 99999 בלקוח.</li></ol></div>
+<div>ממשק</div><div>business-app.js: <code>checkImpersonationMode</code> (165) — פס אדום עם "רענון נתונים"/מזעור/"התנתקות" (<code>exitImpersonationMode</code> מוחק ofl_session וסוגר טאב). onload עדיפות ל-ofl_session עסקי על פני ofl_sa_token (305-322). app.js: באנר אם קיימים גם ofl_sa_token וגם ofl_session (1805, 11611 — interval).</div>
+<div>פערים</div><div>user_id=0 → FK error. ofl_session משותף לכל הטאבים באותו origin — השתלטות דורסת את סשן ה-SA/לקוח הפתוח.</div>
+</div></section>
+
+<h2 class="grp">SUPER-ADMIN</h2>
+
+<section class="proc" data-f="superadmin login sa_users sa_teams rbac master credentials system_settings sa_password"><h3>כניסת SA בשם משתמש/מייל + סיסמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>sa.html <code>handleSALogin</code> (sa-app.js:382); גם business-app.js:447 (פאנל SA ישן).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>שלב 1 (server.js:8563): חיפוש <code>sa_users.email = code</code> עם JOIN לצוות. סיסמה: bcrypt אם <code>$2</code>, אחרת plaintext. נכונה + status!=='active' → 403 "החשבון שלך נחסם. פנה למנהל המערכת.".</li>
+<li>שלב 2 (master): <code>sa_username</code> (ברירת מחדל <code>'admin'</code>), <code>sa_password</code> (ברירת מחדל <code>'123456'</code>), <code>sa_email</code> מ-system_settings; code תואם username או email ו-password === sa_password (plaintext).</li>
+<li>אחרת 401 "פרטי גישה שגויים לניהול מערכת".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>INSERT sa_sessions(token=randomBytes(32).hex, expires=NOW()+30d). תגובה: צוות → <code>user:{id,name,email,team,permissions}</code>; master → <code>{id:0,name:'מנהל על (Master)',permissions:['all']}</code>.</div>
+<div>ממשק</div><div>שומר <code>ofl_sa_token</code>, <code>ofl_sa_user</code>; <code>applyUserPermissions</code> (sa-app.js:91) מסתיר קבוצות טאבים; <code>checkTabAccess</code> (126) — מפת דרישות: support→support, devops, stats, comm, biz, content, hr→users, inbox/marketing→marketing, finance/insights→stats, adslots/legal→content, masterconfig→all; pulse/dashboard/clients/templates/partners/pricing פתוחים. Polling: pending 60s, online-count 60s.</div>
+<div>פערים</div><div>אין rate limit; סיסמת master בטקסט גלוי ב-DB עם ברירת מחדל ידועה; הרשאות צוות ללא אכיפת שרת. <code>/api/superadmin/credentials</code> (8621) שומר <code>sa_password</code> plaintext.</div>
+</div></section>
+
+<section class="proc" data-f="superadmin otp sms superadmin_phone otpcache master"><h3>כניסת SA Master ב-SMS (SUPERADMIN_PHONE)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>sa.html שלב master (sa-app.js:7830-7930); מוסתר אם <code>/api/settings/login-mode</code> מחזיר <code>smsEnabled=false</code> (sa.html:5151; system_settings <code>sms_login_enabled</code>, ברירת מחדל true — server.js:10015).</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>send (8496): <code>phone !== process.env.SUPERADMIN_PHONE</code> (השוואה מדויקת) או env חסר → <code>{success:false, error:"מספר הטלפון שהוזן אינו מורשה…"}</code> (200).</li>
+<li>verify (8523): אין רשומה ב-<code>otpCache</code> → "לא נמצאה בקשת התחברות פעילה למספר זה"; פג (5 דק') → מחיקה; <code>code !== cached.code</code> → "הקוד שהוקלד אינו תקין".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>קוד 6 ספרות ב-Map בזיכרון (<code>otpCache</code>, 235); SMS; ב-verify: מחיקה, INSERT sa_sessions 30 יום, <code>user:{id:1,name:'Super Admin Master',role:'master',email:sa_username,permissions:['all']}</code>.</div>
+<div>ממשק</div><div>הלקוח ממיר <code>05…</code> ל-<code>+972…</code> לפני שליחה.</div>
+<div>פערים</div><div>אין הגבלת ניסיונות ב-verify; <code>smsEnabled=false</code> מסתיר ב-UI בלבד — ה-endpoints פעילים.</div>
+</div></section>
+
+<section class="proc" data-f="sa staff teams rbac permissions sa_users create"><h3>ניהול צוות SA (RBAC)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב HR ב-SA.</div>
+<div>שלבי עיבוד</div><div><code>POST/PUT/DELETE /api/sa/teams</code> (8683-8708): <code>permissions</code> JSONB מערך מחרוזות. <code>POST /api/sa/staff</code> (8722): bcrypt(10); email כפול → 400 "כתובת המייל הזו כבר קיימת במערכת". <code>PUT /api/sa/staff/:id</code>: סיסמה רק אם לא ריקה; status חופשי.</div>
+<div>פערים</div><div>חסימת עובד (status) לא מבטלת sa_sessions קיימים (אין קישור טוקן↔משתמש).</div>
+</div></section>
+
+<h2 class="grp">ZONE-MANAGER</h2>
+
+<section class="proc" data-f="zone manager register pending approve sa status commission"><h3>הרשמת מנהל אזור ואישור SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>zone-manager.html <code>zmRegister</code> (zone-manager-app.js:59); SA מאשר ב-PUT.</div>
+<div>תנאים ואימותים</div><div><ul><li>חובה name, email, password → 400 (server.js:18763); לקוח: סיסמה ≥6. email קיים: pending → "בקשת הרשמה כבר קיימת ומחכה לאישור"; active → "כתובת מייל זו כבר רשומה ופעילה במערכת"; אחר → "כתובת מייל זו כבר רשומה".</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT zone_managers(status 'pending', commission_pct 5, bcrypt 10). SA: <code>GET /api/sa/zone-managers/pending</code> (19216); <code>PUT /api/sa/zone-managers/:id</code> עם <code>status</code> (19263); <code>POST /api/sa/zone-managers</code> יוצר ישירות (ברירת מחדל status 'active' בסכמה, 602).</div>
+<div>מכונת מצבים</div><div>pending → active (SA, PUT status) ; active → כל ערך אחר (SA) ; מחיקה (SA DELETE). לוגין רק ל-active.</div>
+<div>ממשק</div><div>אחרי הרשמה — לשונית "pending".</div>
+</div></section>
+
+<section class="proc" data-f="zone manager login zm_token zm_manager plaintext upgrade"><h3>כניסת מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zmLogin</code> (zone-manager-app.js:38).</div>
+<div>תנאים ואימותים</div><div><ul><li>SELECT לפי email מדויק ו-status='active' → לא נמצא 401 "פרטי גישה שגויים"; bcrypt או plaintext (upgrade ל-bcrypt בהצלחה) (server.js:18816-18829).</li></ul></div>
+<div>שלבי עיבוד</div><div>יצירת טוקן <code>ZM_{id}_{ts}_{rand}</code>, הכנסה ל-<code>zoneManagerSessions</code>; תגובה <code>{token, manager:{id,name,email,commission_pct}}</code>. לקוח: <code>zm_token</code>, <code>zm_manager</code> ב-localStorage; Authorization = הטוקן הגולמי (ללא Bearer).</div>
+<div>פערים</div><div>אין rate limit; טוקן ניתן לזיוף (ראו verifyZoneManager).</div>
+</div></section>
+
+<section class="proc" data-f="zone manager forgot reset password zmpasswordresets zmr"><h3>שחזור סיסמת מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zmForgotSubmit</code>/<code>zmResetSubmit</code>; קישור <code>/zone-manager.html?reset=TOKEN</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>forgot (18777): email חובה; אם active קיים — token <code>ZMR_{id}_{ts}_{rand}</code> ב-Map <code>zmPasswordResets</code> (תוקף שעה); קישור לפי <code>x-forwarded-proto</code>+host; מייל. תמיד success.</li><li>reset (18804): token+password≥6 → אחרת 400 "טוקן או סיסמה לא תקינים"; לא קיים/פג → 400 "הקישור לא תקף או שפג תוקפו — בקש קישור חדש"; UPDATE bcrypt(10); מחיקת token.</li></ol></div>
+<div>פערים</div><div>טוקנים בזיכרון — אובדים בריסטארט; טוקן ניתן לניחוש חלקי (Math.random); host injection בקישור.</div>
+</div></section>
+
+<h2 class="grp">STOREFRONT — לקוח קצה</h2>
+
+<section class="proc" data-f="storefront sc-auth send-otp verify-otp storefront_otp bcrypt email channel isnew"><h3>OTP לקוח חנות (sc-auth send/verify)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "🔑 כניסה" צף בחנות (sc-auth.js <code>_injectHeaderBtn</code>) → מודל טלפון → קוד.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>send (server.js:43210): phone חובה; <code>cleanPhone</code> = ספרות בלבד, 9–15 ספרות → אחרת "מספר טלפון לא תקין". email channel: email מה-body או מהלקוח הקיים, regex → אחרת "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li>
+<li>Rate: ≥3 OTP לאותו phone+purpose ב-10 דק' → "נשלחו יותר מדי קודים — נסה שוב בעוד 10 דקות".</li>
+<li>verify (43255): OTP אחרון לא-used ובתוקף; <code>attempts&gt;=5</code> → used=true + "יותר מדי ניסיונות — שלח קוד חדש"; bcrypt.compare נכשל → attempts+1 + "קוד שגוי".</li>
+<li>כל התגובות HTTP 200 עם <code>success:false</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>send: קוד 6 ספרות, <b>bcrypt(8)</b>, תוקף 5 דק', INSERT storefront_otp(channel, email); מייל או SMS (E.164: 972…→+972…, 0…→+972…, אחרת +); בסביבת non-production הקוד מודפס ללוג; תגובה <code>{isNew, smsSent, channel}</code>.</li><li>verify הצלחה: used=true; אין לקוח → <code>{isNew:true, phone}</code>; יש → INSERT storefront_sessions (30 יום) → <code>{token, customer}</code> ללא pin_hash.</li></ol></div>
+<div>ממשק</div><div>שמירה: <code>sc_auth_token</code>, <code>sc_customer</code>; ב-init <code>_verifySession</code> קורא <code>/api/sc-auth/me</code>; כישלון → ניקוי.</div>
+<div>פערים</div><div>ה-handlers ללא try/catch (Express 4) — חריגת Twilio משאירה את הבקשה תלויה.</div>
+</div></section>
+
+<section class="proc" data-f="storefront sc-auth register pin customer family_group solo shopper"><h3>הרשמת לקוח חנות (sc-auth/register)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי verify עם isNew → טופס הרשמה (sc-auth.js <code>register</code> 270).</div>
+<div>תנאים ואימותים</div><div><ul><li>חובה phone, firstName, lastName, pin → "חסרים שדות חובה"; pin = בדיוק 6 ספרות → "PIN חייב להיות 6 ספרות" (server.js:43300).</li><li>לקוח קיים עם pin_hash → "מספר טלפון זה כבר רשום — נסה להתחבר". קיים ללא pin ("שקט") → השלמה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>pinHash=bcrypt(10).</li><li>קישור משפחה: user עם טלפון מנורמל זהה בקבוצה active (עדיפות FAMILY, אח"כ BUSINESS) → family_group_id שלה; אחרת INSERT family_groups (FAMILY, plan solo, code <code>'SC'+6 ספרות אחרונות</code>, member_type 'shopper') + user ADMIN active ללא סיסמה.</li><li>UPDATE/INSERT storefront_customers.</li><li>INSERT storefront_sessions → <code>{token, customer}</code>.</li></ol></div>
+<div>פערים</div><div><b>קריטי:</b> אין הוכחה שה-OTP אומת — register מקבל כל phone ישירות. ניתן להשתלט על לקוח "שקט" ולקשר לקבוצה של בעל הטלפון האמיתי (כולל BUSINESS), ומשם ל-SSO. code 'SC…' עלול להתנגש בין טלפונים.</div>
+</div></section>
+
+<section class="proc" data-f="storefront pin verify-pin change-pin forgot-pin reset-pin lockout sa reset"><h3>PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אישור פעולות רגישות (verify-pin), פרופיל (change-pin), "שכחתי PIN".</div>
+<div>תנאים ואימותים</div><div><ul>
+<li>verify-pin (43411): נעילה בזיכרון <code>_scPinLockout['cust_'+id]</code>; <code>SC_PIN_MAX_ATTEMPTS=5</code>, <code>SC_PIN_LOCKOUT_MINUTES=15</code>; נעול → "יותר מדי ניסיונות — נסה שוב בעוד N דקות" + <code>locked:true</code>; שגוי → "PIN שגוי (X ניסיונות נוספים)"; הצלחה מוחקת את הנעילה.</li>
+<li>change-pin (43393): currentPin+newPin; newPin 6 ספרות; current נבדק.</li>
+<li>forgot-pin (43442): לקוח חייב להיות קיים → אחרת "מספר לא רשום"; OTP purpose <code>pin_reset</code>, bcrypt(8), <b>10 דק'</b>.</li>
+<li>reset-pin (43462): OTP אחרון בתוקף, bcrypt.compare; UPDATE pin.</li>
+<li>SA: <code>POST /api/sa/sc-customers/:id/reset-pin</code> (43773) — OTP pin_reset ל-<b>30 דק'</b> ו-SMS.</li>
+</ul></div>
+<div>פערים</div><div>אחרי 5 כישלונות ו-15 דק' המונה לא מתאפס (attempts נשאר ≥5 → כל כישלון נועל שוב). forgot-pin ללא rate limit (הצפת SMS). reset-pin ללא מגבלת ניסיונות. Lockout בזיכרון.</div>
+</div></section>
+
+<section class="proc" data-f="storefront sso token family sso-login my-families ofl goToOFL"><h3>SSO מהחנות לאפליקציית המשפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור מעבר ל-OFL (sc-auth.js <code>goToOFL</code> 960) → טאב חדש <code>/?sso_token=…</code> → app.js:115.</div>
+<div>תנאים ואימותים</div><div><ul>
+<li><code>GET /api/sc-auth/my-families</code> (43496): לכל לקוח מחזיר רק <code>family_group_id</code>; רק ל-<code>SC_MULTI_FAMILY_TEST_PHONE='0526626619'</code> מחזיר כל משפחות FAMILY active שאינן shopper/member.</li>
+<li><code>GET /api/sc-auth/sso-token[?familyGroupId]</code> (43519): ברירת מחדל family_group_id של הלקוח; בחירה ידנית רק למספר הבדיקות ובאימות users.phone.</li>
+<li><code>GET /api/family/sso-login?token</code> (43791): token לא-used ובתוקף → אחרת "טוקן לא תקין או פג"; אין family_group_id → "אין חשבון משפחה מקושר"; type BUSINESS → 403 "חשבון עסקי אינו נגיש דרך חנות לקוח"; אין user active → שגיאה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div>sso-token: randomBytes(48).hex, תוקף 60 שניות, INSERT storefront_sso_tokens. sso-login: used=true; בחירת user active עם עדיפות ADMIN ואז id נמוך; <code>createFamilySession(fgId, user.id, 'storefront-sso', 'family')</code> → <code>{familyGroup, user, sessionToken}</code>. לקוח: חוסם BUSINESS, שומר <code>ofl_session</code> ו-<code>ofl_family_token</code>, מוחק <code>ofl_sa_token</code>.</div>
+<div>פערים</div><div>הסשן נוצר עבור ה-ADMIN של המשפחה — לא עבור המשתמש בעל הטלפון; יחד עם register ללא OTP זו שרשרת השתלטות.</div>
+</div></section>
+
+<h2 class="grp">אחסון טוקנים בלקוח וצירופם לבקשות</h2>
+
+<section class="proc" data-f="localstorage ofl_session ofl_family_token ofl_sa_token zm_token sc_auth_token authorization bearer client storage"><h3>מפת מפתחות localStorage ודרך צירוף הטוקן לכל לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירת זהות בין טעינות; אין cookies — כל האימות דרך הדר Authorization.</div>
+<div>תנאים ואימותים</div><div><div class="tbl-wrap"><table><tr><th>מפתח</th><th>תוכן</th><th>נכתב ע"י</th><th>נקרא ע"י / צירוף</th></tr>
+<tr><td><code>ofl_session</code></td><td>JSON <code>{user, group[, token][, isImpersonating]}</code></td><td>app.js <code>saveSession</code> (810, user ללא password_hash/profile_image, group ללא logo); business-app <code>_saveSession</code> (2316, כולל token); biz-onboarding (1196); family-onboarding (606/705/937); SSO; impersonation</td><td>onload של כל אפליקציה; type BUSINESS↔FAMILY מנתב בין <code>/</code> ל-<code>/business.html</code>; business-app: <code>window._bizToken = session.token</code></td></tr>
+<tr><td><code>ofl_family_token</code></td><td>טוקן family_sessions גולמי</td><td>saveSession, ensureFamilyToken, _saveSession, family-onboarding, SSO, שחזור מ-session.token (app.js:156)</td><td>app.js <code>getFamilyToken</code>/<code>communityFetch</code> → <code>Authorization: Bearer</code>; kol-haam-app.js:83; marketplace.html:716; storefront.html:662; storefront-btype.js:72; fallback בחלק מקריאות business-app</td></tr>
+<tr><td><code>window._bizToken</code> (זיכרון)</td><td>טוקן biz</td><td>business-app onload/handleLogin</td><td>כל fetch ב-business-app: <code>Authorization: Bearer ${_bizToken}</code> או מחרוזת ריקה</td></tr>
+<tr><td><code>ofl_sa_token</code>, <code>ofl_sa_user</code></td><td>טוקן sa_sessions; פרטי משתמש + permissions</td><td>sa-app handleSALogin / OTP</td><td><code>saFetch</code> ו-<code>_saHeaders</code>: <code>Authorization: &lt;token&gt;</code> גולמי (ללא Bearer)</td></tr>
+<tr><td><code>ofl_sa_return_token</code></td><td>טוקן SA לפני השתלטות</td><td>impersonateGroup</td><td>לא נקרא בקוד</td></tr>
+<tr><td><code>zm_token</code>, <code>zm_manager</code></td><td>טוקן ZM; פרטי מנהל</td><td>zmLogin</td><td><code>Authorization: zmToken</code> גולמי</td></tr>
+<tr><td><code>sc_auth_token</code>, <code>sc_customer</code></td><td>טוקן storefront; לקוח</td><td>scAuth._saveSession</td><td><code>Authorization: Bearer</code></td></tr>
+<tr><td><code>ofl_token</code>, <code>token</code>, <code>family_token</code></td><td>—</td><td><b>לעולם לא נכתבים</b></td><td>app.js:10042-11486 (tickets/inbox/chat), 8851, 16016 — קוד מת/שבור</td></tr>
+</table></div></div>
+<div>שלבי עיבוד</div><div>Quota מלא בשמירת session ב-app.js → מחיקת כל המפתחות פרט ל-ofl_sa_token/ofl_session/ofl_family_token ונסיון חוזר (825). לוגו נשמר בנפרד <code>ofl_logo_&lt;groupId&gt;</code>.</div>
+<div>פערים</div><div>business-app אינו נופל-חזרה ל-ofl_family_token בעת onload; כניסה לעסק דרך index/family-onboarding משאירה <code>_bizToken=null</code>. כמה קריאות ב-app.js נשלחות ללא טוקן (submitChangePassword). כל הטוקנים ב-localStorage חשופים ל-XSS.</div>
+</div></section>

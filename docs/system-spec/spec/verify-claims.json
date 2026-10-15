@@ -1,0 +1,362 @@
+[
+ {
+  "id": 1,
+  "domain": "auth",
+  "process": "PIN לקוח: אימות פעולה, שינוי, שכחתי, איפוס SA",
+  "claim": "reset-pin (43462): OTP אחרון בתוקף, bcrypt.compare; UPDATE pin."
+ },
+ {
+  "id": 2,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "SA: logoutSA() sa-app.js:418 — מנקה intervals, מוחק ofl_sa_token (לא ofl_sa_user), אין קריאת שרת."
+ },
+ {
+  "id": 3,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "ZM: zmLogout() zone-manager-app.js:118 — מוחק zm_token, zm_manager; אין קריאת שרת."
+ },
+ {
+  "id": 4,
+  "domain": "auth",
+  "process": "Middleware ‏verifyFamily — אלגוריתם מדויק",
+  "claim": "שורה לא נמצאה → 401 \"פגישה לא תקינה — יש להתחבר מחדש\" (41893). שגיאת DB → 500 \"שגיאה פנימית\"."
+ },
+ {
+  "id": 5,
+  "domain": "auth",
+  "process": "התנתקות (כל הסביבות)",
+  "claim": "BIZ: logout() ב-business-app.js:2390 — רק removeItem('ofl_session') ו-redirect; לא קורא לשרת ולא מוחק ofl_family_token. common.js:364 זהה (reload)."
+ },
+ {
+  "id": 6,
+  "domain": "family",
+  "process": "ניווט משפחתי (ALL_TABS, ROLE_DEFAULTS, FAMILY_GNAV_GROUPS)",
+  "claim": "ALL_TABS (app.js:9461): feed, tasks, shop, myorders, bank, cashflow, community, academy, members, budget, pantry, recipes, forecast, home-maintenance."
+ },
+ {
+  "id": 7,
+  "domain": "family",
+  "process": "עריכת פרטי משתמש, סיסמה ומחיקה",
+  "claim": "set-first-password (11709): רק עצמו; רק אם must_change_password=true; סיסמה ≥4; אופציונלי id_number (20), email (200, lower), birth_year 1920–2020."
+ },
+ {
+  "id": 8,
+  "domain": "family",
+  "process": "סשן משפחתי, middleware, bootstrap-token ו-logout",
+  "claim": "logout (10740): מוחק את שורת ה-session לפי hash; תמיד success. לקוח: מוחק ofl_session/ofl_family_token ומנווט ל-/ (app.js:851)."
+ },
+ {
+  "id": 9,
+  "domain": "family",
+  "process": "כניסה עם קוד סביבה + כינוי + סיסמה",
+  "claim": "users.status!='active' → 403 \"חשבון ממתין לאישור מנהל\" (10688)."
+ },
+ {
+  "id": 10,
+  "domain": "family",
+  "process": "הצטרפות לקבוצה קיימת עם קוד",
+  "claim": "ברקע: sendAlertEmail למנהל הקבוצה + מייל ל-adminNotificationEmail עם קוד הקבוצה (10406-10427)."
+ },
+ {
+  "id": 11,
+  "domain": "biz",
+  "process": "כלי AI נקודתיים לעסק",
+  "claim": "/api/ai/generate-image (12346, ללא auth): לבאנר — Gemini מייצר prompt באנגלית (≤30 מילים); ספקים לפי סדר: HF nebius FLUX-schnell → HF together FLUX.1-schnell (HF_TOKEN, timeout 30ש') → Pollinations (45ש', seed אקראי); באנר 1024×576, לוגו 512×512; מוחזר data URI."
+ },
+ {
+  "id": 12,
+  "domain": "biz",
+  "process": "FamliAI — עוזרת עסקית (chat-assistant)",
+  "claim": "שרת: business_type מה-context בוחר מקטע הנחיות ייעודי (logistics, maintenance_repair, professional, beauty, retail, construction, sport, restaurant/cafe, אחר=food cost) (16051-16260)."
+ },
+ {
+  "id": 13,
+  "domain": "biz",
+  "process": "מחזור חיי משימה ואישור תגמול",
+  "claim": "approved ו-rew>0: balance של assigned_to += rew; INSERT transactions income 'tasks' \"תגמול משימה: …\"; INSERT transactions expense לאדמין הראשון (12055-12059)."
+ },
+ {
+  "id": 14,
+  "domain": "biz",
+  "process": "בקשת פתיחת/ביטול מודול ואישורה ע\"י SA",
+  "claim": "biz: בונה אובייקט {moduleId, moduleName||moduleId, note||'', requested_at: ISO, status:'pending'} ומחליף בקשה קודמת לאותו moduleId ב-family_groups.module_requests (jsonb: מסנן את הקיים ומוסיף) (5923-5932). לא טרנזקציה, UPDATE יחיד."
+ },
+ {
+  "id": 15,
+  "domain": "biz",
+  "process": "תפקידים והרשאות טאבים — ROLE_DEFAULTS, ROLE_TYPE_TABS, enforcePermissions",
+  "claim": "ערכי users.role בעסק: ADMIN, MANAGER, SENIOR, MEMBER (בחירה ב-smart invite 4283-4286 ובמודל ההרשאות). השרת ב-/api/admin/change-role מכיר רק ADMIN|CHILD|MEMBER (server.js:11612)."
+ },
+ {
+  "id": 16,
+  "domain": "store",
+  "process": "ניהול לקוחות חנות (store_customers)",
+  "claim": "GET: type=order — לקוחות עם הזמנה status 'new' שלא מהצעה; type=quote — עם הצעה או approved; ברירת מחדל — כולם + account_status + is_ofl_customer (קיים ב-storefront_customers) (server.js:15158-15181)."
+ },
+ {
+  "id": 17,
+  "domain": "store",
+  "process": "טעינת חנות ציבורית (GET /api/storefront/:code)",
+  "claim": "לקוח: is_active null נחשב פתוח; false → \"החנות סגורה כרגע\" (storefront.html:907-913)."
+ },
+ {
+  "id": 18,
+  "domain": "store",
+  "process": "מחזור חיי הצעת מחיר ושליחה ללקוח",
+  "claim": "WA: prepare-send יוצר confirm_token (24 בתים hex) ומחזיר {APP_URL}/c/q/{id}/{token}; הלקוח פותח wa.me עם טקסט ההצעה ומסמן סטטוס 'sent' (business-app.js:9578-9618)."
+ },
+ {
+  "id": 19,
+  "domain": "store",
+  "process": "תבניות תוספות (Modifier Presets) וויזארד תבניות",
+  "claim": "לקוח: קבוצה חייבת שם ולפחות אפשרות אחת \"מלא שם וגם לפחות אפשרות אחת לפני השמירה\" (28563); בתבנית \"יש להוסיף לפחות קבוצת תוספות אחת עם שם ואפשרות\" (28622); כפילות שם → \"התבנית ... כבר קיימת\" (28546)."
+ },
+ {
+  "id": 20,
+  "domain": "store",
+  "process": "מחזור חיי הצעת מחיר ושליחה ללקוח",
+  "claim": "link-only: מעדכן family_group_id רק אם ריק/זהה; אם קישור פעיל — linkStatus 'active'; אחרת UPSERT pending + התראת \"בקשת שיוך חדשה\" (server.js:15011-15043)."
+ },
+ {
+  "id": 21,
+  "domain": "restaurant",
+  "process": "ייבוא Excel \"חכם\" (EXCEL_BIZ_TYPES) לאשף ההקמה / לקטלוג",
+  "claim": "EXCEL_BIZ_TYPES (20101): restaurant 🍽️ [ראשונות, עיקריות, קינוחים, שתיה, תוספות, רטבים]; shop 🛍️; service 🔧. סוגי שורה EXCEL_ROW_TYPES: פריט, תוספת, רוטב, ירק, שתיה, נלווה, אחר."
+ },
+ {
+  "id": 22,
+  "domain": "restaurant",
+  "process": "תבנית תפריט — יצירה, עריכה, מחיקה רכה",
+  "claim": "POST (server.js:42138): שם חובה \"שם התבנית נדרש\"; min/max_guests ≥1 ו-max≥min; base_price_per_person ≥0; pricing_mode ∈ {per_person, per_item} אחרת per_person."
+ },
+ {
+  "id": 23,
+  "domain": "restaurant",
+  "process": "תבנית תפריט — יצירה, עריכה, מחיקה רכה",
+  "claim": "כל ה-endpoints: verifyBizOrLegacy + requireModule('menu_templates'); req.bizAuth.groupId חסר → 401 \"נדרש token\". requireModule: legacy או עסק ללא managed_modules → מותר; אחרת 403 \"גישה למודול זה אינה כלולה בחבילה שלך\" (server.js:43126)."
+ },
+ {
+  "id": 24,
+  "domain": "restaurant",
+  "process": "מצב שולחנות (Grid) וסנכרון בין מכשירים",
+  "claim": "Polling: startTablePolling כל 4000ms (business-app.js:39945) קורא GET states + GET bills; אם ה-JSON זהה לאחרון — מדלג; אחרת מיזוג Object.assign(local, server) (השרת גובר) ורינדור מחדש של .table-grid-card (business-app.js:39917)."
+ },
+ {
+  "id": 25,
+  "domain": "restaurant",
+  "process": "שיוך מלצרים לשולחנות (משמרת יומית)",
+  "claim": "רשימת המלצרים: חברי צוות שאינם ADMIN ו-employee_role_type==='waiter' או ללא תפקיד (business-app.js:41382)."
+ },
+ {
+  "id": 26,
+  "domain": "sport",
+  "process": "עוזר AI עסקי לספורט, פעולות AI, כתיבת הודעה ותובנות",
+  "claim": "התשובה נסרקת לתגיות: EXPORT_EXCEL, ADD_TASK, OPEN_TAB, FREEZE_MEMBER|id|סיבה, UNFREEZE_MEMBER|id|שם, CHECKIN_MEMBER|id|שם, REGISTER_CLASS|class|member|שם, CREATE_TASK, CREATE_ALERT_RULE, וכל אחת הופכת לכפתור שמבצע את הנתיב המקביל (business-app.js:46605–46671, 57388–57446)."
+ },
+ {
+  "id": 27,
+  "domain": "sport",
+  "process": "ניהול סוגי מנויים (sport_membership_types)",
+  "claim": "GET /membership-types/:groupId — כל הסוגים (כולל לא פעילים/לא ציבוריים) ממוינים לפי מחיר עולה (server.js:29258)."
+ },
+ {
+  "id": 28,
+  "domain": "sport",
+  "process": "הוספת חבר חדש (BIZ)",
+  "claim": "אם paymentAmount > 0: INSERT sport_payments (payment_method||'cash', notes='הצטרפות מנוי חדש') ואז logBizIncome עם תיאור \"הצטרפות מנוי חדש — שם\" (server.js:29367–29371)."
+ },
+ {
+  "id": 29,
+  "domain": "sport",
+  "process": "בקרת גישה, בעלות ומבנה כללי של מודול הספורט",
+  "claim": "מודולי BIZ לסוג ספורט: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports'] (business-app.js:37536). מסכי הספורט עצמם אינם טאבים אלא מודאל #sport-modal בתוך content-feed (_ensureSportModal, business-app.js:45591)."
+ },
+ {
+  "id": 30,
+  "domain": "sport",
+  "process": "הגדרות ספורט בחנות (store_settings.sport_settings)",
+  "claim": "POST /api/sport/store-settings ← UPSERT store_settings(group_id, sport_settings) — החלפה מלאה של ה-JSON (server.js:29299–29303)."
+ },
+ {
+  "id": 31,
+  "domain": "beauty",
+  "process": "השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה",
+  "claim": "עמלה: לכל סגמנט active עם practitioner_id ו-price>0, INSERT beauty_commissions(commission_type='service', gross_amount=price, commission_rate=commission_rate_svc, commission_amount) (server.js:31639-31651)."
+ },
+ {
+  "id": 32,
+  "domain": "beauty",
+  "process": "השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה",
+  "claim": "אחרי COMMIT, אם total_price>0: logBizIncome(biz, total_price, \"תור יופי — {client_name||'לקוח'}\"), שמוסיף שורה ל-transactions (category='sales', type='income', is_manual=FALSE, user_id = ה-ADMIN הראשון) (server.js:4201-4211, 31683-31687)."
+ },
+ {
+  "id": 33,
+  "domain": "beauty",
+  "process": "ניהול קטלוג שירותים",
+  "claim": "לקוח: שם חובה, \"שם שירות הוא שדה חובה\" (business-app.js:54534); משך ברירת מחדל 60."
+ },
+ {
+  "id": 34,
+  "domain": "beauty",
+  "process": "יצירת תור (פנימי או ממשפחה)",
+  "claim": "זיהוי לקוח (רק כש-src==='biz' ואין client_family_id): ספרות הטלפון ו-alt (972↔0). חיפוש users של קבוצה type='FAMILY', ואם לא נמצא, beauty_client_records.client_family_id של העסק לפי טלפון (server.js:31446-31469)."
+ },
+ {
+  "id": 35,
+  "domain": "beauty",
+  "process": "הרשאות גישה ל-API של היופי",
+  "claim": "verifyBeautyPractitionerAccess (server.js:41965-41971): ADMIN או senior_therapist בלבד; אחרת 403 \"אין הרשאה לנהל צוות מטפלות\". חל על POST/PATCH מטפלות ועל POST /commissions/pay."
+ },
+ {
+  "id": 36,
+  "domain": "logistics",
+  "process": "יצירת הזמנת משלוח",
+  "claim": "סטטוס התחלתי: driver_id ? 'assigned' : 'new' (server.js:32750)."
+ },
+ {
+  "id": 37,
+  "domain": "logistics",
+  "process": "רשימת הזמנות, קנבן וסינון",
+  "claim": "אין גרירה (drag&drop) למרות שהטור באונבורדינג מתאר זאת (business-app.js:2151)."
+ },
+ {
+  "id": 38,
+  "domain": "logistics",
+  "process": "בקשות הצעת מחיר (RFQ)",
+  "claim": "לקוח: שם חובה 'שם חובה' (business-app.js:53304); הצעת מחיר — ערך לא ריק (business-app.js:53266)."
+ },
+ {
+  "id": 39,
+  "domain": "logistics",
+  "process": "מבנה נתונים ומיגרציות (הקשר לכללים)",
+  "claim": "logistics_invoices: invoice_number UNIQUE, status DEFAULT 'pending', invoice_type DEFAULT 'single', order_id FK ללא ON DELETE (server.js:2443–2461)."
+ },
+ {
+  "id": 40,
+  "domain": "logistics",
+  "process": "עדכון סטטוס הזמנה (כולל חשבונית והכנסה אוטומטית במסירה)",
+  "claim": "INSERT logistics_order_events (event_type='status_change', old_status, new_status, actor_name, notes) (server.js:32768)."
+ },
+ {
+  "id": 41,
+  "domain": "services",
+  "process": "המרת הצעת מחיר לפקודת עבודה / תיק",
+  "claim": "convert: ה-UPDATE מותנה call_type IS NULL OR call_type<>'work_order'; אם כבר פקודה → 404 \"הצעה לא נמצאה\" (26510-26514)."
+ },
+ {
+  "id": 42,
+  "domain": "services",
+  "process": "פרטי פקודה ומודל ניהול",
+  "claim": "לקוח: טעינת עובדים (/work-orders/users), הצעות משמרת (/suggest-staff לפי תאריך הזימון הראשון), קטלוג, תבניות תפריט; עבור maintenance_repair — מסתיר תפריט ומציג שיוך הצעות (/available-quotes) (43076-43093)."
+ },
+ {
+  "id": 43,
+  "domain": "services",
+  "process": "SSO מחנות לאפליקציית המשפחה",
+  "claim": "בחירת משפחה ידנית רק לטלפון הבדיקות SC_MULTI_FAMILY_TEST_PHONE='0526626619' (43492), מאומת מול users.phone, FAMILY פעילה, לא shopper/member."
+ },
+ {
+  "id": 44,
+  "domain": "services",
+  "process": "תחזוקה מתוזמנת והשלמה מחזורית",
+  "claim": "אם interval_days → INSERT רשומה חדשה (pending) עם scheduled_date=completed_date+interval_days (26126-26133)."
+ },
+ {
+  "id": 45,
+  "domain": "services",
+  "process": "יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)",
+  "claim": "table_reservation: אם auto_approve_max_guests מוגדר ו-numGuests≤ערך → חיפוש שולחן פנוי 1..table_count(8) שאין לו הזמנה approved באותו תאריך בהפרש <2 שעות; נמצא → status approved + reserved_table_number (22898-22919)."
+ },
+ {
+  "id": 46,
+  "domain": "community",
+  "process": "הצטרפות משפחה לקהילה (קוד) ואישורה",
+  "claim": "קהילה לפי code.toUpperCase().trim() בסטטוס active או pending → אחרת 404 \"קוד קהילה שגוי או שהקהילה אינה קיימת.\" (18489)."
+ },
+ {
+  "id": 47,
+  "domain": "community",
+  "process": "ניהול מנהלי אזור ואזורים ע\"י SA",
+  "claim": "אזור חדש (19291): COUNT(manager_zones) ≥ zone_max_zones_per_manager (ברירת מחדל 4) → 400 \"מנהל יכול להחזיק עד N אזורים\"."
+ },
+ {
+  "id": 48,
+  "domain": "community",
+  "process": "ניהול מנהלי אזור ואזורים ע\"י SA",
+  "claim": "רשימה (19160): מנהלים שאינם pending עם zone_count, community_count, total_commissions, total_paid, month_paid."
+ },
+ {
+  "id": 49,
+  "domain": "community",
+  "process": "ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח",
+  "claim": "רשימה (3906): visibility public/builtin, או community עם community_id = groupId (פרמטר); לא מוסתר; מסננים subject, ageMin (age_max ≥), ageMax (age_min ≤), search; מיון builtin, featured, ואז rating/popular/newest; LIMIT 100."
+ },
+ {
+  "id": 50,
+  "domain": "community",
+  "process": "ספירת פוסטים שלא נקראו",
+  "claim": "mark-read (36103): UPSERT last_read_at=NOW לקהילה או לכל הקהילות המאושרות."
+ },
+ {
+  "id": 51,
+  "domain": "kolhaam",
+  "process": "חישוב ציון טרנדינג (cron)",
+  "claim": "לכל פריט: חישוב ציון ו-UPDATE cem.current_trending_score=score.toFixed(4), last_calculated_at=NOW() (server.js:40849-40855). ללא טרנזקציה; שגיאה עוצרת את כל הלולאה (try חיצוני)."
+ },
+ {
+  "id": 52,
+  "domain": "kolhaam",
+  "process": "הישגים ותגמולי FLOW",
+  "claim": "אם flow_reward > 0 → awardKolHaamFlow (server.js:44722-44750): UPSERT flow_wallets ('family', group_id) balance+amount; INSERT flow_transactions (action_key=triggerKey, description 'תגמול קול העם: X', reference_id=item); INSERT content_flow_rewards; author_profiles.total_earned_flow+amount. ללא טרנזקציה."
+ },
+ {
+  "id": 53,
+  "domain": "kolhaam",
+  "process": "שליחת פריט לאישור",
+  "claim": "לקוח: כותרת, קטגוריה, ותוכן שאינו ריק/'<br>' ('יש לכתוב תוכן') (kol-haam-app.js:1273-1275)."
+ },
+ {
+  "id": 54,
+  "domain": "kolhaam",
+  "process": "תגיות: autocomplete, פופולריות ודף תגית",
+  "claim": "popular: GET /tags/popular?limit=30 — תגיות שיש להן פריט מפורסם לא-מוסגר; מיון usage_count (server.js:46026-46043). community_id מתקבל ולא בשימוש."
+ },
+ {
+  "id": 55,
+  "domain": "kolhaam",
+  "process": "בקשות מחיקה",
+  "claim": "404; 403 אם groupId מהטוקן אינו הבעלים (server.js:40176-40178)."
+ },
+ {
+  "id": 56,
+  "domain": "sa",
+  "process": "מיזוג חשבון משפחה כפול לחשבון ראשי",
+  "claim": "UPDATE בעלות ב-21 טבלאות פשוטות (transactions, tasks, shopping_list, shopping_trips, pantry, time_clock, loans, store_orders, calendar_events.customer_group_id, beauty_*, service_calls, store_customers, storefront_sso_tokens, flw_kid_config, flw_kid_redeem_requests, game_assignments, kid_quests, flow_redemptions, storefront_customers) (2701-2713)."
+ },
+ {
+  "id": 57,
+  "domain": "sa",
+  "process": "מודולים לחשבונות \"חבר WEFLOWZ\" ושדרוג למשפחה",
+  "claim": "PATCH /unlock-module (31093): הוספה למערך אם חסר והסרת הבקשה."
+ },
+ {
+  "id": 58,
+  "domain": "sa",
+  "process": "מיזוג חשבון משפחה כפול לחשבון ראשי",
+  "claim": "ארנק ילדים: אם קיים flw_kid_wallets לכפול — הוספת balance/lifetime למשתמש בראשי ומחיקת ארנק הכפול (2686-2698)."
+ },
+ {
+  "id": 59,
+  "domain": "sa",
+  "process": "גיבויי סביבה (Snapshots) ושחזור",
+  "claim": "יומי: מדלג על קבוצה עם snapshot 'auto' ב-20 השעות האחרונות; השהייה 3 שניות בין קבוצות (6760-6766)."
+ },
+ {
+  "id": 60,
+  "domain": "sa",
+  "process": "מודולים לחשבונות \"חבר WEFLOWZ\" ושדרוג למשפחה",
+  "claim": "PATCH /api/sa/groups/:id/modules (server.js:31073): modules חובה מערך; unlocked_modules=$1 והסרת בקשות (r->>'key') שנפתחו."
+ }
+]

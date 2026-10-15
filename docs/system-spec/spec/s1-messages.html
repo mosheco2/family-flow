@@ -1,0 +1,1479 @@
+<div class="intro">קטלוג מילולי של כל ההודעות היוצאות שהמערכת שולחת או מציגה כהתראה: WhatsApp (שרת דרך UltraMsg + קישורי <code>wa.me</code> שנבנים בלקוח), דוא"ל (nodemailer/Gmail), SMS (Twilio) והתראות בתוך המערכת (<code>alert_notifications</code>, <code>inbox_messages</code>, הודעות מערכת בצ'אטים). הנתונים נאספו בסריקת <code>server.js</code>, <code>services/whatsapp.js</code> ולקוחות <code>public/*.js|html</code> פעילים (קבצי גיבוי כגון <code>*030426*</code>, <code>*old*</code>, <code>public/old/</code> לא נכללו), והוצלבו מול <code>schema.json</code> (עמודות טבלאות) ו-<code>api.json</code> (שיוך שורה→נתיב). הטקסט בתוך <code>pre</code> הוא העתק מדויק של מחרוזת הקוד (template literal) כולל <code>${…}</code> ו-<code>\n</code>. ב-HTML ארוך של מייל נשמר הטקסט הגלוי, וחלק מה-CSS הושמט. הודעה שלא תישלח בפועל מסומנת ⚠️ עם הסיבה מהקוד.</div>
+<h2 class="grp">WhatsApp · תשתית שרת</h2>
+<section class="proc" data-f="whatsapp ultramsg infra buildmessage footer oneflow"><h3>WA-INFRA · sendWhatsApp / buildMessage (מעטפת לכל הודעת WhatsApp משרת)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>services/whatsapp.js:12-17, 50-78</code></td></tr>
+<tr><th>ספק</th><td>UltraMsg: <code>POST https://api.ultramsg.com/{ULTRAMSG_INSTANCE_ID}/messages/chat</code> עם <code>token, to, body</code> (services/whatsapp.js:29-47)</td></tr>
+<tr><th>הגדרות</th><td><code>ULTRAMSG_INSTANCE_ID</code>, <code>ULTRAMSG_TOKEN</code>. אם חסרים, status=<code>&#x27;no_config&#x27;</code> וההודעה לא נשלחת אבל נרשמת ב-<code>whatsapp_log</code> (whatsapp.js:51-55, 65-73)</td></tr>
+<tr><th>נרמול טלפון</th><td><code>formatPhone</code>: ספרות בלבד, 0→972, נדחה אם לא מתחיל ב-972 או קצר מ-11 ספרות → <code>&#x27;invalid_phone&#x27;</code> (whatsapp.js:4-10)</td></tr>
+<tr><th>תיעוד</th><td><code>INSERT INTO whatsapp_log (group_id, message_type, recipient_type, recipient_name, phone, message_body, status, error_msg)</code>. נשמר רק ה-content, בלי המעטפת (whatsapp.js:66-72)</td></tr>
+<tr><th>מניעת כפילות</th><td><code>checkAlreadySent(pool, groupId, messageType, phone, withinHours=23)</code> בודק את whatsapp_log לפי message_type+phone (whatsapp.js:19-27)</td></tr>
+</tbody></table></div>
+<pre class="sql">let msg = `*${businessName}*\n\n${content}`;
+if (linkUrl) msg += `\n\n🔗 ${linkUrl}`;
+msg += `\n\n—\n_הודעה זו נשלחה דרך מערכת Oneflow Life_`;</pre>
+<p class="note">⚠️ החתימה בתחתית כל הודעת WhatsApp עדיין נושאת את השם הישן "Oneflow Life" (whatsapp.js:15), אף ששאר המערכת ממותגת WEFLOWZ.</p>
+</section>
+<section class="proc" data-f="whatsapp template resolve tpl defaults global"><h3>WA-RESOLVE · סדר בחירת תבנית ו-applyWATpl</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:4508-4523</code></td></tr>
+<tr><th>סדר</th><td><code>s.tpl_&lt;key&gt; || gDef.tpl_&lt;key&gt; || WA_DEFAULTS.&lt;key&gt;</code>: קודם תבנית ייעודית לעסק (<code>whatsapp_settings.tpl_*</code>), אחריה ברירת מחדל גלובלית של SA (<code>whatsapp_global_defaults.tpl_*</code>, שורה id=1), ולבסוף הקבוע בקוד</td></tr>
+<tr><th>החלפה</th><td><code>applyWATpl: msg.replace(new RegExp(`\\{${k}\\}`, &#x27;g&#x27;), v ?? &#x27;&#x27;)</code> (4518-4522)</td></tr>
+<tr><th>עמודות tpl</th><td>7 מפתחות: <code>owner_order, customer_order, owner_checkin, checkin_summary, owner_task_due, low_inventory, plan_tomorrow</code>, על whatsapp_settings (4476-4480) ועל whatsapp_global_defaults (44389-44391)</td></tr>
+<tr><th>תזמון</th><td><code>runWhatsAppCron</code> רץ כל 60 שניות, החל מ-30 שניות אחרי עליית השרת (4719). השעה נלקחת מ-<code>new Date().getHours()</code> של השרת. אזור זמן לא נקבע בקוד</td></tr>
+</tbody></table></div>
+<p class="note">⚠️ קיימות שתי הגדרות CREATE שונות ל-<code>whatsapp_settings</code>. זו שב-initDB (server.js:4409) יוצרת עמודות <code>notify_owner_*</code>, וזו שב-<code>ensureWhatsAppTables</code> (server.js:44304) יוצרת <code>owner_*</code>. ה-cron קורא את <code>s.owner_checkin</code>, <code>s.owner_order</code>, <code>s.owner_task_due</code>, <code>s.owner_inventory</code>, <code>s.owner_plan</code> ו-<code>s.customer_order</code> (4561-4651), ואין ALTER שמוסיף עמודות <code>owner_*</code>: ה-ALTERs מוסיפים רק <code>ov_*</code> ו-<code>tpl_*</code> (4475, 4479). מכאן שאם הטבלה נוצרה לפי ההגדרה של 4409, כל הדגלים <code>undefined</code> ואף אחת מ-7 ההודעות הקבועות לא נשלחת. גם שמירת ההגדרות של העסק (44258) כותבת לעמודות <code>notify_*</code>.</p>
+</section>
+<h2 class="grp">WhatsApp · תבניות קבועות (WA_DEFAULTS) · runWhatsAppCron</h2>
+<section class="proc" data-f="whatsapp cron owner_checkin missing_checkin employee timeclock"><h3>WA-01 · owner_checkin — &quot;שכחת שעון כניסה&quot;</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>כל יום 08:00-08:04, אם <code>s.owner_checkin</code> ויש ownerPhone (server.js:4550-4583)</td></tr>
+<tr><th>נמען</th><td>העובד (<code>recipient_type=&#x27;employee&#x27;</code>). השם owner_checkin מטעה: ההודעה נשלחת לעובד</td></tr>
+<tr><th>משתנים</th><td><code>{שם_עובד}</code> = emp.full_name, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>missing_checkin</code>, פעם ב-20 שעות לכל טלפון</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4511. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://weflowz.co.il&#x27;</pre>
+<p class="note">⚠️ השאילתה (4555-4558) בוחרת <code>u.full_name</code> ו-<code>t.assignee_id</code>, אבל לטבלה <code>users</code> אין <code>full_name</code> ולטבלה <code>tasks</code> אין <code>assignee_id</code> (העמודה היא <code>assigned_to</code>) לפי schema.json. השגיאה נבלעת ב-<code>catch(e) {}</code> (4582), ולכן ההודעה לא נשלחת לעולם.</p>
+</section>
+<section class="proc" data-f="whatsapp cron checkin_summary owner shift"><h3>WA-02 · checkin_summary — סיכום משמרת</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>אותו בלוק כמו WA-01, אחרי הלולאה, אם יש לפחות משמרת אחת (4576-4580)</td></tr>
+<tr><th>נמען</th><td>בעל העסק (owner_user_id, ואם אין, ADMIN עם טלפון) (4537-4544)</td></tr>
+<tr><th>משתנים</th><td><code>{כמות_עובדים}</code> = shiftTasks.rows.length, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>checkin_summary</code>, 20 שעות</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4512. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://weflowz.co.il&#x27;</pre>
+<p class="note">⚠️ נכשלת יחד עם WA-01, כי היא מאותו try ואותה שאילתה שבורה.</p>
+</section>
+<section class="proc" data-f="whatsapp cron owner_order new order store owner"><h3>WA-03 · owner_order — הזמנה חדשה לבעל העסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>כל דקה: הזמנות <code>store_orders.status IN (&#x27;new&#x27;,&#x27;pending_approval&#x27;)</code> מ-2 הדקות האחרונות (4586-4610)</td></tr>
+<tr><th>נמען</th><td>בעל העסק</td></tr>
+<tr><th>משתנים</th><td><code>{שם_לקוח}</code> (ברירת מחדל 'לקוח'), <code>{סכום}</code> = total_amount, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>&#x27;new_order_owner_&#x27; + ord.id</code>, שעה אחת</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4509. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://weflowz.co.il&#x27;</pre>
+</section>
+<section class="proc" data-f="whatsapp cron customer_order order confirmation customer"><h3>WA-04 · customer_order — אישור קבלת הזמנה ללקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>אותה לולאה כמו WA-03, אם <code>s.customer_order</code> ויש <code>ord.customer_phone</code> (4602-4607)</td></tr>
+<tr><th>נמען</th><td>הלקוח</td></tr>
+<tr><th>משתנים</th><td><code>{שם_לקוח}</code>, <code>{סכום}</code>, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>&#x27;new_order_cust_&#x27; + ord.id</code>, שעה אחת</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4510. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://weflowz.co.il&#x27;</pre>
+<p class="note">⚠️ נשלחת רק כש-<code>s.owner_order</code> דולק, כי הבלוק החיצוני מותנה בו (4586).</p>
+</section>
+<section class="proc" data-f="whatsapp cron owner_task_due task overdue"><h3>WA-05 · owner_task_due — משימה באיחור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>כל דקה: משימות active שמועד היעד שלהן עבר ב-2 הדקות האחרונות (4613-4626)</td></tr>
+<tr><th>נמען</th><td>בעל העסק</td></tr>
+<tr><th>משתנים</th><td><code>{שם_משימה}</code> = task.title, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>&#x27;task_due_&#x27; + task.id</code>, 23 שעות</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4513. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;⚠️ המשימה &quot;{שם_משימה}&quot; עברה את מועד הביצוע!\nhttps://weflowz.co.il&#x27;</pre>
+<p class="note">⚠️ השאילתה (4616) משתמשת ב-<code>due_date</code> וב-<code>assignee_id</code>, ושתי העמודות לא קיימות ב-<code>tasks</code> (קיימות <code>deadline</code> ו-<code>assigned_to</code>). השגיאה נבלעת (4625), ולכן ההודעה לא נשלחת לעולם.</p>
+</section>
+<section class="proc" data-f="whatsapp cron low_inventory pantry stock"><h3>WA-06 · low_inventory — מלאי נמוך</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>כל יום 09:00-09:01, אם <code>s.owner_inventory</code>: פריטי pantry שהזמינות שלהם (אחרי reserved_qty ואחוז באפר) קטנה או שווה לסף <code>min_stock_warning_pct</code> (4629-4648)</td></tr>
+<tr><th>נמען</th><td>בעל העסק</td></tr>
+<tr><th>משתנים</th><td><code>{רשימת_מלאי}</code> = שורות <code>`• ${i.item_name}: ${quantity.toFixed(1)} ${i.unit||&#x27;&#x27;}`</code> מחוברות ב-\n, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>low_inventory</code>, 20 שעות</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4514. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://weflowz.co.il&#x27;</pre>
+</section>
+<section class="proc" data-f="whatsapp cron plan_tomorrow shifts reminder"><h3>WA-07 · plan_tomorrow — תזכורת תכנון מחר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>WhatsApp (UltraMsg) עם מעטפת WA-INFRA</td></tr>
+<tr><th>טריגר</th><td>כל יום 19:00-19:01, אם <code>s.owner_plan</code> (4651-4662)</td></tr>
+<tr><th>נמען</th><td>בעל העסק</td></tr>
+<tr><th>משתנים</th><td><code>{כמות_משמרות}</code> = ספירת משימות <code>title LIKE &#x27;SHIFT|&lt;מחר&gt;|%&#x27;</code>, <code>{שם_עסק}</code></td></tr>
+<tr><th>מניעת כפילות</th><td><code>plan_tomorrow</code>, 20 שעות</td></tr>
+<tr><th>מקור הטקסט</th><td><code>WA_DEFAULTS</code> server.js:4515. ניתן לדרוס דרך <code>tpl_</code> (WA-RESOLVE)</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://weflowz.co.il&#x27;</pre>
+<p class="note">⚠️ נשלחת גם כשהספירה היא 0 ("מחר 0 משמרת/ות").</p>
+</section>
+<h2 class="grp">WhatsApp · הודעות שרת נוספות</h2>
+<section class="proc" data-f="whatsapp dynamic custom notification types sa hooks"><h3>WA-08 · סוגי התראה דינמיים (whatsapp_notification_types)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:4667-4716</code></td></tr>
+<tr><th>הגדרה</th><td>ה-SA יוצר רשומות דרך <code>POST /api/sa/whatsapp-types</code> (server.js:44563-44575) עם name, trigger_hook, recipient_type, message_template, dedup_hours (ברירת מחדל 23)</td></tr>
+<tr><th>טריגר</th><td><code>trigger_hook=&#x27;every_minute&#x27;</code> או <code>&#x27;daily_HH:MM&#x27;</code> שמתאים לשעה הנוכחית בדקה המדויקת (4694-4697)</td></tr>
+<tr><th>נמען</th><td>תמיד הבעלים, גם כשנבחר employee או customer: "עובד / לקוח דורשים לוגיקה ספציפית — כרגע שולחים לבעלים" (4701-4704)</td></tr>
+<tr><th>משתנים</th><td><code>{שם_עסק}</code>=biz.name; <code>{שם_עובד}</code>, <code>{שם_לקוח}</code> = שם הבעלים (targetName); <code>{מנהל}</code> = ownerName (4710-4714)</td></tr>
+<tr><th>מניעת כפילות</th><td><code>custom_${nt.id}</code>, לפי dedup_hours</td></tr>
+</tbody></table></div>
+<pre class="sql">(טקסט חופשי שה-SA מזין ב-message_template; אין טקסט קבוע בקוד)</pre>
+<p class="note">⚠️ השאילתה <code>SELECT phone, full_name FROM users</code> (4688) נכשלת, כי לטבלה <code>users</code> אין עמודה <code>full_name</code>. החריגה נתפסת ב-<code>catch</code> של כל הבלוק (4717), ולכן אף סוג דינמי לא נשלח.</p>
+</section>
+<section class="proc" data-f="whatsapp order_received order_ready customer endpoint"><h3>WA-09 · order-notify: אישור הזמנה / הזמנה מוכנה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>POST /api/biz/whatsapp/order-notify</code> (server.js:44277-44295), verifyBiz</td></tr>
+<tr><th>נמען</th><td>customerPhone מגוף הבקשה</td></tr>
+<tr><th>תנאי</th><td>whatsapp_settings.enabled וגם <code>customer_order</code> (ל-order_received) או <code>notify_customer_ready</code> (ל-order_ready)</td></tr>
+<tr><th>מניעת כפילות</th><td><code>messageType + &#x27;_&#x27; + orderId</code>, שעתיים</td></tr>
+<tr><th>משתנים</th><td><code>customerName</code> (ברירת מחדל <code>&#x27;לקוח&#x27;</code>), <code>orderId</code></td></tr>
+</tbody></table></div>
+<p><strong>order_received (44287)</strong></p>
+<pre class="sql">`שלום ${customerName || &#x27;לקוח&#x27;}, קיבלנו את ההזמנה שלך (#${orderId})! נעדכן אותך כשתהיה מוכנה. תודה 🙏`</pre>
+<p><strong>order_ready (44288)</strong></p>
+<pre class="sql">`שלום ${customerName || &#x27;לקוח&#x27;}, ההזמנה שלך (#${orderId}) מוכנה לאיסוף / למשלוח! 🎉`</pre>
+<p class="note">⚠️ לא נמצאה קריאה לנתיב הזה באף לקוח פעיל ב-public/ (grep "order-notify"), כך שבפועל ההודעות לא נשלחות.</p>
+</section>
+<section class="proc" data-f="whatsapp routine document link"><h3>WA-10 · מסמך שגרה: קישור לצפייה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>POST /api/routine-documents/:id/send</code> עם <code>channel=&#x27;whatsapp&#x27;</code> (server.js:27864-27877). נקרא מ-business-app.js:61274</td></tr>
+<tr><th>נמען</th><td><code>to</code> מהגוף (טלפון לקוח)</td></tr>
+<tr><th>message_type</th><td><code>&#x27;routine_document&#x27;</code></td></tr>
+<tr><th>משתנים</th><td>url = <code>${APP_URL|host}/c/rt-doc/${doc.id}/${doc.view_token}</code> נשלח כ-linkUrl ומופיע אחרי 🔗 במעטפת</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;מסמך חדש זמין לצפייה:&#x27;</pre>
+</section>
+<h2 class="grp">WhatsApp · קבועי לקוח במסך SA (public/sa-app.js)</h2>
+<section class="proc" data-f="whatsapp sa client defaults wa_defaults_js"><h3>WA-JS-1 · WA_DEFAULTS_JS</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>public/sa-app.js:13351-13359</code></td></tr>
+<tr><th>שימוש</th><td>ערך ראשוני בשדות עריכת התבניות (13283, 13502), כפתור "איפוס" (13390, 13394). בשמירה נשלח null כשהערך זהה לברירת המחדל (13378, 13406)</td></tr>
+</tbody></table></div>
+<pre class="sql">owner_order: &#x27;🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://weflowz.co.il&#x27;,
+customer_order: &#x27;✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://weflowz.co.il&#x27;,
+owner_checkin: &#x27;שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://weflowz.co.il&#x27;,
+checkin_summary: &#x27;📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://weflowz.co.il&#x27;,
+owner_task_due: &#x27;⚠️ המשימה &quot;{שם_משימה}&quot; עברה את מועד הביצוע!\nhttps://weflowz.co.il&#x27;,
+low_inventory: &#x27;📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://weflowz.co.il&#x27;,
+plan_tomorrow: &#x27;📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://weflowz.co.il&#x27;</pre>
+<p>הטקסט זהה מילה במילה ל-<code>WA_DEFAULTS</code> בשרת (server.js:4508-4516). מדובר בשני עותקים נפרדים שצריך לסנכרן ידנית.</p>
+</section>
+<section class="proc" data-f="whatsapp sa tpl_defs template labels"><h3>WA-JS-2 · TPL_DEFS (sa-app.js:13361-13369)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>key</th><th>label</th><th>vars</th></tr></thead><tbody>
+<tr><td><code>owner_order</code></td><td>הזמנה חדשה — לבעל עסק</td><td>{שם_לקוח}, {סכום}, {שם_עסק}</td></tr>
+<tr><td><code>customer_order</code></td><td>הזמנה חדשה — ללקוח</td><td>{שם_לקוח}, {סכום}, {שם_עסק}</td></tr>
+<tr><td><code>owner_checkin</code></td><td>שכחת שעון כניסה — לעובד</td><td>{שם_עובד}, {שם_עסק}</td></tr>
+<tr><td><code>checkin_summary</code></td><td>סיכום משמרת — לבעל עסק</td><td>{כמות_עובדים}, {שם_עסק}</td></tr>
+<tr><td><code>owner_task_due</code></td><td>משימה שפג תוקפה — לבעל עסק</td><td>{שם_משימה}, {שם_עסק}</td></tr>
+<tr><td><code>low_inventory</code></td><td>מלאי נמוך — לבעל עסק</td><td>{רשימת_מלאי}, {שם_עסק}</td></tr>
+<tr><td><code>plan_tomorrow</code></td><td>תזכורת תכנון מחר — לבעל עסק</td><td>{כמות_משמרות}, {שם_עסק}</td></tr>
+</tbody></table></div></section>
+<section class="proc" data-f="whatsapp sa wa_type_meta toggles"><h3>WA-JS-3 · WA_TYPE_META (sa-app.js:13107-13120): מתגי הפעלה. 6 מתוך 12 בלי קוד שליחה בשרת</h3>
+<div class="tbl-wrap"><table><thead><tr><th>key</th><th>label</th><th>group</th><th>הודעה בפועל</th></tr></thead><tbody>
+<tr><td><code>owner_checkin</code></td><td>שכחת שעון כניסה</td><td>👤 בעל העסק</td><td>WA-01 (שבור)</td></tr>
+<tr><td><code>owner_order</code></td><td>הזמנה חדשה</td><td>👤 בעל העסק</td><td>WA-03</td></tr>
+<tr><td><code>owner_task_due</code></td><td>משימה באיחור</td><td>👤 בעל העסק</td><td>WA-05 (שבור)</td></tr>
+<tr><td><code>owner_inventory</code></td><td>מלאי נמוך</td><td>👤 בעל העסק</td><td>WA-06</td></tr>
+<tr><td><code>owner_plan</code></td><td>תכנון מחר (19:00)</td><td>👤 בעל העסק</td><td>WA-07</td></tr>
+<tr><td><code>employee_shift</code></td><td>תזכורת משמרת</td><td>👷 עובדים</td><td>אין קוד שליחה</td></tr>
+<tr><td><code>employee_task</code></td><td>משימה חדשה שהוקצתה</td><td>👷 עובדים</td><td>אין קוד שליחה</td></tr>
+<tr><td><code>employee_pay</code></td><td>עדכון תשלום שכר</td><td>👷 עובדים</td><td>אין קוד שליחה</td></tr>
+<tr><td><code>customer_order</code></td><td>אישור קבלת הזמנה</td><td>🛍️ לקוחות</td><td>WA-04 / WA-09</td></tr>
+<tr><td><code>customer_ready</code></td><td>הזמנה מוכנה</td><td>🛍️ לקוחות</td><td>WA-09 בלבד (אין קורא)</td></tr>
+<tr><td><code>customer_promo</code></td><td>מבצע מיוחד</td><td>🛍️ לקוחות</td><td>אין קוד שליחה</td></tr>
+<tr><td><code>customer_review</code></td><td>בקשת דירוג</td><td>🛍️ לקוחות</td><td>אין קוד שליחה</td></tr>
+</tbody></table></div></section>
+<section class="proc" data-f="whatsapp sa type labels log"><h3>WA-JS-4 · תוויות סוגים ביומן (sa-app.js:13141)</h3><pre class="sql">typeLabels[&#x27;missing_checkin&#x27;] = &#x27;שכחת שעון&#x27;; typeLabels[&#x27;new_order&#x27;] = &#x27;הזמנה חדשה&#x27;; typeLabels[&#x27;task_due&#x27;] = &#x27;משימה באיחור&#x27;; typeLabels[&#x27;low_inventory&#x27;] = &#x27;מלאי נמוך&#x27;; typeLabels[&#x27;plan_tomorrow&#x27;] = &#x27;תכנון מחר&#x27;; typeLabels[&#x27;order_received&#x27;] = &#x27;אישור הזמנה&#x27;; typeLabels[&#x27;order_ready&#x27;] = &#x27;הזמנה מוכנה&#x27;; typeLabels[&#x27;checkin_summary&#x27;] = &#x27;סיכום נוכחות&#x27;;</pre></section>
+<section class="proc" data-f="whatsapp sa wa_hooks dynamic trigger"><h3>WA-JS-5 · WA_HOOKS (sa-app.js:13565-13576) + WA_RECIPIENTS (13578-13582: owner / employee / customer)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>value</th><th>label</th></tr></thead><tbody>
+<tr><td><code>every_minute</code></td><td>כל דקה (אירועים בזמן אמת)</td></tr>
+<tr><td><code>daily_07:00</code></td><td>כל יום 07:00</td></tr>
+<tr><td><code>daily_08:00</code></td><td>כל יום 08:00</td></tr>
+<tr><td><code>daily_09:00</code></td><td>כל יום 09:00</td></tr>
+<tr><td><code>daily_10:00</code></td><td>כל יום 10:00</td></tr>
+<tr><td><code>daily_12:00</code></td><td>כל יום 12:00</td></tr>
+<tr><td><code>daily_14:00</code></td><td>כל יום 14:00</td></tr>
+<tr><td><code>daily_17:00</code></td><td>כל יום 17:00</td></tr>
+<tr><td><code>daily_19:00</code></td><td>כל יום 19:00</td></tr>
+<tr><td><code>daily_21:00</code></td><td>כל יום 21:00</td></tr>
+</tbody></table></div></section>
+<h2 class="grp">WhatsApp · קישורי wa.me שנבנים בלקוח (המשתמש שולח בעצמו)</h2>
+<div class="intro">ההודעות האלה לא נשלחות מהשרת. הלקוח פותח <code>https://wa.me/[טלפון]?text=…</code> והמשתמש שולח ידנית מהמכשיר שלו. הטקסט מועבר דרך <code>encodeURIComponent</code>.</div>
+<section class="proc" data-f="wa.me client link הזמנת עובד חכמה (biz) business-app.js"><h3>WM-01 · הזמנת עובד חכמה (BIZ)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:4310-4332 sendSmartWhatsAppInvite</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר (בחירת איש קשר)</td></tr>
+</tbody></table></div>
+<pre class="sql">let text = `היי! פתחנו פורטל ארגוני חדש ב-WEFLOWZ BIZ 🚀\n\n`;
+text += `הוגדרת במערכת תחת תפקיד: *${roleName}*`;
+if (roleTypeLabel) text += ` — ${roleTypeLabel}`;
+text += `.\n`;
+text += `קוד העסק שלנו הוא: ${currentGroup.group_code}\n\n`;
+text += `לחץ/י על הקישור הבא כדי להירשם ולהתחבר ישירות:\n🔗 ${joinLink}\n\n`;
+text += `📱 בהרשמה יש להכניס מספר טלפון (חובה מגיל 10).`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link הזמנת מנהל/עובד (biz, גרסה ישנה) business-app.js"><h3>WM-02 · הזמנת מנהל/עובד (BIZ, גרסה ישנה)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:7496-7499 sendWhatsAppInvite</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">role === &#x27;ADMIN&#x27; ? `היי! פתחנו פורטל ארגוני ב-WEFLOWZ Pro 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד הכניסה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם WEFLOWZ Pro 🚀\n\nקוד הארגון לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link הזמנות צוות מאשף v2 (חלון לכל תפקיד, 400ms ביניהם) business-app.js"><h3>WM-03 · הזמנות צוות מאשף V2 (חלון לכל תפקיד, 400ms ביניהם)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:7508-7517 _wiz2SendTeamInvites</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי! 👋\n${bizName} מזמין/ת אותך להצטרף למערכת WEFLOWZ\nבתפקיד: ${role}\nלחץ/י להצטרפות: ${joinLink}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link הזמנת שותף מנהל מאשף v2 business-app.js"><h3>WM-04 · הזמנת שותף מנהל מאשף V2</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:7520-7522 _wiz2SendAdminInvite</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי! 👋\n${bizName} מזמין/ת אותך להצטרף למערכת WEFLOWZ\nבתפקיד: שותף/ה – מנהל/ת ראשי/ת\nלחץ/י להצטרפות: ${joinLink}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link ייצוא רשימת רכש (biz) business-app.js"><h3>WM-05 · ייצוא רשימת רכש (BIZ)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:7850-7854 exportShopToWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">let text = `*רשימת רכש ארגונית:*\n\n`; activeItems.forEach(i =&gt; { text += `• ${i.item_name} (${i.quantity} ${i.unit || &quot;יח&#x27;&quot;})\n`; });</pre>
+</section>
+<section class="proc" data-f="wa.me client link שליחת הצעת מחיר ללקוח business-app.js"><h3>WM-06 · שליחת הצעת מחיר ללקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:9578-9618 sendQuoteToCustomer (מסמן את ההצעה כ-sent)</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח (waPhone)</td></tr>
+</tbody></table></div>
+<pre class="sql">let text = `שלום ${safeStr(q.customer_name)}, בהמשך לפנייתך,\n`;
+text += `הכנו עבורך הצעת מחיר (מס&#x27; ${q.id}) על סך ₪${amount}.\n\n`;
+text += `ההצעה המלאה תצורף לכאן כמסמך PDF.\n`;
+text += `לצפייה במוצרים נוספים בחנות שלנו:\n${publicUrl}\n\n`;
+if (confirmUrl) {
+    text += `✅ לאישור קבלת ההצעה — לחץ כאן:\n${confirmUrl}\n`;
+    text += `(לחיצה תסמן שההצעה התקבלה אצלך)\n\n`;
+}
+text += `אנא השב/י להודעה זו במילה &quot;מאשר&quot; או &quot;לא מאשר&quot; כדי שנוכל להתקדם.\n\n`;
+text += `בברכה,\n${currentGroup.name}\n\n`;
+text += `weflowz.co.il תכירו, המערכת המושלמת לניהול משפחות ועסקים.`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link הצעת מחיר מעוצבת (שורות + מע&quot;מ) business-app.js"><h3>WM-07 · הצעת מחיר מעוצבת (שורות + מע&quot;מ)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:12941-12951 sendQuoteWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>טלפון אם הוזן, אחרת ללא</td></tr>
+</tbody></table></div>
+<pre class="sql">`📋 *הצעת מחיר ${q.ref}*\n*${q.bizName}*\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
+    lines.map(l =&gt; `• ${l.desc}: ${l.qty} × ₪${l.price.toFixed(0)} = ₪${l.total.toFixed(0)}`).join(&#x27;\n&#x27;) +
+    (q.discount &gt; 0 ? `\n\nהנחה: ${q.discount}% (-₪${(q.discountAmount||0).toFixed(2)})` : &#x27;&#x27;) +
+    (!q.noVat &amp;&amp; q.vatRate &gt; 0 ? `\nמע&quot;מ (${q.vatRate}%): ₪${(q.vatAmount||0).toFixed(2)}` : &#x27;&#x27;) +
+    `\n\n*סה&quot;כ לתשלום: ₪${q.total.toFixed(2)}*` +
+    (q.notes ? `\n\n${q.notes}` : &#x27;&#x27;)</pre>
+</section>
+<section class="proc" data-f="wa.me client link ספירת מלאי מחסן business-app.js"><h3>WM-08 · ספירת מלאי מחסן</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:14188-14196 inventoryCountWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">let msg = `ספירת מלאי מחסן — ${currentGroup?.name || &#x27;&#x27;}\nתאריך: ${dateStr}\n\n`;
+/* לכל פריט: */ msg += `• ${p.item_name}: ${qty} ${p.unit || &quot;יח&#x27;&quot;}\n`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link הזמנת רכש לספק business-app.js"><h3>WM-09 · הזמנת רכש לספק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:19177-19215 sendPurchaseOrderWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>טלפון הספק (0→972)</td></tr>
+</tbody></table></div>
+<pre class="sql">let msg = `שלום ${supData.name},\n`;
+msg += `הזמנת רכש #${o.id} מ${currentGroup.name}\n`;
+if (currentGroup.vat_number) msg += `ח.פ / עוסק: ${currentGroup.vat_number}\n`;
+msg += `תאריך: ${dateStr}\n`;
+if (contactPersonName) msg += `איש קשר: ${contactPersonName}\n`;
+if (contactEmail) msg += `מייל: ${contactEmail}\n`;
+msg += `\nפירוט הפריטים:\n`;
+/* לכל פריט: */ msg += `• ${i.name}${skuPart} — כמות: ${i.quantity} ${i.unit || &#x27;&#x27;} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
+msg += `\nסה&quot;כ להזמנה: ₪${parseFloat(o.total_amount || 0).toFixed(2)}\n`;
+if (o.notes) msg += `הערות: ${o.notes}\n`;
+if (confirmUrl) { msg += `\n✅ לאישור קבלת ההזמנה — לחץ כאן:\n${confirmUrl}\n`; }
+msg += `\nתודה!`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link שליח בדרך (רשימת שליחויות) business-app.js"><h3>WM-10 · שליח בדרך (רשימת שליחויות)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:23243-23245 renderCourierList</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי ${safeStr(o.customer_name)}, השליח בדרך אליך! 🛵`</pre>
+</section>
+<section class="proc" data-f="wa.me client link קריאת שירות לטכנאי (ציוד) business-app.js"><h3>WM-11 · קריאת שירות לטכנאי (ציוד)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:37477-37486 sendFaultWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>טלפון הטכנאי</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום,\nקריאת שירות מ${bizName}:\n\n📍 ציוד: ${fault.equipment_name}\n⚠️ תקלה: ${fault.title}\n🔴 חומרה: ${sevLabel}\n${fault.description ? &#x27;\nפירוט: &#x27; + fault.description : &#x27;&#x27;}\n\nאנא צרו קשר לתיאום טיפול.\nתודה.`</pre>
+</section>
+<section class="proc" data-f="wa.me client link כרטיס כניסה למועדון ספורט (fallback ל-navigator.share) business-app.js"><h3>WM-12 · כרטיס כניסה למועדון ספורט (fallback ל-navigator.share)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:47168-47173 _sportShareQR</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`כרטיס הכניסה הדיגיטלי שלך למועדון 🏋️\n${memberName}\nלחץ לצ&#x27;ק-אין: ${url}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link חשבון solo חדש ללקוח (כולל סיסמה זמנית) business-app.js"><h3>WM-13 · חשבון SOLO חדש ללקוח (כולל סיסמה זמנית)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:49089-49101 _ofwShowResult</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${name} 👋\n\n${bizName} פתחו עבורך חשבון SOLO ב-WEFLOWZ!\n\n🔑 קוד גישה: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה זמנית: ${r.password}\n\n👉 כניסה ראשונה: ${window.location.origin}\nבכניסה הראשונה תתבקש לאשר את החשבון ולהגדיר סיסמה חדשה.\n\nנשמח לראות אותך! 🌟`</pre>
+</section>
+<section class="proc" data-f="wa.me client link הוספת לקוח ל-weflowz: חשבון חדש (כולל סיסמה) business-app.js"><h3>WM-14 · הוספת לקוח ל-WEFLOWZ: חשבון חדש (כולל סיסמה)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:49177 _doAddToOneflow; זהה ב-51304 _beautyCreateMemberAccount (עם ${bizName})</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${name} 👋\n\n${bizNameOfl} שמחים לצרף אותך אלינו!\n\nנוצר עבורך חשבון אישי ב-WEFLOWZ — מעכשיו תוכל לנהל הכל ממקום אחד: תורים, פעילויות, ועדכונים מהעסק ישירות אליך.\n\nפרטי כניסה שלך:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nנשמח לראות אותך! 🌟`</pre>
+</section>
+<section class="proc" data-f="wa.me client link הוספת לקוח ל-weflowz: לקוח קיים (ממתין לאישור) business-app.js"><h3>WM-15 · הוספת לקוח ל-WEFLOWZ: לקוח קיים (ממתין לאישור)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:49192-49197 _doAddToOneflow</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${name} 👋\n\n${bizNameExisting} שמחים שאתה חלק ממשפחת WEFLOWZ!\n\nמעכשיו תוכל לנהל הכל ממקום אחד — תורים, פעילויות, ועדכונים מהעסק ישירות אליך.\n\nכדי לאשר את הקישור, כנס לאפליקציה:\n🔗 ${window.location.origin}/?code=${r.group_code}&amp;role=ADMIN\n\nנשמח לראות אותך! 🌟`</pre>
+</section>
+<section class="proc" data-f="wa.me client link שיתוף מאמר business-app.js"><h3>WM-16 · שיתוף מאמר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:56243-56248 openArticleShare</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">encodeURIComponent(title + &#x27;\n&#x27; + url)</pre>
+</section>
+<section class="proc" data-f="wa.me client link קישור מסמך מקצועי business-app.js"><h3>WM-17 · קישור מסמך מקצועי</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:56883</code></td></tr>
+<tr><th>נמען</th><td>טלפון הלקוח</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${safeStr(name||&#x27;&#x27;)}, צירפתי עבורך מסמך: ${safeStr(d.title)}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link הזמנה לפורטל לקוחות (מסמכים) business-app.js"><h3>WM-18 · הזמנה לפורטל לקוחות (מסמכים)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:56973-56991 _docInviteClient</code></td></tr>
+<tr><th>נמען</th><td>טלפון אם הוזן</td></tr>
+</tbody></table></div>
+<pre class="sql">let text = `היי${name ? &#x27; &#x27; + name : &#x27;&#x27;}! 👋
+`;
+text += `הוזמנת להצטרף לפורטל הלקוחות של ${bizName}.
+
+`;
+text += `לחץ/י על הקישור כדי להירשם:
+🔗 ${joinLink}
+
+`;
+text += `לאחר ההרשמה תוכל/י לצפות במסמכים, לחתום ולנהל את הקשר איתנו בקלות.`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link שיתוף תפריט (menu templates) business-app.js"><h3>WM-19 · שיתוף תפריט (Menu Templates)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:59657-59667 _mtWaShareFromPanel</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">const intro = bizName ? `היי! אנחנו ${bizName}, שמחים לשתף אתכם בתפריט שלנו:` : &#x27;היי! שמחים לשתף אתכם בתפריט שלנו:&#x27;;
+let msg = `${intro}\n${menuUrl}`;
+if (storeUrl) msg += `\n\nלשירותים נוספים:\n${storeUrl}`;</pre>
+</section>
+<section class="proc" data-f="wa.me client link אישור ביצוע שירות (שגרות) business-app.js"><h3>WM-20 · אישור ביצוע שירות (שגרות)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business-app.js:61438 (מודאל _showRoutineCustomerLinkModal)</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;נא לאשר את ביצוע השירות: &#x27; + url</pre>
+</section>
+<section class="proc" data-f="wa.me client link שליחת סקר business.html"><h3>WM-21 · שליחת סקר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>business.html:6114-6120 copySurveyLinkAndWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום 😊\n${bizName ? `*${bizName}* שולח/ת לך סקר קצר:\n` : &#x27;&#x27;}*${title}*\n\nנשמח לשמוע את דעתך — לוקח רק דקה:\n${url}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: שיתוף קישור הפניה app.js"><h3>WM-22 · משפחה: שיתוף קישור הפניה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:4902-4907 shareReferralLink (navigator.share ואחריו wa.me)</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`הצטרפו ל-WEFLOWZ! 🚀\nניהול כסף משפחתי, משחקים, משימות ועוד.\nנרשמים דרך הקישור:\n${link}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: הזמנת בן משפחה app.js"><h3>WM-23 · משפחה: הזמנת בן משפחה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:4909-4912 sendWhatsAppInvite</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">role === &#x27;ADMIN&#x27; ? `היי! פתחנו בנק משפחתי ב-WEFLOWZ 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד המשפחה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם WEFLOWZ 🚀\n\nקוד המשפחה לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: ייצוא רשימת קניות app.js"><h3>WM-24 · משפחה: ייצוא רשימת קניות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:5658-5662 exportShopToWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">let text = `*רשימת קניות מ-WEFLOWZ:*\n\n`; activeItems.forEach(i =&gt; { text += `• ${i.item_name} (${i.quantity} ${i.unit || &quot;יח&#x27;&quot;})\n`; });</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: גיוס לקהילה מקומית app.js"><h3>WM-25 · משפחה: גיוס לקהילה מקומית</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:6938 renderMyInitiatives</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי! פתחתי קהילה מקומית ב-WEFLOWZ: &quot;${c.name}&quot;. אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: הפניה לקהילה עם קוד app.js"><h3>WM-26 · משפחה: הפניה לקהילה עם קוד</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:8221-8225 shareReferralWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי! הצטרפ/י לקהילת ${_selectedCommName} ב-WEFLOWZ 🏘️\nקוד קהילה: *${_selectedCommCode}*\nקוד הפניה שלי: *${code}*\n👉 ${window.location.origin}/?inviteCommunityCode=${_selectedCommCode}&amp;ref=${code}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: פנייה לטכנאי על קריאה app.js"><h3>WM-27 · משפחה: פנייה לטכנאי על קריאה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:1178 renderMyFaultsAsServiceCalls</code></td></tr>
+<tr><th>נמען</th><td>טלפון הטכנאי</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;שלום, בנוגע לקריאה: &#x27; + f.title</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה (ועד בית): תקלה לטכנאי (רשימה) app.js"><h3>WM-28 · משפחה (ועד בית): תקלה לטכנאי (רשימה)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:12628 renderHMFaults</code></td></tr>
+<tr><th>נמען</th><td>טלפון הטכנאי</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${techName}, יש לנו בעיה: &quot;${f.title}&quot;${f.scheduled_date ? &#x27;. תאריך מבוקש: &#x27; + new Date(f.scheduled_date).toLocaleString(&#x27;he-IL&#x27;,{dateStyle:&#x27;short&#x27;,timeStyle:&#x27;short&#x27;}) : &#x27;&#x27;}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה (ועד בית): תקלה חדשה לטכנאי app.js"><h3>WM-29 · משפחה (ועד בית): תקלה חדשה לטכנאי</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:12771-12803 submitHMFault</code></td></tr>
+<tr><th>נמען</th><td>טלפון הטכנאי</td></tr>
+</tbody></table></div>
+<pre class="sql">`שלום ${safeStr(tech.name)}, יש לנו בעיה ב&quot;${title}&quot;. ${getEl(&#x27;hmfault-desc&#x27;).value ? &#x27;פירוט: &#x27; + getEl(&#x27;hmfault-desc&#x27;).value : &#x27;&#x27;} ${scheduledDate ? &#x27;תאריך מבוקש: &#x27; + new Date(scheduledDate).toLocaleString(&#x27;he-IL&#x27;) : &#x27;&#x27;}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה: שיתוף פוסט קהילה app.js"><h3>WM-30 · משפחה: שיתוף פוסט קהילה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:18272-18275 shareToWhatsApp</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`פוסט מקהילת &quot;${communityName}&quot; ב-WEFLOWZ:\n${url}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link משפחה/zm: שיתוף קמפיין (קישור בלבד) app.js"><h3>WM-31 · משפחה/ZM: שיתוף קמפיין (קישור בלבד)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>app.js:8514-8517 cmShareCampaignWhatsapp; zone-manager-app.js:1744-1747</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">encodeURIComponent(link)</pre>
+</section>
+<section class="proc" data-f="wa.me client link אשף משפחה: הזמנת בני משפחה family-onboarding.html"><h3>WM-32 · אשף משפחה: הזמנת בני משפחה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>family-onboarding.html:1068-1073</code></td></tr>
+<tr><th>נמען</th><td>טלפון בן המשפחה אם הוזן</td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;היי &#x27; + m.name + &#x27;, הצטרף/י לסביבה המשפחתית שלנו ב-WEFLOWZ 🏠\n\n&#x27; +
+&#x27;קישור הצטרפות:\n&#x27; + joinLink + &#x27;\n\nקוד הסביבה: &#x27; + wiz.groupCode</pre>
+</section>
+<section class="proc" data-f="wa.me client link sa: משחק חי — ברירת מחדל לשליחה sa-app.js"><h3>WM-33 · SA: משחק חי — ברירת מחדל לשליחה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>sa-app.js:12333-12337 openLGControl</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">const defaultWaMsg = `🏆 הוזמנת למשחק${gMeta.title ? &#x27;: &#x27; + gMeta.title : &#x27; טריוויה חי&#x27;}!${gMeta.sponsor_name ? &#x27;\nבחסות: &#x27; + gMeta.sponsor_name : &#x27;&#x27;}${gMeta.prize ? &#x27;\nפרס: &#x27; + gMeta.prize : &#x27;&#x27;}\nלחץ כדי להצטרף:\n${prodLink}`;
+const waMsg = (gMeta.whatsapp_text || defaultWaMsg).replace(/\{link\}/g, prodLink);</pre>
+</section>
+<section class="proc" data-f="wa.me client link sa: משחק חי — הזמנה אישית למשתמש sa-app.js"><h3>WM-34 · SA: משחק חי — הזמנה אישית למשתמש</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>sa-app.js:12514-12526 _lgBuildUserRows</code></td></tr>
+<tr><th>נמען</th><td>טלפון המשתמש</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי ${u.nickname || &#x27;&#x27;}! 🏆\nהוזמנת למשחק טריוויה חי ב-WEFLOWZ!\nלחץ כאן להצטרפות:\n${link}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link sa: שיווק (fallback טקסט) sa-app.js"><h3>WM-35 · SA: שיווק (fallback טקסט)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>sa-app.js:12995-13029 saMarketingWaSend</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">let fullText = &#x27;&#x27;;
+if (title) fullText += `*${title}*\n`;
+if (subtitle) fullText += `_${subtitle}_\n`;
+if (title || subtitle) fullText += &#x27;\n&#x27;;
+fullText += body;</pre>
+</section>
+<section class="proc" data-f="wa.me client link zm: שיתוף קמפיין עם פסקה ראשונה zone-manager-app.js"><h3>WM-36 · ZM: שיתוף קמפיין עם פסקה ראשונה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>zone-manager-app.js:686-710 loadCampaigns</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">waLines.push(firstPara + &#x27;...&#x27;); waLines.push(&#x27;&#x27;); waLines.push(`👉 ${ogUrl}`); const waText = waLines.join(&#x27;\n&#x27;);</pre>
+</section>
+<section class="proc" data-f="wa.me client link קול העם: שיתוף כתבה kol-haam-app.js"><h3>WM-37 · קול העם: שיתוף כתבה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>kol-haam-app.js:~575-580</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`קרא/י: ${title}\n${url}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link חלון ראווה מסעדה: פנייה לעסק storefront-restaurant.html"><h3>WM-38 · חלון ראווה מסעדה: פנייה לעסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>storefront-restaurant.html:1331-1332</code></td></tr>
+<tr><th>נמען</th><td>מספר WA של העסק</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי, אשמח לשמוע על ${escHtml(data.groupName || &#x27;החנות&#x27;)}`</pre>
+</section>
+<section class="proc" data-f="wa.me client link עמוד תפריט ציבורי: שיתוף menu.html"><h3>WM-39 · עמוד תפריט ציבורי: שיתוף</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>קישור wa.me (שליחה ידנית)</td></tr>
+<tr><th>מקור</th><td><code>menu.html:1114-1117</code></td></tr>
+<tr><th>נמען</th><td>לא מוגדר</td></tr>
+</tbody></table></div>
+<pre class="sql">`היי, הנה התפריט שלנו — ${_d.name}:\n${menuUrl}`</pre>
+</section>
+<section class="proc" data-f="wa.me client plain link no text"><h3>WM-40 · קישורי wa.me ללא טקסט מוכן</h3>
+<div class="tbl-wrap"><table><thead><tr><th>קובץ:שורה</th><th>תיאור</th></tr></thead><tbody>
+<tr><td><code>business-app.js:19077, 37383, 38763</code></td><td>כפתור &quot;וואטסאפ&quot; לאיש קשר/ספק/לקוח, ללא טקסט</td></tr>
+<tr><td><code>app.js:12925</code></td><td>כפתור וואטסאפ לאיש מקצוע (ועד בית), ללא טקסט</td></tr>
+<tr><td><code>sa-app.js:1709</code></td><td>כפתור WA לפונה בקריאת שירות, ללא טקסט</td></tr>
+<tr><td><code>storefront.html:1785; storefront-sport.html:1289; storefront-repairs.html:545; storefront-professional.html:578,585; storefront-logistics.html:860-861; storefront-market.html:1246</code></td><td>כפתור &quot;💬 וואטסאפ&quot; לעסק, ללא טקסט</td></tr>
+<tr><td><code>family-onboarding.html:244; biz-onboarding.html:590</code></td><td>כפתור תמיכה קבוע https://wa.me/972504000024</td></tr>
+<tr><td><code>business-app.js:3134</code></td><td>חשיפת כפתור WA קיים ב-DOM (לא בונה טקסט)</td></tr>
+</tbody></table></div></section>
+<h2 class="grp">דוא&quot;ל · תשתית ותצורת שולח</h2>
+<section class="proc" data-f="email smtp gmail sender config infra"><h3>EM-INFRA · sendSystemEmail / getEmailConfig</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:4279-4326</code></td></tr>
+<tr><th>Transport</th><td>nodemailer <code>smtp.gmail.com:465 secure</code> עם <code>SMTP_USER</code>/<code>SMTP_PASS</code>. אם חסרים, מוחזר false ונכתב לוג (4298-4301)</td></tr>
+<tr><th>From</th><td><code>&quot;${cfg.fromName}&quot; &lt;${cfg.fromEmail || user}&gt;</code> (4314)</td></tr>
+<tr><th>תצורה</th><td><code>system_settings</code> keys: <code>smtp_from_email</code> (ברירת מחדל SMTP_USER), <code>smtp_from_name</code> (ברירת מחדל <code>&#x27;WEFLOWZ System&#x27;</code>), <code>admin_notification_email</code> (ברירת מחדל קשיחה <code>&#x27;mcgames1978@gmail.com&#x27;</code>) (4281-4290)</td></tr>
+<tr><th>Transport ישיר (עוקף את התצורה)</th><td><code>/api/test-email</code> 6369 (From <code>&quot;WEFLOWZ System Test&quot;</code>); pantry/bulk-update 11303 (<code>&quot;WEFLOWZ System&quot;</code>); b2b/orders/send-email 18148 ו-b2b/orders 18209 (<code>&quot;מערכת רכש WEFLOWZ&quot;</code>)</td></tr>
+</tbody></table></div>
+</section>
+<section class="proc" data-f="email alert wrapper admin_email"><h3>EM-ALERT · sendAlertEmail: מעטפת התראה למנהל העסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:4328-4347</code></td></tr>
+<tr><th>נמען</th><td><code>family_groups.admin_email</code> של הקבוצה. אם אין, לא נשלח</td></tr>
+<tr><th>משתנים</th><td><code>${business_name}</code>, <code>${message}</code> (HTML לא מנוקה), subject מהקורא</td></tr>
+</tbody></table></div>
+<pre class="sql">⚡ התראה מ-WEFLOWZ
+${business_name || &#x27;WEFLOWZ&#x27;}
+${message}
+────
+WEFLOWZ · מערכת ניהול עסקי</pre>
+</section>
+<h2 class="grp">דוא&quot;ל · הרשמה, הצטרפות ואימות</h2>
+<section class="proc" data-f="email register business sa"><h3>EM-01 · הרשמת עסק: התראה ל-SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/biz/register (server.js:8096) → 8155-8162, fire-and-forget אחרי התגובה</code></td></tr>
+<tr><th>נמען</th><td>cfg.adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>&#x27;WEFLOWZ | עסק חדש נרשם למערכת!&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">🏢 עסק חדש נרשם!
+שם עסק: ${business_name}
+טלפון: ${phone}
+הויזארד טרם הושלם — פרטים נוספים יגיעו בסיום.</pre>
+</section>
+<section class="proc" data-f="email wizard welcome business"><h3>EM-02 · סיום אשף עסק: ברוכים הבאים ללקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>PATCH /api/biz/wizard/complete (8331) → 8452-8462</code></td></tr>
+<tr><th>נמען</th><td>admin_email מהאשף (lowercase+trim)</td></tr>
+<tr><th>Subject</th><td><code>`ברוכים הבאים ל-WEFLOWZ BIZ — ${bizName}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">המערכת שלך מוכנה! 🎉
+שלום ${first_name.trim()},
+העסק ${bizName} הוגדר בהצלחה במערכת WEFLOWZ BIZ.
+תוכל להתחבר בכל עת דרך האתר ולהתחיל לנהל את העסק שלך.
+צוות WEFLOWZ</pre>
+</section>
+<section class="proc" data-f="email wizard sa business"><h3>EM-03 · סיום אשף עסק: התראה ל-SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>PATCH /api/biz/wizard/complete → 8466-8481</code></td></tr>
+<tr><th>נמען</th><td>cfg.adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>`עסק חדש הצטרף: ${bizName}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">עסק חדש השלים הרשמה
+• שם עסק: ${bizName}
+• סוג: ${business_type}
+• מנהל: ${first_name.trim()} ${last_name.trim()}
+• עיר: ${city.trim()}
+• אימייל: ${admin_email.toLowerCase().trim()}</pre>
+</section>
+<section class="proc" data-f="email groups signup sa family"><h3>EM-04 · יצירת סביבה (POST /api/groups): התראה ל-SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/groups (10064) → 10197-10201</code></td></tr>
+<tr><th>נמען</th><td>cfg.adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>&#x27;WEFLOWZ | הצטרפות חדשה למערכת!&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">🎉 סביבה חדשה הוקמה!
+סוג: ${sysType}
+שם: ${req.body.groupName}
+מייל: ${req.body.adminEmail}
+קוד: ${code}</pre>
+<p>sysType = <code>&#x27;WEFLOWZ BIZ (לעסקים)&#x27;</code> / <code>&#x27;WEFLOWZ (למשפחות)&#x27;</code> (10195)</p>
+</section>
+<section class="proc" data-f="email groups welcome password family"><h3>EM-05 · יצירת סביבה: ברוכים הבאים למנהל (כולל סיסמה)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/groups → 10203-10206 (אם adminEmail)</code></td></tr>
+<tr><th>נמען</th><td>req.body.adminEmail</td></tr>
+<tr><th>Subject</th><td><code>`הסביבה שלכם ב-${sysType} מוכנה!`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">ברוכים הבאים ל-${sysType}! 🚀
+שלום ${adminNickname},
+הסביבה שלכם מוגדרת ומוכנה לפעולה.
+
+פרטי הגישה שלכם:
+קוד סביבה: ${code}
+משתמש: ${adminNickname}
+סיסמה: ${req.body.password}</pre>
+<p class="note">⚠️ הסיסמה שהמשתמש בחר נשלחת בטקסט גלוי במייל (10204).</p>
+</section>
+<section class="proc" data-f="email forgot code reset family"><h3>EM-06 · שחזור קוד וסיסמה (משפחה/עסק לפי admin_email)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/forgot-code (10247) → 10283-10296</code></td></tr>
+<tr><th>נמען</th><td>email מהבקשה (admin_email של הקבוצה)</td></tr>
+<tr><th>Subject</th><td><code>&#x27;WEFLOWZ | שחזור קוד וסיסמה לסביבה שלך&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">שחזור פרטי גישה - ${sysType}
+שלום ${group.nickname},
+התקבלה בקשה לשחזור פרטי הגישה עבור הסביבה שלכם: &quot;${group.name}&quot;.
+קוד הסביבה שלכם הוא: ${group.group_code}
+שם משתמש מנהל: ${group.nickname}
+[כפתור] איפוס סיסמה → ${BASE_URL}/?reset=${rawToken}&amp;gid=${groupId}
+קישור האיפוס תקף לשעה אחת.
+אם לא ביקשתם שחזור פרטים, ניתן להתעלם מהודעה זו בביטחה.
+בברכה,
+צוות WEFLOWZ</pre>
+<p>sysType = <code>&#x27;WEFLOWZ BIZ&#x27;</code>/<code>&#x27;WEFLOWZ&#x27;</code>. BASE_URL ברירת מחדל <code>https://family-flow.onrender.com</code> (10276)</p>
+</section>
+<section class="proc" data-f="email biz reset password"><h3>EM-07 · איפוס סיסמת מנהל עסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/biz/reset-password/request (8220) → 8247-8255</code></td></tr>
+<tr><th>נמען</th><td>family_groups.admin_email</td></tr>
+<tr><th>Subject</th><td><code>`WEFLOWZ | איפוס סיסמה — ${business_name}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">איפוס סיסמה — ${business_name}
+קיבלנו בקשה לאיפוס הסיסמה שלך ב-WEFLOWZ.
+[כפתור] איפוס סיסמה → ${BASE_URL}/biz-onboarding.html?reset=${rawToken}&amp;gid=${groupId}
+הקישור תקף לשעה אחת. אם לא ביקשת את האיפוס — התעלם מהודעה זו.</pre>
+</section>
+<section class="proc" data-f="email admin credentials users list"><h3>EM-08 · שליחת רשימת משתמשים למנהל</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/admin/send-credentials (10336) → 10345-10354</code></td></tr>
+<tr><th>נמען</th><td>admin_email של הקבוצה</td></tr>
+<tr><th>Subject</th><td><code>&#x27;WEFLOWZ - פרטי גישה של משתמשי הסביבה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">רשימת המשתמשים בסביבה: ${groupName}
+• שם: ${u.nickname} | תפקיד: ${roleStr}
+מטעמי אבטחה לא ניתן לשלוח סיסמאות קיימות במייל. לאיפוס סיסמת המנהל ניתן להשתמש באפשרות &quot;שכחתי סיסמה&quot; במסך ההתחברות.
+בברכה,
+צוות WEFLOWZ</pre>
+<p>roleStr: BUSINESS → <code>&#x27;מנהל&#x27;/&#x27;עובד&#x27;</code>, אחרת <code>&#x27;הורה&#x27;/&#x27;ילד&#x27;</code> (10348)</p>
+</section>
+<section class="proc" data-f="email join request admin"><h3>EM-09 · בקשת הצטרפות: למנהל הקבוצה (מעטפת EM-ALERT)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/join (10359) → 10405-10416</code></td></tr>
+<tr><th>נמען</th><td>admin_email של הקבוצה</td></tr>
+<tr><th>Subject</th><td><code>isBiz ? `WEFLOWZ | עובד/ת חדש/ה הצטרף/ה ל-${group.name}` : `WEFLOWZ | בן/בת משפחה חדש/ה הצטרף/ה ל-${group.name}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`&lt;strong&gt;${displayName}&lt;/strong&gt; (${roleLabel}) ביקש/ה להצטרף ${groupLabel} &lt;strong&gt;${group.name}&lt;/strong&gt; וממתין/ה לאישורך במסך ניהול החברים.`</pre>
+<p>roleLabel: עסק → <code>&#x27;עובד&#x27;</code> או <code>`עובד (${employee_role_type})`</code>; משפחה → <code>&#x27;ילד/ה&#x27;/&#x27;מנהל/ת&#x27;/&#x27;בן/בת משפחה&#x27;</code>. groupLabel <code>&#x27;לעסק&#x27;/&#x27;למשפחה&#x27;</code></p>
+</section>
+<section class="proc" data-f="email join request sa"><h3>EM-10 · בקשת הצטרפות: עותק ל-SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/join → 10417-10425</code></td></tr>
+<tr><th>נמען</th><td>cfg.adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>זהה ל-EM-09</code></td></tr>
+</tbody></table></div>
+<pre class="sql">${subject}
+${bodyMsg}
+קוד ${isBiz ? &#x27;עסק&#x27; : &#x27;משפחה&#x27;}: ${groupCode.toUpperCase()}</pre>
+</section>
+<section class="proc" data-f="email otp family login email"><h3>EM-11 · קוד כניסה משפחה (OTP במייל)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/family/login/send-otp (10486), כש-channel=email → 10506-10509</code></td></tr>
+<tr><th>נמען</th><td>email מהבקשה</td></tr>
+<tr><th>Subject</th><td><code>&#x27;קוד הכניסה שלך ל-WEFLOWZ&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">WEFLOWZ
+קוד הכניסה שלך:
+${code}
+תקף ל-5 דקות. אין להעביר קוד זה לאחר.</pre>
+<p>קוד בן 6 ספרות, תוקף 5 דקות, עד 5 בקשות בשעה (10495-10503)</p>
+</section>
+<section class="proc" data-f="email otp storefront customer email"><h3>EM-12 · קוד אימות לקוח חנות (sc-auth)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/sc-auth/send-otp (43210) → 43243-43245</code></td></tr>
+<tr><th>נמען</th><td>targetEmail (מתועד אצל הלקוח)</td></tr>
+<tr><th>Subject</th><td><code>&#x27;קוד האימות שלך ל-WEFLOWZ&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">WEFLOWZ
+קוד האימות שלך:
+${code}
+תקף ל-5 דקות.</pre>
+<p>עד 3 בקשות ב-10 דקות (43229-43233). מחוץ ל-production הקוד מודפס ללוג (43249)</p>
+</section>
+<section class="proc" data-f="email zone manager reset password"><h3>EM-13 · איפוס סיסמת מנהל אזור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/zone-manager/forgot-password (18777) → 18789-18797</code></td></tr>
+<tr><th>נמען</th><td>zone_managers.email</td></tr>
+<tr><th>Subject</th><td><code>&#x27;איפוס סיסמה — WEFLOWZ Zone Manager&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">איפוס סיסמה — WEFLOWZ
+שלום ${mgr.name},
+קיבלנו בקשה לאיפוס הסיסמה לחשבון מנהל האזור שלך.
+[כפתור] לאיפוס הסיסמה — לחץ כאן → ${proto}://${host}/zone-manager.html?reset=${token}
+הקישור תקף לשעה אחת. אם לא ביקשת איפוס סיסמה, ניתן להתעלם ממייל זה.</pre>
+<p class="note">⚠️ הטוקן נשמר בזיכרון בלבד (<code>zmPasswordResets</code> Map, 18786), כך שהקישור לא שורד הפעלה מחדש של השרת</p>
+</section>
+<h2 class="grp">דוא&quot;ל · תפעול עסקי</h2>
+<section class="proc" data-f="email support ticket sa"><h3>EM-14 · קריאת שירות חדשה: ל-SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/support/ticket (4349) → 4361-4374</code></td></tr>
+<tr><th>נמען</th><td>cfg.adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>`קריאה #${newTicketId}: ${subject}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">קריאת שירות חדשה #${newTicketId}
+נושא: ${subject}
+לקוח: ${userName} (${groupName})
+מייל: ${userEmail}
+הפנייה:
+${description}</pre>
+</section>
+<section class="proc" data-f="email store new order"><h3>EM-15 · הזמנה חדשה בחנות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/orders (14447) → 14632-14646</code></td></tr>
+<tr><th>נמען</th><td>store_settings.order_notification_email או admin_email, אם send_order_email !== false</td></tr>
+<tr><th>Subject</th><td><code>`הזמנה חדשה מ-${customerName} - ₪${totalAmount}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">הזמנה חדשה בחנות שלך! 🛍️
+התקבלה הזמנה חדשה מאת: ${customerName} (טלפון: ${customerPhone})
+סה&quot;כ לתשלום: ₪${totalAmount}
+[אם משלוח] כתובת למשלוח: ${street} ${house}, ${city}
+פירוט הפריטים:
+• ${item.name} - כמות: ${item.quantity} - ₪${item.price}
+• דמי משלוח - ₪${actualDeliveryFee}</pre>
+</section>
+<section class="proc" data-f="email store inventory count"><h3>EM-16 · ספירת מלאי חנות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/inventory-count (13806), sendEmail=true → 13820-13841</code></td></tr>
+<tr><th>נמען</th><td>admin_email</td></tr>
+<tr><th>Subject</th><td><code>`ספירת מלאי — ${grp.name} — ${dateStr}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">ספירת מלאי — ${grp.name}
+תאריך: ${dateStr}
+[טבלה] מוצר | כמות במלאי
+WEFLOWZ — ${dateStr}</pre>
+</section>
+<section class="proc" data-f="email pantry inventory count pdf"><h3>EM-17 · ספירת מלאי מחסן (pantry), כולל PDF</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/pantry/bulk-update (11264), sendEmail=true → 11277-11318 (transport ישיר)</code></td></tr>
+<tr><th>נמען</th><td>admin_email</td></tr>
+<tr><th>Subject</th><td><code>`ספירת מלאי מחסן — ${grp.name} — ${dateStr}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">ספירת מלאי מחסן — ${grp.name}
+תאריך: ${dateStr}
+[טבלה] פריט | יחידה | כמות בפועל
+WEFLOWZ — ${dateStr}
+[צרופה] ספירת_מלאי_${dateStr}.pdf (אם pdfBase64)</pre>
+</section>
+<section class="proc" data-f="email b2b purchase order supplier"><h3>EM-18 · הזמנת רכש לספק (שליחה בודדת)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/b2b/orders/send-email (18133) → 18151-18187 (transport ישיר, ללא auth)</code></td></tr>
+<tr><th>נמען</th><td>suppliers.email</td></tr>
+<tr><th>Subject</th><td><code>`הזמנת רכש חדשה מ-${businessName} (הזמנה #${orderId})`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">שלום רב לצוות ${supplier.name},
+מצ&quot;ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת WEFLOWZ.
+מספר הזמנה: #${orderId}
+שם הלקוח (המזמין): ${businessName}
+תקציר ההזמנה:
+• ${i.name} - כמות: ${i.quantity}
+אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.
+[כפתור] ✅ אשר קבלת הזמנה → ${confirmUrl}
+לחיצה תסמן אוטומטית שהמסמך התקבל אצלכם
+בברכה,
+${businessName} (לקוח WEFLOWZ BIZ)
+[צרופה] Purchase_Order_${orderId}.pdf</pre>
+</section>
+<section class="proc" data-f="email b2b purchase orders supplier"><h3>EM-19 · הזמנות רכש לספקים (יצירה מרובה)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/b2b/orders (18196) → 18253-18290 (transport ישיר)</code></td></tr>
+<tr><th>נמען</th><td>suppliers.email לכל הזמנה</td></tr>
+<tr><th>Subject</th><td><code>`הזמנת רכש חדשה מ-WEFLOWZ (הזמנה #${newOrderId})`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">שלום רב לצוות ${supplier.name},
+מצ&quot;ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת WEFLOWZ.
+תקציר ההזמנה:
+• ${i.name} - כמות: ${i.quantity}
+אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.
+[כפתור] ✅ אשר קבלת הזמנה → ${baseUrl}/c/po/${newOrderId}/${poToken}
+לחיצה תסמן אוטומטית שהמסמך התקבל אצלכם
+בברכה,
+לקוח WEFLOWZ BIZ</pre>
+<p>בשונה מ-EM-18, שם העסק המזמין לא מופיע במייל (חתימה "לקוח WEFLOWZ BIZ").</p>
+</section>
+<section class="proc" data-f="email routine document email"><h3>EM-20 · מסמך שגרה: קישור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/routine-documents/:id/send, channel=email (27877-27879)</code></td></tr>
+<tr><th>נמען</th><td>to מהגוף</td></tr>
+<tr><th>Subject</th><td><code>&#x27;מסמך חדש&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">שלום,
+מסמך חדש זמין לצפייה: ${url}</pre>
+</section>
+<section class="proc" data-f="email professional document email notes"><h3>EM-21 · מסמך מקצועי (תוכן מלא)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/professional-documents/:id/send-email (28903) → 28910-28921</code></td></tr>
+<tr><th>נמען</th><td>to_email מהגוף</td></tr>
+<tr><th>Subject</th><td><code>`מסמך: ${doc.title}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">${doc.title}
+סוג: ${typeLabels[doc.doc_type]||doc.doc_type}
+${doc.content || &#x27;(אין תוכן)&#x27;}
+[אם notes] הערות פנימיות: ${doc.notes}
+[אם signature_data] חתימה: &lt;img&gt;
+נשלח מ-WEFLOWZ Business</pre>
+<p class="note">⚠️ השדה "הערות פנימיות" (<code>doc.notes</code>) נכלל במייל שנשלח לנמען החיצוני, בלי escaping (28916).</p>
+</section>
+<section class="proc" data-f="email menu request event"><h3>EM-22 · תפריט אירועים: פנייה חדשה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/menu/public/:slug/request (42636) → 42741-42766</code></td></tr>
+<tr><th>נמען</th><td>menu template notification_email</td></tr>
+<tr><th>Subject</th><td><code>`פנייה חדשה לתפריט: ${tmpl.name} — ${customerName}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">פנייה חדשה — ${tmpl.name}
+מספר פנייה: ${reqNumber}
+שם | ${customerName}
+טלפון | ${customerPhone}
+[אופציונלי] אימייל | תאריך אירוע | מספר אורחים
+${sec.name} | ${ids.length} בחירות
+[אופציונלי] הערות | ${customNotes}
+WEFLOWZ · מערכת ניהול אירועים</pre>
+</section>
+<section class="proc" data-f="email menu catalog request"><h3>EM-23 · תפריט אירועים: הרכבת תפריט (סל)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/menu/public/:slug/catalog-request (42828) → 42868-42890</code></td></tr>
+<tr><th>נמען</th><td>notification_email</td></tr>
+<tr><th>Subject</th><td><code>`הרכבת תפריט חדשה: ${tmpl.name} — ${customerName}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">הרכבת תפריט חדשה — ${tmpl.name}
+מספר פנייה: ${reqNumber}
+שם | טלפון | [תאריך אירוע] | [מספר אורחים]
+פריטים שנבחרו
+${it.name} | ${it.qty||1}× | ₪${price}
+[אופציונלי] הערות: ${customNotes}
+WEFLOWZ · מערכת ניהול אירועים</pre>
+</section>
+<section class="proc" data-f="email alert engine email new_order"><h3>EM-24 · מנוע התראות: הזמנה חדשה (כלל new_order)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>checkRuleTrigger (24901) case new_order → 25021. runAlertEngine כל 5 דקות (25104)</code></td></tr>
+<tr><th>נמען</th><td>admin_email דרך EM-ALERT, אם channels כולל email</td></tr>
+<tr><th>Subject</th><td><code>&#x27;⚡ הזמנה חדשה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`הזמנה חדשה נכנסה מ-${order.customer_name||&#x27;לקוח&#x27;} (#${order.id}) — ממתינה לטיפול`</pre>
+</section>
+<section class="proc" data-f="email alert engine email rule"><h3>EM-25 · מנוע התראות: כל כלל אחר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>checkRuleTrigger → 25026-25033</code></td></tr>
+<tr><th>נמען</th><td>admin_email דרך EM-ALERT</td></tr>
+<tr><th>Subject</th><td><code>`⚡ התראה: ${rule.name}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">(הטקסטים של IN-R1..R9 בקבוצת &quot;התראות בתוך המערכת&quot;)</pre>
+</section>
+<section class="proc" data-f="email sla breach email"><h3>EM-26 · חריגת SLA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>Email (sendSystemEmail)</td></tr>
+<tr><th>טריגר</th><td><code>checkSLABreaches (25054) → 25089-25097, כל 5 דקות (25105)</code></td></tr>
+<tr><th>נמען</th><td>admin_email דרך EM-ALERT</td></tr>
+<tr><th>Subject</th><td><code>`⏱️ חריגת SLA: ${label}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`[${cfg.module}:${cfg.status}] חריגת SLA בשלב &quot;${label}&quot; (מעל ${cfg.max_hours}ש&#x27;): ${names}`</pre>
+</section>
+<h2 class="grp">דוא&quot;ל · בדיקות SA</h2>
+<section class="proc" data-f="email test smtp"><h3>EM-27 · /api/test-email: בדיקת SMTP</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>GET /api/test-email</code> (server.js:6361), ללא auth</td></tr>
+<tr><th>נמען</th><td>SMTP_USER עצמו</td></tr>
+<tr><th>Subject</th><td><code>&#x27;✅ בדיקת מערכת המיילים - WEFLOWZ&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">הצלחה! 🎉
+המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 465 ולשלוח מייל בהצלחה.</pre>
+</section>
+<section class="proc" data-f="email sa test templates"><h3>EM-28 · /api/sa/test-email: שכפול תבניות טריגר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>POST /api/sa/test-email</code> (6529), verifySA</td></tr>
+<tr><th>נמען</th><td><code>to</code> ועותק ל-adminNotificationEmail</td></tr>
+<tr><th>Subject</th><td><code>`🧪 ${tpl.userSubject}`</code> / <code>`🧪 ${tpl.saSubject}`</code> (6644-6648)</td></tr>
+<tr><th>תבניות</th><td><code>family_signup, family_join, business_signup, business_join, family_reset, business_reset</code> עם נתוני דוגמה (<code>&#x27;משפחת ישראלי (לדוגמה)&#x27;</code>, <code>&#x27;הסושי של מרים (לדוגמה)&#x27;</code>, <code>&#x27;DEMO1234&#x27;</code>)</td></tr>
+</tbody></table></div>
+<p>לפי ההערה בקוד (6534-6536), כל תבנית היא העתק מילה במילה של EM-04/05, EM-09/10, EM-02/03 ו-EM-06/07. בתבניות האיפוס הכפתור הוא <code>href="#"</code> עם הטקסט "איפוס סיסמה (בטריגר האמיתי - קישור פעיל עם טוקן)". זה עותק שני שצריך לסנכרן עם התבניות האמיתיות.</p>
+</section>
+<h2 class="grp">SMS · Twilio</h2>
+<section class="proc" data-f="sms twilio infra"><h3>SMS-INFRA · sendSMSviaTwilio + smsService</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:231-265</code></td></tr>
+<tr><th>ספק</th><td><code>POST https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json</code>, Basic auth, From=<code>TWILIO_PHONE_NUMBER</code></td></tr>
+<tr><th>כשל</th><td>זורק Error אם חסרים <code>TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER</code> או אם התגובה לא ok (238-240, 261-263)</td></tr>
+<tr><th>smsService</th><td>אובייקט <code>smsService.send</code> (55-85) עם מצב <code>SMS_SERVICE=test</code>. לא נמצאה אף קריאה אליו (grep "smsService.") ולכן הוא קוד מת</td></tr>
+</tbody></table></div>
+</section>
+<section class="proc" data-f="sms otp twilio otp עסק (register / reset_password / login_disambiguate / login)"><h3>SMS-01 · OTP עסק (register / reset_password / login_disambiguate / login)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/biz/send-otp (7596) → 7619-7627</code></td></tr>
+<tr><th>נמען</th><td>phone (0→+972)</td></tr>
+<tr><th>הערה</th><td>6 ספרות, 5 דקות, עד 3 בקשות בשעה לכל phone+purpose</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio otp הרשמת משפחה"><h3>SMS-02 · OTP הרשמת משפחה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/family/send-otp (7708) → 7722-7724</code></td></tr>
+<tr><th>נמען</th><td>phone</td></tr>
+<tr><th>הערה</th><td>purpose=&#x27;family_register&#x27;</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio otp כניסת משפחה"><h3>SMS-03 · OTP כניסת משפחה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/family/login/send-otp (10486) → 10511-10513 (כש-channel≠email)</code></td></tr>
+<tr><th>נמען</th><td>phone</td></tr>
+<tr><th>הערה</th><td>עד 5 בקשות בשעה</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nקוד הכניסה שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio otp super admin"><h3>SMS-04 · OTP Super Admin</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/superadmin/send-otp (8496) → 8512-8514</code></td></tr>
+<tr><th>נמען</th><td>SUPERADMIN_PHONE בלבד (בדיוק כמו שהוזן)</td></tr>
+<tr><th>הערה</th><td>נשמר ב-otpCache בזיכרון (8511)</td></tr>
+</tbody></table></div>
+<pre class="sql">`קוד הגישה שלך למערכת WEFLOWZ הוא: ${generatedCode}. הקוד בתוקף ל-5 דקות.`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio otp לקוח חנות (sc-auth)"><h3>SMS-05 · OTP לקוח חנות (sc-auth)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/sc-auth/send-otp (43210) → 43247</code></td></tr>
+<tr><th>נמען</th><td>e164Phone</td></tr>
+<tr><th>הערה</th><td>עד 3 ב-10 דקות</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nקוד האימות שלך: ${code} (בתוקף 5 דקות)`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio איפוס pin לקוח חנות"><h3>SMS-06 · איפוס PIN לקוח חנות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/sc-auth/forgot-pin (43442) → 43456</code></td></tr>
+<tr><th>נמען</th><td>הלקוח הרשום</td></tr>
+<tr><th>הערה</th><td>ללא rate limit בקוד</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nקוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio איפוס pin ביוזמת sa"><h3>SMS-07 · איפוס PIN ביוזמת SA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/sa/sc-customers/:id/reset-pin (43773) → 43785</code></td></tr>
+<tr><th>נמען</th><td>storefront_customers.phone</td></tr>
+<tr><th>הערה</th><td>verifySA</td></tr>
+</tbody></table></div>
+<pre class="sql">`WEFLOWZ\nהמנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio הזמנת שולחן ציבורית: קוד אישור"><h3>SMS-08 · הזמנת שולחן ציבורית: קוד אישור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/public/restaurants/:groupId/book-table (33541) → 33586-33590</code></td></tr>
+<tr><th>נמען</th><td>phone של המזמין</td></tr>
+<tr><th>הערה</th><td>קוד 4 ספרות. אם ב-system_settings מוגדר sms_debug_code באורך 4, נשלח הקוד הקבוע (33578-33584)</td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}\nנשלח דרך WEFLOWZ`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio בקשת תור כללית: קוד אישור"><h3>SMS-09 · בקשת תור כללית: קוד אישור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/calendar/request-booking-sms (33685) → 33705-33706</code></td></tr>
+<tr><th>נמען</th><td>phone</td></tr>
+<tr><th>הערה</th><td>אותו מנגנון sms_debug_code</td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} — בקשת תור ✅\nשם: ${name}\nתאריך: ${dateStr}\nשעה: ${startTime}\n${serviceName ? &#x27;שירות: &#x27; + serviceName + &#x27;\n&#x27; : &#x27;&#x27;}קוד אישור: ${finalCode}\nWEFLOWZ`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio אישור הזמנת שולחן ע&quot;י העסק"><h3>SMS-10 · אישור הזמנת שולחן ע&quot;י העסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>PUT /api/calendar/events/:id/status (22977) → 23009-23018</code></td></tr>
+<tr><th>נמען</th><td>evt.customer_phone</td></tr>
+<tr><th>הערה</th><td>tableNoteApprove = `\nשולחן: ${assignedTable}` אם שובץ</td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizNameApprove} — הזמנת שולחן אושרה! 🎉\nתאריך: ${dayHeApprove}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNoteApprove}\nנתראה! 🍽️\nWEFLOWZ`</pre>
+</section>
+<section class="proc" data-f="sms otp twilio אישור תור יופי ע&quot;י העסק"><h3>SMS-11 · אישור תור יופי ע&quot;י העסק</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>SMS (Twilio)</td></tr>
+<tr><th>טריגר</th><td><code>PUT /api/calendar/events/:id/status → 23056-23065 (business_type=beauty)</code></td></tr>
+<tr><th>נמען</th><td>evt.customer_phone</td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} — התור שלך אושר! ✅\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅\nWEFLOWZ`</pre>
+</section>
+<h2 class="grp">התראות בתוך המערכת · alert_notifications</h2>
+<div class="intro">סכמת הטבלה: <code>id, group_id, rule_id, trigger_type, message, is_read, created_at, reference_key</code> (server.js:760, 771). INSERT שמשתמש בעמודות <code>type</code>, <code>title</code> או <code>reference_id</code> נכשל תמיד, כי העמודות לא קיימות. כל המקרים האלה עטופים ב-<code>try/catch</code> שבולע את השגיאה. הפעמון מוצג ב-business-app.js:34858 וב-app.js:13880 (קריאת 10/50 אחרונות).</div>
+<section class="proc" data-f="in-app alert_notifications quote_approved / &#x27;הצעת מחיר אושרה&#x27; הצעת מחיר אושרה (ללקוח המשפחתי)"><h3>IN-01 · הצעת מחיר אושרה (ללקוח המשפחתי)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/quotes/:id/approve (14813) → 14851</code></td></tr>
+<tr><th>נמען (group_id)</th><td>quote.family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>quote_approved / &#x27;הצעת מחיר אושרה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} אישר את הצעת המחיר שלך — היא עברה לתור ההזמנות`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications quote_received / isresend ? &#x27;הצעת מחיר עודכנה&#x27; : &#x27;הצעת מחיר חדשה&#x27; הצעת מחיר חדשה / עודכנה"><h3>IN-02 · הצעת מחיר חדשה / עודכנה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/quotes/:id/send-to-oneflow (14956) → 14980</code></td></tr>
+<tr><th>נמען (group_id)</th><td>familyGroupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>quote_received / isResend ? &#x27;הצעת מחיר עודכנה&#x27; : &#x27;הצעת מחיר חדשה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">isResend ? `${bizName} עדכן את הצעת המחיר עבורך — נא לבדוק ולאשר` : `קיבלת הצעת מחיר מ-${bizName}: ${quote.customer_name || &#x27;&#x27;}`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications link_request / &#x27;בקשת שיוך חדשה&#x27; בקשת שיוך חדשה"><h3>IN-03 · בקשת שיוך חדשה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/quotes/:id/link-only (15000) → 15038</code></td></tr>
+<tr><th>נמען (group_id)</th><td>familyGroupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>link_request / &#x27;בקשת שיוך חדשה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${bName} מבקש להתחבר אליך ומוכן לשלוח הצעת מחיר — נא לאשר`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications quote_response / &#x27;תגובת לקוח להצעה&#x27; תגובת לקוח להצעה (לעסק)"><h3>IN-04 · תגובת לקוח להצעה (לעסק)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>PATCH /api/store/quotes/:id/customer-response (15048) → 15076</code></td></tr>
+<tr><th>נמען (group_id)</th><td>quote.group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>quote_response / &#x27;תגובת לקוח להצעה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${quote.customer_name || &#x27;לקוח&#x27;} ${typeLabel}${safeResponseText ? &#x27;: &#x27; + safeResponseText : &#x27;&#x27;}`
+// typeLabel: approved &#x27;✅ אישר את ההצעה&#x27;, rejected &#x27;❌ סירב להצעה&#x27;, discount_request &#x27;💬 ביקש הנחה&#x27;, items_request &#x27;📋 ביקש שינויים&#x27;, message &#x27;💬 שלח הודעה&#x27;</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications work_order_created / &#x27;הצעת מחיר אושרה&#x27; פקודת עבודה מהצעה"><h3>IN-05 · פקודת עבודה מהצעה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/quotes/:id/to-work-order (15085) → 15120</code></td></tr>
+<tr><th>נמען (group_id)</th><td>quote.family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>work_order_created / &#x27;הצעת מחיר אושרה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`ההצעה אושרה ונפתחה פקודת עבודה: ${title}`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications quote_business_message / &#x27;הודעה מהעסק&#x27; הודעת עסק על הצעה"><h3>IN-06 · הודעת עסק על הצעה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/quotes/:id/business-message (15130) → 15148</code></td></tr>
+<tr><th>נמען (group_id)</th><td>family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>quote_business_message / &#x27;הודעה מהעסק&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} שלח הודעה על הצעת מחיר: ${text.trim().substring(0,80)}`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications sc_received / &#x27;קריאת שירות חדשה&#x27; קריאת שירות נפתחה עבור הלקוח"><h3>IN-07 · קריאת שירות נפתחה עבור הלקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>PATCH /api/service-calls/:id/link-oneflow (25678) → 25703</code></td></tr>
+<tr><th>נמען (group_id)</th><td>familyGroupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>sc_received / &#x27;קריאת שירות חדשה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${bizName} פתח עבורך קריאת שירות — ממתין לאישורך`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications work_order_assigned / &#x27;שויכת לפקודת עבודה&#x27; שויכת לפקודת עבודה"><h3>IN-08 · שויכת לפקודת עבודה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/work-orders/:id/assignees (26693) → 26712</code></td></tr>
+<tr><th>נמען (group_id)</th><td>users.family_group_id || wo.group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>work_order_assigned / &#x27;שויכת לפקודת עבודה&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${assignedBy || &#x27;מנהל&#x27;} שייך אותך ל: ${woLabel}`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications link_approved / &#x27;שיוך אושר ✅&#x27; שיוך אושר (לעסק)"><h3>IN-09 · שיוך אושר (לעסק)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/member/link/:linkId/respond (31016) → 31030</code></td></tr>
+<tr><th>נמען (group_id)</th><td>link.business_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>link_approved / &#x27;שיוך אושר ✅&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${memberName} אישר את בקשת השיוך — ניתן לשלוח הצעת מחיר`</pre>
+<p class="note">⚠️ ה-INSERT משתמש בעמודות <code>type, title, reference_id</code> שלא קיימות בטבלה, ולכן ההתראה לא נוצרת לעולם (השגיאה נבלעת).</p>
+</section>
+<section class="proc" data-f="in-app alert_notifications low_stock מלאי נמוך (מהלקוח)"><h3>IN-10 · מלאי נמוך (מהלקוח)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/alerts/notifications (11003) ← business-app.js:8615</code></td></tr>
+<tr><th>נמען (group_id)</th><td>currentGroup.id</td></tr>
+<tr><th>trigger_type / title</th><td><code>low_stock</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`⚠️ מלאי נמוך: ${msg}`
+// msg = `${names}, ועוד ${n - 2} פריטים קרובים למינימום` | `${names} קרוב/ים למינימום`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications sc_parts_ready חלקים הגיעו לקריאת שירות"><h3>IN-11 · חלקים הגיעו לקריאת שירות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/b2b/orders/receive (17341) → 17356</code></td></tr>
+<tr><th>נמען (group_id)</th><td>service_calls.business_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>sc_parts_ready</code></td></tr>
+</tbody></table></div>
+<pre class="sql">CONCAT(&#x27;✅ חלקים הגיעו לקריאה: &quot;&#x27;, title, &#x27;&quot; — מוכן לאיסוף&#x27;)</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications quote_response לקוח אישר הצעה בקישור ציבורי"><h3>IN-12 · לקוח אישר הצעה בקישור ציבורי</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>GET /c/q/:id/:token (25118) → 25134</code></td></tr>
+<tr><th>נמען (group_id)</th><td>q.group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>quote_response</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${q.customer_name || &#x27;לקוח&#x27;} אישר את הצעת המחיר ${q.quote_number || &#x27;&#x27;}`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications sc_due_soon קריאת שירות מחר"><h3>IN-13 · קריאת שירות מחר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/service-calls/check-schedule-notifications/:groupId (25747) → 25765 ← business-app.js:38389</code></td></tr>
+<tr><th>נמען (group_id)</th><td>groupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>sc_due_soon</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`⏰ קריאת שירות מתוכננת למחר: &quot;${call.title}&quot;`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications sc_overdue קריאת שירות באיחור"><h3>IN-14 · קריאת שירות באיחור</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>אותו נתיב → 25773</code></td></tr>
+<tr><th>נמען (group_id)</th><td>groupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>sc_overdue</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`🚨 קריאת שירות עברה את מועד הביצוע: &quot;${call.title}&quot;`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications equipment_maintenance תחזוקת ציוד מתקרבת"><h3>IN-15 · תחזוקת ציוד מתקרבת</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/equipment/notifications/check/:groupId (26264) → 26292 ← business-app.js:36468, app.js:12229</code></td></tr>
+<tr><th>נמען (group_id)</th><td>groupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>equipment_maintenance</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`🔧 תחזוקה בעוד ${diffDays} ימים: &quot;${maintLabel}&quot; — ${m.equipment_name} (${dateStr})`   // 2-7 ימים
+`🔧 תחזוקה ${whenStr}: &quot;${maintLabel}&quot; — ${m.equipment_name} (${dateStr})`   // whenStr &#x27;היום&#x27;/&#x27;מחר&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications service_call_scheduled קריאת שירות מתוזמנת מחר (ציוד)"><h3>IN-16 · קריאת שירות מתוזמנת מחר (ציוד)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>אותו נתיב → 26311</code></td></tr>
+<tr><th>נמען (group_id)</th><td>groupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>service_call_scheduled</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`📅 קריאת שירות מחר: &quot;${sc.title}&quot;`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications work_order_created פקודת עבודה נפתחה (ללקוח)"><h3>IN-17 · פקודת עבודה נפתחה (ללקוח)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/work-orders/convert/:quoteId (26503) → 26525</code></td></tr>
+<tr><th>נמען (group_id)</th><td>order.family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>work_order_created</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${biz.rows[0]?.name || &#x27;העסק&#x27;} פתח פקודת עבודה עבורך`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications work_order_status עדכון סטטוס פקודת עבודה"><h3>IN-18 · עדכון סטטוס פקודת עבודה</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>PUT /api/work-orders/:id/status (26631) → 26651</code></td></tr>
+<tr><th>נמען (group_id)</th><td>wo.family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>work_order_status</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`עדכון סטטוס: ${wo.quote_title || &#x27;פקודת עבודה&#x27;} — ${label}`
+// label: processing &#x27;בטיפול&#x27;, scheduled &#x27;מתוזמן&#x27;, completed &#x27;הושלם ✅&#x27;, cancelled &#x27;בוטל&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications game_assigned משחק חדש לילד"><h3>IN-19 · משחק חדש לילד</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/kids/assign-game (35555) → 35588</code></td></tr>
+<tr><th>נמען (group_id)</th><td>familyGroupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>game_assigned</code></td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;משחק חדש מחכה לך! 🎮&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications quest_assigned קווסט חדש"><h3>IN-20 · קווסט חדש</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/kids/quests (35720) → 35758</code></td></tr>
+<tr><th>נמען (group_id)</th><td>familyGroupId</td></tr>
+<tr><th>trigger_type / title</th><td><code>quest_assigned</code></td></tr>
+</tbody></table></div>
+<pre class="sql">&#x27;קווסט חדש מחכה לך! 🎯&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications quest_completed קווסט הושלם"><h3>IN-21 · קווסט הושלם</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/kids/quests/:questId/submit (35803) → 35855</code></td></tr>
+<tr><th>נמען (group_id)</th><td>q.family_group_id</td></tr>
+<tr><th>trigger_type / title</th><td><code>quest_completed</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`${passed?&#x27;✅&#x27;:&#x27;📊&#x27;} קווסט הושלם — ציון: ${score}%`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications live_game הזמנה למשחק חי (+ inbox)"><h3>IN-22 · הזמנה למשחק חי (+ inbox)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/live-games/:id/assign (38701) → 38716 ← sa-app.js:12560</code></td></tr>
+<tr><th>נמען (group_id)</th><td>כל gid ב-groupIds</td></tr>
+<tr><th>trigger_type / title</th><td><code>live_game</code></td></tr>
+</tbody></table></div>
+<pre class="sql">message || `🏆 הוזמנת למשחק טריוויה: &quot;${g.title}&quot;${g.prize ? &#x27; · פרס: &#x27; + g.prize : &#x27;&#x27;} → ${link}`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications live_game משחק חי עומד להתחיל (+ inbox)"><h3>IN-23 · משחק חי עומד להתחיל (+ inbox)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>alert_notifications</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/live-games/:id/notify-start (39135) → 39146 ← sa-app.js:12726</code></td></tr>
+<tr><th>נמען (group_id)</th><td>משתתפים מאושרים</td></tr>
+<tr><th>trigger_type / title</th><td><code>live_game</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`⏰ המשחק &quot;${g.title}&quot; עומד להתחיל! מהרו להיכנס: ${link}`</pre>
+</section>
+<section class="proc" data-f="in-app alert_notifications business_update member link sport order service"><h3>IN-24 · _sendMemberBizNotif: עדכוני עסק ללקוח מקושר</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>פונקציה</th><td><code>server.js:30937-30947</code>, trigger_type=<code>&#x27;business_update&#x27;</code>, מניעת כפילות לפי reference_key</td></tr>
+<tr><th>נמען</th><td>member_group_id של קישור <code>member_business_links</code> פעיל</td></tr>
+</tbody></table></div>
+<pre class="sql">// /api/store/orders/status (14714)  key mbiz_order_${orderId}_${status}
+`ההזמנה שלך ב${biz_name} עודכנה: ${lbl}`   // lbl: new &#x27;חדשה&#x27;, processing &#x27;בטיפול&#x27;, ready &#x27;מוכנה לאיסוף&#x27;, delivering &#x27;בדרך&#x27;, delivered &#x27;נמסרה&#x27;, completed &#x27;הושלמה&#x27;, cancelled &#x27;בוטלה&#x27;
+// PATCH /api/service-calls/:id (25866)  key mbiz_sc_${id}_${status}
+`קריאת השירות שלך ב${biz_name} עודכנה: ${lbl}`   // new &#x27;חדשה&#x27;, seen &#x27;נצפתה&#x27;, in_progress &#x27;בטיפול&#x27;, pending_parts &#x27;ממתין לחלקים&#x27;, pending_payment &#x27;ממתין לתשלום&#x27;, pending_cancel &#x27;בקשת ביטול&#x27;, done &#x27;הושלם&#x27;, cancelled &#x27;בוטל&#x27;
+// PUT /api/sport/members/:id (29396)
+`המנוי שלך ב${biz_name} עודכן: ${lbl}`   // active &#x27;פעיל&#x27;, frozen &#x27;מוקפא&#x27;, expired &#x27;פג תוקף&#x27;, cancelled &#x27;בוטל&#x27;
+// POST /api/sport/members/:id/freeze (29420)
+`המנוי שלך ב${biz_name} הוקפא`
+// POST /api/sport/members/:id/unfreeze (29450)
+`המנוי שלך ב${biz_name} הופשר ✅`
+// POST /api/sport/members/:id/cancel (29473)
+`המנוי שלך ב${biz_name} בוטל`
+// PATCH /api/sport/classes/:id/status (29831)
+`השיעור &quot;${cls.class_name||&#x27;&#x27;}&quot; ב${bizName} ב-${dateStr} בוטל`
+// _notifyWaitlistPromoted (29878 → 29891)
+`התפנה לך מקום בשיעור &quot;${cls.rows[0].class_name||&#x27;&#x27;}&quot; ב${bizName} ב-${dateStr}! יש לך 30 דקות לאשר את המקום`</pre>
+</section>
+<section class="proc" data-f="in-app alert engine rules timeclock inventory task shopping balance order quote ticket"><h3>IN-R · מנוע התראות לפי כללים (alert_rules): טקסטי message</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>checkRuleTrigger server.js:24901-25035</code>. הרצה כל 5 דקות, החל מ-5 דקות אחרי עליית השרת (25104). cooldown לפי rule.cooldown_minutes (ברירת מחדל 60)</td></tr>
+<tr><th>trigger_type</th><td><code>rule.trigger_type</code>. אם channels כולל email, נשלח גם EM-25</td></tr>
+<tr><th>נמען</th><td>rule.group_id</td></tr>
+</tbody></table></div>
+<pre class="sql">timeclock_no_punch_in:  `עובדים שלא החתימו כניסה היום: ${users.rows.map(u=&gt;u.nickname).join(&#x27;, &#x27;)}`
+timeclock_no_punch_out: `${p.nickname} החתים כניסה לפני ${maxHours}+ שעות ולא יצא`          // max_hours ברירת מחדל 10
+inventory_low:          `מוצרים מתחת לרף מינימום: ${names}`                                // names = item_name(quantity)
+task_overdue:           `משימה באיחור: &quot;${t.title}&quot;${t.nickname ? ` (${t.nickname})` : &#x27;&#x27;}`
+shopping_pending:       `בקשות רכש ממתינות מעל ${hours}ש&#x27;: ${items.rows.map(i=&gt;i.item_name).join(&#x27;, &#x27;)}`
+balance_low:            `יתרה נמוכה: ₪${balance.toFixed(2)} (מתחת ל-₪${minBalance})`       // ברירת מחדל 500
+order_unhandled:        `${orders.rows.length} הזמנות ממתינות לטיפול מעל ${hours}ש&#x27;: ${names}`
+quote_not_converted:    `${quotes.rows.length} הצעות מחיר לא הומרו להזמנה מעל ${days} ימים: ${names}`
+ticket_open:            `${tickets.rows.length} קריאות שירות פתוחות מעל ${hours}ש&#x27;: ${subjects}`
+new_order (25015):      `הזמנה חדשה נכנסה מ-${order.customer_name||&#x27;לקוח&#x27;} (#${order.id}) — ממתינה לטיפול`   // reference_key order_${id}</pre>
+</section>
+<section class="proc" data-f="in-app sla breach"><h3>IN-SLA · חריגת SLA</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>checkSLABreaches server.js:25054-25101</code>; trigger_type=<code>&#x27;sla_breach&#x27;</code></td></tr>
+<tr><th>נמען</th><td>cfg.group_id</td></tr>
+<tr><th>cooldown</th><td>60 דקות לפי LIKE על <code>[module:status]</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`[${cfg.module}:${cfg.status}] חריגת SLA בשלב &quot;${label}&quot; (מעל ${cfg.max_hours}ש&#x27;): ${names}`</pre>
+</section>
+<h2 class="grp">התראות בתוך המערכת · inbox_messages (דואר נכנס)</h2>
+<section class="proc" data-f="in-app inbox_messages הזמנת שולחן: לעסק (inbound)"><h3>IB-01 · הזמנת שולחן: לעסק (inbound)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/calendar/events (22891) → 22958-22962, callType=table_reservation</code></td></tr>
+<tr><th>נמען</th><td>groupId (העסק)</td></tr>
+<tr><th>שדות</th><td><code>sender_type=&#x27;customer&#x27;, sender_name=title||&#x27;לקוח&#x27;, subject=`הזמנת שולחן — ${dateHe} ${startTime}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${notes ? &#x27;\nהערות: &#x27; + notes : &#x27;&#x27;}${autoNote}`
+// autoNote = ` (אושר אוטומטית, שולחן ${autoAssignedTable})`</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages הזמנת שולחן אושרה: ללקוח"><h3>IB-02 · הזמנת שולחן אושרה: ללקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>22966-22970 (אישור אוטומטי) ו-PUT /api/calendar/events/:id/status 23020-23026</code></td></tr>
+<tr><th>נמען</th><td>customer_group_id (outbound)</td></tr>
+<tr><th>שדות</th><td><code>sender_name=&#x27;המסעדה&#x27;, subject=&#x27;הזמנת שולחן אושרה ✅&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`הזמנת השולחן אושרה! 🎉\nתאריך: ${dayHe}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNote}\nנתראה! 🍽️`</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages תור יופי אושר: ללקוח"><h3>IB-03 · תור יופי אושר: ללקוח</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>PUT /api/calendar/events/:id/status → 23067-23073</code></td></tr>
+<tr><th>נמען</th><td>customer_group_id</td></tr>
+<tr><th>שדות</th><td><code>sender_name=&#x27;הסלון&#x27;, subject=&#x27;התור שלך אושר ✅&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`התור שלך אושר! 🎉\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅`</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages הזמנת שולחן נדחתה עם חלופות"><h3>IB-04 · הזמנת שולחן נדחתה עם חלופות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/calendar/events/:id/reject-with-alts (23112) → 23130-23137</code></td></tr>
+<tr><th>נמען</th><td>customer_group_id</td></tr>
+<tr><th>שדות</th><td><code>sender_name=&#x27;המסעדה&#x27;, subject=&#x27;הזמנת שולחן — חלופות זמינות&#x27;</code></td></tr>
+</tbody></table></div>
+<pre class="sql">`בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${origTime} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nניתן לבחור מועד חלופי באפליקציה — לחץ על ההזמנה ובחר שעה.`</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages הזמנה למשחק חי"><h3>IB-05 · הזמנה למשחק חי</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/live-games/:id/assign → 38720-38723</code></td></tr>
+<tr><th>נמען</th><td>gid</td></tr>
+<tr><th>שדות</th><td><code>sender_type=&#x27;system&#x27;, sender_name=&#x27;WEFLOWZ&#x27;, subject=`הוזמנת למשחק: ${g.title}`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">זהה ל-IN-22</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages משחק עומד להתחיל"><h3>IB-06 · משחק עומד להתחיל</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td>inbox_messages</td></tr>
+<tr><th>טריגר</th><td><code>POST /api/live-games/:id/notify-start → 39147-39150</code></td></tr>
+<tr><th>נמען</th><td>משתתפים</td></tr>
+<tr><th>שדות</th><td><code>sender_type=&#x27;system&#x27;, sender_name=&#x27;WEFLOWZ&#x27;, subject=`⏰ ${g.title} — המשחק עומד להתחיל!`</code></td></tr>
+</tbody></table></div>
+<pre class="sql">זהה ל-IN-23</pre>
+</section>
+<section class="proc" data-f="in-app inbox_messages passthrough broadcast"><h3>IB-07 · הודעות inbox עם תוכן מהמשתמש (אין טקסט קבוע מלבד ברירות מחדל)</h3>
+<div class="tbl-wrap"><table><thead><tr><th>נתיב (שורה)</th><th>sender_type / sender_name</th><th>subject ברירת מחדל</th><th>content</th></tr></thead><tbody>
+<tr><td><code>POST /api/store/oneflow-message (13894)</code></td><td><code>&#x27;business&#x27;, senderName</code></td><td>מהגוף</td><td>מהגוף; לכל לקוח WEFLOWZ של העסק</td></tr>
+<tr><td><code>POST /api/store/newsletter/broadcast (13955)</code></td><td><code>&#x27;business&#x27;</code></td><td>מהגוף</td><td>מהגוף + שמירה ב-sent_newsletters</td></tr>
+<tr><td><code>POST /api/zone-manager/inbox/new (20267)</code></td><td><code>&#x27;zone_manager&#x27;, zm name</code></td><td><code>&#x27;הודעה ממנהל האזור&#x27;</code></td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/zone-manager/inbox/broadcast (20307)</code></td><td><code>&#x27;zone_manager&#x27;</code></td><td><code>&#x27;הודעה ממנהל האזור&#x27;</code></td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/zone-manager/inbox/:threadId/reply (20339)</code></td><td><code>&#x27;zone_manager&#x27;</code></td><td><code>&#x27;תגובה: &#x27; + subject</code></td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/inbox/customer (23215)</code></td><td>customer</td><td>מהגוף</td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/inbox/:bizGroupId/reply/:customerGroupId (23232)</code></td><td>business</td><td>מהגוף</td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/sa/inbox/broadcast (23291)</code></td><td><code>&#x27;superadmin&#x27;, &#x27;מערכת&#x27;, &#x27;admin@weflowz.co.il&#x27;</code></td><td>מהגוף</td><td>מהגוף; לפי סינון</td></tr>
+<tr><td><code>POST /api/sport/oneflow-broadcast (30718)</code></td><td><code>&#x27;business&#x27;, senderName||biz||&#x27;מועדון ספורט&#x27;</code></td><td><code>&#x27;הודעה מהמועדון&#x27;</code></td><td>מהגוף; לחברי מנוי active/frozen לפי התאמת טלפון</td></tr>
+<tr><td><code>POST /api/sport/oneflow-member-message (30735)</code></td><td><code>&#x27;business&#x27;</code></td><td><code>&#x27;הודעה מהמועדון&#x27;</code></td><td>מהגוף</td></tr>
+<tr><td><code>POST /api/sport/inbox-member-message (30748)</code></td><td><code>&#x27;customer&#x27;, memberName||&#x27;חבר&#x27;</code></td><td><code>&#x27;הודעה מחבר&#x27;</code></td><td>מהגוף</td></tr>
+</tbody></table></div></section>
+<h2 class="grp">התראות בתוך המערכת · הודעות מערכת בצ&#x27;אטים ויומנים</h2>
+<section class="proc" data-f="in-app flow pool messages system community"><h3>CH-01 · פולים קהילתיים: הודעות מערכת (flow_pool_messages)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td><code>flow_pool_messages sender_type=&#x27;system&#x27;</code></td></tr>
+<tr><th>נמען</th><td>כל חברי הפול (צ'אט הפול)</td></tr>
+</tbody></table></div>
+<pre class="sql">POST /api/community/pool (34003):              `פול חדש נפתח: ${title}`
+POST /api/community/pool/:id/join (34076):     &#x27;משפחה חדשה הצטרפה לפול&#x27;
+POST /api/community/pool/:id/bid (34106):      `הצעה חדשה התקבלה`
+POST /api/community/pool/:id/select-bid (34148): &#x27;הפול נסגר ללא בחירת הצעה&#x27;
+POST /api/community/pool/:id/select-bid (34156): &#x27;הצעה נבחרה — הפול נסגר בהצלחה!&#x27;
+POST /api/community/pool/:id/open-round2 (34175): &#x27;הפול נפתח לעסקים מחוץ לקהילה&#x27;
+POST /api/community/pool/:id/archive (34199):  &#x27;הפול הועבר לארכיב&#x27;
+POST /api/community/pool/:id/renew (34219):    `תוקף הפול חודש עד ${newExpiry.toLocaleDateString(&#x27;he-IL&#x27;)}`
+POST /api/community/pool/:id/edit (34236):     &#x27;הפול עודכן על ידי היוזם&#x27;
+POST /api/community/pool/:id/restore (34257):  &#x27;הפול הוחזר לפעילות&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app support ticket log internal chat sa"><h3>CH-02 · קריאות תמיכה: הודעות מערכת ב-log ובצ&#x27;אט הצוות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td><code>support_tickets.log</code> (גלוי ללקוח כש-isInternal=false) ו-<code>sa_internal_chat</code> (room general) דרך <code>postToInternalChat</code> (5103-5110)</td></tr>
+</tbody></table></div>
+<pre class="sql">// POST /api/superadmin/tickets (5112) – log ללקוח (5119)
+`📋 קריאת שירות נפתחה עבורך על ידי צוות התמיכה בנושא: &quot;${subject}&quot;. נחזור אליך בהקדם.`
+// log פנימי (5120)
+`[SYSTEM_AUDIT] קריאה יזומה נפתחה ושויכה ללקוח (group_id: ${group_id})`
+// sa_internal_chat (5130)
+`🎫 קריאה יזומה #${ticketId} נפתחה: &quot;${subject}&quot; — שויכה ללקוח. טיפול נדרש.`
+// PUT /api/sa/dev/tasks/:id/status (23777) → sa_internal_chat (23800) + appendTicketAuditLog
+`🔄 קריאה #${t.original_ticket_id} — &quot;${t.title}&quot;: ${label}`
+`סטטוס משימת הטיפול עודכן: ${label}`
+// label: backlog &#x27;הועבר לבנק משימות&#x27;, in_progress &#x27;🔧 הקריאה נכנסה לפיתוח פעיל&#x27;, qa &#x27;🔬 הקריאה הועברה לבדיקות QA&#x27;, done &#x27;✅ הפיתוח הושלם — שוחרר לאוויר&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app service call messages quote"><h3>CH-03 · הצעת מחיר כהודעה בקריאת שירות</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>ערוץ</th><td><code>service_call_messages sender_type=&#x27;business&#x27;, sender_name=&#x27;הצעת מחיר&#x27;</code></td></tr>
+<tr><th>טריגר</th><td><code>POST /api/store/customers/:id/send-quote (15255) → 15269/15279</code></td></tr>
+<tr><th>תוכן</th><td><code>quoteText</code> מהגוף</td></tr>
+</tbody></table></div>
+</section>
+<section class="proc" data-f="in-app feed welcome transaction signup"><h3>CH-04 · פריט פתיחה בפיד (transactions)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>POST /api/groups</code> (10169-10173)</td></tr>
+<tr><th>ערוץ</th><td>שורת <code>transactions</code> בסכום 0, category=system</td></tr>
+</tbody></table></div>
+<pre class="sql">req.body.type === &#x27;BUSINESS&#x27; ? &#x27;סביבת עבודה נפתחה בהצלחה! 🎉&#x27; : &#x27;הבנק המשפחתי נפתח בהצלחה! 🎉&#x27;</pre>
+</section>
+<section class="proc" data-f="in-app beauty retention group_notifications cron"><h3>CH-05 · התראת שימור לקוחות יופי (group_notifications)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td><code>runRetentionCron</code> (32631), כל 24 שעות, החל מ-8 דקות אחרי עליית השרת (32675)</td></tr>
+<tr><th>נמען</th><td>business_group_id</td></tr>
+</tbody></table></div>
+<pre class="sql">title: `לקוח/ה ${client.client_name} לא ביקר/ה זמן מה`
+body:  `ממוצע ביקור כל ${Math.round(client.avg_visit_interval_days)} יום — כדאי ליצור קשר`</pre>
+<p class="note">⚠️ הטבלה <code>group_notifications</code> לא נוצרת בשום מקום בקוד (אין CREATE TABLE), וההערה בקוד אומרת "table may not exist, skip silently" (32664). ההתראה לא נשמרת ולא מוצגת.</p>
+</section>
+<section class="proc" data-f="in-app community notifications like comment group"><h3>CH-06 · התראות קהילה (community_notifications)</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>טריגר</th><td>like (36247), comment (36290), יצירת קבוצה (36496)</td></tr>
+<tr><th>תוכן</th><td>נשמר רק <code>action_type</code> (<code>&#x27;like&#x27;/&#x27;comment&#x27;</code>…). הטקסט המוצג נבנה בלקוח ולא נשמר בשרת</td></tr>
+</tbody></table></div>
+</section>
+<section class="proc" data-f="in-app activity log audit"><h3>CH-07 · activity_log / logActivity</h3>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>קובץ</th><td><code>server.js:4129-4136</code></td></tr>
+<tr><th>תוכן</th><td><code>description</code> מהקורא; user_name ברירת מחדל <code>&#x27;מערכת&#x27;</code>. יומן ביקורת, לא התראה ישירה למשתמש</td></tr>
+</tbody></table></div>
+</section>

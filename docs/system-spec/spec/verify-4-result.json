@@ -1,0 +1,17 @@
+[
+ {"id":46,"verdict":"CORRECT","evidence_lines":"18484-18489","correction":""},
+ {"id":47,"verdict":"CORRECT","evidence_lines":"19291-19296","correction":""},
+ {"id":48,"verdict":"CORRECT","evidence_lines":"19160-19172","correction":""},
+ {"id":49,"verdict":"CORRECT","evidence_lines":"3906-3936","correction":""},
+ {"id":50,"verdict":"CORRECT","evidence_lines":"36103-36129","correction":""},
+ {"id":51,"verdict":"CORRECT","evidence_lines":"40839-40856","correction":""},
+ {"id":52,"verdict":"CORRECT","evidence_lines":"44722-44750, 44770","correction":""},
+ {"id":53,"verdict":"CORRECT","evidence_lines":"public/kol-haam-app.js:1271-1275","correction":""},
+ {"id":54,"verdict":"CORRECT","evidence_lines":"46026-46043","correction":""},
+ {"id":55,"verdict":"CORRECT","evidence_lines":"40168-40178","correction":""},
+ {"id":56,"verdict":"CORRECT","evidence_lines":"2701-2713","correction":""},
+ {"id":57,"verdict":"CORRECT","evidence_lines":"31093-31112","correction":""},
+ {"id":58,"verdict":"PARTIAL","evidence_lines":"2683, 2686-2698","correction":"הכוונה נכונה (SELECT balance_flw/lifetime_flw לפי family_group_id של הכפול, UPDATE והוספה לארנק ילד בראשי, DELETE לארנק הכפול), אבל ה-UPDATE בשורות 2692-2696 כולל 'LIMIT 1', ו-PostgreSQL לא תומך ב-LIMIT בפקודת UPDATE. לכן זו שגיאת תחביר: כשלכפול יש ארנק ילדים, השאילתה זורקת שגיאה, הטרנזקציה עוברת ROLLBACK (2765) וכל המיזוג נכשל. ההוספה בפועל לא מתבצעת. בנוסף, ה-UPDATE מתבצע אחרי שהמשתמשים כבר הועברו לראשי (2683), ולכן תת-השאילתה group_id=primary כוללת גם את ילדי הכפול."},
+ {"id":59,"verdict":"CORRECT","evidence_lines":"6754-6767","correction":""},
+ {"id":60,"verdict":"CORRECT","evidence_lines":"31073-31090","correction":""}
+]

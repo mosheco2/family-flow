@@ -1,0 +1,722 @@
+[
+ {
+  "id": "KH-01",
+  "domain": "קול העם",
+  "area": "סכמה",
+  "category": "data-integrity",
+  "severity": "critical",
+  "title": "עמודות סטטוס VARCHAR(15) קצרות מהערכים PUBLISHED_GLOBAL ו-REVIEWED_ACTIONED",
+  "as_is": "content_items.status VARCHAR(15) בעוד 'PUBLISHED_GLOBAL' הוא 16 תווים (server.js:39295); content_reports.status VARCHAR(15) בעוד 'REVIEWED_ACTIONED' הוא 17 תווים (40790, נכתב ב-41441/41444). ב-DB חדש כל פרסום ארצי וכל טיפול בדיווח נכשלים ב-'value too long'.",
+  "proposal": "כל עמודות הסטטוס של קול העם VARCHAR(32) (או ENUM/lookup) — מיגרציה ALTER COLUMN TYPE. בדיקת יחידה: לכל ערך ב-CHECK, אורכו ≤ אורך העמודה.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39295",
+   "server.js:40790",
+   "server.js:41441",
+   "rules-kolhaam.html#אתחול טבלאות קול העם וזריעת קטגוריות ברירת מחדל"
+  ]
+ },
+ {
+  "id": "KH-02",
+  "domain": "קול העם",
+  "area": "סכמה",
+  "category": "data-integrity",
+  "severity": "high",
+  "title": "content_engagement_metrics: גרסת Phase 1 חסרה עמודות שהקוד משתמש בהן",
+  "as_is": "Phase 1 יוצר cem ללא dislikes_count/views_count/last_calculated_at (39370); CREATE IF NOT EXISTS ב-Phase 2 (40700) לא מוסיף אותן — ב-DB חדש DISLIKE, ספירת צפיות ו-cron הטרנדינג נכשלים.",
+  "proposal": "מנגנון מיגרציות ממוספרות (schema_migrations) במקום CREATE IF NOT EXISTS מפוזר ב-4 שלבים מושהים; cem מוגדרת פעם אחת עם כל העמודות + ALTER ADD COLUMN IF NOT EXISTS ל-DB קיימים. אתחול הטבלאות מסתיים לפני שהשרת מקבל בקשות.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39370",
+   "server.js:40700",
+   "server.js:40841",
+   "rules-kolhaam.html#חישוב ציון טרנדינג (cron)"
+  ]
+ },
+ {
+  "id": "KH-03",
+  "domain": "קול העם",
+  "area": "פרופיל כותב",
+  "category": "functional",
+  "severity": "high",
+  "title": "getOrCreateAuthorProfile מחזיר id אך נצרך כאובייקט — סדרות ו-my-profile שבורים",
+  "as_is": "הפונקציה מחזירה מספר (39401-39409) אך my-profile, POST /series ו-GET /series/my קוראים ap.id/ap.is_revoked (45736, 46091, 46108): יצירת סדרה נכשלת (NOT NULL), 'הסדרות שלי' ריקה, my-profile ריק.",
+  "proposal": "הפונקציה מחזירה את שורת author_profiles המלאה (RETURNING *); כל הקוראים משתמשים ב-profile.id. בדיקת אינטגרציה: יצירת סדרה ע\"י משפחה חדשה מצליחה ומופיעה ב-/series/my.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39401",
+   "server.js:45736",
+   "server.js:46091",
+   "server.js:46108",
+   "rules-kolhaam.html#יצירת/איתור פרופיל כותב (getOrCreateAuthorProfile)"
+  ]
+ },
+ {
+  "id": "KH-04",
+  "domain": "קול העם",
+  "area": "סכמה",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "שאילתות לעמודות/טבלאות שאינן קיימות במודול קול העם",
+  "as_is": "manager_zones.zone_id (41530, zm/queue, zm/reports); ap.community_id (45851 AI, leaderboard 45747); categories.icon (41772); csl.shared_at (44873); zone_manager_sessions (41097, 41428, 41457, 46160); content_item_tags/content_tags.slug (45068); author_profiles.status (seeds); reporter_group_id (45950).",
+  "proposal": "לתקן כל שאילתה לסכמה הקיימת: zone דרך communities.zone_id ↔ manager_zones.id; קהילת כותב = home_community_id; icon — להוסיף עמודה או להסיר; shares לפי created_at; reported_by_user_id. להוסיף בדיקת smoke שמריצה כל endpoint של קול העם מול DB ריק.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41530",
+   "server.js:45851",
+   "server.js:45747",
+   "server.js:41772",
+   "server.js:44873",
+   "server.js:45068",
+   "s1-erd.html#content_item_tags"
+  ]
+ },
+ {
+  "id": "KH-05",
+  "domain": "קול העם",
+  "area": "זריעות",
+  "category": "security",
+  "severity": "critical",
+  "title": "endpoints זריעה ותיקון מוגנים בסוד קבוע החשוף בלקוח",
+  "as_is": "seed-demo, seed-version-history, seed-*, fix-covers מוגנים ב-'SEED_DEMO_2026' (קבוע או ברירת מחדל ל-SEED_SECRET) שנשלח בגלוי מ-sa-app.js, ללא verifySA (39530, 41577). fix-covers דורס תמונות שער של תוכן אמיתי (45078-45120).",
+  "proposal": "כל endpoint זריעה דורש verifySA ופעיל רק כש-NODE_ENV!=='production' או דגל ENABLE_DEMO_SEEDS=true. fix-covers נוגע רק בפריטים is_sample_data=TRUE. הסוד הקבוע מוסר מהקוד והלקוח.",
+  "alternatives": [
+   "למחוק את endpoints הזריעה מקוד הייצור ולהעבירם לסקריפט CLI."
+  ],
+  "refs": [
+   "server.js:39530",
+   "server.js:41577",
+   "server.js:45078",
+   "sa-app.js:14353",
+   "rules-kolhaam.html#Endpoints של זריעה ותיקון"
+  ]
+ },
+ {
+  "id": "KH-06",
+  "domain": "קול העם",
+  "area": "היסטוריית גרסאות",
+  "category": "security",
+  "severity": "high",
+  "title": "היסטוריית גרסאות חשופה לכל אנונימי (handler כפול)",
+  "as_is": "שני handlers ל-GET /api/kol-haam/content/:id/versions; הראשון (39803) ללא אימות ומחזיר content_html של כל גרסה; השני עם בדיקת בעלות (46152) לא מופעל לעולם.",
+  "proposal": "handler יחיד: מותר לבעלים/שותף עריכה (verifyFamily), ל-ZM של אזור הקהילה ול-SA בלבד; אחרת 403. מחיקת ה-handler הראשון.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39803",
+   "server.js:46152",
+   "rules-kolhaam.html#היסטוריית גרסאות"
+  ]
+ },
+ {
+  "id": "KH-07",
+  "domain": "קול העם",
+  "area": "צפייה בפריט",
+  "category": "security",
+  "severity": "high",
+  "title": "פריט לא מפורסם/מוסגר נגיש לכל אחד לפי id",
+  "as_is": "GET /content/:id ציבורי ללא סינון סטטוס/הסגר (39475-39510); ניווט סדרה ו-series/:id כוללים פרקים בכל סטטוס; react/save לא בודקים שהפריט מפורסם (40873, 40912).",
+  "proposal": "ציבור רואה רק PUBLISHED_LOCAL/GLOBAL שאינם מוסגרים; טיוטה/ממתין/נדחה/מוסגר — רק לבעלים, ZM של האזור ו-SA (אחרת 404). ניווט וספירת סדרה רק על מפורסמים. ריאקציה/שמירה/שיתוף/תגובה רק לפריט מפורסם.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39475",
+   "server.js:40873",
+   "server.js:40912",
+   "rules-kolhaam.html#צפייה בפריט בודד",
+   "rules-kolhaam.html#סדרות ופרקים"
+  ]
+ },
+ {
+  "id": "KH-08",
+  "domain": "קול העם",
+  "area": "זהות לא מאומתת",
+  "category": "security",
+  "severity": "high",
+  "title": "endpoints שמקבלים groupId/userId מה-URL או מהגוף ללא אימות",
+  "as_is": "follow (44996), my-following-feed (45598), my-collections, collections/:id?groupId (46176+), user-state (41752), view (40967), my-profile (45724), userLiked בתגובות (41013) — זהות מ-query/body; kol-haam-author-app.js שולח groupId:'' → follow תמיד 400.",
+  "proposal": "כל endpoint תלוי-משתמש דורש verifyFamily וזהות מ-req.familyAuth (groupId/userId); פרמטרי זהות מה-URL מתעלמים. view ללא סשן נספר אנונימית לפי hash IP+UA (dedup 30 דק'). לקוח kol-haam-author משתמש ב-khFetch עם הטוקן.",
+  "alternatives": [],
+  "refs": [
+   "server.js:44996",
+   "server.js:45598",
+   "server.js:41752",
+   "server.js:40967",
+   "server.js:45724",
+   "kol-haam-author-app.js:125",
+   "rules-kolhaam.html#כניסה לאפליקציית קול העם (FAMILY) והקשר משתמש"
+  ]
+ },
+ {
+  "id": "KH-09",
+  "domain": "קול העם",
+  "area": "אימות ZM/SA",
+  "category": "security",
+  "severity": "high",
+  "title": "פעולות מודרציה בודקות טבלת zone_manager_sessions שאינה קיימת",
+  "as_is": "הסתרת תגובה (41084), resolve (41420), un-quarantine (41451) משווים את Authorization הגולמי ל-sa_sessions ואחר כך ל-zone_manager_sessions שאינה נוצרת; הלקוח שולח 'Bearer …' ל-ZM — ZM לעולם לא מורשה; אין הגבלת אזור.",
+  "proposal": "middleware משותף verifySAorZM: verifySA, או verifyZoneManager (אחרי תיקון COM-02) + בדיקה שהפריט/התגובה בקהילה שבאזור המנהל. כל פעולה נרשמת ב-sa_audit_log עם actor_type.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41084",
+   "server.js:41420",
+   "server.js:41451",
+   "server.js:6498",
+   "rules-kolhaam.html#הסתרת תגובה והשבתת תגובות",
+   "rules-kolhaam.html#תורי דיווחים, טיפול ושחרור מהסגר"
+  ]
+ },
+ {
+  "id": "KH-10",
+  "domain": "קול העם",
+  "area": "סניטציה",
+  "category": "security",
+  "severity": "high",
+  "title": "HTML לא מסונן מוזרק ללקוח (זריעות עוקפות sanitizer)",
+  "as_is": "sanitizeKHHtml רץ רק ביצירה/עדכון דרך העורך (39842, 39881); זריעות כותבות ישירות ל-DB כולל onerror (41257); הלקוח מזריק content_html גולמי (kol-haam-app.js:516). הסנטייזר גם זורק figure/figcaption/h1 שהזריעות משתמשות בהן.",
+  "proposal": "סניטציה גם בפלט (לפני החזרת content_html ב-GET /content/:id) או ב-DOMPurify בלקוח לפני הזרקה. כל כתיבה (כולל seeds/SA) עוברת sanitizeKHHtml. ה-whitelist מורחב ל-figure, figcaption, h1 (ממופה ל-h2).",
+  "alternatives": [],
+  "refs": [
+   "server.js:9",
+   "server.js:39842",
+   "server.js:41257",
+   "kol-haam-app.js:516",
+   "rules-kolhaam.html#סניטציה של HTML בצד שרת (sanitizeKHHtml)"
+  ]
+ },
+ {
+  "id": "KH-11",
+  "domain": "קול העם",
+  "area": "עוזר AI",
+  "category": "security",
+  "severity": "medium",
+  "title": "עוזר הכתיבה AI זמין לכל משפחה על כל פריט",
+  "as_is": "POST /content/:id/ai-copilot (45836) לא בודק שהמבקש הוא הכותב/שותף; המכסה לפי משפחה בלבד.",
+  "proposal": "ai-copilot מותר רק לבעלים או לשותף עריכה של הפריט, ורק בסטטוס DRAFT/REJECTED; אחרת 403.",
+  "alternatives": [],
+  "refs": [
+   "server.js:45836",
+   "rules-kolhaam.html#עוזר כתיבה AI (Claude)"
+  ]
+ },
+ {
+  "id": "KH-12",
+  "domain": "קול העם",
+  "area": "מכונת מצבים",
+  "category": "functional",
+  "severity": "high",
+  "title": "פריט שנדחה (REJECTED) הוא מבוי סתום — אין הגשה מחדש",
+  "as_is": "PUT מאפשר עריכה של REJECTED (39879) אך submit מקבל רק DRAFT (39930); my-drafts מציג REJECTED עם כפתור מחיקה שהשרת דוחה (39918), ואינו מחזיר zm_rejection_note (39965).",
+  "proposal": "REJECTED → PENDING_ZM מותר לבעלים (submit מקבל DRAFT או REJECTED; מאפס zm_approval_status=PENDING, שומר את הערת הדחייה הקודמת בהיסטוריה). בעלים רשאי למחוק DRAFT ו-REJECTED. my-drafts מחזיר zm_rejection_note/sa_rejection_note.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39879",
+   "server.js:39930",
+   "server.js:39918",
+   "server.js:39965",
+   "rules-kolhaam.html#שליחת פריט לאישור",
+   "rules-kolhaam.html#מכונת המצבים של פריט תוכן"
+  ]
+ },
+ {
+  "id": "KH-13",
+  "domain": "קול העם",
+  "area": "מכונת מצבים",
+  "category": "functional",
+  "severity": "high",
+  "title": "דחיית ZM/SA ללא בדיקת סטטוס — SA reject 'מפרסם' טיוטה",
+  "as_is": "ZM reject (40099-40105) ו-SA reject (40145-40150) מעדכנים כל סטטוס; SA reject מגדיר status='PUBLISHED_LOCAL' — גם לטיוטה. SA approve מחזיר success גם על 0 שורות (40132).",
+  "proposal": "ZM reject רק מ-PENDING_ZM; SA approve/reject רק מ-PENDING_SA; אחרת 400 'סטטוס שגוי'. rowCount=0 → 409. כל מעבר נרשם ב-sa_audit_log עם prev/new status.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40099",
+   "server.js:40105",
+   "server.js:40132",
+   "server.js:40145",
+   "rules-kolhaam.html#מכונת המצבים של פריט תוכן"
+  ]
+ },
+ {
+  "id": "KH-14",
+  "domain": "קול העם",
+  "area": "ניהול תוכן SA",
+  "category": "functional",
+  "severity": "medium",
+  "title": "פעולות SA על סטטוס/קטגוריה לא עקביות עם scope_type ולא נרשמות ב-audit",
+  "as_is": "republish LOCAL→GLOBAL לא מעדכן scope_type ולא בודק קטגוריה (40358) בניגוד ל-upgrade (40157); bulk change-category לא מתאים scope_type (40438); unpublish דרך דיווח מוריד ל-DRAFT ללא audit (41443); מחיקה בודדת ואישור בקשת מחיקה ללא audit (40215, 40201).",
+  "proposal": "פונקציית מעבר יחידה transitionContent(id, to, actor) שאוכפת: GLOBAL דורש קטגוריה GLOBAL ומגדיר scope_type='GLOBAL'; קטגוריה LOCAL כופה scope LOCAL ומורידה PUBLISHED_GLOBAL ל-LOCAL; unpublish מכל מסלול = GLOBAL→LOCAL→DRAFT; כל מעבר ומחיקה נרשמים ב-audit.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40358",
+   "server.js:40157",
+   "server.js:40438",
+   "server.js:41443",
+   "server.js:40215",
+   "server.js:40201",
+   "rules-kolhaam.html#ניהול כל התוכן ע\"י SA (טאב \"תוכן\")"
+  ]
+ },
+ {
+  "id": "KH-15",
+  "domain": "קול העם",
+  "area": "תור ZM",
+  "category": "functional",
+  "severity": "high",
+  "title": "תור האישור והדיווחים של ZM תמיד ריק (באג manager_zones.zone_id)",
+  "as_is": "GET /zm/queue (41530) ו-/zm/reports (41372) שולפים manager_zones.zone_id שאינה קיימת → {success:false}; פאנל ZM מציג 'אין תוכן ממתין'. /zm/pending (40039) תקין.",
+  "proposal": "alias /zm/queue מוסר; הפאנל משתמש ב-/zm/pending. /zm/reports מסנן לפי communities.zone_id IN (SELECT id FROM manager_zones WHERE manager_id=$1).",
+  "alternatives": [],
+  "refs": [
+   "server.js:41530",
+   "server.js:41372",
+   "server.js:40039",
+   "zone-manager-app.js:2246",
+   "rules-kolhaam.html#תור אישור Zone Manager (אישור/דחייה מקומית)"
+  ]
+ },
+ {
+  "id": "KH-16",
+  "domain": "קול העם",
+  "area": "תורי אישור",
+  "category": "functional",
+  "severity": "high",
+  "title": "דחייה מפאנל ZM ומ-SA שולחת {reason} במקום {note} — תמיד 400",
+  "as_is": "zone-manager-app.js:2323 ו-sa-app.js:14701 שולחים reason, השרת דורש note (40099, 40145); ה-prompt בלקוח מציין 'אופציונלי' בעוד השרת מחייב.",
+  "proposal": "שם שדה אחיד note; הערת דחייה חובה (≥5 תווים) גם בלקוח (prompt חוזר עד שמולא). הלקוח מציג שגיאת שרת ולא מניח הצלחה.",
+  "alternatives": [],
+  "refs": [
+   "zone-manager-app.js:2323",
+   "sa-app.js:14701",
+   "server.js:40099",
+   "server.js:40145",
+   "rules-kolhaam.html#תור אישור ארצי (Super Admin)"
+  ]
+ },
+ {
+  "id": "KH-17",
+  "domain": "קול העם",
+  "area": "ממשקי ניהול",
+  "category": "scope",
+  "severity": "medium",
+  "title": "תצוגות ZM/SA בקול העם לא נגישות; רוב טאבי SA הם placeholder",
+  "as_is": "app.js:918 פותח את קול העם עם role='admin'|'member' בלבד — zm-queue/sa-queue/zm-reports, בחירת עורך, revoke, un-quarantine לא נגישים. KH_SA_TABS: רק approvals/content/categories ממומשים; reports/comments/authors/economy/settings/analytics '🚧 בפיתוח' (sa-app.js:14274); אין UI ל-kh_ai_copilot_daily_limit, pin, toggle-comments.",
+  "proposal": "כלי המודרציה עוברים לפאנלי הניהול הייעודיים: ZM — טאב 'קול העם' בפאנל ZM (תור, דיווחים, קטגוריות מקומיות); SA — טאבים reports, authors (revoke), editor picks, settings (מכסת AI). התצוגות zm-queue/sa-queue באפליקציית המשפחה מוסרות. טאבים ללא מימוש מוסתרים.",
+  "alternatives": [
+   "לפתוח את אפליקציית קול העם מפאנלי ZM/SA עם role=zm/sa וטוקן מתאים."
+  ],
+  "refs": [
+   "app.js:918",
+   "kol-haam-app.js:2592",
+   "sa-app.js:13726",
+   "sa-app.js:14274",
+   "rules-kolhaam.html#פאנל קול העם ב-Super Admin (KH_SA_TABS)"
+  ]
+ },
+ {
+  "id": "KH-18",
+  "domain": "קול העם",
+  "area": "עדכון טיוטה",
+  "category": "functional",
+  "severity": "medium",
+  "title": "PUT טיוטה: סוג לא מתעדכן, תמונה/סדרה לא ניתנות לניקוי, usage_count מתנפח",
+  "as_is": "contentType לא מתעדכן ב-PUT; coverImageUrl||קיים ו-seriesId||קיים מונעים ניקוי (39892-39896); כל שמירה (כולל autosave) מגדילה usage_count של כל התגיות (39898-39904).",
+  "proposal": "PUT מעדכן content_type (בתוך הערכים המותרים). מפתח שנשלח עם null/'' מנקה את השדה; מפתח שלא נשלח נשאר. usage_count = מספר פריטים מפורסמים עם התגית (מחושב/מתעדכן רק בהוספה/הסרה של קישור).",
+  "alternatives": [],
+  "refs": [
+   "server.js:39892",
+   "server.js:39898",
+   "rules-kolhaam.html#עדכון טיוטה ושמירת גרסה"
+  ]
+ },
+ {
+  "id": "KH-19",
+  "domain": "קול העם",
+  "area": "גרסאות",
+  "category": "data-integrity",
+  "severity": "low",
+  "title": "כל autosave יוצר שורת גרסה",
+  "as_is": "כל PUT (כולל autosave כל 30 שניות) מוסיף content_version_history (39885).",
+  "proposal": "גרסה נשמרת רק בשמירה ידנית/שליחה או כשעברו ≥10 דקות מהגרסה הקודמת; שמירת עד 50 גרסאות לפריט.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39885",
+   "kol-haam-app.js:977",
+   "rules-kolhaam.html#עדכון טיוטה ושמירת גרסה"
+  ]
+ },
+ {
+  "id": "KH-20",
+  "domain": "קול העם",
+  "area": "עורך",
+  "category": "ux",
+  "severity": "low",
+  "title": "autosave על פריט שנשלח נכשל בשקט; quickSummary בפורמט לא אחיד",
+  "as_is": "autosave על PENDING_ZM מקבל 400 ומציג 'לא נשמר' (kol-haam-app.js:977-1000); quickSummary נשמר כמחרוזת מהעורך ו-JSON array מהזריעות (507-515).",
+  "proposal": "העורך נפתח לקריאה בלבד כשהסטטוס אינו DRAFT/REJECTED (ללא autosave). quick_summary_20s נשמר תמיד כ-JSON array של שורות (העורך מפצל לפי שורה).",
+  "alternatives": [],
+  "refs": [
+   "kol-haam-app.js:977",
+   "kol-haam-app.js:507",
+   "rules-kolhaam.html#Autosave בעורך (לקוח)"
+  ]
+ },
+ {
+  "id": "KH-21",
+  "domain": "קול העם",
+  "area": "שותפי עריכה",
+  "category": "scope",
+  "severity": "low",
+  "title": "שותפי עריכה מוגבלים לאותה משפחה וללא UI",
+  "as_is": "POST collaborators (39939) מחייב users.group_id = קבוצת הבעלים (כך שהשותף ממילא בעלים) ומכניס NULL אם userId חסר; אין קריאה מהלקוח.",
+  "proposal": "להסיר את פיצ'ר השותפים (כל משתמשי המשפחה הם בעלים ממילא) ואת הטבלה draft_collaborators.",
+  "alternatives": [
+   "לאפשר שותף ממשפחה אחרת באותה קהילה לפי group_code, עם UI הזמנה."
+  ],
+  "refs": [
+   "server.js:39939",
+   "rules-kolhaam.html#שיתוף טיוטה עם בן משפחה (Collaborators)"
+  ]
+ },
+ {
+  "id": "KH-22",
+  "domain": "קול העם",
+  "area": "בקשות מחיקה",
+  "category": "functional",
+  "severity": "low",
+  "title": "בקשת מחיקה: אין שדה סיבה, אין audit, ה-UI מציג user id כסיבה",
+  "as_is": "request-deletion (40168) שומר רק deletion_requested_by; alias delete-requests מחזיר את ה-id כ-reason (41741); אישור לא בודק שהבקשה קיימת; ללא audit/התראה.",
+  "proposal": "request-deletion מקבל reason (חובה, ≤500); approve מותר רק כש-deletion_requested=TRUE; approve/reject נרשמים ב-audit ושולחים inbox_message לכותב.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40168",
+   "server.js:41741",
+   "server.js:40201",
+   "sa-app.js:13789",
+   "rules-kolhaam.html#בקשות מחיקה"
+  ]
+ },
+ {
+  "id": "KH-23",
+  "domain": "קול העם",
+  "area": "קטגוריות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "ניהול קטגוריות: שני APIs ב-SA, עמודת icon חסרה, מושבתת נעלמת",
+  "as_is": "POST /sa/categories כותב ל-icon שאינה קיימת (41772); GET מחזיר רק is_active=TRUE ולכן קטגוריה מושבתת לא ניתנת להפעלה מחדש; מחיקת קטגוריה מקומית עם טיוטות נכשלת ב-FK (40031).",
+  "proposal": "API יחיד /sa/categories (GET כולל מושבתות עם include_inactive=1, POST, PUT, DELETE=soft). להוסיף עמודת icon (ברירת מחדל '📌'). מחיקת קטגוריה מקומית: אם יש פריטים — soft-delete (is_active=false) במקום DELETE.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41772",
+   "server.js:40223",
+   "server.js:40031",
+   "sa-app.js:14716",
+   "rules-kolhaam.html#קטגוריות ארציות (SA)",
+   "rules-kolhaam.html#קטגוריות מקומיות (ZM)"
+  ]
+ },
+ {
+  "id": "KH-24",
+  "domain": "קול העם",
+  "area": "זריעת קטגוריות",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "זריעת קטגוריות לקהילת SA חדשה בוחרת 'הקהילה האחרונה' (race)",
+  "as_is": "patchCommunityCreation (40637-40663) מריץ SELECT id ORDER BY id DESC LIMIT 1 אחרי יצירה — שתי יצירות מקבילות יזרעו לקהילה הלא נכונה; _origSACommCreate לא בשימוש (39427).",
+  "proposal": "זריעת קטגוריות LOCAL ברירת מחדל מתבצעת בתוך handler היצירה עם ה-id מ-RETURNING id (באותה טרנזקציה), לשני מסלולי היצירה; ה-hook העוטף נמחק.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40637",
+   "server.js:40652",
+   "server.js:39427",
+   "rules-kolhaam.html#אתחול טבלאות קול העם וזריעת קטגוריות ברירת מחדל"
+  ]
+ },
+ {
+  "id": "KH-25",
+  "domain": "קול העם",
+  "area": "מדדי צפייה",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "שני מוני צפיות; המוצג לא מתעדכן ומוני מעורבות לא מוחזרים",
+  "as_is": "view מגדיל cem.views_count (40967) בעוד הפיד/my-content/SA מציגים content_items.views_count שלא מתעדכן; GET /content/:id לא מצרף engagement_metrics — המונים בדף מתחילים ב-0.",
+  "proposal": "מקור אמת אחד: content_engagement_metrics (views, likes, dislikes, comments, saves, shares); content_items.views_count מוסר. כל endpoint שמציג פריט מצרף את cem.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40967",
+   "server.js:39475",
+   "server.js:39981",
+   "rules-kolhaam.html#רישום צפייה (dedup 30 דקות)"
+  ]
+ },
+ {
+  "id": "KH-26",
+  "domain": "קול העם",
+  "area": "טרנדינג",
+  "category": "functional",
+  "severity": "medium",
+  "title": "ציון טרנדינג: שיתופים ללא dedup ופריטים ישנים קופאים בציון",
+  "as_is": "share נספר בכל לחיצה (משקל 5, 40949); cron מחשב רק פריטים עד 90 יום — ישנים שומרים את הציון האחרון לנצח (40841); שגיאה עוצרת את כל הלולאה.",
+  "proposal": "שיתוף נספר פעם אחת למשתמש לפריט ל-24 שעות. פריט מעל 90 יום מקבל score=0 (או decay ממשיך). כל פריט מחושב ב-try נפרד; עדכון בבאצ'.",
+  "alternatives": [],
+  "refs": [
+   "server.js:40949",
+   "server.js:40829",
+   "server.js:40841",
+   "rules-kolhaam.html#חישוב ציון טרנדינג (cron)"
+  ]
+ },
+ {
+  "id": "KH-27",
+  "domain": "קול העם",
+  "area": "דיווחים",
+  "category": "security",
+  "severity": "high",
+  "title": "משתמש אחד יכול להסגיר פריט ב-5 לחיצות",
+  "as_is": "POST /report (41344) ללא dedup — report_count עולה בכל דיווח; ≥5 → is_quarantined. un-quarantine לא מאפס report_count — הדיווח הבא מסגיר שוב (41463).",
+  "proposal": "UNIQUE(reported_by_user_id, content_item_id/comment_id); report_count = מדווחים שונים בסטטוס PENDING. הסגר ב-5 מדווחים שונים (משפחות שונות). שחרור מהסגר מסמן את הדיווחים הקיימים REVIEWED_OK ומאפס את המונה.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41344",
+   "server.js:41355",
+   "server.js:41463",
+   "rules-kolhaam.html#דיווח על תוכן/תגובה והסגר אוטומטי"
+  ]
+ },
+ {
+  "id": "KH-28",
+  "domain": "קול העם",
+  "area": "תגובות",
+  "category": "functional",
+  "severity": "medium",
+  "title": "תגובות: comments_enabled לא נאכף, תג 'הנהלה' לעולם לא מופיע, מונה לא יורד",
+  "as_is": "POST תגובה לא בודק comments_enabled (41034); is_from_zm_or_sa נקבע לפי users.role ∈ ZM/SA שלא קיים למשתמשי משפחה (41050); הסתרה לא מורידה comments_count; עריכה (41066) ו-pin (41129) ללא UI; comment_mentions לא בשימוש.",
+  "proposal": "POST נחסם (403 'התגובות מושבתות') כש-comments_enabled=false. תגובת הנהלה נוצרת רק דרך נתיב ZM/SA (verifySAorZM) עם is_from_zm_or_sa=true. comments_count = תגובות לא מוסתרות. להוסיף UI לעריכה (15 דק') ולהצמדה או להסיר את הנתיבים; להסיר comment_mentions.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41034",
+   "server.js:41050",
+   "server.js:41066",
+   "server.js:41129",
+   "rules-kolhaam.html#קריאה והוספת תגובות (עץ עד עומק 3)"
+  ]
+ },
+ {
+  "id": "KH-29",
+  "domain": "קול העם",
+  "area": "פתרון לשאלה",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "סימון פתרון לתגובה מפריט אחר והצבעה על כל תגובה",
+  "as_is": "mark-solution (41153-41168) לא בודק שהתגובה שייכת לפריט; upvote-solution (41174) מותר גם על תגובה שאינה מסומנת; כפתור 'סמן כפתרון' מוצג לכל צופה.",
+  "proposal": "mark-solution מחייב content_comments.content_item_id = :id (אחרת 404). upvote מותר רק על תגובה is_solution_marked=TRUE. הכפתור מוצג רק לכותב השאלה.",
+  "alternatives": [],
+  "refs": [
+   "server.js:41153",
+   "server.js:41174",
+   "kol-haam-app.js:613",
+   "rules-kolhaam.html#סימון פתרון לשאלה והצבעה"
+  ]
+ },
+ {
+  "id": "KH-30",
+  "domain": "קול העם",
+  "area": "סריקת HTML",
+  "category": "functional",
+  "severity": "low",
+  "title": "סריקת HTML: רשימה לבנה קבועה ודפוס handler רחב מדי",
+  "as_is": "פריט ב-kh_scan_whitelist לא נסרק שוב גם אחרי עריכה (40512); /\\bon[a-z]{2,}\\s*=/ תופס טקסט רגיל ('onion=').",
+  "proposal": "whitelist נשמר עם hash של content_html; שינוי תוכן מבטל את הסימון. דפוס handler נבדק רק בתוך תגית (<[^>]*\\son[a-z]+\\s*=).",
+  "alternatives": [],
+  "refs": [
+   "server.js:40512",
+   "server.js:40466",
+   "rules-kolhaam.html#סריקת HTML מסוכן, ניקוי וסימון כבטוח (SA)"
+  ]
+ },
+ {
+  "id": "KH-31",
+  "domain": "קול העם",
+  "area": "הישגים",
+  "category": "money",
+  "severity": "medium",
+  "title": "הישגים חוזרים מעניקים FLOW כפול; FIRST_PUBLISH רק בפרסום מקומי",
+  "as_is": "checkAndAwardAchievements מעניק FLOW גם כש-INSERT author_achievements נכשל ב-ON CONFLICT (44763); FIRST_PUBLISH מוענק רק באישור ZM של LOCAL (40085), לא בפרסום ארצי.",
+  "proposal": "FLOW מוענק רק אם ה-INSERT החזיר שורה (RETURNING), ובאותה טרנזקציה עם flow_wallets/flow_transactions/content_flow_rewards. FIRST_PUBLISH מוענק בפרסום הראשון של הכותב בכל היקף (LOCAL או GLOBAL).",
+  "alternatives": [],
+  "refs": [
+   "server.js:44753",
+   "server.js:44763",
+   "server.js:40085",
+   "server.js:44722",
+   "rules-kolhaam.html#הישגים ותגמולי FLOW"
+  ]
+ },
+ {
+  "id": "KH-32",
+  "domain": "קול העם",
+  "area": "Cron",
+  "category": "functional",
+  "severity": "medium",
+  "title": "Cron שבועי נכשל, 'חודשי' כל 20 יום, ותזמון תלוי באתחול השרת",
+  "as_is": "MOST_SHARED_WEEK בוחר csl.shared_at שאינה קיימת — כל ה-cron השבועי נכשל (44873); monthly כל 20 יום (44905); setInterval מתאפס בכל restart — ייתכן שלא ירוץ לעולם; חלון 7–8 ימים ב-cron היומי תלוי בשעת עלייה (44790).",
+  "proposal": "תזמון לפי שעון קיר עם רישום ריצה (טבלת cron_runs: job, period_key, ran_at; UNIQUE job+period_key): יומי 03:00, שבועי ראשון 03:00, חודשי ב-1 לחודש (Asia/Jerusalem). בכל עלייה — מריצים תקופות שהוחמצו. השאילתה מתוקנת ל-created_at.",
+  "alternatives": [],
+  "refs": [
+   "server.js:44873",
+   "server.js:44885",
+   "server.js:44905",
+   "server.js:44790",
+   "rules-kolhaam.html#Cron שבועי וחודשי: כתבת השבוע/החודש והכי משותפת"
+  ]
+ },
+ {
+  "id": "KH-33",
+  "domain": "קול העם",
+  "area": "תגים ורצפים",
+  "category": "functional",
+  "severity": "low",
+  "title": "רצפי מובילים לא מתאפסים ו-LEGACY לא חוזר למוביל",
+  "as_is": "local/global_streak גדלים ולא מתאפסים (רק ב-revoke) (44801-44824); LOCAL_LEADER דורש badge DEFAULT כך ש-LEGACY לא חוזר (44827).",
+  "proposal": "רצף = מספר פריטים רצופים שעברו את הסף; פריט שלא עבר את הסף מאפס את הרצף ל-0. LEGACY שמשיג שוב רצף 3 חוזר ל-LOCAL_LEADER/GLOBAL_LEADER (ללא הישג/FLOW חוזר).",
+  "alternatives": [],
+  "refs": [
+   "server.js:44801",
+   "server.js:44827",
+   "rules-kolhaam.html#Cron יומי: ציון שיא, רצפים, תגים, LEGACY ופקיעת הרחקה"
+  ]
+ },
+ {
+  "id": "KH-34",
+  "domain": "קול העם",
+  "area": "בחירות עורך",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "בחירות עורך: כפילויות, פריט לא מפורסם, עמודה שקיימת רק אחרי seed",
+  "as_is": "editor_picks ללא UNIQUE (ON CONFLICT חסר משמעות); POST לא בודק שהפריט מפורסם (45629); GET sa/editor-picks בוחר ap.display_name שקיימת רק אחרי seed-author-sample.",
+  "proposal": "UNIQUE(content_item_id) לבחירה פעילה; POST מותר רק לפריט מפורסם ולא מוסגר (אחרת 400). display_name מתווסף לסכמה הרשמית (או COALESCE לשם המשפחה).",
+  "alternatives": [],
+  "refs": [
+   "server.js:45629",
+   "server.js:45652",
+   "rules-kolhaam.html#בחירות עורך"
+  ]
+ },
+ {
+  "id": "KH-35",
+  "domain": "קול העם",
+  "area": "הרחקת כותב",
+  "category": "functional",
+  "severity": "medium",
+  "title": "הרחקת כותב לא חוסמת דבר והסיבה לא נשמרת",
+  "as_is": "revoke (45703) מאפס רצפים ומציג badge DEFAULT בלבד; reason מתקבל ולא נשמר; אינו חוסם פרסום/תגובות/עריכה; אין כפתור בלקוח.",
+  "proposal": "בזמן revoke: הכותב לא יכול לשלוח לאישור או להגיב (403 'חשבון הכותב מושעה עד DATE'); revoked_reason נשמר ומוצג לכותב; פעולה מפאנל SA עם audit.",
+  "alternatives": [
+   "revoke קוסמטי בלבד (מצב קיים) — לתעד ככזה."
+  ],
+  "refs": [
+   "server.js:45703",
+   "server.js:45716",
+   "kol-haam-app.js:1912",
+   "rules-kolhaam.html#הרחקת כותב (Revoke)"
+  ]
+ },
+ {
+  "id": "KH-36",
+  "domain": "קול העם",
+  "area": "פרופיל ולוח מובילים",
+  "category": "functional",
+  "severity": "low",
+  "title": "לוח מובילים לפי קהילה נופל; התקדמות הישגים טקסט קבוע",
+  "as_is": "leaderboard עם communityId משתמש ב-ap.community_id → 500 (45747); scope לא בשימוש; LOCKED_PROGRESS בלקוח קבוע (kol-haam-author-app.js:29-34).",
+  "proposal": "leaderboard מסנן לפי home_community_id כשנשלח, אחרת ארצי. התקדמות הישגים מחושבת בשרת (לדוגמה: streak נוכחי/3) ומוחזרת ב-GET /authors/:id.",
+  "alternatives": [],
+  "refs": [
+   "server.js:45747",
+   "kol-haam-author-app.js:29",
+   "rules-kolhaam.html#פרופיל כותב ציבורי, הפרופיל שלי ולוח מובילים"
+  ]
+ },
+ {
+  "id": "KH-37",
+  "domain": "קול העם",
+  "area": "אוספים",
+  "category": "data-integrity",
+  "severity": "medium",
+  "title": "עדכון אוסף מאפס slug, is_public ו-description",
+  "as_is": "PUT collection שולף רק owner_group_id, ולכן share_slug תמיד undefined: כל הפיכה לציבורי מייצרת slug חדש, שליחה בלי is_public מאפסת slug ו-is_public ל-NULL, ו-description מתאפס (46261-46273).",
+  "proposal": "עדכון חלקי: רק שדות שנשלחו. slug נוצר פעם אחת בהפיכה הראשונה לציבורי ונשמר גם כשהאוסף הופך פרטי (הקישור מחזיר 404 כל עוד is_public=false).",
+  "alternatives": [],
+  "refs": [
+   "server.js:46261",
+   "server.js:46266",
+   "rules-kolhaam.html#אוספים אישיים"
+  ]
+ },
+ {
+  "id": "KH-38",
+  "domain": "קול העם",
+  "area": "חיפוש",
+  "category": "architecture",
+  "severity": "low",
+  "title": "חיפוש ILIKE עם % מוביל לא מנצל אינדקסי trigram ואין total",
+  "as_is": "/search (45981) משתמש ב-ILIKE '%q%' על כותרת/תת-כותרת/משפחה/תגית; אינדקסי GIN pg_trgm נוצרים ולא מנוצלים; total אינו ספירה אמיתית.",
+  "proposal": "חיפוש בכותרת/תת-כותרת עם אופרטור % של pg_trgm (או ILIKE עם gin_trgm_ops — לוודא EXPLAIN משתמש באינדקס), מיון לפי similarity ואז trending; total מ-COUNT(*) OVER().",
+  "alternatives": [],
+  "refs": [
+   "server.js:45981",
+   "server.js:45777",
+   "rules-kolhaam.html#חיפוש גלובלי"
+  ]
+ },
+ {
+  "id": "KH-39",
+  "domain": "קול העם",
+  "area": "פיד",
+  "category": "functional",
+  "severity": "low",
+  "title": "הצמדות ו-hero: שדות שלא נכתבים ותצוגה שאינה תואמת",
+  "as_is": "is_pinned_local/global ו-pinned_until אינם נכתבים בשום endpoint; ה-Hero בלקוח הוא הפריט הראשון של /feed ולא hero של /feed/trending (kol-haam-app.js:242); limit מהלקוח מתעלם (קבוע 20).",
+  "proposal": "הצמדה = editor_picks עם pinned_until (מקור יחיד); עמודות is_pinned_* מוסרות. ה-Hero בלקוח לקוח מ-/feed/trending.hero, עם fallback לפריט הראשון. limit מתקבל בטווח 1–50.",
+  "alternatives": [],
+  "refs": [
+   "server.js:39431",
+   "server.js:41471",
+   "kol-haam-app.js:242",
+   "rules-kolhaam.html#פיד ראשי, רצועת טרנדינג ותגובות חמות"
+  ]
+ },
+ {
+  "id": "KH-40",
+  "domain": "קול העם",
+  "area": "שיתוף",
+  "category": "ux",
+  "severity": "low",
+  "title": "קישור שיתוף view=content פותח את הפיד ולא את הפריט",
+  "as_is": "KH.share בונה /kol-haam?view=content&id= (kol-haam-app.js:572) אך init מטפל רק ב-tag/search/editDraft (2615-2653).",
+  "proposal": "init מטפל ב-view=content&id → KH.loadContent(id); פריט שאינו ציבורי מציג 'הפריט אינו זמין'.",
+  "alternatives": [],
+  "refs": [
+   "kol-haam-app.js:572",
+   "kol-haam-app.js:2615",
+   "rules-kolhaam.html#שיתוף"
+  ]
+ },
+ {
+  "id": "KH-41",
+  "domain": "קול העם",
+  "area": "עוזר AI",
+  "category": "functional",
+  "severity": "high",
+  "title": "עוזר הכתיבה AI שבור: 500 לפני הקריאה וכפתורי 'החל' לא פועלים",
+  "as_is": "השאילתה בוחרת ap.community_id שאינה קיימת → כל קריאה 500 (45851); הדיווח האוטומטי כותב ל-reporter_group_id וסיבה SAFETY_AI_FLAG מחוץ ל-CHECK (45950); כפתורי 'החל' מחפשים kh-title/kh-content-editor בעוד העורך ed-title/rte-body (kol-haam-app.js:2193-2305); לקוח מציג 10 ביום, שרת 20.",
+  "proposal": "תיקון לשאילתת home_community_id; דגל safety נשמר כ-content_reports עם reason חדש 'AI_FLAG' (הרחבת CHECK) ו-reported_by_user_id=NULL; כפתורי 'החל' ממופים ל-ids של העורך; תווית המכסה נטענת מהשרת (quotaLimit).",
+  "alternatives": [
+   "להשבית את עוזר ה-AI עד לתיקון."
+  ],
+  "refs": [
+   "server.js:45851",
+   "server.js:45950",
+   "kol-haam-app.js:2193",
+   "server.js:43153",
+   "rules-kolhaam.html#עוזר כתיבה AI (Claude)"
+  ]
+ }
+]

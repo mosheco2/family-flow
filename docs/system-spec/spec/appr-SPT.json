@@ -1,0 +1,950 @@
+[
+{
+"id": "SPT-01",
+"domain": "ספורט / כושר",
+"area": "בקרת גישה",
+"category": "security",
+"severity": "critical",
+"title": "כל 87 נתיבי /api/sport/* ללא אימות וללא בדיקת בעלות",
+"as_is": "אף נתיב ספורט אינו עובר verifyBiz/verifyFamily (mw: [] לכל הנתיבים); groupId נלקח מה-body/params, ונתיבים לפי :id (חבר, שיעור, מאמן, תור, תשלום שכר) פועלים על כל רשומה בכל עסק (server.js:29223–30907). כל אחד יכול למחוק חברים/שיעורים/מאמנים ולסמן שכר כשולם.",
+"proposal": "כל נתיב ניהולי של ספורט עובר verifyBiz; groupId נגזר תמיד מ-req.bizAuth.groupId ולא מהקלט; בכל נתיב לפי :id השרת טוען את הרשומה ומחזיר 404 אם group_id שלה שונה מעסק הסשן. בדיקה: קריאה עם טוקן של עסק A למשאב של עסק B ⇒ 404; ללא טוקן ⇒ 401.",
+"refs": [
+"server.js:29223",
+"server.js:29263",
+"server.js:29481",
+"server.js:30560",
+"s1-rbac.html#BIZ — ספורט",
+"rules-sport.html#עקרונות רוחביים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-02",
+"domain": "ספורט / כושר",
+"area": "בקרת גישה",
+"category": "security",
+"severity": "critical",
+"title": "חשיפת פרטים אישיים לציבור: רשימת חברים וזיהוי משתמש לפי טלפון",
+"as_is": "GET /api/sport/members/:groupId מחזיר שמות וטלפונים ללא אימות ואף נקרא מהחנות הציבורית (storefront.html:4993); oneflow-identify מחזיר שם, משפחה ומנוי של כל משתמש לפי טלפון/כינוי (server.js:30328), ו-member-summary פתוח (ללא צרכן).",
+"proposal": "רשימות חברים זמינות רק בנתיב BIZ מאומת. החנות הציבורית מקבלת רק נתונים ציבוריים (סוגי מנוי, לוח שיעורים ללא שמות נרשמים). זיהוי עצמי של חבר נעשה רק מתוך טוקן לקוח חנות (sc-auth) ומחזיר רק את המנוי של בעל הטוקן; נתיבי identify/member-summary הציבוריים מוסרים.",
+"refs": [
+"server.js:29310",
+"storefront.html:4993",
+"server.js:30328",
+"rules-sport.html#אינטגרציית WEFLOWZ בחנות"
+],
+"alternatives": []
+},
+{
+"id": "SPT-03",
+"domain": "ספורט / כושר",
+"area": "הרשאות לפי תפקיד",
+"category": "security",
+"severity": "high",
+"title": "מטריצת הרשאות לתפקידי עסק ספורט (ADMIN/מנהל סניף/מדריך/קופאי)",
+"as_is": "התפקידים instructor/cashier/shift_manager/branch_manager לעסק ספורט משפיעים רק על טאבים בצד לקוח; דשבורד ספורט מוצג רק ל-ADMIN ולמנהל סניף (business-app.js:5628, 39856); בשרת אין שום הבחנה.",
+"proposal": "בשרת: ADMIN ו-branch_manager — הכל; instructor — לוח שיעורים, רישום ונוכחות, צ'ק-אין, קריאת חברים; cashier/reception — צ'ק-אין, הוספת חבר, רישום תשלום, חידוש; רק ADMIN — מחיקת חבר/שיעור/מאמן, הגדרות שכר, סימון שכר כשולם, שידור הודעות. תפקיד לא מורשה ⇒ 403.",
+"alternatives": [
+"להשאיר בשלב ראשון ADMIN בלבד לכל פעולות הכתיבה ולהרחיב לפי דרישה"
+],
+"refs": [
+"business-app.js:5628",
+"business-app.js:39856",
+"s1-rbac.html#תפקיד מקצועי"
+]
+},
+{
+"id": "SPT-04",
+"domain": "ספורט / כושר",
+"area": "בקרת גישה",
+"category": "security",
+"severity": "high",
+"title": "נתיבי הודעות ויומן WEFLOWZ פתוחים: שידור לכל החברים והוספת אירוע ליומן כל משפחה",
+"as_is": "oneflow-broadcast, oneflow-member-message, inbox-member-message ו-oneflow-sync-calendar מקבלים groupId/familyGroupId מהקלט ללא אימות וללא הגבלת קצב (server.js:30328–30426, 30718–30748); sync מוסיף calendar_events לכל משפחה ללא בדיקת רישום.",
+"proposal": "שידור והודעה לחבר — verifyBiz (ADMIN) עם הגבלה של 5 שידורים ליום לעסק; הודעה מחבר לעסק — רק מטוקן משפחה/לקוח חנות, sender נגזר מהסשן; סנכרון ליומן — רק למשפחת הסשן ורק לשיעור שהחבר רשום אליו.",
+"refs": [
+"server.js:30718",
+"server.js:30735",
+"server.js:30748",
+"server.js:30380",
+"rules-sport.html#הודעות: שידור לחברים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-05",
+"domain": "ספורט / כושר",
+"area": "אזור אישי לחבר",
+"category": "security",
+"severity": "high",
+"title": "פעולות חבר מאפליקציית המשפחה עוקפות את העסק (הקפאה/הפשרה ישירות)",
+"as_is": "_memberFreeze/_memberUnfreeze באפליקציית המשפחה קוראים ישירות ל-POST /api/sport/members/:id/freeze|unfreeze עם body ריק (app.js:14127–14141), ללא אימות שהחבר הוא בעל המנוי.",
+"proposal": "נתיב ייעודי למשפחה (verifyFamily) שמאמת member_business_links פעיל עם linked_member_ref_id = id המנוי. בקשת הקפאה של חבר נכנסת כבקשה (freeze_requested) לאישור העסק, או מבוצעת אוטומטית רק אם עומדת בכללי freeze_policy (ראו SPT-23).",
+"alternatives": [
+"לאפשר הקפאה עצמית מיידית רק עד X ימים בשנה לפי הגדרת העסק, ומעבר לזה בקשה לאישור"
+],
+"refs": [
+"app.js:14127",
+"app.js:14135",
+"server.js:29404",
+"server.js:29427"
+]
+},
+{
+"id": "SPT-06",
+"domain": "ספורט / כושר",
+"area": "צ'ק-אין",
+"category": "security",
+"severity": "high",
+"title": "צ'ק-אין עצמי: זהות לפי טלפון מהקלט, והלקוח שבור (window._scAuth)",
+"as_is": "POST /self-checkin מקבל phone ו-groupId מהקלט ללא אימות (server.js:29534). בלקוח הטלפון נקרא מ-window._scAuth שאינו מוגדר (המודול חושף window.scAuth) ⇒ תמיד \"לא זוהה לקוח מחובר\"; groupId מ-window._scBizId/‏?store= שעשוי להיות כינוי (sc-auth.js:1067–1091).",
+"proposal": "self-checkin דורש Bearer של לקוח חנות; הטלפון והעסק נגזרים מהטוקן; הלקוח קורא ל-window.scAuth. כל שומרי הכניסה (סטטוס, תוקף, מכסה, הצהרה, פעם ביום) חלים.",
+"refs": [
+"server.js:29534",
+"sc-auth.js:1073",
+"rules-sport.html#צ'ק-אין עצמי לפי טלפון"
+],
+"alternatives": []
+},
+{
+"id": "SPT-07",
+"domain": "ספורט / כושר",
+"area": "חנות ציבורית",
+"category": "security",
+"severity": "medium",
+"title": "פעולות ציבוריות לפי טלפון בלבד (רישום, ביטול רישום, חתימת הצהרה)",
+"as_is": "public-class-register, DELETE public-class-register ו-public-sign-declaration מזהים מנוי לפי memberPhone מהקלט (server.js:30109, 30188, 30292) — כל אחד יכול לבטל רישום או לחתום בשם אחר; כשיש כמה מנויים לטלפון נבחר שרירותית (LIMIT 1 ללא מיון).",
+"proposal": "כל הפעולות הציבוריות על מנוי דורשות טוקן לקוח חנות; הטלפון נגזר מהטוקן; כשיש יותר ממנוי אחד הלקוח שולח membershipId והשרת מאמת שהוא שייך לטלפון ולעסק.",
+"refs": [
+"server.js:30109",
+"server.js:30188",
+"server.js:30292",
+"rules-sport.html#ביטול רישום ציבורי"
+],
+"alternatives": []
+},
+{
+"id": "SPT-08",
+"domain": "ספורט / כושר",
+"area": "בקרת גישה",
+"category": "security",
+"severity": "medium",
+"title": "אין gating בשרת לפי business_type/מודול",
+"as_is": "נתיבי ספורט פועלים לכל groupId, כולל עסק שאינו ספורט; ה-gating היחיד הוא בלקוח (business-app.js:5628).",
+"proposal": "כל נתיב /api/sport/* (BIZ וציבורי) מחזיר 403 אם family_groups.business_type של העסק אינו 'sport' (או שהמודול לא פעיל ברישוי).",
+"refs": [
+"business-app.js:5628",
+"rules-sport.html#עקרונות רוחביים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-09",
+"domain": "ספורט / כושר",
+"area": "יומן ביקורת",
+"category": "security",
+"severity": "medium",
+"title": "פעולות ספורט כמעט לא נרשמות ביומן הביקורת",
+"as_is": "ה-middleware הגלובלי רושם רק בקשות עם req.bizAuth (server.js:121–144), ולכן אף פעולת ספורט לא נרשמת; רישום ידני קיים רק ל-FREEZE/CANCEL/DELETE עם actor 'מערכת' (server.js:29404, 29458, 29481). הפשרה, חידוש, תשלום ושכר לא נרשמים.",
+"proposal": "אחרי הוספת verifyBiz, כל פעולת כתיבה נרשמת ב-biz_audit_log עם user_id האמיתי; פעולות מהותיות (הקפאה/הפשרה/ביטול/מחיקה/חידוש/תשלום/סימון שכר) נרשמות עם action ייעודי ופרטים (סכום, סיבה, ימים).",
+"refs": [
+"server.js:121",
+"server.js:4160",
+"server.js:29427",
+"rules-sport.html#הפשרת מנוי"
+],
+"alternatives": []
+},
+{
+"id": "SPT-10",
+"domain": "ספורט / כושר",
+"area": "עריכת חבר",
+"category": "data-integrity",
+"severity": "critical",
+"title": "עריכת חבר מאפסת שם, טלפון ואימייל",
+"as_is": "הלקוח שולח memberName/memberPhone/memberEmail (business-app.js:47254) והשרת קורא name/phone/email (server.js:29378) ⇒ כל שמירה כותבת member_name=NULL וטלפון/אימייל ריקים.",
+"proposal": "PUT /members/:id מקבל שמות שדות אחידים (name, phone, email) ומעדכן רק שדות שנשלחו (COALESCE / undefined ⇒ לא משתנה); שם ריק ⇒ 400. בדיקה: עריכת הערות בלבד לא משנה שם/טלפון.",
+"refs": [
+"business-app.js:47254",
+"server.js:29378",
+"rules-sport.html#עריכת פרטי חבר"
+],
+"alternatives": []
+},
+{
+"id": "SPT-11",
+"domain": "ספורט / כושר",
+"area": "סוגי מנויים",
+"category": "functional",
+"severity": "high",
+"title": "עריכת סוג מנוי נכשלת (עמודת updated_at לא קיימת)",
+"as_is": "PUT /membership-types/:id מעדכן updated_at=NOW() אך העמודה אינה בטבלה (server.js:1655–1666, 29285) ⇒ שגיאת SQL בכל עריכה. בנוסף duration_days נגזר רק מ-durationMap[type] ומתעלם מקלט.",
+"proposal": "להוסיף updated_at לטבלה; PUT מקבל duration_days מהקלט (ברירת מחדל לפי durationMap: monthly 30, yearly 365, day_pass 1, punch_card/pt_sessions NULL) ומאמת שם לא ריק ומחיר ≥ 0.",
+"refs": [
+"server.js:29281",
+"server.js:1655",
+"s1-erd.html#עמודות שהקוד משתמש בהן"
+],
+"alternatives": []
+},
+{
+"id": "SPT-12",
+"domain": "ספורט / כושר",
+"area": "סוגי מנויים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "סוגי מנוי: אין שליטה בפעיל/ציבורי, מחיקה פיזית, והרכישה לא בודקת",
+"as_is": "POST תמיד is_active=true,is_public=true ואין UI/נתיב לשנותם (server.js:29263); DELETE פיזי מנתק מנויים קיימים (SET NULL, server.js:29274); public-membership-purchase לא בודק is_active/is_public (server.js:30080).",
+"proposal": "הוספת מתגים \"פעיל\" ו\"מוצג בחנות\" בקטלוג; \"מחיקה\" = is_active=false (מחיקה פיזית רק אם אין מנויים מקושרים); רכישה ציבורית מחזירה 404 לסוג לא פעיל/לא ציבורי.",
+"refs": [
+"server.js:29263",
+"server.js:29274",
+"server.js:30057",
+"server.js:30080"
+],
+"alternatives": []
+},
+{
+"id": "SPT-13",
+"domain": "ספורט / כושר",
+"area": "ויזארד הקמה",
+"category": "data-integrity",
+"severity": "medium",
+"title": "זריעת ספורט בויזארד: class_pack לא מוכר, ברירות שגויות ומחוץ לטרנזקציה",
+"as_is": "פרומפט ה-AI מציע class_pack (server.js:5264) שאינו במפות; כרטיסייה מקבלת 30 יום כברירת מחדל ומחיר 200 (server.js:5558–5559); ההוספות ב-pool.query בתוך פונקציה שפתחה טרנזקציה על client (server.js:5452, 5555).",
+"proposal": "רשימת סוגים סגורה (monthly, yearly, punch_card, day_pass, pt_sessions) בפרומפט ובוולידציה; class_pack ממופה ל-punch_card; duration ברירת מחדל לפי durationMap ולא 30 קבוע; כל הזריעה על אותו client בטרנזקציה.",
+"refs": [
+"server.js:5264",
+"server.js:5552",
+"server.js:5555"
+],
+"alternatives": []
+},
+{
+"id": "SPT-14",
+"domain": "ספורט / כושר",
+"area": "הגדרות חנות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "שמירת הגדרות חנות מסתירה את כפתורי החנות הציבוריים (ברירת מחדל הפוכה)",
+"as_is": "בחנות ערך חסר = מוצג (storefront-sport.html:1304–1306), אך ב-BIZ ערך חסר = תיבה לא מסומנת (business-app.js:45413), ולכן שמירה ראשונה בלי לגעת בתיבות שומרת false ומסתירה \"לוח שיעורים/הצטרף/אימון אישי\". בנוסף השרת מריץ ALTER TABLE בכל קריאה (server.js:29297).",
+"proposal": "ברירת מחדל אחידה true בשני הצדדים: ב-BIZ תיבה מסומנת כשהערך !== false. השמירה ממזגת (merge) את sport_settings ולא מחליפה. ה-ALTER עובר לאתחול הסכמה.",
+"refs": [
+"business-app.js:45413",
+"business-app.js:45556",
+"storefront-sport.html:1304",
+"server.js:29297"
+],
+"alternatives": []
+},
+{
+"id": "SPT-15",
+"domain": "ספורט / כושר",
+"area": "הגדרות ומדיניות",
+"category": "scope",
+"severity": "medium",
+"title": "מדיניות חנות שאינה נאכפת: ניסיון, גיל מינימום, הודעה מוקדמת לביטול, הקפאה",
+"as_is": "trial_enabled, min_age, cancel_notice_days, freeze_policy, cancellation_policy נשמרים ב-sport_settings אך אינם נאכפים בשום מקום (טקסט בלבד) (business-app.js:45556–45566).",
+"proposal": "לאכוף: min_age — רכישה ציבורית/הוספת חבר עם תאריך לידה מתחת לגיל ⇒ חסימה; freeze_policy כשדות מובנים (max_freezes_per_year, max_freeze_days) שנאכפים ב-freeze; trial_enabled — אפשרות מנוי ניסיון בחנות רק כשהדגל true. cancellation_policy ו-cancel_notice_days נשארים טקסט מוצג.",
+"alternatives": [
+"להגדיר את כל השדות כמידע טקסטואלי בלבד ולסמן זאת בממשק"
+],
+"refs": [
+"business-app.js:45556",
+"server.js:5579",
+"rules-sport.html#הגדרות ספורט בחנות"
+]
+},
+{
+"id": "SPT-16",
+"domain": "ספורט / כושר",
+"area": "מדיניות ביטול שיעורים",
+"category": "money",
+"severity": "high",
+"title": "מדיניות ביטול מאוחר לא נאכפת בפועל (חישוב זמן שבור) ודמי ביטול מתים",
+"as_is": "hoursUntilClass נבנה מ-`${class_date}T${start_time}:00` כש-class_date הוא Date ו-start_time \"HH:MM:SS\" ⇒ NaN ⇒ התנאי תמיד false, ב-BIZ ובציבורי (server.js:29997–29998, 30188). ברירת המחדל של GET (8 שעות) לא חלה כשאין שורה; late_cancel_fee נשמר ולא משמש; cancelled_at/cancel_type נכתבים לשורה שנמחקת מיד.",
+"proposal": "חישוב מועד השיעור כ-timestamp ב-Asia/Jerusalem מ-class_date ('YYYY-MM-DD') ו-start_time; כשאין שורת מדיניות חלה ברירת המחדל (enabled, 8 שעות, deduct_session). ביטול לא מוחק אלא מסמן cancelled_at/cancel_type (נספר בקיבולת רק cancelled_at IS NULL). late_cancel_fee > 0 ⇒ רישום חוב/תשלום, או הסרת השדה.",
+"alternatives": [
+"להסיר את late_cancel_fee לגמרי ולהשאיר רק deduct_session/block/none"
+],
+"refs": [
+"server.js:29935",
+"server.js:29987",
+"server.js:29997",
+"server.js:30188",
+"rules-sport.html#ביטול רישום לשיעור (BIZ) ואכיפת מדיניות"
+]
+},
+{
+"id": "SPT-17",
+"domain": "ספורט / כושר",
+"area": "הצהרת בריאות",
+"category": "functional",
+"severity": "high",
+"title": "אכיפת הצהרת בריאות: ממשק מבטיח חסימת רישום, השרת חוסם רק כניסה; קטינים לא נאכפים",
+"as_is": "require_for_registration נאכף רק בצ'ק-אין (server.js:29494–29497), בעוד הממשק כותב \"חסום רישום לשיעור ללא חתימה\" (business-app.js:47689). require_guardian_for_minors ו-minor_age_threshold לא נאכפים בשרת; חישוב קטין לפי שנים בלבד (business-app.js:47774).",
+"proposal": "כשהתבנית דורשת חתימה: רישום לשיעור (BIZ וציבורי) וצ'ק-אין נחסמים אם waiver_valid_until < היום. קטין (גיל לפי תאריך לידה מלא < minor_age_threshold) חייב פרטי אפוטרופוס בחתימה, והשרת דוחה חתימה בלעדיהם.",
+"alternatives": [
+"לחסום רק צ'ק-אין ולתקן את טקסט הממשק"
+],
+"refs": [
+"server.js:29493",
+"business-app.js:47689",
+"business-app.js:47774",
+"server.js:30274"
+]
+},
+{
+"id": "SPT-18",
+"domain": "ספורט / כושר",
+"area": "הצהרת בריאות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "שני מקורות טקסט להצהרה, חתימה בלחיצה, וחתימה ציבורית לפי טלפון",
+"as_is": "יש תבנית sport_waiver_templates וגם sport_settings.waiver_text (storefront-sport.html:2738 משתמש בשני); storefront-sport חותם רק כש-waiver_text קיים בעוד storefront.html בודק תבנית. \"חתימה\" היא לחיצה; ב-admin נשמר 'admin-confirmed'; public בוחר מנוי לפי טלפון ולא לפי membershipId ואינו שומר is_minor.",
+"proposal": "מקור יחיד: התבנית הפעילה (sport_settings.waiver_text מוסר/ממוגרר). חתימה = שם מלא מוקלד + תיבת אישור + חותמת זמן ו-IP (או ציור חתימה); public-sign מקבל membershipId שמאומת מול טוקן הלקוח, ושומר is_minor ופרטי אפוטרופוס.",
+"refs": [
+"server.js:30230",
+"server.js:30292",
+"storefront-sport.html:2738",
+"storefront-sport.html:2787",
+"rules-sport.html#חתימה על הצהרת בריאות"
+],
+"alternatives": []
+},
+{
+"id": "SPT-19",
+"domain": "ספורט / כושר",
+"area": "חברים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "אין מניעת כפילות חבר לפי טלפון",
+"as_is": "POST /members ו-public-membership-purchase יוצרים מנוי חדש גם כשקיים מנוי לאותו טלפון בעסק (server.js:29348, 30080).",
+"proposal": "טלפון מנורמל (0XXXXXXXXX) ייחודי לחבר בעסק: אם קיים חבר — ב-BIZ מוצגת אזהרה עם אפשרות \"חדש מנוי לחבר הקיים\"; ברכישה ציבורית המנוי מתווסף/מחודש לחבר הקיים במקום יצירת רשומה חדשה.",
+"alternatives": [
+"לאפשר כמה מנויים במקביל לאותו אדם (למשל חודשי + PT) אך לקשר לרשומת person אחת"
+],
+"refs": [
+"server.js:29348",
+"server.js:30080",
+"rules-sport.html#הוספת חבר חדש (BIZ)"
+]
+},
+{
+"id": "SPT-20",
+"domain": "ספורט / כושר",
+"area": "תאריכים ואזור זמן",
+"category": "architecture",
+"severity": "high",
+"title": "טיפול שבור בתאריכים: DATE כאובייקט JS, UTC מול זמן מקומי, חישוב ימים במילישניות",
+"as_is": "אין setTypeParser ⇒ class_date/end_date חוזרים כ-Date; end_date מחושב ב-ms (server.js:29358, 29408); לוח שבוע/חודש משווה c.class_date===dStr ו-ICS מייצר DTSTART לא תקין (business-app.js:48423, 49886); openClassReg ⇒ Invalid Date (storefront-sport.html:2666); getDay() בשיעורים חוזרים תלוי TZ (server.js:30027); תורים נשמרים פעם כזמן נאיבי ופעם כ-ISO UTC.",
+"proposal": "כלל אחד: עמודות DATE מוחזרות כמחרוזת 'YYYY-MM-DD' (pg setTypeParser 1082); כל חישוב קלנדרי (סיום מנוי, הקפאה, ימי שבוע, \"היום\") ב-Asia/Jerusalem ובימים קלנדריים; עמודות זמן נקודתי הן TIMESTAMPTZ והלקוח שולח ISO עם offset. בדיקה: מנוי חודשי שמתחיל 2026-03-28 מסתיים 2026-04-27 בלי תלות ב-DST/TZ השרת.",
+"refs": [
+"server.js:29358",
+"server.js:30027",
+"server.js:30120",
+"business-app.js:48423",
+"storefront-sport.html:2666",
+"rules-sport.html#לוח שיעורים ב-BIZ"
+],
+"alternatives": []
+},
+{
+"id": "SPT-21",
+"domain": "ספורט / כושר",
+"area": "מחזור חיים של מנוי",
+"category": "functional",
+"severity": "high",
+"title": "פקיעה, הפשרה ותפוגת המתנה רק בעת טעינת מסך (אין משימת רקע)",
+"as_is": "פקיעה/הפשרה מתבצעות רק ב-GET רשימת חברים ורק לשורות שתאמו לסינון (server.js:29328–29343); תפוגת pending בהמתנה רק ב-GET /waitlist-pending (server.js:29951); אין cron לספורט. צ'ק-אין לא בודק end_date (server.js:29507) ולכן מנוי שפג עובר.",
+"proposal": "משימת רקע יומית 00:05 Asia/Jerusalem: active עם end_date < היום ⇒ expired; frozen עם frozen_until < היום ⇒ active + הארכה. משימה כל 5 דקות לתפוגת pending בהמתנה וקידום. בנוסף כל בדיקת הרשאה (צ'ק-אין, רישום) מחשבת סטטוס אפקטיבי מ-end_date/sessions ולא סומכת על status בלבד.",
+"refs": [
+"server.js:29328",
+"server.js:29507",
+"server.js:29951",
+"rules-sport.html#משימות רקע ותזמון"
+],
+"alternatives": []
+},
+{
+"id": "SPT-22",
+"domain": "ספורט / כושר",
+"area": "הקפאה",
+"category": "ux",
+"severity": "medium",
+"title": "כפתור ההקפאה ברשימת החברים שבור (שגיאת תחביר ב-onclick)",
+"as_is": "בכל ארבע גרסאות כרטיס החבר ה-onclick של \"הקפאה\" מכיל } מיותר (')}\") ⇒ הכפתור לא עובד; הקפאה אפשרית רק מכרטיס החבר המפורט (business-app.js:44972, 46233, 47366, 48347).",
+"proposal": "כפתור הקפאה תקין בכרטיס ברשימה, מוצג רק לחבר active, ופותח את טופס ההקפאה (סיבה + ימים).",
+"refs": [
+"business-app.js:44972",
+"business-app.js:46233",
+"business-app.js:47366",
+"business-app.js:48347"
+],
+"alternatives": []
+},
+{
+"id": "SPT-23",
+"domain": "ספורט / כושר",
+"area": "הקפאה",
+"category": "functional",
+"severity": "medium",
+"title": "כללי הקפאה: ללא בדיקת מצב, ללא מגבלה, frozen_days_banked לא בשימוש",
+"as_is": "POST /freeze לא בודק שהמנוי קיים/active ואין מגבלת מספר הקפאות או אורך (server.js:29404); frozen_until ב-ms; ללא ימים — הקפאה ללא סוף; frozen_days_banked לא בשימוש.",
+"proposal": "הקפאה רק ממצב active (אחרת 409). ימים חובה, 1–max_freeze_days (ברירת מחדל 60); לכל היותר max_freezes_per_year (ברירת מחדל 2) לפי freeze_policy; frozen_days_banked מצטבר בהפשרה ומשמש לאכיפת תקרה שנתית.",
+"alternatives": [
+"לאפשר הקפאה ללא סוף רק ל-ADMIN"
+],
+"refs": [
+"server.js:29404",
+"server.js:29408",
+"rules-sport.html#הקפאת מנוי"
+]
+},
+{
+"id": "SPT-24",
+"domain": "ספורט / כושר",
+"area": "הפשרה",
+"category": "money",
+"severity": "medium",
+"title": "הפשרה ממצב שאינו frozen מחזירה מנוי בוטל/פג ל-active",
+"as_is": "POST /unfreeze בודק רק קיום רשומה ומעביר כל מצב ל-active (server.js:29427); אין audit.",
+"proposal": "הפשרה רק ממצב frozen (אחרת 409 \"המנוי אינו מוקפא\"); end_date מוארך בימי ההקפאה בפועל (ימים קלנדריים); נרשם UNFREEZE_MEMBER ב-audit.",
+"refs": [
+"server.js:29427",
+"server.js:29434",
+"rules-sport.html#הפשרת מנוי"
+],
+"alternatives": []
+},
+{
+"id": "SPT-25",
+"domain": "ספורט / כושר",
+"area": "התראות לחבר",
+"category": "functional",
+"severity": "medium",
+"title": "דה-דופליקציה לפי refKey קבוע חוסמת התראות חוזרות",
+"as_is": "refKey כמו mbiz_sport_{id}_frozen / _{status} / _cancelled קבוע (server.js:29386–29399, 29420, 29473) ו-_sendMemberBizNotif מסנן לפי (group_id, reference_key) ⇒ הקפאה/שינוי סטטוס שני לאותו מנוי לא מתריע לעולם (רק unfreeze כולל timestamp).",
+"proposal": "refKey כולל מזהה אירוע ייחודי (timestamp או audit id); דה-דופליקציה רק נגד שליחה כפולה של אותו אירוע תוך 60 שניות.",
+"refs": [
+"server.js:29386",
+"server.js:30937",
+"rules-sport.html#עריכת פרטי חבר"
+],
+"alternatives": []
+},
+{
+"id": "SPT-26",
+"domain": "ספורט / כושר",
+"area": "ביטול מנוי",
+"category": "money",
+"severity": "medium",
+"title": "ביטול מנוי: ללא החזר, רישומים עתידיים נשארים, נטישה לפי updated_at",
+"as_is": "POST /cancel רק מעדכן status ו-updated_at; הסיבה נשמרת רק ב-audit (server.js:29458); רישומים לשיעורים עתידיים נשארים; דוח נטישה סופר לפי חודש updated_at (server.js:29633).",
+"proposal": "ביטול שומר cancelled_at ו-cancel_reason בטבלה; מבטל רישומים ורשומות המתנה עתידיים (עם קידום המתנה); אופציה \"החזר כספי\" שיוצרת sport_payments שלילי + logBizExpense/הכנסה שלילית; נטישה נספרת לפי cancelled_at.",
+"alternatives": [
+"ביטול ללא החזר אך עם סיום בסוף התקופה ששולמה (status נשאר active עד end_date, auto_renew=false)"
+],
+"refs": [
+"server.js:29458",
+"server.js:29633",
+"rules-sport.html#ביטול מנוי"
+]
+},
+{
+"id": "SPT-27",
+"domain": "ספורט / כושר",
+"area": "מחיקת חבר",
+"category": "data-integrity",
+"severity": "medium",
+"title": "מחיקת חבר: הודעת האישור שקרית והיסטוריה כספית נשארת יתומה",
+"as_is": "ה-confirm אומר שגם כניסות ותשלומים יימחקו (business-app.js:45080), אך הם נשארים עם membership_id=NULL ונספרים בדוחות (FK SET NULL, server.js:1726, 1743).",
+"proposal": "חבר עם תשלומים/כניסות אינו נמחק פיזית: \"מחיקה\" = אנונימיזציה (שם/טלפון/ת\"ז/הערות בריאות נמחקים, status='deleted') והיסטוריה כספית נשמרת. מחיקה פיזית רק לחבר ללא היסטוריה. טקסט האישור משקף זאת.",
+"refs": [
+"business-app.js:45080",
+"server.js:29481",
+"server.js:1726"
+],
+"alternatives": []
+},
+{
+"id": "SPT-28",
+"domain": "ספורט / כושר",
+"area": "חידוש מנוי",
+"category": "data-integrity",
+"severity": "medium",
+"title": "חידוש דורס את המנוי הקודם (אין היסטוריה), frozen_until לא מאופס",
+"as_is": "POST /renew מעדכן את אותה רשומה (סוג, תאריכים, sessions_used=0) ואינו מאפס frozen_until; אין בדיקת שייכות סוג לעסק; אין התראה (server.js:29668–29676).",
+"proposal": "כל חידוש יוצר רשומת תקופה (sport_membership_periods: type_id, start, end, sessions_total, price, payment_id) והמנוי מצביע על התקופה הנוכחית; סוג חייב להיות של העסק; כל שדות frozen_* מאופסים; חידוש לפני סיום מתחיל ביום שאחרי end_date הנוכחי; התראה לחבר המקושר.",
+"refs": [
+"server.js:29668",
+"server.js:29676",
+"rules-sport.html#חידוש מנוי"
+],
+"alternatives": []
+},
+{
+"id": "SPT-29",
+"domain": "ספורט / כושר",
+"area": "כרטיס חבר",
+"category": "ux",
+"severity": "low",
+"title": "\"סה\"כ שילם\" מחושב מ-10 התשלומים האחרונים בלבד",
+"as_is": "member-detail מחזיר 10 תשלומים והלקוח מסכם אותם (business-app.js:47288).",
+"proposal": "השרת מחזיר total_paid = SUM של כל תשלומי החבר, והרשימה מוגבלת ל-10 עם \"הצג הכל\".",
+"refs": [
+"server.js:29651",
+"business-app.js:47288"
+],
+"alternatives": []
+},
+{
+"id": "SPT-30",
+"domain": "ספורט / כושר",
+"area": "כרטיס כניסה QR",
+"category": "functional",
+"severity": "medium",
+"title": "QR מוביל לנתיב לא קיים; נתיב qr-checkin ללא צרכן; הטוקן נשלח לצד שלישי",
+"as_is": "הלקוח מקודד {origin}/api/sport/qr-checkin-page?token=… שאינו קיים בשרת (404); POST /qr-checkin קיים ללא קורא (server.js:30629); התמונה נוצרת ב-api.qrserver.com עם הטוקן ב-URL (business-app.js:47131); sc-auth מצייר את הטוקן הגולמי.",
+"proposal": "QR מקודד את הטוקן בלבד ונוצר מקומית (ספריית QR בדפדפן). בעסק: מסך \"סריקת QR\" (מצלמה) שקורא ל-POST /qr-checkin עם verifyBiz ועם בדיקה שהטוקן שייך לעסק הסשן. ניתן לחדש טוקן (ביטול הקודם).",
+"alternatives": [
+"להסיר את תכונת ה-QR עד שיהיה סורק"
+],
+"refs": [
+"business-app.js:47131",
+"server.js:30629",
+"server.js:30648",
+"sc-auth.js:1061"
+]
+},
+{
+"id": "SPT-31",
+"domain": "ספורט / כושר",
+"area": "צ'ק-אין",
+"category": "ux",
+"severity": "low",
+"title": "אין יציאה אוטומטית בסוף יום — \"בפנים כרגע\" מתנפח",
+"as_is": "checked_out_at נקבע רק בלחיצה (server.js:29571); currently_in = כניסות היום ללא יציאה.",
+"proposal": "משימת רקע ב-23:59 Asia/Jerusalem סוגרת כניסות פתוחות (checked_out_at = checked_in_at + 2 שעות או 23:59, auto_checkout=true).",
+"refs": [
+"server.js:29571",
+"rules-sport.html#יציאה וביטול כניסה"
+],
+"alternatives": []
+},
+{
+"id": "SPT-32",
+"domain": "ספורט / כושר",
+"area": "תשלומים",
+"category": "money",
+"severity": "medium",
+"title": "תשלומים: אין החזר/מחיקה ואין נתיב קריאה",
+"as_is": "POST /payments בלבד, ללא אימות סכום בשרת (server.js:29693); אין GET (ה-AI קורא /sport/payments/:groupId שלא קיים, business-app.js:46519); כל תשלום נכתב גם ל-transactions.",
+"proposal": "GET /payments (מסונן לחבר/טווח); amount > 0 נבדק בשרת; \"החזר\" יוצר רשומה שלילית מקושרת (refund_of) וגם תנועה מתאימה ב-transactions; אין מחיקה פיזית.",
+"refs": [
+"server.js:29693",
+"business-app.js:46519",
+"rules-sport.html#רישום תשלום ידני"
+],
+"alternatives": []
+},
+{
+"id": "SPT-33",
+"domain": "ספורט / כושר",
+"area": "דשבורד",
+"category": "money",
+"severity": "medium",
+"title": "\"הכנסה החודש\" בדשבורד הספורט כוללת כל הכנסות העסק",
+"as_is": "revenue_month = SUM transactions type='income' מתחילת החודש (server.js:29240–29242).",
+"proposal": "revenue_month = SUM(sport_payments.amount) מתחילת החודש (Asia/Jerusalem), בניכוי החזרים; התווית \"הכנסות מנויים החודש\".",
+"alternatives": [
+"להשאיר כל הכנסות העסק ולשנות תווית ל\"הכנסות העסק החודש\""
+],
+"refs": [
+"server.js:29240",
+"business-app.js:45778"
+]
+},
+{
+"id": "SPT-34",
+"domain": "ספורט / כושר",
+"area": "דוחות",
+"category": "data-integrity",
+"severity": "medium",
+"title": "דוח הכנסה לפי סוג משייך תשלומים לסוג הנוכחי; נתיב /sport/reports ללא צרכן",
+"as_is": "revenueByType מקבץ sport_payments לפי סוג המנוי הנוכחי של החבר (server.js:29604), כך שחידוש לסוג אחר משייך מחדש היסטוריה; GET /api/sport/reports לא נקרא מ-BIZ (הדוח המאוחד server.js:33785 בשימוש).",
+"proposal": "sport_payments שומר membership_type_id בזמן התשלום וכל הדוחות מקבצים לפיו; /api/sport/reports מוסר או מאוחד בדוח /api/reports.",
+"refs": [
+"server.js:29604",
+"server.js:33785",
+"rules-sport.html#דוחות ספורט, נטישה וייצוא CSV"
+],
+"alternatives": []
+},
+{
+"id": "SPT-35",
+"domain": "ספורט / כושר",
+"area": "סוגי שיעורים",
+"category": "functional",
+"severity": "low",
+"title": "כללי סוג שיעור: 0 ימים הופך ל-NULL, max_per_session ומשך ברירת מחדל לא בשימוש",
+"as_is": "booking_open_days||null ⇒ 0 נשמר כ\"תמיד\" (server.js:29711); max_per_session נשמר אך לא נאכף ולא נשלח מהממשק; default_duration_min לא משמש לשעת סיום.",
+"proposal": "booking_open_days: NULL = ללא הגבלה, 0 = נפתח רק ביום השיעור (שמירה עם ?? ולא ||); max_per_session מוסר (הקיבולת היא של השיעור) או משמש כברירת מחדל ל-capacity; default_duration_min ממלא end_time ביצירת שיעור מסוג זה.",
+"refs": [
+"server.js:29711",
+"server.js:29725",
+"rules-sport.html#סוגי שיעורים וכללי הרשמה"
+],
+"alternatives": []
+},
+{
+"id": "SPT-36",
+"domain": "ספורט / כושר",
+"area": "שיעורים",
+"category": "functional",
+"severity": "medium",
+"title": "מחזור חיי שיעור: עריכה מאפסת ל-scheduled, כל סטטוס מתקבל, נרשמים לא מטופלים",
+"as_is": "עריכה תמיד שולחת status:'scheduled' (business-app.js:50109) ולא מעדכנת class_type_id (server.js:29770); PATCH status מקבל כל ערך (server.js:29808); ביטול משאיר רישומים ואין שחזור; מחיקה לא מודיעה לנרשמים.",
+"proposal": "סטטוסים: scheduled → cancelled | completed; cancelled → scheduled (שחזור, ADMIN). עריכה לא משנה status. PATCH עם whitelist. ביטול ומחיקה שולחים התראה לכל הנרשמים והממתינים; שיעור עם נרשמים אינו נמחק — רק מבוטל.",
+"refs": [
+"business-app.js:50109",
+"server.js:29770",
+"server.js:29779",
+"server.js:29808",
+"rules-sport.html#ביטול שיעור ומצבי שיעור"
+],
+"alternatives": []
+},
+{
+"id": "SPT-37",
+"domain": "ספורט / כושר",
+"area": "שיעורים חוזרים",
+"category": "functional",
+"severity": "medium",
+"title": "שיעורים חוזרים לא מקושרים למאמן ואין מגבלת טווח בשרת",
+"as_is": "ה-select בטופס החוזר שולח שם ולא מזהה ⇒ trainer_id ריק והשיעורים לא מופיעים בעמודת המאמן (business-app.js:46892, server.js:30027); מגבלת 365 יום רק בלקוח.",
+"proposal": "הטופס שולח trainerId והשרת שומר trainer_id + trainer_name; השרת דוחה טווח > 365 יום או > 500 שיעורים; כל השיעורים של סדרה מקבלים series_id לעריכה/ביטול משותפים.",
+"refs": [
+"business-app.js:46892",
+"server.js:30027",
+"rules-sport.html#יצירת שיעורים חוזרים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-38",
+"domain": "ספורט / כושר",
+"area": "רישום לשיעור",
+"category": "functional",
+"severity": "high",
+"title": "כללי רישום לשיעור אחידים ל-BIZ ולציבור",
+"as_is": "רישום ב-BIZ בודק רק קיבולת (server.js:29850) ומציג גם חברים לא פעילים; אין בדיקת סטטוס/הצהרה/סוג מנוי/חלון/מכסה ואין הצעה להמתנה. ברישום הציבורי חלק מהבדיקות קיימות אך שבורות (SPT-41).",
+"proposal": "פונקציה משותפת canRegister: מנוי active ותקף בתאריך השיעור, סוג מורשה (allowed_membership_type_ids), הצהרה תקפה (אם נדרשת), יתרת כניסות > 0 לכרטיסייה, שיעור scheduled ועתידי, חלון הרשמה. ב-BIZ מנהל רשאי לעקוף עם force=true (נרשם ב-audit). שיעור מלא ⇒ הצעה להוספה להמתנה.",
+"refs": [
+"server.js:29850",
+"server.js:30109",
+"business-app.js:46425",
+"rules-sport.html#רישום חבר לשיעור (BIZ)"
+],
+"alternatives": []
+},
+{
+"id": "SPT-39",
+"domain": "ספורט / כושר",
+"area": "ניקוב כניסות",
+"category": "money",
+"severity": "high",
+"title": "מתי נוקבת כניסה בכרטיסייה: רישום, נוכחות וצ'ק-אין לא מתואמים",
+"as_is": "רישום לשיעור לא מנקב; סימון נוכחות לא יוצר sport_checkins ולא מנקב (server.js:29864); רק צ'ק-אין מנקב (server.js:29507), וביטול מאוחר מנקב נוסף.",
+"proposal": "כלל: ניקוב אחד ליום לחבר, ברגע הראשון מבין צ'ק-אין או סימון נוכחות. סימון נוכחות יוצר sport_checkins אם אין כניסה היום (ומנקב), ואינו מנקב פעמיים. ביטול נוכחות מחזיר ניקוב.",
+"alternatives": [
+"ניקוב לפי שיעור (כל שיעור = כניסה) ולא לפי יום"
+],
+"refs": [
+"server.js:29864",
+"server.js:29507",
+"rules-sport.html#סימון נוכחות"
+]
+},
+{
+"id": "SPT-40",
+"domain": "ספורט / כושר",
+"area": "רישום ציבורי",
+"category": "data-integrity",
+"severity": "medium",
+"title": "רישומי drop-in ללא מנוי: לא ניתנים לסימון, לביטול ומשוכפלים",
+"as_is": "רישום ציבורי ללא מנוי נוצר עם membership_id=NULL (server.js:30109); UNIQUE(class_id, membership_id) לא מונע כפילויות NULL; לא ניתן לסמן נוכחות (id ריק) או לבטל.",
+"proposal": "רישום מחזיק member_phone ו-lead_id; ייחודיות על (class_id, COALESCE(membership_id, phone)); נוכחות וביטול עובדים לפי registration_id. drop-in מותר רק אם העסק הפעיל \"שיעור ניסיון\" (trial_enabled).",
+"refs": [
+"server.js:30109",
+"server.js:29864",
+"rules-sport.html#רישום ציבורי לשיעור"
+],
+"alternatives": []
+},
+{
+"id": "SPT-41",
+"domain": "ספורט / כושר",
+"area": "רישום ציבורי",
+"category": "functional",
+"severity": "high",
+"title": "רישום ציבורי: חלון הרשמה לא נאכף ובדיקות חסרות",
+"as_is": "classDateTime נבנה מ-start_time \"HH:MM:SS\" ⇒ \"…T08:00:00:00\" לא תקין ⇒ חלון ההרשמה נאכף רק לשיעורים ללא שעה (server.js:30120); אין בדיקת הצהרה, מכסה, סטטוס שיעור או עבר; שגיאות מוחזרות כ-HTTP 200; sc-auth קורא res.waitlistPosition והשרת מחזיר position.",
+"proposal": "חישוב מועד תקין (ראו SPT-20) ויישום canRegister (SPT-38); שיעור מבוטל/שעבר ⇒ 409. שגיאות עסקיות מחזירות 4xx עם code; שדה תשובה אחיד waitlistPosition.",
+"refs": [
+"server.js:30120",
+"sc-auth.js:1390",
+"rules-sport.html#רישום ציבורי לשיעור"
+],
+"alternatives": []
+},
+{
+"id": "SPT-42",
+"domain": "ספורט / כושר",
+"area": "רשימת המתנה",
+"category": "functional",
+"severity": "high",
+"title": "רשימת המתנה: \"דלג\" לא מקדם, החבר לא יכול לאשר, expired חוסם הצטרפות מחדש",
+"as_is": "\"דלג\" מבטיח קידום (business-app.js:47545) אך DELETE לא מקדם (server.js:29918); אישור רק ע\"י המנהל ובלי בדיקת קיבולת (server.js:29974) למרות שההתראה אומרת \"יש לך 30 דקות לאשר\"; רשומות expired חוסמות (UNIQUE); קידום מתבצע גם כשלא היה מלא.",
+"proposal": "החבר מאשר מקום בעצמו (אפליקציית משפחה/אזור לקוח) תוך 30 דקות; גם המנהל רשאי. דילוג/תפוגה/הסרה של pending מקדמים את הבא. expired נמחקות מ-UNIQUE (או מותר להצטרף מחדש). אישור בודק קיבולת. קידום רק כשקיבולת התפנתה מתחת ל-capacity.",
+"refs": [
+"server.js:29908",
+"server.js:29918",
+"server.js:29974",
+"business-app.js:47545",
+"rules-sport.html#רשימת המתנה"
+],
+"alternatives": []
+},
+{
+"id": "SPT-43",
+"domain": "ספורט / כושר",
+"area": "מאמנים",
+"category": "data-integrity",
+"severity": "medium",
+"title": "אין נטרול מאמן, ומחיקתו מוחקת היסטוריית שכר",
+"as_is": "PUT קובע is_active = isActive!==false והממשק לא שולח ⇒ תמיד פעיל; DELETE פיזי עם CASCADE על sport_trainer_sessions (server.js:30486–30509).",
+"proposal": "מתג \"פעיל\" בטופס המאמן; \"מחיקה\" = is_active=false; מחיקה פיזית רק למאמן ללא sessions.",
+"refs": [
+"server.js:30486",
+"server.js:30509",
+"rules-sport.html#ניהול מאמנים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-44",
+"domain": "ספורט / כושר",
+"area": "שכר מאמנים",
+"category": "money",
+"severity": "critical",
+"title": "חישוב שכר מאמנים שגוי: בונוס נעלם ושכר אחוז מהכנסה תמיד 0",
+"as_is": "ב-calcTrainerPay ה-DECIMAL מגיע כמחרוזת: pay = \"100.00\"; pay += extra*… ⇒ שרשור \"100.0030\" ⇒ Math.round מחזיר 100 והבונוס נעלם (server.js:30537–30541). הממשק לא שולח classRevenue ⇒ revenue_percent תמיד 0; originalTrainerId ו-classId לא נשלחים.",
+"proposal": "כל התעריפים מומרים ל-Number לפני חישוב. revenue_percent: classRevenue מחושב בשרת מתשלומי drop-in/חלק יחסי, או מוזן חובה בטופס כשסוג השכר הוא revenue_percent. הטופס שולח classId ו-originalTrainerId. בדיקה: per_class 100, בסיס 10, 13 מתאמנים, 15 לנוסף ⇒ 145.",
+"refs": [
+"server.js:30527",
+"server.js:30537",
+"server.js:30545",
+"business-app.js:48218"
+],
+"alternatives": []
+},
+{
+"id": "SPT-45",
+"domain": "ספורט / כושר",
+"area": "שכר מאמנים",
+"category": "money",
+"severity": "high",
+"title": "סימון שכר כשולם לא תואם לסכום המוצג; דוח חודשי לא מתעדכן",
+"as_is": "הלקוח לוקח את כל ה-sessions הלא משולמים מ-50 האחרונים ללא סינון חודש (business-app.js:47984), כך שההוצאה הנרשמת (server.js:30560) שונה מהמוצג וישנים מ-50 לא יסומנו; החלפת חודש בדוח מעדכנת רק את הסיכומים (business-app.js:47968).",
+"proposal": "mark-paid מקבל trainerId + month (YYYY-MM) ומסמן בשרת את כל ה-sessions הלא משולמים של אותו חודש; הסכום שנרשם כהוצאה זהה לסכום שהוצג (השרת מחזיר אותו). החלפת חודש מרעננת את כל הטבלה.",
+"refs": [
+"business-app.js:47984",
+"server.js:30560",
+"business-app.js:47968",
+"server.js:30588"
+],
+"alternatives": []
+},
+{
+"id": "SPT-46",
+"domain": "ספורט / כושר",
+"area": "החלפת מאמן",
+"category": "scope",
+"severity": "low",
+"title": "נתיב החלפת מאמן ללא ממשק (והמדריך מתאר \"החלף מאמן\")",
+"as_is": "POST /trainer-substitution קיים ללא קורא (server.js:30608); sport-guide מתאר \"החלף מאמן\" בפרטי שיעור.",
+"proposal": "כפתור \"החלף מאמן\" במסך ניהול שיעור שקורא לנתיב: מעדכן trainer_id ויוצר session למחליף עם is_substitute=true ו-original_trainer_id.",
+"alternatives": [
+"להסיר את הנתיב ולתקן את המדריך"
+],
+"refs": [
+"server.js:30608",
+"s1-docsvscode.html#sport-guide"
+]
+},
+{
+"id": "SPT-47",
+"domain": "ספורט / כושר",
+"area": "תורים אישיים",
+"category": "functional",
+"severity": "medium",
+"title": "תורי אימון אישי: ללא התראות, משך לא משפיע, PATCH מקבל כל סטטוס",
+"as_is": "אין התראה למנהל/לקוח על תור חדש או שינוי; שדה משך ב-BIZ לא משנה את המשבצת; PATCH מעדכן כל status ללא בדיקה (server.js:30798–30905).",
+"proposal": "סטטוסים: pending → confirmed | cancelled; confirmed → completed | cancelled | no_show. תור חדש מהחנות ⇒ התראה לעסק; אישור/ביטול ⇒ הודעה ללקוח (inbox/SMS). end_time = start + duration_minutes; זמינות מחושבת לפי משך השירות.",
+"refs": [
+"server.js:30798",
+"server.js:30866",
+"rules-sport.html#תורים לאימון אישי וזמינות מאמן"
+],
+"alternatives": []
+},
+{
+"id": "SPT-48",
+"domain": "ספורט / כושר",
+"area": "רכישה ציבורית",
+"category": "money",
+"severity": "high",
+"title": "רכישת מנוי מהחנות פעילה מיד ונרשמת כהכנסה ללא גבייה",
+"as_is": "public-membership-purchase יוצר מנוי active ורושם sport_payments + logBizIncome כאילו שולם (server.js:30080–30091), בעוד sc-auth מציג \"ממתין לאישור המועדון… תיצור איתך קשר לתשלום\" (sc-auth.js:1673); אין התראה לעסק.",
+"proposal": "רכישה ציבורית יוצרת מנוי במצב pending_payment ללא תשלום וללא הכנסה, עם התראה לעסק. המנוי הופך active כשהעסק רושם תשלום (או בהצלחת סליקה מקוונת), ורק אז נרשמת הכנסה.",
+"alternatives": [
+"סליקה מקוונת חובה בעת הרכישה, ומנוי active רק אחרי אישור הסליקה"
+],
+"refs": [
+"server.js:30080",
+"sc-auth.js:1673",
+"rules-sport.html#רכישת מנוי עצמית מהחנות"
+]
+},
+{
+"id": "SPT-49",
+"domain": "ספורט / כושר",
+"area": "לידים",
+"category": "data-integrity",
+"severity": "low",
+"title": "לידים: converted ידני בלי חבר ומזהה המרה שדולף לחבר הבא",
+"as_is": "ניתן לבחור converted ב-select בלי ליצור חבר; _sportConvertingLeadId נשאר אם עוזבים את הטופס ומסמן את החבר הבא (business-app.js:48606); PUT עם COALESCE לא מאפשר ניקוי שדות.",
+"proposal": "converted נקבע רק דרך יצירת חבר (השרת דוחה status=converted בלי convertedToMembershipId); מזהה ההמרה מאופס בסגירת הטופס; PUT מאפשר ניקוי שדות (null מפורש).",
+"refs": [
+"business-app.js:48606",
+"business-app.js:48521",
+"rules-sport.html#לידים (מתעניינים) והמרה לחבר"
+],
+"alternatives": []
+},
+{
+"id": "SPT-50",
+"domain": "ספורט / כושר",
+"area": "אזור אישי לחבר",
+"category": "functional",
+"severity": "high",
+"title": "אזור החבר ריק: שאילתות על עמודות וטבלאות שאינן קיימות",
+"as_is": "/api/family/business-activity לספורט שואל business_group_id, member_group_id, plan_type_id ו-membership_plan_types (server.js:31896–31897) ⇒ תמיד ריק; ב-sc-auth activity שאילתות רישומים (sr.status) ותורים (tr.full_name) נכשלות (server.js:43660, 43683); הסטטוסים trial/pending לעולם לא נכתבים.",
+"proposal": "השאילתות כתובות על הסכמה האמיתית (sport_memberships.group_id, membership_type_id, sport_class_registrations.cancelled_at, sport_trainers.name); אזור החבר מציג מנוי, כניסות נותרות, תוקף, שיעורים קרובים ותורים. רשימת הסטטוסים בשאילתה = הסטטוסים שהמערכת כותבת.",
+"refs": [
+"server.js:31896",
+"server.js:43660",
+"server.js:43683",
+"s1-erd.html#טבלאות-רפאים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-51",
+"domain": "ספורט / כושר",
+"area": "WEFLOWZ",
+"category": "functional",
+"severity": "low",
+"title": "ויזארד WEFLOWZ לספורט ממפה שדות לא נכונים",
+"as_is": "הויזארד ממפה c.phone ו-c.family_group_id בעוד לחברים יש member_phone ואין family_group_id ⇒ טלפון ריק ו\"קיים ב-WEFLOWZ\" תמיד false (business-app.js:48892–48898).",
+"proposal": "מיפוי member_phone; סטטוס \"קיים ב-WEFLOWZ\" נקבע לפי member_business_links פעיל או התאמת טלפון מנורמל ל-users.",
+"refs": [
+"business-app.js:48892",
+"rules-sport.html#הודעות: שידור לחברים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-52",
+"domain": "ספורט / כושר",
+"area": "בינה מלאכותית",
+"category": "functional",
+"severity": "medium",
+"title": "עוזר ה-AI לספורט בנוי על שדות לא קיימים ופעולות שבורות",
+"as_is": "ההקשר משתמש ב-/sport/payments/:groupId (לא קיים), max_participants, registration_count, stats.total_members וכו' ⇒ רוב המדדים 0 (business-app.js:46498–46519); OPEN_TAB|sport-* קורא ל-switchTab לטאבים שאינם קיימים; הקפאת AI ללא ימים; membershipType לא נשלח לתוכנית אימון; /api/ai/generate ללא אימות ומכסה (server.js:13907).",
+"proposal": "השרת בונה את הקשר הספורט בעצמו מנתוני DB (KPIs, הכנסות, נטישה, שיעורים) במקום הלקוח; OPEN_TAB ממופה לפעולות המודאל (sport-checkin, sport-schedule…); פעולת הקפאה פותחת את טופס ההקפאה; /api/ai/generate דורש verifyBiz ומכסת AI.",
+"refs": [
+"business-app.js:46498",
+"business-app.js:46519",
+"server.js:16199",
+"server.js:13907",
+"rules-sport.html#עוזר AI עסקי לספורט"
+],
+"alternatives": []
+},
+{
+"id": "SPT-53",
+"domain": "ספורט / כושר",
+"area": "תזכורות",
+"category": "functional",
+"severity": "low",
+"title": "אין תזכורות אוטומטיות לחברים (חידוש, הצהרה, שיעור)",
+"as_is": "אין cron לספורט ואין WhatsApp/SMS/Email במודול; התראות רק על פעולות מנהל (server.js:4719, 25104 לא נוגעים ב-sport_*).",
+"proposal": "משימה יומית שולחת לחבר מקושר התראת inbox: 7 ימים לפני סיום מנוי, 14 ימים לפני פקיעת הצהרה, כשנותרו 2 כניסות בכרטיסייה; דה-דופליקציה לפי (membership, סוג, תקופה).",
+"refs": [
+"server.js:4719",
+"rules-sport.html#משימות רקע ותזמון"
+],
+"alternatives": []
+},
+{
+"id": "SPT-54",
+"domain": "ספורט / כושר",
+"area": "סכמה וטרנזקציות",
+"category": "architecture",
+"severity": "medium",
+"title": "סכמת ספורט נוצרת בשקט ואין טרנזקציות בפעולות מרובות שלבים",
+"as_is": "CREATE/ALTER עטופים ב-try/catch שקט (server.js:1654–1863); store-settings מריץ ALTER בכל קריאה; אין טרנזקציות — למשל הוספת חבר+תשלום+הכנסה, ביטול רישום+קידום, mark-paid+הוצאה הם pool.query נפרדים.",
+"proposal": "סכמה במיגרציות מגורסות שנכשלות בקול; פעולות מרובות כתיבה (יצירת חבר עם תשלום, חידוש, ביטול רישום+קידום, אישור המתנה, mark-paid) בטרנזקציה אחת.",
+"refs": [
+"server.js:1654",
+"server.js:29297",
+"server.js:29367",
+"rules-sport.html#עקרונות רוחביים"
+],
+"alternatives": []
+},
+{
+"id": "SPT-55",
+"domain": "ספורט / כושר",
+"area": "קוד לקוח",
+"category": "architecture",
+"severity": "medium",
+"title": "פונקציות ספורט מוגדרות מחדש פעמים רבות בשרשרת עטיפות",
+"as_is": "showSportSchedule מוגדר 7 פעמים (האחרונה business-app.js:49886), _sportMemberCard 4 פעמים (48306), window.rdAction עטוף 6 פעמים (45579…60126); חלק מהפעולות המהירות (sport-appointments) מטופלות רק בעטיפה המאוחרת.",
+"proposal": "בבנייה מחדש: מודול ספורט אחד עם הגדרה יחידה לכל מסך ומפת פעולות מהירות אחת (action → handler); אין monkey-patching של window.rdAction/saveStoreSettings.",
+"refs": [
+"business-app.js:45579",
+"business-app.js:49886",
+"business-app.js:48306",
+"business-app.js:60126"
+],
+"alternatives": []
+},
+{
+"id": "SPT-56",
+"domain": "ספורט / כושר",
+"area": "מדריך",
+"category": "docs",
+"severity": "low",
+"title": "מדריך ספורט חסר ולא מעוגן בכלל עדכון המדריכים",
+"as_is": "public/sport-guide.html קיים אך מכסה כ-17% מהטאבים/פעולות ומתאר \"החלף מאמן\" שאינו קיים; CLAUDE.md כלל 6 מגדיר חובת עדכון רק למדריך יופי.",
+"proposal": "להוסיף sport-guide.html לכלל 6 ולעדכנו לפי הספק החדש (מסכי מודאל הספורט, פעולות מהירות, KPIs, מדיניות ביטול/הקפאה) באותו קומיט של כל שינוי.",
+"refs": [
+"s1-docsvscode.html#sport-guide",
+"CLAUDE.md"
+],
+"alternatives": []
+}
+]
