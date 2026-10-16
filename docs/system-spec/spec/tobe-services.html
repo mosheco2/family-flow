@@ -134,14 +134,14 @@
 <tr><td>cancelled</td><td>סטטוס פעיל</td><td>BIZ</td><td>—</td><td>השריונים לא משוחזרים אוטומטית; הממשק מציג "השריונים שוחררו בביטול — יש לשריין מחדש"</td></tr>
 <tr><td>(רשימה) quote</td><td>—</td><td>—</td><td>אירוע is_event טרם הומר</td><td>מוצג ברשימה בלבד</td></tr></table></div>
 "פעיל" בכל המסכים = open | scheduled | processing | pending_payment. "סגור" = completed. כל המסכים (בורר סטטוס, טאב תיקים, רשימה, דשבורד מקצועי, AI) משתמשים ברשימה אחת מהשרת.</div>
-<div>תופעות לוואי</div><div>Timeline, audit, התראה, שחרור שריונים בביטול.</div>
+<div>תופעות לוואי</div><div>פקודה עם מופע שגרה מקושר (linked_work_order_id) שעוברת ל-completed או pending_payment מפעילה אחרי COMMIT complete פנימי של המופע (tobe-routines, <code>RTN-22</code>). כשל לא מבטל את עדכון הסטטוס ונרשם בלוג. Timeline, audit, התראה, שחרור שריונים בביטול.</div>
 <div>ממשק</div><div>options בבורר (42388-42394) = הרשימה הקנונית. AI (<code>_aiUpdateCaseStatus</code>, 57545): processing/scheduled/completed/cancelled/open (new → open), נשלח עם Bearer.</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>SRV-03</code> — רשימת סטטוסים סגורה ואחידה (new→open), ערך לא חוקי → 400; המעברים החופשיים בין הסטטוסים נשמרים (ראו פריט מתוקן).</li>
 <li><code>SRV-05</code> — ביטול משחרר גם שריוני pantry דרך <code>releaseReservation</code>.</li>
 <li><code>SRV-04</code> — <code>_aiUpdateCaseStatus</code> שולח Authorization (לא עוד 401 תמיד).</li>
 <li><code>SA-52</code> — ההתראה ללקוח נכתבת דרך פונקציית ההתראות היחידה.</li>
-</ul></div>
+<li><code>E2E-19</code> — נוסף ה-hook שמשלים מופע שגרה כשפקודת עבודה מקושרת עוברת ל-completed או pending_payment.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="work order delete מחיקה"><h3>מחיקת פקודת עבודה</h3>
@@ -293,7 +293,7 @@
 <div>שלבי עיבוד</div><div><ol>
 <li>POST (טרנזקציה): אם נשלח <code>totalAmount</code> → נשמר כ-override ברמת ההזמנה (<code>store_orders.deal_total_override</code>), לא בכל תחנה. INSERT <code>work_order_payments</code> (status pending) → <code>payment_status=recalcPaymentStatus(order)</code>.</li>
 <li>template (טרנזקציה): שתי שורות — "מקדמה" due=CURRENT_DATE (Asia/Jerusalem), "יתרה — יום האירוע" due=target_datetime; payment_status מחושב; timeline <code>payments_template_applied</code>.</li>
-<li>mark-paid-full (טרנזקציה): INSERT תחנה "תשלום מלא" status received, received_amount=deal_total; <code>payment_status='paid'</code>; INSERT <code>transactions</code> (income, category sales, user = המשתמש מהסשן, "גביה הזמנה — &lt;לקוח&gt;").</li></ol></div>
+<li>mark-paid-full (טרנזקציה): INSERT תחנה "תשלום מלא" status received, received_amount=deal_total; <code>payment_status='paid'</code>; INSERT <code>transactions</code> (income, category sales, user = המשתמש מהסשן, "גביה הזמנה — &lt;לקוח&gt;", reference=payment:&lt;id&gt;), בכפוף לאותו כלל: אם להזמנה כבר נרשמה הכנסה ב-completeOrder, נרשם רק ההפרש (<code>E2E-11</code>). השלמה מאוחרת של ההזמנה לא רושמת הכנסה מצרפית, כי יש לה תחנה (<code>E2E-10</code>).</li></ol></div>
 <div>חישובים</div><div>פונקציה אחת <code>dealTotal(order)</code>: <code>deal_total_override</code> אם הוגדר, אחרת <code>woFinancials.revenue</code> (= total_amount + Σ הצעות משויכות; להזמנה רגילה = total_amount), אחרת Σ amount של התחנות. <code>received_total=Σ received_amount</code> (status received); <code>remaining=deal_total−received_total</code>. השרת מחזיר <code>{deal_total, received_total, remaining}</code> והלקוח מציג אותם (במקום לקרוא <code>original_amount</code>, 44198/44263/44351). template: <code>pct=clamp(depositPct||30,10,90)</code>; <code>deposit=round2(deal_total×pct/100)</code>; <code>balance=round2(deal_total−deposit)</code>. <code>recalcPaymentStatus</code>: אין תחנות→NULL; כולן received→paid; חלק received→partial; אף אחת→pending_payment.</div>
 <div>מכונת מצבים</div><div>store_orders.payment_status: NULL → pending_payment (תחנה ראשונה) → partial/paid (קבלה); mark-paid-full → paid; מחיקת תחנות → חישוב מחדש באותה פונקציה.</div>
 <div>תופעות לוואי</div><div>Timeline; transactions (mark-paid-full).</div>
@@ -302,7 +302,7 @@
 <li><code>SRV-09</code> — סכום העסקה נגזר בשרת בפונקציה אחת; ה-override הידני נשמר ברמת ההזמנה; הלקוח לא קורא עוד <code>original_amount</code> שאינו קיים.</li>
 <li><code>SRV-08</code> — payment_status מחושב בפונקציה אחת אחידה.</li>
 <li><code>SRV-07</code> — בסיס החישוב כולל הצעות משויכות דרך woFinancials.</li>
-</ul></div>
+<li><code>E2E-12</code> — mark-paid-full כפוף לכלל ההכנסה-פעם-אחת מול completeOrder.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="payment receive delete collection income transactions partial paid reverse גביה התקבל ביטול גביה"><h3>קבלת תשלום ומחיקת תחנה (פקודה + קריאת שירות)</h3>
@@ -312,7 +312,7 @@
 <div>קלט ואימותים</div><div><ul><li>תחנה לא נמצאה/לא של העסק → 404.</li><li>receive: <code>receivedAmount</code> אופציונלי &gt;0; תחנה שכבר received → 409 "התחנה כבר נגבתה".</li><li>unreceive: רק תחנה received → אחרת 409.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>receive (טרנזקציה): <code>UPDATE work_order_payments SET status='received', received_amount=$rec, received_at=COALESCE($at,NOW()) WHERE id=$1 AND status='pending' RETURNING</code>; 0 שורות → 409. <code>recAmt=receivedAmount||amount</code>.</li>
-<li>פקודה/הזמנה: INSERT <code>transactions</code> income/sales "גביה פקודת עבודה — לקוח (שם תחנה אם ≠'תשלום')" עם <code>reference=payment:&lt;id&gt;</code>; <code>payment_status=recalcPaymentStatus</code>.</li>
+<li>פקודה/הזמנה: INSERT <code>transactions</code> income/sales "גביה פקודת עבודה — לקוח (שם תחנה אם ≠'תשלום')" עם <code>reference=payment:&lt;id&gt;</code>; <code>payment_status=recalcPaymentStatus</code>. אם להזמנה כבר נרשמה הכנסה מצרפית ב-completeOrder (source_order_id, הזמנה שהושלמה לפני שנוצרו תחנות), נרשם רק החלק שעובר את ההכנסה שכבר הוכרה להזמנה, והגבייה מתועדת ב-timeline כגבייה בלבד (tobe-store, "מחזור חיי הזמנה", <code>E2E-10</code>).</li>
 <li>קריאת שירות: אותו דבר על <code>service_calls.payment_status</code> ותיאור "גביה קריאת שירות".</li>
 <li>delete (טרנזקציה): אם התחנה received → INSERT תנועה הפוכה ב-<code>transactions</code> (קיזוז ההכנסה, "ביטול גביה — &lt;תיאור&gt;") ואז DELETE; אחרת DELETE בלבד. <code>payment_status=recalcPaymentStatus</code> (אין תחנות → NULL; partial כשחלק נגבה).</li>
 <li>unreceive (טרנזקציה): תנועה הפוכה ב-transactions; התחנה חוזרת ל-pending (received_amount/received_at NULL); חישוב payment_status.</li>
@@ -328,7 +328,7 @@
 <div>ממשק</div><div>כפתורי "גבה ✓" ומחיקה נשמרים. במחיקת תחנה שנגבתה מוצג אישור: "התחנה נגבתה — המחיקה תקזז את ההכנסה בתזרים". כפתור "ביטול גביה" לתחנה שנגבתה (ADMIN/MANAGER).</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>SRV-08</code> — receive אטומי (409 בלחיצה כפולה); מחיקת תחנה שנגבתה נשארת אפשרית אך מקזזת את ההכנסה באותה טרנזקציה; נוספה פעולת "ביטול גביה"; payment_status אחיד (partial גם אחרי מחיקה).</li>
-</ul></div>
+<li><code>E2E-11</code> — גבייה על הזמנה שכבר הוכרה כהכנסה ב-completeOrder לא רושמת הכנסה נוספת מעבר לסכום שהוכר (הכנסה פעם אחת).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="service call payments milestones תחנות תשלום קריאת שירות"><h3>תחנות תשלום לקריאת שירות</h3>
@@ -723,10 +723,10 @@
 <div class="kv">
 <div>מטרה וטריגר</div><div><code>approveCalendarEvent</code> (business-app.js:26809) → <code>PUT /api/calendar/events/:id/status</code> (22977). id בתבנית <code>quote_&lt;id&gt;</code> מנותב לאישור הצעה (ללא שינוי). מחיקה: <code>DELETE /api/calendar/events/:id</code> (23175).</div>
 <div>הרשאות</div><div>סשן BIZ; <code>AND group_id</code> בכל שאילתה לפי id.</div>
-<div>קלט ואימותים</div><div>status ∈ {approved, rejected, cancelled}; מעבר לא חוקי → 409 "האירוע כבר טופל".</div>
+<div>קלט ואימותים</div><div>status ∈ {approved, rejected, cancelled}. אישור חוזר של אירוע שכבר אושר → 409 "האירוע כבר טופל" (אידמפוטנטיות). מעבר אחר שאינו בטבלה → 400 "מעבר סטטוס לא חוקי", כמו ב-tobe-restaurant. להזמנת שולחן (call_type='table_reservation') תהליך הבעלים הוא tobe-restaurant, "אישור הזמנת שולחן ע"י העסק ושיבוץ שולחן": tableNumber ידני אופציונלי, ביטול ע"י העסק גם מ-pending.</div>
 <div>שלבי עיבוד</div><div><ol>
 <li>טרנזקציה: UPDATE calendar_events SET status='approved' (בעסק beauty: status='converted', BTY-41) WHERE id=$1 AND group_id=$g AND status='pending' RETURNING; 0 שורות על אירוע שכבר approved → 409 בלי תור/SMS/שולחן נוספים.</li>
-<li>approved + table_reservation: הקצאת שולחן פנוי (אותו אלגוריתם) → UPDATE reserved_table_number; אחרי COMMIT: SMS ב-Twilio "&lt;עסק&gt; — הזמנת שולחן אושרה! … WEFLOWZ" (טלפון 0X→+972); inbox ללקוח.</li>
+<li>approved + table_reservation: אם נשלח tableNumber, שיבוץ ידני (שולחן קיים ולא disabled; חפיפה מחזירה overlap:true והשיבוץ נשמר). אחרת הקצאת שולחן פנוי (checkTableAvailability) → UPDATE reserved_table_number. אין שולחן פנוי → 409 "אין שולחן פנוי בשעה זו" עם רשימת השולחנות, והסטטוס נשאר pending עד בחירה ידנית (<code>RST-18</code>); אחרי COMMIT: SMS ב-Twilio "&lt;עסק&gt; — הזמנת שולחן אושרה! … WEFLOWZ" (טלפון 0X→+972); inbox ללקוח.</li>
 <li>עסק beauty (תהליך הבעלים: tobe-beauty, "בקשת תור מהחנות"): האירוע עובר ל-converted, ונוצר beauty_appointments עם calendar_event_id (UNIQUE) ו-calendar_events.converted_appointment_id (source storefront, confirmed, total_price = מחיר השירות מהקטלוג, BTY-40) + segment 1 (duration מקטלוג או 60, practitioner = <code>preferred_practitioner_id</code> של האירוע אם קיים, אחרת המועדף); אחרי COMMIT: SMS "התור שלך אושר! ✅ … 💅"; inbox "הסלון".</li>
 <li>cancelled (אירוע approved): status cancelled; תור יופי מקושר → cancelled; הודעה ללקוח "התור בוטל".</li>
 <li>DELETE: נשאר כמו היום ("הבקשה נדחתה"/"התור בוטל").</li>
@@ -746,7 +746,7 @@
 <li><code>SRV-26</code> — שינוי סטטוס ומחיקה דורשים סשן עסקי ובעלות.</li>
 <li><code>SRV-30</code> — המטפלת המועדפת עוברת מהבקשה לאירוע ולתור היופי.</li>
 <li><code>SRV-31</code> — התיעוד מתאר את המודל בפועל (אירוע pending → אישור/דחייה); תזכורת SMS שעתיים לפני — אופציונלית, כבויה כברירת מחדל.</li>
-<li><code>RECON-23</code> — בעסק beauty האירוע עובר ל-converted (BTY-41), והתור מקבל את מחיר השירות מהקטלוג (BTY-40) ולא 0, כמו ב-tobe-beauty. הקישור UNIQUE לפי calendar_event_id נשמר, ונוסף converted_appointment_id.</li></ul></div>
+<li><code>RECON-23</code> — בעסק beauty האירוע עובר ל-converted (BTY-41), והתור מקבל את מחיר השירות מהקטלוג (BTY-40) ולא 0, כמו ב-tobe-beauty. הקישור UNIQUE לפי calendar_event_id נשמר, ונוסף converted_appointment_id.</li><li><code>E2E-14</code> — להזמנת שולחן יושר לתהליך הבעלים ב-tobe-restaurant: tableNumber ידני, 409 כשאין שולחן (בלי שינוי סטטוס), 400 למעבר לא חוקי, וביטול גם מ-pending.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="calendar suggest alternatives reject with alts table restaurant חלופות דחייה"><h3>דחיית הזמנת שולחן עם 3 חלופות</h3>

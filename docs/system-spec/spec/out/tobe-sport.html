@@ -1,0 +1,1034 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · ספורט · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · ספורט</h1><span class="meta">50 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="">יעד · מסעדה</a><a href="tobe-sport.html" class="cur">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>ספורט / כושר — מפרט TO-BE.</b> המפרט מכסה את כל <b>50 התהליכים</b> שתועדו ב-rules-sport.html (אף תהליך לא הושמט ולא אוחד). הוחלו <b>56 פריטי החלטה</b> של התחום (SPT-01…SPT-56, אין פריטי dup_of), ולצידם החלטות ARC רוחביות לפי מזהה בלבד: ARC-01/02/04/05/06 (אימות, default-deny, groupId מהסשן, תפקידים), ARC-11 (טרנזקציות), ARC-12/13 (מיגרציות, טבלאות רפאים), ARC-14 (לקוח אחד + sport_member_profile), ARC-16 (התראות), ARC-17/18 (זכאות מודולים), ARC-19 (תורים/ביקורת אחידים), ARC-23/25 (worker, Asia/Jerusalem), ARC-29 (rate limit), ARC-30 (AI gateway), ARC-32 (PII), ARC-33/34 (שגיאות, ולידציה), ARC-35/36 (נתיבים ללא קורא), ARC-42 (מדריכים).</p>
+<p>סיווג: FIX 22 · HARDEN 10 · CONSISTENCY 3 · BEHAVIOR 19 · SCOPE 2. כל מה שעובד היום נשאר כפי שהוא; שינוי מופיע רק בשדה "שינויים מהקיים" של כל תהליך.</p>
+<p><b>פריטים שתוקנו (REVISED) לפי כלל-העל</b> — שמירה על כל יכולת קיימת:</p>
+<ul>
+<li><code>SPT-02</code> — ההצעה מסירה את identify/member-summary ואת קריאת רשימת החברים מהחנות, וכך נעלמים זיהוי WEFLOWZ בחנות וצ'ק-אין לפי טלפון בעמדת קבלה. <b>הכלל הסופי:</b> החשיפה הציבורית נסגרת. זיהוי עצמי עובר לנתיב מאומת בטוקן לקוח (<code>GET /api/sport/me</code>), שמחזיר את מה ש-identify ו-member-summary החזירו, אבל רק לבעל הטוקן. צ'ק-אין לפי טלפון נשמר במצב "עמדת כניסה" (kiosk) בתוך סשן BIZ מאומת: מקלידים טלפון ומקבלים רק אישור שם. הרשימה המלאה לא חוזרת.</li>
+<li><code>SPT-04</code> — ההצעה מגבילה ל-5 שידורים ביום, וזו הגבלה עסקית על יכולת שאינה מוגבלת היום. בנוסף, היא מגבילה סנכרון ליומן לשיעורים שהחבר רשום אליהם בלבד. <b>הכלל הסופי:</b> שידור והודעה לחבר דורשים verifyBiz עם תפקיד מורשה, וחלה מגבלת קצב טכנית בלבד לפי ARC-29 (30 לדקה לעסק), בלי תקרה יומית. סנכרון ליומן מותר רק ליומן משפחת הסשן, אבל לכל שיעור ציבורי לא מבוטל של העסק, כמו היום. שיעור שהחבר רשום אליו מסומן "רשום".</li>
+<li><code>SPT-05</code> — ההצעה הופכת הקפאה עצמית של חבר לבקשה שממתינה לאישור, וכך נעלמת הקפאה מיידית. <b>הכלל הסופי:</b> הקפאה והפשרה עצמית נשארות מיידיות, דרך נתיב משפחה מאומת שבודק בעלות. אם העסק הגדיר freeze_policy והבקשה חורגת ממנה, נוצרת בקשת freeze_requested לאישור העסק ולא דחייה.</li>
+<li><code>SPT-15</code> — אכיפת min_age ו-trial_enabled כפי שהיא מוצעת חוסמת פעולות שמותרות היום, לפי ערכים שנשמרו בטעות (ברירת ויזארד 16, ובאג SPT-14). <b>הכלל הסופי:</b> min_age נאכף כחסימה רק ברכישה ציבורית. ב-BIZ מוצגת אזהרה, ו-ADMIN יכול לעקוף אותה עם רישום ב-audit. freeze_policy הופך לשדות מובנים, וברירת המחדל שלהם ריקה (ללא הגבלה). trial_enabled קובע אם מותרים ניסיון ו-drop-in בחנות. ערכים שנשמרו לפני התיקון מאופסים במיגרציה ל"לא הוגדר", ולא הוגדר = מותר. cancellation_policy ו-cancel_notice_days נשארים טקסט מוצג.</li>
+<li><code>SPT-16</code> — ההצעה משאירה "רישום חוב או הסרת השדה" late_cancel_fee. <b>הכלל הסופי:</b> השדה נשמר בסכמה ובנתיב כפי שהוא, לא מוצג ולא נאכף (backlog), ולא מוסר. שאר הסעיפים מיושמים: חישוב זמן תקין, ברירת מחדל שחלה, וביטול רך.</li>
+<li><code>SPT-18</code> — ההצעה מסירה את sport_settings.waiver_text, ואיתו את שדה הטקסט שהעסק עורך בהגדרות החנות. <b>הכלל הסופי:</b> מקור האמת היחיד הוא התבנית הפעילה. שדה "טקסט הצהרה" בהגדרות החנות נשאר, ועורך את תוכן התבנית הפעילה. במיגרציה, waiver_text קיים יוצר תבנית אם אין תבנית. חתימת מנהל בשם החבר נשמרת.</li>
+<li><code>SPT-19</code> — טלפון ייחודי לחבר חוסם בני משפחה שחולקים טלפון, וגם כמה מנויים במקביל. <b>הכלל הסופי:</b> אין אילוץ ייחודיות. ב-BIZ מוצגת אזהרה עם שתי אפשרויות: "חדש לחבר הקיים" ו"צור בכל זאת". ברכישה ציבורית המנוי מחודש לרשומה קיימת רק כשגם הטלפון המנורמל וגם השם תואמים. אחרת נוצרת רשומה חדשה: עם שם שונה, ל-customer נפרד עם shared_phone=true; עם אותו שם, לאותו customer (<code>ARC-14</code>, <code>RECON-16</code>).</li>
+<li><code>SPT-23</code> — ההצעה מחייבת ימים, קובעת תקרות ברירת מחדל (60 יום, 2 בשנה) ומבטלת הקפאה ללא סוף. <b>הכלל הסופי:</b> מצב (רק active, אחרת 409) נאכף תמיד. הקפאה ללא תאריך נשמרת למנהל. תקרות max_freezes_per_year ו-max_freeze_days חלות רק כשהעסק הגדיר אותן (ברירת מחדל ריקה). frozen_days_banked מצטבר בכל הפשרה.</li>
+<li><code>SPT-28</code> — "חידוש לפני סיום מתחיל ביום שאחרי end_date" דורס את תאריך ההתחלה שהמנהל בוחר. <b>הכלל הסופי:</b> זו רק ברירת המחדל של שדה התאריך, כשהמנוי עדיין בתוקף. startDate מפורש מהמנהל תמיד מכובד.</li>
+<li><code>SPT-33</code> — ההצעה מחליפה את KPI ההכנסה בהכנסות ספורט בלבד, וכך נעלמת הצגת כל הכנסות העסק. <b>הכלל הסופי:</b> ה-KPI הראשי הוא "הכנסות מנויים החודש" (sport_payments בניכוי החזרים). מתחתיו נשארת שורה משנית "כל הכנסות העסק: ₪X", עם הערך של היום.</li>
+<li><code>SPT-34</code> — הסרת /api/sport/reports מעלימה מדדים שאין בדוח המאוחד: churnRatePercent, period=year. <b>הכלל הסופי:</b> הנתיב מוסר רק אחרי שכל המדדים שלו (כולל churnRatePercent ותקופת שנה) מתווספים ל-result.sport בדוח המאוחד.</li>
+<li><code>SPT-36</code> — "שיעור עם נרשמים אינו נמחק" מבטל יכולת מחיקה. <b>הכלל הסופי:</b> מחיקה נשמרת ל-ADMIN, עם אישור כפול שממליץ לבטל במקום למחוק (כמו היום). לפני המחיקה נשלחת התראה לנרשמים ולממתינים.</li>
+<li><code>SPT-40</code> — "drop-in רק אם trial_enabled" חוסם drop-in שמותר היום. <b>הכלל הסופי:</b> drop-in מותר כברירת מחדל, ונחסם רק כש-trial_enabled===false נשמר במפורש אחרי התיקון (ראו SPT-15).</li>
+<li><code>SPT-48</code> — pending_payment חובה מבטל הפעלה מיידית של מנוי שנרכש. <b>הכלל הסופי:</b> ברירת המחדל היא pending_payment, בלי הכנסה ועם התראה לעסק. זה גם תואם את "שלח בקשת הרשמה" בחנות ואת ההודעה ב-sc-auth. הגדרת עסק <code>auto_activate_purchase</code> מאפשרת הפעלה מיידית: המנוי active עם יתרה לתשלום מסומנת, והכנסה נרשמת רק בתשלום בפועל.</li>
+<li><code>SPT-49</code> — "converted רק דרך יצירת חבר" מבטל סימון ידני של ליד שהומר לחבר שכבר קיים. <b>הכלל הסופי:</b> בחירת converted פותחת בורר: "צור חבר חדש" או "קשר לחבר קיים". השרת דוחה converted בלי convertedToMembershipId.</li>
+</ul>
+</div>
+
+<h2 class="grp">ספורט / כושר — עקרונות רוחביים</h2>
+
+<section class="proc" data-f="sport auth security ownership middleware cross-cutting roles audit module gating transactions"><h3>בקרת גישה, בעלות ומבנה כללי של מודול הספורט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>נתיבי <code>/api/sport/*</code> ו-<code>/api/ai/sport/training-plan</code> משרתים שלושה צרכנים, כמו היום: מסך BIZ (מודאל <code>#sport-modal</code> בתוך <code>content-feed</code>), חנות ציבורית (<code>storefront-sport.html</code>, ו-<code>storefront.html</code>/<code>storefront-btype.js</code>/<code>sc-auth.js</code> במורשת) ואפליקציית המשפחה (כרטיס עסק מקושר).</div>
+<div>הרשאות</div><div>
+<p>כל נתיב מסווג לאחת מארבע משפחות (ARC-01/02/05):</p>
+<ul>
+<li><b>BIZ</b> — <code>authenticate()+requireType('biz')+requireModule</code>. ה-<code>groupId</code> נלקח רק מ-<code>req.principal.groupId</code>, ונתיבים מוגדרים בלי <code>:groupId</code> (ARC-04). כל גישה לפי <code>:id</code> טוענת את הרשומה עם <code>AND group_id=$principal.groupId</code>, ואם אין התאמה מוחזר 404. כל מזהה זר ב-body (membershipId, classId, trainerId, membershipTypeId) נבדק כשייך לעסק.</li>
+<li><b>STORE</b> — Bearer של לקוח חנות (sc-auth, principal_type=storefront). הטלפון והעסק נגזרים מהטוקן.</li>
+<li><b>FAMILY</b> — <code>verifyFamily</code>, ובנוסף קישור <code>member_business_links</code> פעיל עם <code>linked_member_ref_id</code> = המנוי.</li>
+<li><b>PUBLIC</b> — רק <code>public-types</code> ו-<code>public-schedule</code> (בלי שמות נרשמים), מוצהרים ב-allowlist.</li>
+</ul>
+<p><b>gating לפי סוג עסק</b>: כל נתיב ספורט (BIZ וציבורי) מחזיר 403 אם <code>business_type≠'sport'</code> או שהמודול אינו פעיל בזכאות (ARC-17).</p>
+<p><b>מטריצת תפקידים</b> (נאכפת בשרת, ARC-06). קבוצות שבשימוש בכל התהליכים:</p>
+<div class="tbl-wrap"><table><tr><th>קבוצה</th><th>תפקידים</th><th>מותר</th></tr>
+<tr><td>R-ADM</td><td>ADMIN</td><td>הכל, כולל רשימת הפעולות הבלעדיות: מחיקת חבר/שיעור/מאמן, הגדרות שכר מאמן, סימון שכר כשולם, שידור הודעות, הגדרות חנות ספורט</td></tr>
+<tr><td>R-MGR</td><td>ADMIN, branch_manager</td><td>כל השאר: סוגי מנוי, סוגי שיעור, מדיניות ביטול, תבנית הצהרה, שיעורים, מאמנים (פרט לשכר), תורים, לידים, דוחות</td></tr>
+<tr><td>R-OPS</td><td>R-MGR + shift_manager + cashier/reception</td><td>צ'ק-אין/יציאה, הוספת חבר, רישום תשלום, חידוש, חתימת הצהרה בשם חבר, קריאת חברים</td></tr>
+<tr><td>R-CLS</td><td>R-MGR + shift_manager + instructor</td><td>קריאת לוח, רישום והסרה משיעור, נוכחות, פעולות המתנה, צ'ק-אין, קריאת חברים, תוכנית אימון AI</td></tr>
+</table></div>
+<p>תפקיד לא מורשה מקבל 403. הדשבורד בלקוח מוצג, כמו היום, ל-ADMIN ולמנהל סניף. שאר התפקידים מגיעים למסכי המודאל שמותרים להם.</p></div>
+<div>קלט ואימותים</div><div><ul><li>כל נתיב מצהיר על סכמת קלט (ARC-34). קלט לא תקין מחזיר 400 עם <code>{success:false,error:{code,message_he}}</code> (ARC-33). סכומים כספיים חייבים להיות &gt; 0, ושמות לא ריקים.</li><li>שדות PII (טלפון, ת"ז, הערות בריאות) מוחזרים רק בנתיבי BIZ/בעלים, ברשימת שדות מפורשת. <code>id_number</code> ו-<code>health_notes</code> מוצפנים ברמת עמודה (ARC-32).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הסכמה מוגדרת במיגרציות מגורסות שנכשלות בקול (ARC-12). אין <code>CREATE/ALTER</code> בזמן ריצה, ובפרט לא ב-store-settings.</li><li>כל פעולה שכותבת ליותר מטבלה אחת רצה ב-<code>withTransaction</code> (ARC-11): יצירת חבר עם תשלום, חידוש, רכישה ציבורית, ביטול רישום עם קידום, אישור המתנה, mark-paid עם הוצאה, ביטול מנוי עם ביטול רישומים, החזר כספי.</li><li>תאריכים: עמודות <code>DATE</code> מוחזרות כמחרוזת <code>'YYYY-MM-DD'</code> (<code>pg.types.setTypeParser(1082)</code>). כל חישוב קלנדרי נעשה ב-Asia/Jerusalem ובימים קלנדריים. עמודות זמן נקודתי הן <code>TIMESTAMPTZ</code>, והלקוח שולח ISO עם offset (ARC-25).</li></ol></div>
+<div>חישובים</div><div><code>SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS = 14</code>, קבוע יחיד שמשמש בכל המקומות (דשבורד, רשימה, התראות). helper משותף <code>classStartsAt(class_date, start_time)</code> מחזיר timestamp ב-Asia/Jerusalem (<code>start_time</code> חסר = 00:00). helper <code>effectiveStatus(m, onDate)</code>: <code>active</code> שה-<code>end_date</code> שלו קטן מהיום מטופל כ-<code>expired</code>.</div>
+<div>מכונת מצבים</div><div>סטטוסי מנוי (מקור יחיד): <code>pending_payment, active, frozen, expired, cancelled, deleted</code>, ובנוסף דגל <code>freeze_requested</code>. ראו המעברים בתהליכים.</div>
+<div>תופעות לוואי</div><div>
+<ul>
+<li>פונקציות העזר נשמרות: <code>logBizIncome</code>, <code>logBizExpense</code>, <code>upsertStoreCustomer</code> (בהתאם ל-ARC-14: customer + <code>sport_member_profile</code>), <code>_sendMemberBizNotif</code> (בהתאם ל-ARC-16) ו-<code>logBizAction</code>.</li>
+<li>כל פעולת כתיבה נרשמת ב-audit עם <code>user_id</code> האמיתי. פעולות מהותיות נרשמות עם action ייעודי ופרטים: <code>FREEZE_MEMBER, UNFREEZE_MEMBER, CANCEL_MEMBER, DELETE_MEMBER, RENEW_MEMBER, ADD_PAYMENT, REFUND_PAYMENT, TRAINER_MARK_PAID, CLASS_REGISTER_FORCE, MIN_AGE_OVERRIDE</code>.</li>
+<li>refKey של התראות לחבר כולל מזהה אירוע ייחודי (audit id). דה-דופליקציה חוסמת רק שליחה כפולה של אותו אירוע בתוך 60 שניות.</li>
+</ul></div>
+<div>ממשק</div><div>מודול ספורט אחד בלקוח, עם הגדרה יחידה לכל מסך (<code>showSportSchedule</code>, <code>_sportMemberCard</code> וכו') ומפת פעולות מהירות אחת action→handler. אין monkey-patching של <code>window.rdAction</code>/<code>saveStoreSettings</code>. הפעולות המהירות נשמרות כולן: <code>sport-checkin, sport-members, sport-add-member, sport-membership-types, sport-schedule, sport-alerts, sport-reports, sport-waivers, sport-trainers, sport-leads, sport-oneflow, sport-inbox, sport-ai, sport-appointments</code>, ובנוסף <code>sport-qr-scan</code> (SPT-30). מודולי BIZ לסוג ספורט לא משתנים: <code>['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports']</code>, ומקורם בקטלוג השרת (ARC-18). המדריך <code>public/sport-guide.html</code> מתעדכן באותו קומיט של כל שינוי (כלל 6 מורחב).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-01</code> — כל נתיב ניהולי עובר verifyBiz. groupId נלקח מהסשן, ויש בדיקת בעלות (404) לכל :id.</li>
+<li><code>SPT-03</code> — מטריצת תפקידים R-ADM/R-MGR/R-OPS/R-CLS נאכפת בשרת (403).</li>
+<li><code>SPT-08</code> — 403 לעסק שאינו sport או שאין לו זכאות למודול.</li>
+<li><code>SPT-09</code> — כל כתיבה נרשמת ב-audit עם המשתמש האמיתי, ופעולות מהותיות מקבלות action ייעודי.</li>
+<li><code>SPT-20</code> — DATE מוחזר כמחרוזת, חישובים קלנדריים ב-Asia/Jerusalem, TIMESTAMPTZ.</li>
+<li><code>SPT-25</code> — refKey ייחודי לכל אירוע, ודה-דופ רק בחלון של 60 שניות.</li>
+<li><code>SPT-54</code> — מיגרציות במקום DDL בזמן ריצה, ו-withTransaction לפעולות מרובות שלבים.</li>
+<li><code>SPT-55</code> — הגדרה יחידה לכל מסך ומפת פעולות אחת, בלי שרשרת עטיפות.</li>
+<li><code>SPT-56</code> — sport-guide.html נכלל בחובת עדכון המדריך (הנוסח בכלל 6 ב-CLAUDE.md הוא החלטת בעלים, ARC-42).</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">הגדרות: סוגי מנויים, הגדרות חנות, מדיניות ביטול, הצהרת בריאות</h2>
+
+<section class="proc" data-f="membership types plans sport_membership_types crud punch_card monthly yearly active public soft delete"><h3>ניהול סוגי מנויים (sport_membership_types)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל העסק מגדיר מסלולי מנוי (מחיר, משך, מכסת כניסות) בטאב "מכירות" ← קטלוג (<code>renderSportSalesCatalogView</code>). <code>showSportMembershipTypes</code> מנווט לשם. הסוגים נזרעים גם בויזארד AI.</div>
+<div>הרשאות</div><div>קריאה: R-OPS ו-R-CLS. יצירה, עריכה ומחיקה: R-MGR. העסק נלקח מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם חובה ("יש להזין שם", בלקוח ובשרת: 400). מחיר ≥ 0. <code>type</code> מתוך הרשימה הסגורה <code>monthly, yearly, punch_card, day_pass, pt_sessions</code>, ברירת מחדל <code>monthly</code>. <code>sessions</code> שלם חיובי או NULL. <code>color||'indigo'</code>.</li>
+<li><code>duration_days</code> מתקבל מהקלט ב-POST וב-PUT. אם לא נשלח, ברירת המחדל לפי <code>durationMap</code>.</li>
+<li>מתגים חדשים: <code>is_active</code> ("פעיל") ו-<code>is_public</code> ("מוצג בחנות"). ביצירה שניהם true, כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET <code>/api/sport/membership-types</code>: כל הסוגים של העסק (כולל לא פעילים ולא ציבוריים, עם תג), ממוינים לפי מחיר עולה.</li>
+<li>POST: INSERT יחיד.</li>
+<li>PUT: UPDATE של <code>name,type,price,duration_days,sessions,color,is_active,is_public,updated_at</code>. העמודה <code>updated_at</code> נוספת במיגרציה.</li>
+<li>DELETE: אם קיימים מנויים מקושרים, <code>is_active=false</code> (הסוג נעלם מהבחירה ומהחנות, ומנויים קיימים ממשיכים להציג את שם הסוג). אם אין מנויים, מחיקה פיזית.</li>
+</ol></div>
+<div>חישובים</div><div><code>durationMap = { monthly:30, yearly:365, punch_card:null, day_pass:1, pt_sessions:null }</code>, ללא שינוי. זריעת ויזארד: <code>price = mt.price||200</code>, <code>color = mt.color||'#6366f1'</code>. <code>duration_days = mt.duration_days ?? durationMap[type]</code> (לא 30 קבוע). <code>class_pack</code> ממופה ל-<code>punch_card</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>active+public</td><td>active+לא ציבורי</td><td>R-MGR</td><td>מתג "מוצג בחנות"</td><td>נעלם מ-public-types. רכישה ציבורית מחזירה 404</td></tr>
+<tr><td>active</td><td>inactive</td><td>R-MGR</td><td>מתג "פעיל" או מחיקה כשיש מנויים</td><td>לא מוצע בהוספה, בחידוש ובחנות</td></tr>
+<tr><td>inactive</td><td>active</td><td>R-MGR</td><td>מתג</td><td>—</td></tr>
+<tr><td>כל מצב</td><td>(נמחק)</td><td>R-MGR</td><td>אין מנויים מקושרים</td><td>DELETE פיזי</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>הזריעה בויזארד רצה על אותו <code>client</code> בטרנזקציית הויזארד (ARC-11).</div>
+<div>ממשק</div><div>טופס הוספה מוזרק ועריכה inline לכל שורה, כמו היום. נוספים שני מתגים בשורה. תוויות הסוג: <code>{monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT'}</code>. לצד הסוגים נשארים מוצרי הקטלוג הרגילים (<code>/api/store/catalog</code>) והקיצור ל"כללי הרשמה לשיעורים". שדה "משך (ימים)" ניתן לעריכה, וממולא מראש לפי הסוג.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-11</code> — עמודת updated_at נוספת, ולכן עריכה עובדת. duration_days נלקח מהקלט, ויש ולידציה של שם ומחיר.</li>
+<li><code>SPT-12</code> — מתגי פעיל וציבורי. מחיקה רכה כשיש מנויים, ורכישה ציבורית בודקת את שני הדגלים.</li>
+<li><code>SPT-13</code> — רשימת סוגים סגורה, class_pack ממופה ל-punch_card, משך לפי durationMap, והזריעה בטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="store settings sport_settings trial freeze policy waiver public_show min_age merge"><h3>הגדרות ספורט בחנות (store_settings.sport_settings)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שמירת מדיניות טקסטואלית ומובנית, וסימון אילו כפתורים ציבוריים מוצגים. מופעל כחלק מ"שמירת הגדרות חנות" בעסק ספורט (handler אחד, בלי עטיפה) ומויזארד ההקמה.</div>
+<div>הרשאות</div><div>R-ADM (הגדרות עסק, ARC-06). הויזארד רץ בהקשר ADMIN של הויזארד.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שדות: <code>trial_enabled, cancellation_policy, freeze_policy</code> (טקסט מוצג), <code>max_freezes_per_year</code> ו-<code>max_freeze_days</code> (שלמים חיוביים או ריק = ללא הגבלה), <code>waiver_text</code> (עורך את התבנית הפעילה, ראו תבנית הצהרה), <code>min_age</code>, <code>cancel_notice_days</code>, <code>public_show_schedule, public_show_membership, public_show_trainer</code>, <code>auto_activate_purchase</code> (ברירת מחדל false).</li>
+<li>אין ALTER בנתיב. העמודה <code>sport_settings JSONB</code> קיימת במיגרציה.</li>
+<li>ויזארד: נשמר רק אם יש <code>cancellation_policy</code>, <code>waiver_text</code> או <code>freeze_policy</code>, כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח בונה את האובייקט ושולח POST <code>/api/sport/store-settings</code>.</li>
+<li>השרת מבצע <b>מיזוג</b> (<code>sport_settings || $patch</code>). שדות שלא נשלחו לא נדרסים.</li>
+<li>אם נשלח <code>waiver_text</code> שונה מתוכן התבנית הפעילה, נוצרת גרסת תבנית חדשה עם אותם פרמטרים. באותה טרנזקציה.</li>
+<li>אחר כך נשמרות שאר הגדרות החנות הכלליות.</li>
+</ol></div>
+<div>חישובים</div><div>ברירות ויזארד: <code>trial_enabled ?? true</code>, <code>min_age||16</code>, <code>cancel_notice_days||14</code>. במיגרציה <code>trial_enabled</code> ו-<code>min_age</code> הקיימים מסומנים כ"לא הוגדר", כי מעולם לא נאכפו. לא הוגדר = מותר / אין סף.</div>
+<div>תופעות לוואי</div><div><ul>
+<li>החנות מציגה את כפתורי "לוח שיעורים / הצטרף כחבר / הזמן אימון אישי" כאשר הדגל <code>!== false</code>.</li>
+<li>אכיפה: <code>min_age</code> חוסם רכישה ציבורית ומציג אזהרה ב-BIZ. <code>max_freezes_per_year/max_freeze_days</code> נאכפים בהקפאה. <code>trial_enabled===false</code> חוסם drop-in וניסיון בחנות. <code>auto_activate_purchase</code> קובע את מצב הרכישה הציבורית.</li>
+<li><code>cancellation_policy</code> ו-<code>cancel_notice_days</code> נשארים טקסט מידע בחנות.</li>
+</ul></div>
+<div>ממשק</div><div>טעינה (<code>_loadSportStoreSettings</code>): תיבות public_show_* ו-trial_enabled מסומנות כאשר הערך <code>!== false</code>, אותה ברירת מחדל כמו בחנות. נוספים שדות מספריים "מקסימום הקפאות בשנה" ו"מקסימום ימי הקפאה" (ריק = ללא הגבלה), ותיבה "הפעלה מיידית ברכישה מהחנות (לפני תשלום)". לצד שדות הטקסט מופיע תג "מידע בלבד".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-14</code> — ברירת מחדל אחידה (<code>!== false</code>) בשני הצדדים. השמירה ממזגת, וה-ALTER עבר למיגרציה.</li>
+<li><code>SPT-15</code> — (מתוקן) min_age נאכף בחנות ומציג אזהרה ב-BIZ. תקרות הקפאה מובנות אופציונליות. trial_enabled שולט ב-drop-in. הטקסטים נשארים מידע.</li>
+<li><code>SPT-18</code> — (מתוקן) waiver_text הוא עורך של התבנית הפעילה ולא מקור נפרד.</li>
+<li><code>SPT-48</code> — (מתוקן) הגדרה חדשה auto_activate_purchase.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="cancel policy late cancellation window deduct_session block default"><h3>מדיניות ביטול שיעורים (sport_cancel_policy)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל קובע חלון ביטול חינם ומה קורה בביטול מאוחר, במסך "🚫 ביטולים" בלוח השיעורים (<code>showSportCancelPolicy</code>).</div>
+<div>הרשאות</div><div>קריאה: R-CLS ו-R-OPS. שמירה: R-MGR.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>GET: אם אין שורה, מוחזרת ברירת המחדל <code>{enabled:true, cancel_window_hours:8, late_cancel_action:'deduct_session', late_cancel_fee:0}</code>. <b>אותה ברירה נאכפת</b> בנתיבי הביטול, דרך פונקציה אחת <code>getCancelPolicy(groupId)</code>.</li>
+<li>POST: <code>cancelWindowHours</code> מתוך 2/4/8/12/24/48 (ברירת מחדל 8), <code>lateCancelAction ∈ {deduct_session, block, none}</code> (ברירת מחדל deduct_session), <code>lateCancelFee||0</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT לפי <code>group_id</code> (UNIQUE) עם <code>updated_at=NOW()</code>.</li></ol></div>
+<div>חישובים</div><div>חלונות בממשק: 2/4/8/12/24/48 שעות.</div>
+<div>מכונת מצבים</div><div><code>late_cancel_action</code>: <code>deduct_session</code> מנקב כניסה (רק למנוי עם מכסה), <code>block</code> חוסם (400), <code>none</code> מבטל ללא עונש. השרת מכיר במפורש בשלושת הערכים.</div>
+<div>תופעות לוואי</div><div><code>late_cancel_fee</code> נשמר ואינו נאכף (backlog). אין חיוב.</div>
+<div>ממשק</div><div>Toggle "מדיניות פעילה", כפתורי שעות ורדיו פעולה, כמו היום. הלקוח לא שולח <code>lateCancelFee</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-16</code> — (מתוקן) ברירת המחדל המוצגת היא גם הנאכפת. none מוכר במפורש. late_cancel_fee נשאר כפי שהוא, לא נאכף ולא מוסר.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="waiver health declaration template validity minor guardian single source"><h3>תבנית הצהרת בריאות / תקנון (sport_waiver_templates)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מגדיר את תוכן ההצהרה, התוקף והחובה, במסך <code>showSportWaiverSettings</code> טאב "📝 תבנית". זה מקור הטקסט היחיד להצהרה, ב-BIZ ובכל החנויות.</div>
+<div>הרשאות</div><div>קריאת התבנית הפעילה: R-OPS, R-CLS, ו-PUBLIC (תוכן בלבד, לתצוגה ברכישה). שמירה: R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li><code>title</code> ו-<code>content</code> חובה, "כותרת ותוכן חובה" בשרת ובלקוח. <code>validity_months ∈ {6,12,24,36}</code> (ברירת מחדל 12). <code>minor_age_threshold ∈ {16,17,18}</code> (ברירת מחדל 18).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: <code>UPDATE sport_waiver_templates SET is_active=false WHERE group_id</code>.</li><li>INSERT חדשה עם <code>require_for_registration = (requireForRegistration!==false)</code>, <code>validity_months||12</code>, <code>require_guardian_for_minors = (…!==false)</code>, <code>minor_age_threshold||18</code>.</li><li>GET מחזיר את הפעילה האחרונה לפי <code>created_at DESC</code>.</li><li>מיגרציה חד-פעמית: עסק שיש לו <code>sport_settings.waiver_text</code> ואין לו תבנית מקבל תבנית עם כותרת "הצהרת בריאות" והטקסט הזה.</li></ol></div>
+<div>חישובים</div><div>אפשרויות תוקף בממשק: 6/12/24/36 חודשים. גיל קטין: 16/17/18.</div>
+<div>תופעות לוואי</div><div><code>require_for_registration</code> נאכף <b>גם ברישום לשיעור</b> (BIZ וציבורי, דרך canRegister) וגם בצ'ק-אין. <code>require_guardian_for_minors</code> נאכף בשרת בחתימה.</div>
+<div>ממשק</div><div>טקסט ברירת המחדל של 5 הסעיפים נשמר. טקסט ההסבר "חסום רישום לשיעור ללא חתימה" נשמר, ועכשיו הוא נכון גם לכניסה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-17</code> — חובת החתימה חוסמת רישום לשיעור ולא רק צ'ק-אין. אפוטרופוס לקטין נאכף בשרת.</li>
+<li><code>SPT-18</code> — (מתוקן) התבנית היא מקור יחיד. waiver_text ממוגרר ונערך דרך התבנית.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">חברים ומנויים (sport_memberships)</h2>
+
+<section class="proc" data-f="create member join new membership payment upsert customer duplicate phone min age"><h3>הוספת חבר חדש (BIZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל רושם חבר חדש במסך <code>showSportAddMember</code> (גרסה יחידה, כולל תאריך לידה ומגדר) ← <code>_sportSubmitNewMember</code>. אפשר להגיע גם מהמרת ליד.</div>
+<div>הרשאות</div><div>R-OPS.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם חובה ("יש להזין שם") וסוג מנוי חובה ("יש לבחור סוג מנוי"), בלקוח <b>ובשרת</b> (400). הסוג חייב להיות של העסק ופעיל (404). אם אין סוגי מנוי מוצג קישור להוספה.</li>
+<li>שמות שדות אחידים: <code>name, phone, email</code> (השרת מקבל זמנית גם את <code>memberName/memberPhone/memberEmail</code> כ-alias). <code>paymentAmount ≥ 0</code>.</li>
+<li><b>כפילות</b>: אם קיים חבר לא-deleted בעסק עם טלפון מנורמל זהה (<code>0XXXXXXXXX</code>), השרת מחזיר 409 <code>DUPLICATE_PHONE</code> עם פרטי הקיים. הלקוח מציג "חבר עם טלפון זה קיים: {שם}" ושתי אפשרויות: "חדש מנוי לחבר הקיים" (פותח חידוש) או "צור בכל זאת" (שליחה חוזרת עם allowDuplicate:true, שיוצרת customer נפרד עם shared_phone=true, <code>ARC-14</code>).</li>
+<li><b>גיל מינימום</b>: אם הוגדר <code>min_age</code> ונמסר תאריך לידה שגילו (לפי תאריך מלא) קטן מהסף, מוחזר 409 <code>UNDER_MIN_AGE</code> עם אזהרה. ADMIN יכול לאשר עם <code>overrideMinAge:true</code>, ונרשם audit <code>MIN_AGE_OVERRIDE</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה אחת: SELECT סוג המנוי (של העסק).</li>
+<li>חישוב <code>end_date</code> ו-<code>sessions_total</code>.</li>
+<li>INSERT <code>sport_memberships</code> (<code>status='active'</code>, <code>start_date = startDate || todayIL()</code>, <code>notes||''</code>, <code>date_of_birth, gender, id_number</code>), ויצירת רשומת תקופה ראשונה ב-<code>sport_membership_periods</code>.</li>
+<li>אם <code>paymentAmount &gt; 0</code>: INSERT <code>sport_payments</code> (<code>payment_method||'cash'</code>, notes='הצטרפות מנוי חדש', <code>membership_type_id</code> בזמן התשלום) ו-<code>logBizIncome</code> עם התיאור "הצטרפות מנוי חדש — שם".</li>
+<li><code>upsertStoreCustomer</code> בתוך הטרנזקציה, עם notes "חבר מועדון: {שם הסוג}".</li>
+<li>אם הגיע מהמרת ליד: הלקוח שולח PUT <code>/api/sport/leads/:id</code> עם <code>status:'converted', convertedToMembershipId</code>. מזהה ההמרה מאופס מיד אחרי השליחה או בסגירת הטופס.</li>
+</ol></div>
+<div>חישובים</div><div><code>end_date = addDaysIL(start_date, duration_days)</code> בימים קלנדריים (מנוי חודשי שמתחיל 2026-03-28 מסתיים 2026-04-27). <code>sessions_total = mtype.sessions</code>. סכום התשלום ממולא אוטומטית במחיר הסוג וניתן לעריכה.</div>
+<div>מכונת מצבים</div><div>מצב התחלתי: <code>active</code>.</div>
+<div>תופעות לוואי</div><div>תנועת הכנסה ב-<code>transactions</code>, כרטיס לקוח מאוחד, וקישור <code>member_business_links</code> אם הטלפון שייך למשפחת WEFLOWZ. audit <code>ADD_MEMBER</code> (ו-<code>ADD_PAYMENT</code> אם שולם).</div>
+<div>ממשק</div><div>שדות: שם*, טלפון, אימייל, סוג מנוי* (רק פעילים), סכום ששולם, אמצעי תשלום (cash/credit/transfer/app), תאריך התחלה (היום), ת"ז, תאריך לידה, מגדר, הערות. ללא שינוי, פרט לדיאלוגי הכפילות והגיל.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-19</code> — (מתוקן) אזהרת כפילות לפי טלפון מנורמל, עם "חדש לקיים" או "צור בכל זאת". בלי אילוץ ייחודיות.</li>
+<li><code>SPT-15</code> — (מתוקן) min_age מציג אזהרה ב-BIZ, ו-ADMIN יכול לעקוף עם audit.</li>
+<li><code>SPT-20</code> — end_date בימים קלנדריים ב-Asia/Jerusalem.</li>
+<li><code>SPT-28</code> — תקופה ראשונה נרשמת ב-sport_membership_periods.</li>
+<li><code>SPT-34</code> — sport_payments שומר membership_type_id בזמן התשלום.</li>
+<li><code>SPT-49</code> — מזהה המרת הליד מאופס בסגירת הטופס.</li>
+<li><code>SPT-54</code> — חבר, תשלום, הכנסה וכרטיס לקוח בטרנזקציה אחת.</li>
+<li><code>RECON-16</code> — "צור בכל זאת" יוצר לקוח נפרד מסומן shared_phone, כמו ב-tobe-arch וב-tobe-beauty. אין אילוץ ייחודיות על מנויים, ולקוח יכול להחזיק כמה מנויים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="members list filter expiring auto expire auto unfreeze background effective status freeze button"><h3>רשימת חברים, סינון ופקיעה/הפשרה עצלה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טעינת רשימת חברים, לשימוש במסך החברים, בחיפוש בצ'ק-אין, בבורר רישום לשיעור ובויזארד WEFLOWZ. GET <code>/api/sport/members?status&amp;q|search</code>.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. <b>לא נגיש לציבור</b>.</div>
+<div>קלט ואימותים</div><div><ul><li><code>status='expiring'</code> ⇒ <code>status='active' AND end_date BETWEEN todayIL AND todayIL+14</code>. <code>status</code> אחר ושונה מ-'all' ⇒ שוויון. <code>all</code> לא כולל <code>deleted</code>. חיפוש <code>ILIKE %q%</code> על שם או טלפון (גם בצורה מנורמלת).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT עם JOIN לסוג (type_name, type_color, type_kind), ממוין לפי <code>created_at DESC</code>, ברשימת שדות מפורשת.</li>
+<li><b>פקיעה</b>: מבוצעת במשימת הרקע היומית (ראו משימות רקע). בנוסף, כל שורה מוחזרת עם <code>effectiveStatus</code>, כך ש-active שפג מוצג ומטופל כ-expired גם לפני ריצת המשימה. העדכון העצל נשמר כגיבוי, ופועל על כל השורות הרלוונטיות של העסק ולא רק על התוצאות המסוננות.</li>
+<li><b>הפשרה</b>: אותו דבר. frozen עם <code>frozen_until &lt; todayIL</code> הופך active, עם הארכה ו-<code>frozen_days_banked += frozenDays</code>.</li>
+</ol></div>
+<div>חישובים</div><div><code>frozenDays = daysBetweenIL(frozen_at, frozen_until)</code>, <code>new end_date = addDaysIL(end_date, frozenDays)</code>. המנוי פוקע כש-<code>end_date &lt; todayIL</code>, כלומר הוא תקף לאורך כל יום הסיום.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>active</td><td>expired</td><td>מערכת (משימה יומית או גיבוי בקריאה)</td><td>end_date &lt; todayIL</td><td>אין התראה (התזכורת נשלחת 7 ימים קודם)</td></tr>
+<tr><td>frozen</td><td>active</td><td>מערכת (משימה יומית או גיבוי בקריאה)</td><td>frozen_until &lt; todayIL</td><td>הארכת end_date, צבירת frozen_days_banked</td></tr></table></div></div>
+<div>ממשק</div><div>מסננים: <code>all, active, expiring, frozen, expired</code> (ובנוסף <code>pending_payment</code> כשיש כאלה). כרטיס חבר (גרסה יחידה): פיל סטטוס מחושב, ללא שינוי. active עם הצהרה חסרה או פגה ⇒ "ממתין להצהרה" (צהוב). active עם ≤14 ימים ⇒ "פג בעוד X". frozen סגול, expired אדום, cancelled אפור, pending_payment כתום "ממתין לתשלום". הגיל מחושב מתאריך הלידה המלא. כפתורים: כניסה, <b>הקפאה</b> (תקין, רק ל-active, פותח טופס סיבה+ימים), הפשרה, חידוש (expired או ≤14 ימים), חתימת הצהרה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-21</code> — הפקיעה וההפשרה מבוצעות במשימת רקע, ו-effectiveStatus מחושב בכל קריאה.</li>
+<li><code>SPT-22</code> — כפתור ההקפאה בכרטיס ברשימה תוקן (onclick), מוצג רק ל-active ופותח את טופס ההקפאה.</li>
+<li><code>SPT-02</code> — הרשימה זמינה רק בנתיב BIZ מאומת. הקריאה הציבורית מ-storefront.html מוחלפת (ראו צ'ק-אין עצמי).</li>
+<li><code>SPT-23</code> — frozen_days_banked מצטבר בהפשרה אוטומטית.</li>
+<li><code>SPT-20</code> — השוואות לפי todayIL וימים קלנדריים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="edit member update extended health emergency trial fields"><h3>עריכת פרטי חבר (בסיסי + מורחב)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל עורך פרטים ב-<code>showSportMemberEdit</code> ← <code>_sportSubmitEdit</code>, ששולח PUT <code>/members/:id</code> ו-PUT <code>/members/:id/extended</code>. מומלץ לאחד לבקשה אחת. שני הנתיבים נשמרים.</div>
+<div>הרשאות</div><div>R-OPS. שדות בריאות ות"ז: R-OPS ו-R-CLS לקריאה, R-OPS לכתיבה. הגישה נרשמת ב-audit (ARC-32).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>PUT בסיסי: <code>name, phone, email, notes, status</code>. רק שדות שנשלחו מתעדכנים (<code>undefined</code> ⇒ לא משתנה). שם שנשלח ריק ⇒ 400 "יש להזין שם".</li>
+<li><code>status</code> ב-PUT מוגבל למעברים החוקיים (ראו מכונת מצבים). לשינויי מצב מהותיים יש נתיבים ייעודיים.</li>
+<li>PUT extended: <code>emergency_contact, emergency_phone, health_notes, is_trial, date_of_birth, gender, id_number</code>.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טעינת המנוי עם בדיקת בעלות.</li><li>UPDATE של השדות שנשלחו.</li><li><code>upsertStoreCustomer</code>.</li><li>אם השתנה <code>status</code>: התראה לחבר המקושר "המנוי שלך ב{עסק} עודכן: {תווית}", עם refKey ייחודי לאירוע.</li></ol></div>
+<div>מכונת מצבים</div><div>PUT בסיסי מאפשר רק <code>active↔cancelled</code> ו-<code>expired→cancelled</code>. מעברים ל-frozen/active מהקפאה נעשים בנתיבים הייעודיים (409 אחרת). ממשק העריכה לא שולח status, כמו היום. תוויות: <code>{active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל', pending_payment:'ממתין לתשלום'}</code>.</div>
+<div>ממשק</div><div>שדות: שם, טלפון, אימייל, ת. לידה, מגדר (male/female/other), ת"ז, איש קשר חירום+טלפון, הערות בריאות, "מנוי ניסיון 🆓", הערות. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-10</code> — שמות שדות אחידים ועדכון רק של מה שנשלח. עריכה כבר לא מאפסת שם, טלפון ואימייל.</li>
+<li><code>SPT-25</code> — התראת שינוי סטטוס עם refKey ייחודי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="freeze membership frozen_until days reason policy member self request"><h3>הקפאת מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל (BIZ: <code>showSportFreeze</code>/<code>_sportConfirmFreeze</code>, מכרטיס ברשימה או מכרטיס מפורט; כפתור AI פותח את הטופס), או <b>החבר עצמו</b> מאפליקציית המשפחה. מנהל: POST <code>/api/sport/members/:id/freeze</code>. חבר: POST <code>/api/family/sport/memberships/:id/freeze</code>.</div>
+<div>הרשאות</div><div>מנהל: R-OPS. חבר: FAMILY עם קישור פעיל <code>linked_member_ref_id=id</code> (אחרת 404).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>רק ממצב <code>active</code> (אפקטיבי). אחרת 409 "ניתן להקפיא רק מנוי פעיל".</li>
+<li><code>days</code>: שלם 1–365. מנהל רשאי לא לשלוח ימים (הקפאה ללא תאריך עד הפשרה ידנית, כמו היום).</li>
+<li>תקרות <code>max_freeze_days</code> ו-<code>max_freezes_per_year</code> (אם העסק הגדיר אותן): הקפאה של מנהל מעל התקרה דורשת <code>override:true</code> ונרשמת ב-audit. בקשת חבר מעל התקרה, או בלי ימים כשמוגדרת תקרת ימים, לא מבוצעת מיד. היא נשמרת כ-<code>freeze_requested</code> (ימים, סיבה, תאריך) ומחכה לאישור העסק.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>חישוב <code>frozen_until = addDaysIL(todayIL, days)</code> אם נשלחו ימים.</li>
+<li>UPDATE <code>status='frozen', frozen_at=todayIL, frozen_reason, frozen_until, freeze_requested=NULL</code>.</li>
+<li>audit <code>FREEZE_MEMBER</code> עם השחקן האמיתי (משתמש BIZ או "חבר") ו-<code>{reason, days}</code>.</li>
+<li>התראה לחבר המקושר "המנוי שלך ב{עסק} הוקפא", עם refKey ייחודי.</li>
+<li>בקשה (<code>freeze_requested</code>): התראה לעסק, ובמסך ההתראות כפתורי "אשר הקפאה" (מבצע את שלבים 1–4) ו"דחה" (מנקה את הבקשה ומודיע לחבר).</li>
+</ol></div>
+<div>חישובים</div><div>ספירת הקפאות בשנה: מספר אירועי <code>FREEZE_MEMBER</code> למנוי ב-365 הימים האחרונים. ימי הקפאה מצטברים: <code>frozen_days_banked</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>active</td><td>frozen</td><td>R-OPS / החבר (FAMILY)</td><td>בתוך מדיניות, או override של מנהל</td><td>audit, התראה לחבר</td></tr>
+<tr><td>active</td><td>active + freeze_requested</td><td>החבר</td><td>חורג מהמדיניות</td><td>התראה לעסק</td></tr>
+<tr><td>active + freeze_requested</td><td>frozen / active</td><td>R-OPS אשר / דחה</td><td>—</td><td>התראה לחבר</td></tr>
+<tr><td>אחר</td><td>—</td><td>—</td><td>—</td><td>409</td></tr></table></div></div>
+<div>ממשק</div><div>טופס BIZ: סיבה, ימים (אופציונלי למנהל, "המנוי יופשר אוטומטית כשיחלוף"). אפליקציית המשפחה: כפתור "❄️ הקפא מנוי" פותח שדות ימים וסיבה (אופציונליים כשאין תקרה). התגובה מציגה "הוקפא" או "הבקשה נשלחה לאישור המועדון".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-05</code> — (מתוקן) לחבר יש נתיב משפחה מאומת עם בדיקת בעלות. ההקפאה מיידית בתוך המדיניות, ומעבר לה נוצרת בקשה.</li>
+<li><code>SPT-23</code> — (מתוקן) הקפאה רק מ-active (409). תקרות אופציונליות. הקפאה ללא תאריך נשמרת למנהל. frozen_days_banked בשימוש.</li>
+<li><code>SPT-15</code> — freeze_policy המובנה נאכף כאן.</li>
+<li><code>SPT-22</code> — הטופס נגיש גם מהכרטיס ברשימה.</li>
+<li><code>SPT-52</code> — פעולת AI "הקפאה" פותחת את הטופס במקום הקפאה ללא ימים.</li>
+<li><code>SPT-25</code> — refKey ייחודי, כך שהקפאה שנייה מתריעה.</li>
+<li><code>SPT-09</code> — audit עם השחקן האמיתי.</li>
+<li><code>SPT-20</code> — frozen_until בימים קלנדריים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="unfreeze membership extend end date audit"><h3>הפשרת מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל (<code>sportUnfreeze</code>, ופעולת AI) או החבר מאפליקציית המשפחה. POST <code>/api/sport/members/:id/unfreeze</code> (BIZ), או <code>/api/family/sport/memberships/:id/unfreeze</code> (FAMILY). מתבצעת גם אוטומטית במשימת הרקע.</div>
+<div>הרשאות</div><div>R-OPS או FAMILY בעלים.</div>
+<div>קלט ואימותים</div><div><ul><li>404 "לא נמצא" (כולל רשומה של עסק אחר). אם המנוי אינו <code>frozen</code>: 409 "המנוי אינו מוקפא".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT … FOR UPDATE.</li><li>חישוב end_date חדש.</li><li>UPDATE <code>status='active'</code>, איפוס frozen_at/frozen_reason/frozen_until, <code>frozen_days_banked += frozenDays</code>.</li><li>audit <code>UNFREEZE_MEMBER</code> עם <code>{frozenDays}</code>.</li><li>התראה "המנוי שלך ב{עסק} הופשר ✅", עם refKey ייחודי.</li></ol></div>
+<div>חישובים</div><div><code>frozenDays = daysBetweenIL(frozen_at, todayIL)</code>, <code>end_date = addDaysIL(end_date, frozenDays)</code>. רק אם קיימים גם frozen_at וגם end_date.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>frozen</td><td>active</td><td>R-OPS / חבר / מערכת</td><td>רשומה קיימת ובמצב frozen</td><td>הארכת end_date, audit, התראה</td></tr><tr><td>אחר</td><td>—</td><td>—</td><td>—</td><td>409</td></tr></table></div></div>
+<div>ממשק</div><div>כפתורי "הפשר" בכרטיס, במסך ההתראות ("מוקפאים") ובאפליקציית המשפחה ("▶️ שחרר הקפאה"), ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-24</code> — הפשרה רק מ-frozen (409), בימים קלנדריים, עם audit UNFREEZE_MEMBER.</li>
+<li><code>SPT-05</code> — לחבר יש נתיב משפחה עם בדיקת בעלות.</li>
+<li><code>SPT-23</code> — צבירת frozen_days_banked.</li>
+<li><code>SPT-09</code> — ההפשרה נרשמת ב-audit.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="cancel membership cancelled churn refund future registrations"><h3>ביטול מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מכרטיס חבר, בכפתור "בטל מנוי ⛔" (<code>sportCancelMembership</code>). POST <code>/api/sport/members/:id/cancel</code>.</div>
+<div>הרשאות</div><div>R-MGR. ההחזר הכספי: R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: prompt לסיבה (ביטול ה-prompt עוצר) ו-confirm מסוכן. בנוסף תיבה אופציונלית "החזר כספי" עם סכום ואמצעי תשלום.</li><li>שרת: 404 "לא נמצא". אם המנוי כבר cancelled: 409. סכום ההחזר &gt; 0 ולכל היותר סכום התשלומים של התקופה הנוכחית.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: UPDATE <code>status='cancelled', cancelled_at=NOW(), cancel_reason, updated_at=NOW()</code>.</li>
+<li>ביטול רך של רישומים עתידיים (<code>classStartsAt &gt; now</code>): <code>cancelled_at=NOW(), cancel_type='membership_cancelled'</code>, בלי ניקוב. מחיקת רשומות המתנה עתידיות. קידום המתנה לכל שיעור שהתפנה בו מקום.</li>
+<li>אם התבקש החזר: INSERT ל-<code>sport_payments</code> של רשומה שלילית עם <code>refund_of</code>, ותנועה מתאימה ב-<code>transactions</code> (ראו רישום תשלום).</li>
+<li>audit <code>CANCEL_MEMBER</code> עם <code>{reason, refund}</code>.</li>
+<li>התראה "המנוי שלך ב{עסק} בוטל", עם refKey ייחודי.</li>
+</ol></div>
+<div>חישובים</div><div>דוח הנטישה סופר ביטולים לפי חודש של <code>cancelled_at</code> (Asia/Jerusalem).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>active / frozen / expired / pending_payment</td><td>cancelled</td><td>R-MGR</td><td>—</td><td>ביטול רישומים עתידיים, החזר אופציונלי, audit, התראה</td></tr><tr><td>cancelled</td><td>active</td><td>R-OPS (חידוש)</td><td>—</td><td>ראו חידוש</td></tr></table></div></div>
+<div>ממשק</div><div>ההודעה "ניתנת לביטול ע"י חידוש" נשמרת. נוספת התיבה האופציונלית "החזר כספי".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-26</code> — cancelled_at ו-cancel_reason בטבלה. ביטול רישומים והמתנה עתידיים עם קידום. החזר כספי אופציונלי. נטישה לפי cancelled_at.</li>
+<li><code>SPT-25</code> — refKey ייחודי.</li>
+<li><code>SPT-54</code> — הביטול כולו בטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="delete member permanent cascade anonymize history"><h3>מחיקת חבר לצמיתות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מחק לצמיתות 🗑️" בכרטיס חבר (<code>sportDeleteMember</code>). DELETE <code>/api/sport/members/:id</code>.</div>
+<div>הרשאות</div><div>R-ADM.</div>
+<div>קלט ואימותים</div><div><ul><li>404 "לא נמצא". confirm מסוכן בלקוח, שהטקסט שלו משקף את מה שקורה בפועל.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>SELECT group_id ו-member_name, וספירת <code>sport_payments</code> ו-<code>sport_checkins</code> של החבר.</li>
+<li><b>אין היסטוריה</b>: DELETE פיזי, כמו היום. רישומים, המתנה והצהרות נמחקים ב-CASCADE. ליד מומר מקבל SET NULL.</li>
+<li><b>יש היסטוריה</b>: אנונימיזציה בטרנזקציה. <code>member_name='חבר שנמחק'</code>, ונמחקים טלפון, אימייל, ת"ז, תאריך לידה, הערות בריאות, איש קשר חירום ו-qr_token. נקבע <code>status='deleted'</code>, ורישומים עתידיים והמתנה נמחקים. התשלומים והכניסות נשמרים ומקושרים לרשומה האנונימית.</li>
+<li>audit <code>DELETE_MEMBER</code> עם <code>{mode:'hard'|'anonymized'}</code>.</li>
+</ol></div>
+<div>מכונת מצבים</div><div>כל מצב ⇒ (נמחק) או <code>deleted</code>. <code>deleted</code> מוסתר מכל הרשימות, מהחיפושים ומהבוררים, ואין ממנו מעבר.</div>
+<div>תופעות לוואי</div><div>הדוחות הכספיים נשארים נכונים. החבר נעלם מהממשק בשני המסלולים, כמו היום.</div>
+<div>ממשק</div><div>טקסט האישור: "החבר יוסר לצמיתות. פרטיו האישיים יימחקו; היסטוריית תשלומים וכניסות תישמר באופן אנונימי לצורכי דוחות."</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-27</code> — חבר עם היסטוריה עובר אנונימיזציה (status='deleted') במקום שתשלומים יתייתמו. טקסט האישור אמיתי.</li>
+<li><code>SPT-03</code> — המחיקה מוגבלת ל-ADMIN.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="renew membership renewal payment reset sessions periods history"><h3>חידוש מנוי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל מהתראות, מכרטיס חבר או מכרטיס ברשימה (<code>showSportRenewMember</code>), וגם מדיאלוג "חדש לחבר הקיים" בהוספת חבר. POST <code>/api/sport/members/:id/renew</code>.</div>
+<div>הרשאות</div><div>R-OPS.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: סוג חובה, "יש לבחור סוג מנוי". שרת: 404 "סוג מנוי לא נמצא" (גם כשהסוג של עסק אחר או לא פעיל) ו-"חבר לא נמצא". <code>paymentAmount ≥ 0</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: SELECT סוג ומנוי FOR UPDATE.</li>
+<li>INSERT <code>sport_membership_periods(membership_id, type_id, start_date, end_date, sessions_total, price, payment_id)</code>.</li>
+<li>UPDATE המנוי: <code>membership_type_id, start_date, end_date, sessions_total, sessions_used=0, status='active', current_period_id, frozen_at=NULL, frozen_reason=NULL, frozen_until=NULL, freeze_requested=NULL</code>.</li>
+<li>אם <code>paymentAmount &gt; 0</code>: INSERT <code>sport_payments</code> (עם membership_type_id) ו-<code>logBizIncome</code> עם התיאור "מנוי ספורט — שם".</li>
+<li>audit <code>RENEW_MEMBER</code>, ואז התראה לחבר המקושר "המנוי שלך ב{עסק} חודש עד {end_date}".</li>
+</ol></div>
+<div>חישובים</div><div><code>sd = startDate</code> אם נשלח. אחרת <code>addDaysIL(end_date,1)</code> כשהמנוי active ו-<code>end_date ≥ todayIL</code>, ואחרת todayIL. <code>end_date = addDaysIL(sd, duration_days)</code>. אין צבירת יתרת כניסות מהתקופה הקודמת, כמו היום.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>active / expired / cancelled / frozen / pending_payment</td><td>active</td><td>R-OPS</td><td>סוג של העסק ופעיל</td><td>תקופה חדשה, איפוס מכסה ושדות הקפאה, תשלום אופציונלי, התראה</td></tr></table></div></div>
+<div>ממשק</div><div>סוג (ברירת מחדל: הסוג הנוכחי), תאריך התחלה (ברירת מחדל לפי החישוב, ניתן לעריכה), אמצעי תשלום, סכום (ריק = ללא תשלום). נוספת לשונית "היסטוריית תקופות" בכרטיס החבר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-28</code> — (מתוקן) כל חידוש יוצר רשומת תקופה. כל שדות frozen_* מאופסים. הסוג חייב להיות של העסק. ברירת מחדל של היום שאחרי end_date כשהמנוי בתוקף, ו-startDate מפורש מכובד. התראה לחבר.</li>
+<li><code>SPT-34</code> — התשלום שומר את סוג המנוי בזמן התשלום.</li>
+<li><code>SPT-54</code> — החידוש כולו בטרנזקציה.</li>
+<li><code>SPT-09</code> — audit RENEW_MEMBER.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="member detail profile checkins classes payments total paid show all"><h3>כרטיס חבר מפורט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על חבר. GET <code>/api/sport/member-detail/:id</code> מריץ שאילתות במקביל: החבר עם type_name/type_kind/type_price, הכניסות, 20 השיעורים האחרונים עם attended, 10 התשלומים האחרונים, ו-<code>total_paid</code>.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. אזור החירום והבריאות מוצג לשתי הקבוצות, והגישה אליו נרשמת ב-audit (ARC-32).</div>
+<div>קלט ואימותים</div><div><ul><li>404 "לא נמצא" (כולל עסק אחר).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>4+1 שאילתות במקביל. <code>total_paid = SUM(amount)</code> על כל תשלומי החבר (כולל החזרים שליליים).</li><li>"הצג הכל" קורא ל-GET <code>/api/sport/payments?membershipId=…</code>.</li></ol></div>
+<div>חישובים</div><div>"סה"כ שילם" = <code>total_paid</code> מהשרת. כניסות נותרות = <code>sessions_total − sessions_used</code>.</div>
+<div>ממשק</div><div>הגרסה הנוכחית נשמרת: תג "ניסיון", אזור חירום ובריאות אדום. כפתורים: חדש, QR, הקפא (active), הפשר (frozen), תשלום, 🔗 WEFLOWZ, בטל מנוי (≠cancelled), מחק לצמיתות. מוצגים 10 כניסות אחרונות, שיעורים (✅/❌) ותשלומים. נוספים "הצג הכל" לתשלומים, כפתור "החזר" לכל תשלום, ולשונית היסטוריית תקופות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-29</code> — total_paid מחושב בשרת על כל התשלומים, הרשימה מוגבלת ל-10 עם "הצג הכל".</li>
+<li><code>SPT-32</code> — כפתור "החזר" לכל תשלום.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="qr token member card digital local generation rotate"><h3>כרטיס כניסה דיגיטלי (QR token)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "QR 📱" בכרטיס חבר (<code>showSportMemberQR</code>). GET <code>/api/sport/member-qr/:id</code>. הטוקן נוצר גם ברכישה ציבורית, ומוצג גם לחבר באזור האישי בחנות.</div>
+<div>הרשאות</div><div>BIZ: R-OPS. אזור אישי: STORE, ורק עבור המנוי של בעל הטוקן.</div>
+<div>קלט ואימותים</div><div><ul><li>404 למנוי של עסק אחר.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אם אין <code>qr_token</code>, נוצר <code>crypto.randomBytes(16).hex</code> (32 תווים) ונשמר.</li>
+<li>ה-QR מקודד את <b>הטוקן בלבד</b>, ונוצר מקומית בדפדפן בספריית QR (בלי שירות צד שלישי). התמונה בגודל 200×200.</li>
+<li>שיתוף: <code>navigator.share</code> או קישור <code>wa.me</code> עם טקסט ותמונה, כמו היום.</li>
+<li>POST <code>/api/sport/member-qr/:id/rotate</code> (R-OPS): טוקן חדש, הקודם מבוטל, ונרשם audit.</li>
+</ol></div>
+<div>תופעות לוואי</div><div>הטוקן לא נשלח לשירות חיצוני.</div>
+<div>ממשק</div><div>חלון QR עם כפתורי "שתף" ו"חדש קוד".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-30</code> — QR של הטוקן בלבד שנוצר מקומית (בלי URL לנתיב שאינו קיים ובלי qrserver.com), ואפשרות לחדש טוקן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="sign declaration waiver admin public validity status alerts minor guardian typed signature"><h3>חתימה על הצהרת בריאות, סטטוס והתראות תוקף</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) מנהל חותם בשם החבר (<code>showSportAdminSignWaiver</code>) ← POST <code>/api/sport/sign-declaration</code>. (ב) לקוח בחנות אחרי רכישה, או מהאזור האישי ← POST <code>/api/sport/public-sign-declaration</code>, מכל לקוחות החנות.</div>
+<div>הרשאות</div><div>(א) R-OPS. (ב) STORE. ה-<code>membershipId</code> חייב להיות שייך לטלפון שבטוקן ולעסק.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>admin: <code>membershipId</code> חובה ("חסרים שדות חובה"). נדרשת תבנית פעילה ("אין תבנית הצהרה — צור תבנית תחילה").</li>
+<li>חתימה = <b>שם מלא מוקלד</b> + תיבת אישור ("יש לאשר חתימה"). אפשר במקום זה ציור חתימה. השרת שומר <code>signer_name, signed_at, signer_ip</code> ו-<code>signature_data</code> אם יש ציור. בחתימת מנהל נשמרים גם <code>signed_by_user_id</code> ו-<code>signature_data='admin-confirmed'</code>.</li>
+<li>קטין: הגיל מחושב לפי תאריך לידה מלא, וקטין הוא מי שגילו קטן מ-<code>minor_age_threshold</code>. כש-<code>require_guardian_for_minors</code> פעיל, שם וטלפון של אפוטרופוס חובה, אחרת 400 "נדרשים פרטי הורה/אפוטרופוס". נשמרים <code>is_minor</code> ופרטי האפוטרופוס, גם בחתימה הציבורית.</li>
+<li>public: נדרשת תבנית פעילה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קריאת התבנית הפעילה. <code>validityMonths = validity_months||12</code>.</li><li>INSERT <code>sport_health_declarations</code> עם טקסט התבנית הפעילה (מקור יחיד), template_id ונתוני החתימה.</li><li>UPDATE <code>sport_memberships.waiver_signed_at=NOW(), waiver_valid_until</code>. שני הצעדים באותה טרנזקציה.</li></ol></div>
+<div>חישובים</div><div><code>valid_until = addMonthsIL(todayIL, validity_months)</code>. סטטוס: <code>isValid = hasSigned AND waiver_valid_until ≥ todayIL</code>, <code>daysUntilExpiry = daysBetweenIL(todayIL, valid_until)</code>. התראות: חברים active עם <code>waiver_valid_until IS NULL OR &lt; todayIL + 14</code>, ממוינים NULLS FIRST.</div>
+<div>ממשק</div><div>טאבים "✅ חתומות" (תג "פג תוקף"/"בתוקף", פרטי הורה לקטין) ו-"⚠️ התראות" (תוויות "מעולם לא חתם" / "פג לפני X ימים" / "פג בעוד X ימים"), ובאנר במסך ההתראות. כל אלה ללא שינוי. שדות ההורה מוצגים אם החותם קטין <b>או</b> שהתבנית דורשת אפוטרופוס. בחנות (כל הגרסאות) בלוק ההצהרה מוצג כשקיימת תבנית פעילה, ומכיל את טקסט התבנית, שדה שם מלא ותיבת אישור.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-18</code> — (מתוקן) טקסט מהתבנית בלבד, בכל החנויות, לפי אותה לוגיקה. החתימה כוללת שם מוקלד, חותמת זמן ו-IP. public לפי membershipId מאומת ושומר is_minor ופרטי אפוטרופוס.</li>
+<li><code>SPT-17</code> — השרת דוחה חתימה של קטין בלי פרטי אפוטרופוס. גיל לפי תאריך מלא.</li>
+<li><code>SPT-07</code> — חתימה ציבורית דורשת טוקן לקוח חנות.</li>
+<li><code>SPT-20</code> — חישובי תוקף לפי todayIL.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">כניסות (צ'ק-אין)</h2>
+
+<section class="proc" data-f="checkin manual entry guards waiver sessions punch effective status kiosk"><h3>צ'ק-אין ידני (BIZ) ושומרי הכניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך "כניסה למועדון 🚪" (<code>showSportCheckIn</code>): חיפוש (≥2 תווים, רק active) ← <code>_sportDoCheckin</code>. אפשר להגיע גם מכרטיס חבר ומכפתור AI. POST <code>/api/sport/checkin</code>. <b>מצב עמדת כניסה (kiosk)</b> במסך זה: שדה טלפון בלבד, POST <code>/api/sport/checkin-by-phone</code>. זה מחליף את הצ'ק-אין לפי טלפון שהיה ב-storefront.html.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. עמדת kiosk רצה בסשן BIZ של משתמש בתפקיד R-OPS.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: סטטוס ≠ active ⇒ "לא ניתן לרשום כניסה — מנוי מוקפא/לא פעיל".</li>
+<li>שרת, לפי הסדר (פונקציה משותפת <code>sportCheckinGuards</code> לכל סוגי הצ'ק-אין): 404 "חבר לא נמצא" (כולל עסק אחר). <code>effectiveStatus</code>: expired ⇒ "המנוי פג תוקף" (גם כש-<code>end_date &lt; todayIL</code> ועדיין לא עודכן). frozen ⇒ "המנוי מוקפא". cancelled או deleted ⇒ "המנוי בוטל". pending_payment ⇒ "המנוי ממתין לתשלום". <code>sessions_total!==null AND sessions_used ≥ sessions_total</code> ⇒ "כרטיסייה מנוצלת עד תום" (no_session). הצהרה נדרשת ולא תקפה ⇒ "נדרשת חתימה על הצהרת בריאות תקפה לפני כניסה" (waiver_required). כניסה קיימת היום ⇒ "כבר בוצע צ׳ק-אין היום" (already_in).</li>
+<li>kiosk: טלפון מנורמל. אם יש כמה מנויים active לאותו טלפון, מוצגים שמות פרטיים בלבד לבחירה. התשובה מכילה רק שם פרטי, תוצאה ויתרת כניסות.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: SELECT מנוי FOR UPDATE.</li><li>בדיקות.</li><li>INSERT <code>sport_checkins(group_id, membership_id, member_name, source)</code>, כאשר <code>source ∈ {manual, kiosk, self, qr, attendance}</code>.</li><li>אם יש מכסה: <code>sessions_used+1</code>.</li></ol></div>
+<div>חישובים</div><div>מגבלה: כניסה אחת ליום לחבר (<code>toILDate(checked_in_at)=todayIL</code>). זהו גם כלל הניקוב: ניקוב אחד ליום, ברגע הראשון מבין צ'ק-אין לסימון נוכחות. הודעה בלקוח: נותרו <code>sessions_total − sessions_used − 1</code>, ואם ≤0 "כרטיסייה מנוצלת 🔔".</div>
+<div>מכונת מצבים</div><div>כניסה: פתוחה (<code>checked_out_at IS NULL</code>) ← סגורה (יציאה ידנית או אוטומטית) / נמחקת (ביטול).</div>
+<div>ממשק</div><div>רשימת "כניסות היום (N)" עם שעת כניסה, כפתורי "יציאה"/"ביטול" ומשך ביקור, ללא שינוי. נוסף מתג "מצב עמדת כניסה".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-21</code> — סטטוס אפקטיבי מ-end_date. מנוי שפג נחסם גם לפני העדכון.</li>
+<li><code>SPT-01</code> — בדיקת שייכות membershipId לעסק הסשן.</li>
+<li><code>SPT-02</code> — (מתוקן) צ'ק-אין לפי טלפון זמין במצב kiosk מאומת, בלי חשיפת רשימה.</li>
+<li><code>SPT-39</code> — כלל ניקוב אחיד, פעם אחת ביום, משותף לנוכחות.</li>
+<li><code>SPT-48</code> — pending_payment נחסם בכניסה.</li>
+<li><code>SPT-20</code> — "היום" לפי Asia/Jerusalem.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="self checkin phone customer storefront token"><h3>צ'ק-אין עצמי לפי טלפון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר באזור האישי בחנות לוחץ "✅ צ׳ק-אין עצמי". POST <code>/api/sport/self-checkin</code>.</div>
+<div>הרשאות</div><div>STORE. הטלפון והעסק נגזרים מהטוקן, ושום טלפון או groupId מהקלט לא משמש לזיהוי.</div>
+<div>קלט ואימותים</div><div><ul><li>בלי טוקן: 401. נבחר המנוי האחרון לפי <code>created_at</code> עם <code>effectiveStatus='active'</code> והטלפון שבטוקן. אם הלקוח שולח <code>membershipId</code>, הוא נבדק מול הטוקן. אם אין מנוי: "לא נמצא מנוי פעיל". מכסה ו-<code>sportCheckinGuards</code> כמו בצ'ק-אין הידני.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT כניסה (<code>source='self'</code>), ו-<code>sessions_used+1</code> אם יש מכסה. בטרנזקציה.</li><li>מוחזר <code>sessionsLeft = sessions_total − sessions_used − 1</code>, או null.</li></ol></div>
+<div>ממשק</div><div>הלקוח (sc-auth.js) קורא ל-<code>window.scAuth</code> ושולח את ה-Bearer. מזהה העסק מגיע מההקשר של הטוקן ולא מ-<code>?store=</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-06</code> — נדרש Bearer, הזהות נגזרת מהטוקן, ו-window.scAuth תוקן. כל שומרי הכניסה חלים.</li>
+<li><code>SPT-21</code> — סטטוס אפקטיבי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="qr checkin token scanner camera"><h3>צ'ק-אין באמצעות QR</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך BIZ חדש "סריקת QR 📷" (פעולה מהירה <code>sport-qr-scan</code>, מתוך מסך הכניסה): המצלמה קוראת את הטוקן מכרטיס החבר ← POST <code>/api/sport/qr-checkin</code> עם <code>qrToken</code>.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. הטוקן חייב להיות שייך לעסק הסשן, אחרת 404 "כרטיס לא נמצא".</div>
+<div>קלט ואימותים</div><div><ul><li>"לא תקין" אם חסר טוקן. 404 "כרטיס לא נמצא". <code>sportCheckinGuards</code> מלא (סטטוס אפקטיבי, מכסה, הצהרה, פעם ביום).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT כניסה (<code>source='qr'</code>) ועדכון המכסה, בטרנזקציה. התשובה כוללת שם, <code>remaining</code> ו-<code>endDate</code>.</li></ol></div>
+<div>ממשק</div><div>חלון מצלמה עם משוב ירוק או אדום והודעת השומר. הסריקה מתחדשת אוטומטית.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-30</code> — לנתיב יש עכשיו צרכן (סורק ב-BIZ), עם verifyBiz ובדיקת שייכות הטוקן.</li>
+<li><code>SPT-01</code> — הנתיב מאומת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="checkout cancel checkin restore session auto checkout"><h3>יציאה וביטול כניסה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתורי "יציאה" ו"ביטול" ברשימת כניסות היום. בנוסף, יציאה אוטומטית בסוף היום במשימת רקע.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. משימת הרקע רצה כמערכת.</div>
+<div>קלט ואימותים</div><div><ul><li>יציאה: UPDATE רק אם <code>checked_out_at IS NULL</code> והכניסה שייכת לעסק, אחרת 404 "כניסה לא נמצאה או כבר בוצעה יציאה".</li><li>ביטול: 404 "כניסה לא נמצאה". confirm בלקוח.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יציאה: <code>checked_out_at=NOW()</code>.</li><li>ביטול (בטרנזקציה): DELETE הכניסה. אם למנוי יש מכסה: <code>sessions_used = GREATEST(sessions_used−1, 0)</code>.</li><li>יציאה אוטומטית ב-23:59 Asia/Jerusalem: כל כניסה פתוחה של היום מקבלת <code>checked_out_at = LEAST(checked_in_at + 2h, 23:59)</code> ו-<code>auto_checkout=true</code>.</li></ol></div>
+<div>חישובים</div><div>משך ביקור בלקוח: דקות = round((out−in)/60000). ≥60 ⇒ "Xש׳ Yד׳". "בפנים כרגע" = כניסות היום ללא יציאה.</div>
+<div>ממשק</div><div>ללא שינוי. ליד יציאה אוטומטית מופיע תג "אוטו׳".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-31</code> — יציאה אוטומטית בסוף היום עם auto_checkout=true.</li>
+<li><code>SPT-01</code> — בדיקת שייכות לעסק.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">תשלומים, KPIs, התראות ודוחות</h2>
+
+<section class="proc" data-f="payment record income sport_payments transactions refund list"><h3>רישום תשלום ידני</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"תשלום 💰" בכרטיס חבר (<code>_sportAddPayment</code>/<code>_sportConfirmPayment</code>) ← POST <code>/api/sport/payments</code>. חדש: "החזר" ליד תשלום ← POST <code>/api/sport/payments/:id/refund</code>, ו-GET <code>/api/sport/payments</code>.</div>
+<div>הרשאות</div><div>רישום: R-OPS. החזר: R-MGR. קריאה: R-OPS.</div>
+<div>קלט ואימותים</div><div><ul><li>סכום &gt; 0, "יש להזין סכום תקין", בלקוח ובשרת (400). <code>payment_method ∈ {cash, credit, transfer, app}</code>, ברירת מחדל cash. membershipId חייב להיות של העסק.</li><li>החזר: סכום &gt; 0 ולכל היותר הסכום המקורי פחות החזרים קודמים.</li><li>GET: מסנני <code>membershipId, from, to</code>, עם עימוד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: INSERT <code>sport_payments(group_id, membership_id, member_name, amount, payment_method, notes, membership_type_id)</code>.</li>
+<li><code>logBizIncome(groupId, amount, 'מנוי ספורט — שם', method)</code>.</li>
+<li>אם המנוי במצב <code>pending_payment</code>, הוא עובר ל-active מהיום (<code>start_date=todayIL</code>, end_date מחושב מחדש). אם סומנה לו יתרה לתשלום (הפעלה מיידית), היתרה מתעדכנת.</li>
+<li>החזר: INSERT רשומה שלילית עם <code>refund_of</code>, ותנועה מתאימה ב-<code>transactions</code> (הוצאה מסוג החזר או הכנסה שלילית, בהתאם למוסכמת ה-ledger). אין מחיקה פיזית.</li>
+<li>audit <code>ADD_PAYMENT</code> / <code>REFUND_PAYMENT</code>.</li>
+</ol></div>
+<div>חישובים</div><div>הסכום המוצע = <code>type_price</code> של המנוי. תוויות אמצעי תשלום: מזומן/אשראי/העברה/אפליקציה. אין מע"מ, הנחות או עמלות במודול (כמו היום. חישובי מע"מ במסמכים לפי ARC-21).</div>
+<div>תופעות לוואי</div><div>כל תשלום (כולל הצטרפות, חידוש ותשלום על רכישה ציבורית) נכתב פעמיים, ב-<code>sport_payments</code> וב-<code>transactions</code>, באותה טרנזקציה.</div>
+<div>ממשק</div><div>טופס התשלום ללא שינוי. נוספו כפתור "החזר" ורשימת "כל התשלומים" בכרטיס החבר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-32</code> — נתיב GET, אימות amount &gt; 0 בשרת, החזר כרשומה שלילית מקושרת, ואין מחיקה.</li>
+<li><code>SPT-48</code> — תשלום על מנוי pending_payment מפעיל אותו.</li>
+<li><code>SPT-34</code> — membership_type_id נשמר בזמן התשלום.</li>
+<li><code>SPT-09</code> — audit לתשלום ולהחזר.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="dashboard kpi active expiring checkins revenue at risk polling"><h3>דשבורד מנהל מועדון — KPIs</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>renderDashboard</code> ל-ADMIN בעסק ספורט, או למנהל סניף ← <code>renderSportDashboard</code> (גרסה יחידה, כולל שורת WEFLOWZ/הודעות/AI). GET <code>/api/sport/dashboard</code> ו-<code>/api/sport/alerts</code>.</div>
+<div>הרשאות</div><div>R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li>ללא קלט. העסק נלקח מהסשן.</li></ul></div>
+<div>חישובים</div><div><ul>
+<li><code>active_members</code> = COUNT לפי <code>effectiveStatus='active'</code>.</li>
+<li><code>expiring_soon</code> = active עם end_date בין todayIL ל-todayIL+14 (הקבוע).</li>
+<li><code>checkins_today</code>. <code>currently_in</code> = כניסות היום ללא יציאה.</li>
+<li><code>at_risk</code> ("רדומים") = active שאין להם כניסה ב-30 הימים האחרונים.</li>
+<li><code>revenue_month</code> = <code>SUM(sport_payments.amount)</code> מתחילת החודש ב-Asia/Jerusalem, כולל החזרים שליליים. התווית: "הכנסות מנויים החודש".</li>
+<li><code>revenue_month_all</code> = SUM <code>transactions.amount</code> type='income' מתחילת החודש, כל הכנסות העסק (הערך של היום). מוצג כשורה משנית.</li>
+<li><code>pending_payment</code> = מספר המנויים שממתינים לתשלום. נוסף לבאנר.</li>
+<li>באנר: מנויים מתוך alerts.expiring עם ≤7 ימים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שאילתות במקביל.</li><li>רענון אוטומטי כל <b>30 שניות</b> כשלא פתוח מסך ספורט, ללא שינוי.</li></ol></div>
+<div>ממשק</div><div>6 KPI לחיצים, 10 פעולות מהירות, שורת V9 (WEFLOWZ/הודעות/AI) ותג לא-נקראו מ-<code>/api/inbox</code>. ללא שינוי, פרט לתווית ההכנסה, השורה המשנית ופעולת "תורים" שמטופלת במפת הפעולות הראשית.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-33</code> — (מתוקן) KPI ראשי לפי sport_payments עם תווית "הכנסות מנויים החודש". כל הכנסות העסק נשמרות כשורה משנית.</li>
+<li><code>SPT-55</code> — sport-appointments ושאר הפעולות במפה אחת.</li>
+<li><code>SPT-21</code> — הספירות לפי effectiveStatus.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="alerts expiring at risk frozen waitlist banner freeze requests pending payment"><h3>מסך התראות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportAlerts</code> (גרסה יחידה, כולל באנר הצהרות). GET <code>/api/sport/alerts</code>.</div>
+<div>הרשאות</div><div>R-OPS ו-R-CLS. פעולות האישור לפי התהליך הרלוונטי.</div>
+<div>חישובים</div><div><ul><li>expiring: active, end_date בין todayIL ל-todayIL+<code>SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS</code>, ממוין לפי end_date.</li><li>atRisk: active ללא כניסה 30 יום, כולל <code>last_checkin</code> = MAX כניסה.</li><li>frozen: כל המוקפאים לפי frozen_at DESC.</li><li>חדש: <code>freezeRequests</code> (מנויים עם freeze_requested) ו-<code>pendingPayment</code> (רכישות שממתינות לתשלום).</li><li>שגיאה מחזירה שגיאה מובנית (ARC-33). הלקוח מציג "לא ניתן לטעון התראות" ולא מערכים ריקים בשקט.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הלקוח קורא גם ל-<code>/api/sport/waitlist-pending</code> ומציג את הבאנר "⏳ ממתינים לאישור מקום". הקריאה היא קריאה בלבד, כי התפוגה והקידום רצים במשימת הרקע.</li><li>באנר הצהרות שפגו או חסרות, מתוך <code>/api/sport/waiver-alerts</code>.</li></ol></div>
+<div>ממשק</div><div>expiring: "חדש" + 📞, "עוד X ימים"/"פג!". atRisk: ביקור אחרון/"מעולם לא". frozen: "הפשר". חדשים: "בקשות הקפאה" (אשר/דחה) ו"ממתינים לתשלום" (רשום תשלום / בטל). מסך "רדומים" נפרד (<code>showSportAtRisk</code>), ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-05</code> — רשימת בקשות הקפאה של חברים לאישור.</li>
+<li><code>SPT-48</code> — רשימת רכישות שממתינות לתשלום.</li>
+<li><code>SPT-21</code> — waitlist-pending כבר לא מפעיל תפוגה עצלה (משימת רקע). הקבוע 14 מאוחד.</li>
+<li><code>SPT-55</code> — הגדרה יחידה במקום עטיפה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="reports churn revenue by type checkins classes export csv unified"><h3>דוחות ספורט, נטישה וייצוא CSV</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) הדוח המאוחד <code>/api/reports</code> מחזיר <code>result.sport</code> לעסק ספורט, ומוצג בטאב "reports" (ש-<code>showSportReports</code> מנווט אליו). (ב) ייצוא CSV דרך <code>/api/biz/export-report</code>, בסוגים <code>sport-members, sport-checkins, sport-revenue, sport-classes</code>. (ג) <code>/api/sport/reports</code> מאוחד לתוך (א) ומוסר רק אחרי שכל מדדיו מוצגים שם.</div>
+<div>הרשאות</div><div>R-MGR (ייצוא: verifyBiz כמו היום).</div>
+<div>קלט ואימותים</div><div><ul><li><code>period ∈ {month, year}</code> (נוסף לדוח המאוחד), ושאר מסנני הדוח המאוחד הקיימים.</li></ul></div>
+<div>חישובים</div><div><ul>
+<li>revenueByType: COUNT+SUM <code>sport_payments</code> לפי <code>sport_payments.membership_type_id</code>, כלומר הסוג בזמן התשלום. לתשלומי עבר בלי ערך: backfill מסוג התקופה התואמת, או מהסוג הנוכחי כשאין תקופה.</li>
+<li>revenueByMonth: 6 חודשים, <code>TO_CHAR(paid_at AT TIME ZONE 'Asia/Jerusalem','YYYY-MM')</code>.</li>
+<li>checkinsByDay: 30 יום.</li>
+<li>classStats: 20 שיעורים מ-30 הימים האחרונים, עם registered (רק <code>cancelled_at IS NULL</code>) ו-capacity.</li>
+<li>churnByMonth: expired לפי חודש end_date, ועוד cancelled לפי חודש <code>cancelled_at</code>, ל-6 חודשים.</li>
+<li><code>churnRatePercent = round(churned_this_month/(active_now+churned_this_month)×1000)/10</code>, מועבר לדוח המאוחד.</li>
+<li>CSV שיעורים: <code>fill = registrations/capacity×100</code> toFixed(0). מגבלות שורות: כניסות ותשלומים 5000, שיעורים 2000. ללא שינוי.</li></ul></div>
+<div>ממשק</div><div>בדוח המאוחד: "הכנסות מנויים" = סכום revenueByType, "סה"כ חברים" = סכום membersByStatus (בלי deleted), טבלת הכנסה לפי סוג. נוסף כרטיס "שיעור נטישה החודש".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-34</code> — (מתוקן) קיבוץ לפי הסוג בזמן התשלום. /api/sport/reports מאוחד בדוח המאוחד כולל churnRatePercent ו-period=year, ורק אז מוסר.</li>
+<li><code>SPT-26</code> — נטישה לפי cancelled_at.</li>
+<li><code>SPT-16</code> — הקיבולת סופרת רק רישומים לא מבוטלים.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">שיעורים קבוצתיים: סוגים, לוח, רישום, נוכחות, המתנה</h2>
+
+<section class="proc" data-f="class types booking rules allowed memberships open close hours max per session duration"><h3>סוגי שיעורים וכללי הרשמה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportClassTypes</code>, נגיש מלוח השיעורים ומקיצור בטאב מכירות. נזרע בויזארד עם <code>booking_open_days=7, booking_close_hours=2, max_per_session=20</code>.</div>
+<div>הרשאות</div><div>קריאה: R-CLS ו-R-OPS. כתיבה: R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li>שם חובה (לקוח ושרת). <code>color||'indigo'</code> מתוך indigo, violet, emerald, orange, red, blue, teal, pink. <code>default_duration_min||60</code>. <code>allowed_membership_type_ids</code> הוא JSON של סוגים של העסק (ריק = כולם). <code>booking_open_days ?? null</code>: NULL = ללא הגבלה, 0 = נפתח רק ביום השיעור. <code>booking_close_hours ?? 1</code>. <code>max_per_session ?? null</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET מחזיר רק <code>is_active=true</code>, ממוין לפי שם.</li><li>DELETE הוא מחיקה רכה (<code>is_active=false</code>), ללא שינוי.</li></ol></div>
+<div>חישובים</div><div>הכללים נאכפים ב-<code>canRegister</code> בכל הרישומים (ציבורי, ו-BIZ עם אפשרות עקיפה). ביצירת שיעור מסוג זה: <code>capacity</code> ממולא מראש מ-<code>max_per_session</code> (אם הוגדר), ו-<code>end_time = start_time + default_duration_min</code>. שני הערכים ניתנים לעריכה.</div>
+<div>ממשק</div><div>שדות קיימים, ובנוסף שדה "ברירת מחדל קיבולת" (max_per_session) ו"משך ברירת מחדל".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-35</code> — שמירה עם <code>??</code> (0 = ביום השיעור). max_per_session משמש ברירת מחדל ל-capacity. default_duration_min ממלא end_time.</li>
+<li><code>SPT-38</code> — כללי הסוג נאכפים גם ברישום BIZ, עם אפשרות עקיפה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="class schedule create edit delete equipment trainer status preserved"><h3>יצירה, עריכה ומחיקה של שיעור; שיוך ציוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ שיעור" (<code>showSportAddClass</code>) ← POST <code>/api/sport/classes</code>. עריכה ✏️ (<code>showSportEditClass</code>) ← PUT <code>/classes/:id</code> ו-POST <code>/classes/:id/equipment</code>. מחיקה 🗑️ ← DELETE <code>/classes/:id</code>.</div>
+<div>הרשאות</div><div>יצירה ועריכה: R-MGR. מחיקה: R-ADM.</div>
+<div>קלט ואימותים</div><div><ul><li>שם ותאריך חובה, "שם ותאריך הם שדות חובה" (לקוח ושרת). <code>capacity||20</code> (או max_per_session של הסוג). trainerId ו-classTypeId חייבים להיות של העסק.</li><li>מאמן: אם יש מאמנים, select ששולח <code>trainerId</code> ושם. אחרת שדה טקסט חופשי, כמו היום.</li><li>PUT <b>לא מקבל status</b>: הסטטוס משתנה רק דרך PATCH. ה-PUT מעדכן גם <code>class_type_id</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>sport_classes</code>.</li><li>ציוד (בטרנזקציה): DELETE לכל השיוכים ואז INSERT מחדש (<code>ON CONFLICT DO NOTHING</code>). הפריטים מ-<code>/api/equipment/items</code>.</li><li>מחיקה: אם יש נרשמים או ממתינים, הלקוח מציג אישור כפול שממליץ "בטל שיעור" במקום. בהמשך ADMIN יכול למחוק. לפני DELETE נשלחת התראה "השיעור "{שם}" ב{עסק} ב-{תאריך} בוטל" לכל הנרשמים והממתינים המקושרים. אחר כך DELETE: רישומים, המתנה וציוד ב-CASCADE, ו-<code>sport_trainer_sessions.class_id</code> מקבל SET NULL.</li></ol></div>
+<div>חישובים</div><div>GET <code>/api/sport/classes</code>, טווח ברירת מחדל: todayIL עד todayIL+14. <code>trainer_name = COALESCE(tr.name, sc2.trainer_name)</code>. <code>registered_count</code> סופר רק רישומים עם <code>cancelled_at IS NULL</code>.</div>
+<div>ממשק</div><div>אישור המחיקה ממליץ "בטל שיעור" במקום, כמו היום. טופס העריכה מציג את סוג השיעור לעריכה ולא שולח סטטוס.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-36</code> — (מתוקן) עריכה לא משנה סטטוס ומעדכנת class_type_id. מחיקה נשמרת ל-ADMIN, עם התראה לנרשמים ולממתינים לפני המחיקה.</li>
+<li><code>SPT-35</code> — ברירות קיבולת ומשך מהסוג.</li>
+<li><code>SPT-16</code> — registered_count בלי רישומים מבוטלים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="recurring classes weekly template weekdays series trainer id"><h3>יצירת שיעורים חוזרים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"🔁" (<code>showSportAddRecurring</code>) ← POST <code>/api/sport/classes/recurring</code>.</div>
+<div>הרשאות</div><div>R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li>לקוח: שם, לפחות יום אחד, טווח, סיום אחרי התחלה, טווח ≤365 ימים ("טווח מקסימלי הוא שנה").</li><li>שרת: <code>weekDays</code> לא ריק, <code>fromDate</code> ו-<code>toDate</code> ("חסרים שדות חובה"). טווח &gt; 365 יום, או יותר מ-500 שיעורים, נדחה ב-400. <code>trainerId</code> של העסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: יצירת <code>series_id</code>. לולאה על תאריכים קלנדריים ב-Asia/Jerusalem מ-from עד to. לכל יום שיום השבוע שלו (0=ראשון) ב-weekDays, INSERT של שיעור נפרד עם <code>trainer_id, trainer_name, series_id</code>.</li><li>מוחזרים <code>count</code>, <code>classIds</code> ו-<code>seriesId</code>.</li></ol></div>
+<div>ממשק</div><div>ה-select של המאמן שולח מזהה. במסך ניהול שיעור שהוא חלק מסדרה נוספות האפשרויות "החל על כל הסדרה מתאריך זה" בעריכה ובביטול.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-37</code> — trainerId נשמר. מגבלת טווח ומספר בשרת. series_id לעריכה ולביטול משותפים.</li>
+<li><code>SPT-20</code> — יום השבוע מחושב ב-Asia/Jerusalem, בלי תלות ב-TZ של השרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="cancel class status cancelled notify registered completed restore whitelist"><h3>ביטול שיעור ומצבי שיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"⛔ בטל שיעור" (<code>_sportCancelClass</code>) ← PATCH <code>/api/sport/classes/:id/status</code>. חדש: "↩️ שחזר שיעור" לשיעור מבוטל.</div>
+<div>הרשאות</div><div>ביטול: R-MGR. שחזור: R-ADM. מעבר ל-completed: R-CLS, דרך שמירת נוכחות.</div>
+<div>קלט ואימותים</div><div><ul><li>"חסר status". 404 "לא נמצא". <code>status ∈ {scheduled, cancelled, completed}</code> עם whitelist של מעברים. מעבר לא חוקי מחזיר 409.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE status.</li><li>אם 'cancelled': הרישומים נשמרים (לשחזור). לכל נרשם וממתין עם קישור WEFLOWZ פעיל נשלחת ההתראה "השיעור "{שם}" ב{עסק} ב-{תאריך} בוטל", עם refKey ייחודי לאירוע.</li><li>אם שחזור ל-scheduled: התראה "השיעור "{שם}" חזר ללוח" לנרשמים.</li></ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>scheduled</td><td>cancelled</td><td>R-MGR</td><td>—</td><td>התראה לנרשמים ולממתינים. מוסתר מהלוח הציבורי. קו חוצה ב-BIZ</td></tr>
+<tr><td>scheduled</td><td>completed</td><td>R-CLS (שמירת נוכחות)</td><td>—</td><td>—</td></tr>
+<tr><td>cancelled</td><td>scheduled</td><td>R-ADM (שחזור)</td><td>השיעור עוד לא עבר</td><td>התראה לנרשמים</td></tr>
+<tr><td>completed</td><td>completed</td><td>R-CLS (עדכון נוכחות)</td><td>—</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>ביומן הויזואלי שיעורים מבוטלים מסוננים, כמו היום. ברשימה הם מוצגים עם קו חוצה וכפתור "שחזר".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-36</code> — whitelist של סטטוסים, שחזור cancelled→scheduled ל-ADMIN, עריכה לא מאפסת סטטוס, והתראה גם לממתינים.</li>
+<li><code>SPT-25</code> — refKey ייחודי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="class register registration capacity admin canRegister force waitlist offer"><h3>רישום חבר לשיעור (BIZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ הוסף" במסך ניהול שיעור ← בורר חיפוש (<code>_sportRegisterToClass</code>) ← POST <code>/api/sport/classes/:id/register</code>. אפשר גם מכפתור AI.</div>
+<div>הרשאות</div><div>R-CLS ו-R-OPS. <code>force=true</code>: R-MGR, ונרשם ב-audit <code>CLASS_REGISTER_FORCE</code>.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>404 "שיעור לא נמצא". membershipId של העסק.</li>
+<li><b>canRegister</b> (פונקציה משותפת ל-BIZ ולציבורי): מנוי active ותקף בתאריך השיעור. סוג מורשה (<code>allowed_membership_type_ids</code>). הצהרה תקפה אם נדרשת. יתרת כניסות &gt; 0 בכרטיסייה. שיעור <code>scheduled</code> ועתידי. חלון הרשמה (<code>booking_open_days</code>/<code>booking_close_hours</code>). קיבולת: <code>registered_count &lt; capacity||20</code>. כל כשל מחזיר 409 עם <code>code</code> והודעה בעברית ("השיעור מלא", "נדרשת הצהרת בריאות", "שיעור זה מצריך סוג מנוי ספציפי" וכו').</li>
+<li>ב-BIZ, כשל שאינו "מלא" מציג "רשום בכל זאת?", שמבצע שליחה חוזרת עם <code>force=true</code>. גם "מלא" ניתן לעקיפה, ואז נשאל אם לחרוג מהקיבולת.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>sport_class_registrations</code>. אם קיים רישום מבוטל לאותו חבר, הוא מוחזר (<code>cancelled_at=NULL</code>). ייחודיות על <code>(class_id, COALESCE(membership_id::text, member_phone))</code>.</li><li>שיעור מלא: הלקוח מציע "הוסף לרשימת המתנה", שמפעיל את תהליך ההמתנה.</li></ol></div>
+<div>חישובים</div><div>הרישום אינו מנקב כניסה. הניקוב קורה בנוכחות או בצ'ק-אין (SPT-39).</div>
+<div>ממשק</div><div>הבורר מציג גם חברים לא פעילים (עם ⚠️), כמו היום. בחירה בהם מפעילה את דיאלוג העקיפה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-38</code> — canRegister משותף עם עקיפה מבוקרת (force + audit), והצעה להמתנה כשהשיעור מלא.</li>
+<li><code>SPT-17</code> — חובת ההצהרה נאכפת ברישום.</li>
+<li><code>SPT-40</code> — ייחודיות שכוללת drop-in.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="attendance mark present completed checkin punch registration id"><h3>סימון נוכחות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "נרשמים ✅" ← "שמור" (<code>_sportSaveAttendance</code>) ← POST <code>/api/sport/classes/:id/attendance</code>.</div>
+<div>הרשאות</div><div>R-CLS.</div>
+<div>קלט ואימותים</div><div><ul><li><code>presentRegistrationIds</code>: מזהי רישום (לא מזהי מנוי), כך שגם רישומי drop-in ניתנים לסימון. כל המזהים שייכים לשיעור.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: חישוב ההפרש מול המצב הקודם.</li>
+<li>רישום שסומן נוכח (ולא היה): <code>attended=true</code>. אם יש לו מנוי ואין לו כניסה ביום השיעור, נוצר <code>sport_checkins</code> (<code>source='attendance'</code>) ומנוקבת כניסה כשיש מכסה. אם כבר יש כניסה באותו יום, אין ניקוב נוסף.</li>
+<li>רישום שהוסר מנוכח: <code>attended=false</code>. אם הכניסה של אותו יום נוצרה מהנוכחות הזו, היא נמחקת והניקוב מוחזר (<code>GREATEST(sessions_used−1,0)</code>).</li>
+<li>UPDATE השיעור <code>status='completed'</code>.</li>
+</ol></div>
+<div>חישובים</div><div>ניקוב אחד ליום לחבר, ברגע הראשון מבין צ'ק-אין לסימון נוכחות.</div>
+<div>ממשק</div><div>תיבות הסימון מבוססות על registration_id. רישום drop-in מוצג עם תג "ללא מנוי".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-39</code> — נוכחות יוצרת כניסה ומנקבת פעם אחת ביום. ביטול נוכחות מחזיר את הניקוב.</li>
+<li><code>SPT-40</code> — סימון לפי registration_id, כולל drop-in.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="cancel registration late policy deduct promote waitlist soft cancel"><h3>ביטול רישום לשיעור (BIZ) ואכיפת מדיניות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"✕" ליד נרשם (<code>_sportRemoveRegistration</code>) ← DELETE <code>/api/sport/classes/:id/registrations/:registrationId?force</code>. נתיב לפי membershipId נשמר כ-alias.</div>
+<div>הרשאות</div><div>R-CLS ו-R-OPS. <code>force</code> (ביטול בלי מדיניות): R-MGR, עם audit.</div>
+<div>קלט ואימותים</div><div><ul><li>המדיניות נבדקת תמיד, אלא אם נשלח force. המקור הוא <code>getCancelPolicy</code>, כולל ברירת המחדל כשאין שורה. אם <code>enabled=false</code>, אין עונש.</li><li>ביטול מאוחר: <code>0 &lt; hoursUntilClass &lt; cancel_window_hours</code>. <code>deduct_session</code> ⇒ <code>sessions_used+1</code> (רק אם יש מכסה). <code>block</code> ⇒ 400 "ביטול מאוחר — פחות מ-X שעות לשיעור" עם <code>lateCancellation:true</code>. <code>none</code> ⇒ ללא עונש.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: UPDATE הרישום <code>cancelled_at=NOW(), cancel_type='late'|'on_time'|'forced'</code> (ביטול רך, השורה נשמרת).</li><li>ניקוב לפי המדיניות.</li><li>קידום: רק אם אחרי הביטול <code>registered_count &lt; capacity</code>. הראשון ב-<code>status='waiting'</code> לפי position עובר ל-<code>status='pending', promoted_at=NOW(), expires_at=NOW()+30min</code>, ונשלח <code>_notifyWaitlistPromoted</code>.</li></ol></div>
+<div>חישובים</div><div><code>hoursUntilClass = (classStartsAt(class_date, start_time) − now)/3600000</code>, כאשר class_date הוא 'YYYY-MM-DD' ו-start_time הוא 'HH:MM[:SS]', ב-Asia/Jerusalem.</div>
+<div>תופעות לוואי</div><div>התראה למקודם: "התפנה לך מקום בשיעור "{שם}" ב{עסק} ב-{תאריך}! יש לך 30 דקות לאשר את המקום", עם קישור לאישור עצמי.</div>
+<div>ממשק</div><div>Toast: "הוסר ✅ (ניקוב session — ביטול מאוחר) | {שם} הועלה ממתנה ⏳", ללא שינוי. בחסימה מוצג "בטל בכל זאת" למנהל (force).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-16</code> — (מתוקן) חישוב מועד תקין, כך שהמדיניות נאכפת. ברירת המחדל חלה כשאין שורה. ביטול רך עם cancel_type שנשמר.</li>
+<li><code>SPT-42</code> — קידום רק כשקיבולת התפנתה מתחת ל-capacity.</li>
+<li><code>SPT-20</code> — classStartsAt ב-Asia/Jerusalem.</li>
+<li><code>SPT-54</code> — הביטול והקידום בטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="waitlist position pending confirm expire 30 minutes promote skip self confirm"><h3>רשימת המתנה: הוספה, הסרה, אישור ותפוגה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "המתנה ⏳" בניהול שיעור, מסך "ממתינים לאישור מקום", רישום ציבורי לשיעור מלא, טופס ההמתנה בחנות, ו<b>חדש</b>: אישור עצמי של החבר מאפליקציית המשפחה או מהאזור האישי בחנות.</div>
+<div>הרשאות</div><div>מנהל: R-CLS ו-R-OPS. אישור עצמי: STORE או FAMILY, רק לרשומת ההמתנה של המנוי שלו (POST <code>/api/sport/waitlist/:id/confirm-self</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הוספה: <code>position = MAX(position)+1</code> מתוך waiting/pending בלבד. ייחודיות על <code>(class_id, COALESCE(membership_id::text, member_phone))</code>, ורק לרשומות waiting/pending. רשומות expired לא חוסמות הצטרפות מחדש. ב-BIZ: בורר חיפוש עם בחירה מפורשת (לא "התוצאה הראשונה").</li>
+<li>אישור (מנהל או עצמי): נדרשת רשומה <code>status='pending'</code> ("אין מקום פנוי לאישור או שפג תוקף"). <code>expires_at &lt; now</code> ⇒ "פג תוקף האישור (30 דקות)". נבדקת קיבולת: אם <code>registered_count ≥ capacity</code>, מוחזר 409 "השיעור מלא".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אישור (בטרנזקציה): INSERT רישום ← DELETE רשומת ההמתנה ← <code>position−1</code> לכל ה-waiting בשיעור.</li>
+<li>הסרה או "דלג" (בטרנזקציה): DELETE ← מספור מחדש 1..n לפי position. אם הרשומה שהוסרה הייתה <code>pending</code>, הבא ב-waiting מקודם ל-pending+30 דקות, עם התראה.</li>
+<li>תפוגה: משימת רקע כל 5 דקות. pending עם <code>expires_at &lt; NOW()</code> עובר ל-<code>expired</code> (ויוצא מהמספור), והבא ב-waiting מקודם ל-pending+30 דקות עם התראה.</li>
+</ol></div>
+<div>חישובים</div><div>חלון אישור: <code>INTERVAL '30 minutes'</code>, קבוע יחיד.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>waiting</td><td>מנהל / לקוח (STORE)</td><td>הוספה</td><td>position הבא</td></tr>
+<tr><td>waiting</td><td>pending</td><td>מערכת</td><td>קיבולת התפנתה, או pending קודם פג/דולג/הוסר</td><td>expires_at=+30 דק', התראה עם קישור לאישור</td></tr>
+<tr><td>pending</td><td>(נמחק ← רישום)</td><td>מנהל או החבר עצמו</td><td>לפני expires_at ויש מקום</td><td>INSERT רישום, הזזת positions</td></tr>
+<tr><td>pending</td><td>expired</td><td>מערכת (כל 5 דק')</td><td>אחרי expires_at</td><td>קידום הבא</td></tr>
+<tr><td>waiting</td><td>(נמחק)</td><td>מנהל "✕"</td><td>—</td><td>מספור מחדש</td></tr>
+<tr><td>pending</td><td>(נמחק)</td><td>מנהל "✕"/"דלג"</td><td>—</td><td>מספור מחדש <b>וקידום הבא</b></td></tr></table></div></div>
+<div>ממשק</div><div>pending מוצג עם טיימר דקות (אדום ≤10) וכפתור "אשר". מסך pending: "אשר מקום ✅" / "דלג (הבא) ⏭️". עכשיו ההבטחה "הבא ברשימה הועלה" מתקיימת. בצד החבר: כפתור "אשר מקום" בהתראה, באפליקציית המשפחה ובאזור האישי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-42</code> — דילוג והסרה של pending מקדמים. אישור עצמי של החבר. expired לא חוסם. אישור בודק קיבולת.</li>
+<li><code>SPT-21</code> — תפוגה במשימת רקע כל 5 דקות, במקום רק בפתיחת מסך.</li>
+<li><code>SPT-40</code> — ייחודיות שכוללת phone, ומניעת כפילויות ציבוריות.</li>
+<li><code>SPT-54</code> — אישור והסרה בטרנזקציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="schedule views list grid trainer week month filter ics export"><h3>לוח שיעורים ב-BIZ: תצוגות, סינון וייצוא ICS</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportSchedule</code> בהגדרה יחידה, שמאגדת את כל היכולות של שרשרת העטיפות: בסיס, עמודת מאמנים, ICS, סרגל סינון, מתג רשימה/יומן, וסרגל יום/שבוע/חודש עם קיבוץ.</div>
+<div>הרשאות</div><div>R-CLS ו-R-OPS (קריאה). כפתורי הכתיבה מוצגים לפי התפקיד.</div>
+<div>קלט ואימותים</div><div><ul><li>סינון בצד לקוח לפי טקסט, מאמן, סוג, תאריך מדויק וטווח, ללא שינוי.</li></ul></div>
+<div>חישובים</div><div><ul><li>מילוי: <code>fill = min(100, round(registered_count/(capacity||20)×100))</code>. מלא כש-<code>registered_count ≥ capacity||20</code>.</li><li>יומן יום: עמודה לכל מאמן עם שיעורים ביום, ועמודה "ללא מאמן משויך". טווח שעות 06:00–22:00 (<code>HOUR_START=6, HOUR_END=22</code>), גובה מינימלי 3%.</li><li>שבוע מראשון עד שבת. חודש ברשת של 7 עמודות עם ספירת שיעורים. ההשוואה <code>c.class_date===dStr</code> עובדת, כי class_date הוא 'YYYY-MM-DD' ו-dStr מחושב ב-Asia/Jerusalem ולא ב-<code>toISOString</code>.</li><li>ICS: 30 יום קדימה, TZID Asia/Jerusalem, ברירת שעות 07:00–08:00, תיאור "מקומות: פנוי/קיבולת". <code>DTSTART;TZID=Asia/Jerusalem:YYYYMMDDTHHMMSS</code> תקין.</li></ul></div>
+<div>ממשק</div><div>כפתורי כותרת: 📅 ICS, 👨‍🏫 מאמנים, 🚫 ביטולים, 🎽 סוגים, 🔁, + שיעור. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-20</code> — class_date כמחרוזת, ולכן השבוע, החודש וה-ICS תקינים. היסט יומי לפי Asia/Jerusalem.</li>
+<li><code>SPT-55</code> — הגדרה יחידה במקום 7 הגדרות.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">מאמנים, שכר ותורים אישיים</h2>
+
+<section class="proc" data-f="trainers crud pay type hourly per class revenue bonus work hours active deactivate"><h3>ניהול מאמנים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showSportTrainers</code>, טופס <code>_sportTrainerForm</code>. POST/PUT/DELETE <code>/api/sport/trainers</code>.</div>
+<div>הרשאות</div><div>קריאה: R-CLS ו-R-OPS (שדות שכר: R-MGR). יצירה ועריכה של פרטים: R-MGR. שדות שכר (<code>payType</code> ותעריפים) ומחיקה: R-ADM.</div>
+<div>קלט ואימותים</div><div><ul><li>POST ו-PUT: שם חובה ("שם חובה"). תעריפים ≥ 0.</li><li>ברירות מחדל: <code>payType||'per_class'</code>, תעריפים <code>||0</code>, <code>bonusBaseTrainees||10</code>, <code>colorHex||'#6366f1'</code>, <code>workStart||'09:00'</code>, <code>workEnd||'18:00'</code>, <code>slotMinutes||60</code>. PUT: <code>is_active</code> נשלח מהטופס (מתג "פעיל").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET: כל המאמנים (כולל לא פעילים, עם תג) + <code>total_sessions</code> + <code>unpaid_amount</code> (SUM pay_amount של sessions ללא paid_at).</li><li>DELETE: אם יש למאמן sessions, <code>is_active=false</code> (המאמן נעלם מהבוררים, מהזמינות ומהחנות, וההיסטוריה נשמרת). אם אין, מחיקה פיזית: <code>sport_classes.trainer_id</code> ו-<code>sport_appointments.trainer_id</code> מקבלים SET NULL.</li></ol></div>
+<div>חישובים</div><div>ברירות הטופס: per_class 150, hourly 80, revenue_percent 20, בונוס: בסיס 100 / 10 מתאמנים / 15 לכל נוסף. משכי תור: 30/45/60/90/120.</div>
+<div>מכונת מצבים</div><div>active ⇄ inactive (R-MGR, מתג), ו-inactive ⇒ נמחק (R-ADM, רק בלי sessions).</div>
+<div>ממשק</div><div>הטופס הקיים, ובנוסף מתג "פעיל". ברשימה מאמן לא פעיל מוצג באפור.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-43</code> — מתג פעיל, "מחיקה" כנטרול כשיש sessions, ומחיקה פיזית רק בלי היסטוריה.</li>
+<li><code>SPT-03</code> — שדות שכר ומחיקה ל-ADMIN בלבד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="trainer session log pay calculation calcTrainerPay number revenue percent"><h3>רישום שיעור למאמן וחישוב שכר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"+ רשום שיעור" / "🔄 החלפה" בפרופיל מאמן (<code>showSportLogSession</code>) ← POST <code>/api/sport/trainer-sessions</code>.</div>
+<div>הרשאות</div><div>R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li><code>trainerId, sessionDate</code> חובה ("חסרים שדות חובה"). 404 "מאמן לא נמצא" (כולל עסק אחר). לקוח: "תאריך חובה".</li><li>כש-<code>pay_type='revenue_percent'</code>: <code>classRevenue</code> חובה (≥0). אם נשלח <code>classId</code> בלי classRevenue, השרת מחשב <code>classRevenue</code> מתשלומים שמקושרים לשיעור (drop-in) כברירת מחדל.</li><li><code>classId</code> ו-<code>originalTrainerId</code> אופציונליים, ונבדקים כשייכים לעסק.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT מאמן, <code>calcTrainerPay</code>.</li><li>INSERT <code>sport_trainer_sessions</code> (<code>hours_worked||1</code>, <code>trainees_count||0</code>, <code>is_substitute</code>, <code>class_id</code>, <code>original_trainer_id</code>, <code>class_revenue</code>).</li></ol></div>
+<div>חישובים</div><div><code>calcTrainerPay</code>. כל התעריפים מומרים ל-<code>Number()</code> לפני החישוב:<ul>
+<li>hourly: <code>hourly_rate × (hoursWorked||1)</code></li>
+<li>per_class: <code>per_class_rate</code></li>
+<li>revenue_percent: <code>classRevenue × revenue_percent / 100</code></li>
+<li>bonus: <code>per_class_rate + max(0, trainees − (bonus_base_trainees||10)) × bonus_per_trainee</code>. בדיקה: 100, בסיס 10, 13 מתאמנים, 15 לכל נוסף ⇒ 145.</li>
+<li>עיגול: <code>Math.round(pay×100)/100</code>.</li></ul></div>
+<div>ממשק</div><div>שדות: תאריך, שעות (צעד 0.5), מתאמנים (ברירת מחדל 10), "מחליף את" (select של מאמנים, נשלח כ-originalTrainerId), שיעור מהלוח (אופציונלי, נשלח כ-classId), "הכנסה מהשיעור" (מוצג רק ל-revenue_percent), הערות. Toast מציג את השכר המחושב.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-44</code> — המרה ל-Number, כך שהבונוס נכון. classRevenue חובה או מחושב ל-revenue_percent. classId ו-originalTrainerId נשלחים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="mark paid trainer salary expense payroll month"><h3>סימון תשלום שכר מאמן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שלם ₪X" בדוח השכר או בפרופיל (<code>_sportMarkTrainerPaid</code>) ← POST <code>/api/sport/trainer-sessions/mark-paid</code>.</div>
+<div>הרשאות</div><div>R-ADM.</div>
+<div>קלט ואימותים</div><div><ul><li><code>trainerId</code> (של העסק) ו-<code>month</code> (YYYY-MM) חובה. נתמך גם <code>sessionIds</code> מפורש, כולם של העסק. אם אין sessions לתשלום: "אין sessions לתשלום". confirm בלקוח עם הסכום שהשרת החזיר.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: SELECT … FOR UPDATE של כל ה-sessions הלא משולמים של המאמן באותו חודש (<code>toILMonth(session_date)=month</code>), בלי מגבלת 50.</li><li>UPDATE <code>paid_at=NOW()</code>.</li><li><code>logBizExpense(gid, total, 'שכר מאמנים — שם', 'salary')</code> אם הסכום &gt; 0.</li><li>audit <code>TRAINER_MARK_PAID</code> עם <code>{trainerId, month, total, count}</code>. התשובה מחזירה את <code>total</code> ואת <code>count</code>.</li></ol></div>
+<div>חישובים</div><div>הסכום שנרשם כהוצאה = הסכום שהוצג בדוח לאותו מאמן וחודש = SUM pay_amount של ה-sessions שסומנו.</div>
+<div>ממשק</div><div>הכפתור "שלם ₪X" מוצג לכל מאמן בדוח החודשי, ובפרופיל (לחודש הנבחר).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-45</code> — סימון לפי מאמן וחודש בשרת, והוצאה שזהה לסכום המוצג.</li>
+<li><code>SPT-54</code> — הסימון וההוצאה בטרנזקציה.</li>
+<li><code>SPT-09</code> — audit TRAINER_MARK_PAID.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="trainer payroll monthly report refresh"><h3>דוח שכר חודשי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "💰 שכר" ← GET <code>/api/sport/trainer-payroll?month=YYYY-MM</code>.</div>
+<div>הרשאות</div><div>R-MGR.</div>
+<div>חישובים</div><div>לכל מאמן פעיל, וגם למאמן לא פעיל שיש לו sessions באותו חודש: <code>session_count, total_trainees, total_pay, unpaid, paid</code>, מסוננים לפי חודש ב-Asia/Jerusalem. סיכום: סכום unpaid ו-paid. בורר חודשים: החודש הנוכחי ושני הקודמים.</div>
+<div>ממשק</div><div>החלפת חודש (<code>_sportLoadPayroll</code>) מרעננת את כל הטבלה (מאמנים וסיכומים).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-45</code> — החלפת חודש מרעננת את כל הטבלה.</li>
+<li><code>SPT-43</code> — מאמן שנוטרל עדיין מופיע בחודשים שבהם עבד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="trainer substitution replace class button"><h3>החלפת מאמן בשיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "החלף מאמן" במסך ניהול שיעור (כפי שהמדריך מתאר) ← POST <code>/api/sport/trainer-substitution</code>.</div>
+<div>הרשאות</div><div>R-MGR.</div>
+<div>קלט ואימותים</div><div><ul><li><code>classId</code> ו-<code>substituteTrainerId</code> חובה, ושניהם של העסק. המחליף חייב להיות פעיל. <code>reason</code> אופציונלי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: UPDATE השיעור עם <code>trainer_id</code> ו-<code>trainer_name</code> של המחליף.</li><li>ספירת רישומים (לא מבוטלים), <code>calcTrainerPay(sub, 1, count, 0)</code>, ו-INSERT session עם <code>is_substitute=true</code>, <code>original_trainer_id</code> (המאמן הקודם), <code>class_id</code>, ו-notes=reason||'החלפה'.</li></ol></div>
+<div>ממשק</div><div>select של המאמנים הפעילים ושדה סיבה. אחרי השמירה הלוח מתרענן.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-46</code> — לנתיב יש עכשיו ממשק, והוא שומר original_trainer_id. המדריך כבר מתאר את היכולת, ואין צורך לשנות אותו.</li>
+<li><code>SPT-44</code> — החישוב במספרים, ולכן הבונוס נכון.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="appointments personal training pt booking availability slots conflict notifications duration no_show"><h3>תורים לאימון אישי וזמינות מאמן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>BIZ: "📅 תורים" (<code>showSportAppointments</code>). ציבורי: "📅 הזמן אימון אישי" (storefront-sport.html, sc-auth.js, storefront-btype.js). נתיבים: GET/POST/PATCH/DELETE <code>/api/sport/appointments</code> ו-GET <code>/api/sport/availability</code>. בהמשך, על בסיס appointments אחיד לפי ARC-19.</div>
+<div>הרשאות</div><div>BIZ: R-MGR ו-R-OPS (instructor רואה את התורים שלו). יצירה ציבורית: STORE (<code>scAuth.requireLogin</code>, כמו היום). שם וטלפון הלקוח נלקחים מהטוקן כברירת מחדל. availability: PUBLIC (משבצות בלבד, בלי פרטי לקוחות).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>POST: <code>clientName, startTime</code> חובה ("שדות חסרים"). <code>startTime</code> ב-ISO עם offset. <code>end_time = start_time + duration_minutes</code> (ברירת מחדל 60, או משך השירות). אם נשלח endTime שאינו תואם, נקבע לפי המשך. אם יש מאמן (פעיל, של העסק): חפיפה עם תור שאינו cancelled (<code>NOT (end ≤ start' OR start ≥ end')</code>) ⇒ 409 <code>TRAINER_CONFLICT</code> "המאמן תפוס בזמן זה".</li>
+<li>availability: <code>date</code> חובה ("חסר date"). מאמן לא קיים או לא פעיל ⇒ slots ריק. <code>durationMinutes</code> אופציונלי.</li>
+<li>PATCH: לפחות שדה אחד ("אין מה לעדכן"). status לפי whitelist (409 אחרת).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT עם <code>status='pending'</code>, <code>trainer_name</code> מהמאמן, <code>service_name||'אימון אישי'</code>, <code>duration_minutes||60</code>, ו-<code>upsertStoreCustomer</code> עם "הזמין תור: …".</li><li>תור חדש מהחנות ⇒ התראה לעסק (ARC-16).</li><li>PATCH: עדכון status/internal_notes/notes ו-updated_at. אישור או ביטול ⇒ הודעת inbox ללקוח (למשפחה המקושרת, או לאזור האישי בחנות).</li></ol></div>
+<div>חישובים</div><div>זמינות: ברירות 09:00–18:00. אורך משבצת = <code>durationMinutes || slot_minutes || 60</code>. משבצות רצופות מ-work_start כל עוד <code>cur+slot ≤ end</code>. מדלגים על משבצות בעבר ומסירים משבצות שחופפות לתורים לא מבוטלים באותו יום. כל ההשוואות ב-Asia/Jerusalem ו-TIMESTAMPTZ. בלי מאמן, הבדיקה מול כל תורי העסק.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח (STORE) / מנהל</td><td>אין חפיפה</td><td>כרטיס לקוח, התראה לעסק (מהחנות)</td></tr>
+<tr><td>pending</td><td>confirmed</td><td>מנהל "אשר"</td><td>—</td><td>הודעה ללקוח</td></tr>
+<tr><td>pending / confirmed</td><td>cancelled</td><td>מנהל "בטל"</td><td>—</td><td>משחרר את המשבצת, הודעה ללקוח</td></tr>
+<tr><td>confirmed</td><td>completed</td><td>מנהל "סיים"</td><td>—</td><td>—</td></tr>
+<tr><td>confirmed</td><td>no_show</td><td>מנהל "לא הגיע"</td><td>אחרי מועד התור</td><td>—</td></tr></table></div></div>
+<div>ממשק</div><div>BIZ: סינון לפי תאריך ומאמן. תוויות <code>{pending:'ממתין', confirmed:'מאושר', completed:'הושלם', cancelled:'בוטל', no_show:'לא הגיע'}</code>. שדה "משך" קובע את end_time. חנות: הודעת ההצלחה "נציג מהמועדון יצור איתך קשר לאישור התור", ללא שינוי. sc-auth ו-storefront-sport שולחים ISO עם offset באותו פורמט.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-47</code> — whitelist סטטוסים כולל no_show. התראה לעסק על תור חדש והודעה ללקוח על אישור או ביטול. end_time לפי המשך. זמינות לפי משך השירות.</li>
+<li><code>SPT-20</code> — TIMESTAMPTZ ו-ISO עם offset אחיד מכל הלקוחות.</li>
+<li><code>SPT-01</code> — ניהול התורים מאומת. יצירה ציבורית בטוקן.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">חנות ציבורית ואזור אישי לחבר</h2>
+
+<section class="proc" data-f="public types schedule storefront"><h3>הצגת מנויים ולוח שיעורים ציבורי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חנות ספורט (<code>openScheduleModal</code>, <code>openMembershipModal</code>), ששתיהן דורשות התחברות לקוח. GET <code>/api/sport/public-types/:storeRef</code> ו-GET <code>/api/sport/public-schedule/:storeRef</code>. עסק ספורט מוגש תמיד מ-<code>storefront-sport.html</code>.</div>
+<div>הרשאות</div><div>PUBLIC (allowlist). מוחזרים נתונים ציבוריים בלבד: בלי שמות נרשמים ובלי טלפונים. 403 לעסק שאינו sport.</div>
+<div>קלט ואימותים</div><div><ul><li>טווח תאריכים: ברירת מחדל todayIL עד todayIL+14, ומקסימום 60 יום.</li></ul></div>
+<div>חישובים</div><div>types: <code>is_active AND is_public</code>, ממוין לפי מחיר. schedule: <code>status = 'scheduled'</code> ועתידי, <code>registered_count</code> רק רישומים עם <code>cancelled_at IS NULL</code>, כולל כללי ההרשמה של הסוג. מקומות פנויים = <code>capacity − registered_count</code>, ואם ≤0 מוצג "מלא — רשימת המתנה". תווית משך: ≥365 ⇒ שנים, ≥30 ⇒ חודשים, אחרת ימים.</div>
+<div>ממשק</div><div>לוח שבועי (7 ימים, ניווט קדימה בלבד מהיום), ללא שינוי. <code>openClassReg</code> בונה את התאריך מ-<code>class_date</code> ('YYYY-MM-DD'), כך שהכותרת תקינה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-20</code> — class_date כמחרוזת. "Invalid Date" בכותרת הרישום תוקן.</li>
+<li><code>SPT-12</code> — רק סוגים פעילים וציבוריים (הדגלים ניתנים עכשיו לשליטה).</li>
+<li><code>SPT-08</code> — 403 לעסק שאינו sport.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="public membership purchase storefront self signup qr payment pending activation"><h3>רכישת מנוי עצמית מהחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בוחר סוג ← פרטים ← "שלח בקשת הרשמה" (<code>submitMembership</code> בכל לקוחות החנות). POST <code>/api/sport/public-membership-purchase</code>.</div>
+<div>הרשאות</div><div>STORE. הטלפון נלקח מהטוקן, והשם מהטופס.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>memberName, membershipTypeId</code> חובה ("חסרים שדות חובה"). הסוג חייב להיות של העסק, <b>פעיל וציבורי</b>, אחרת 404 "סוג מנוי לא נמצא".</li>
+<li>אם הוצג בלוק הצהרה (קיימת תבנית פעילה): חייב סימון ושם מלא, "יש לאשר את הצהרת הכשירות הגופנית".</li>
+<li><code>min_age</code> (אם הוגדר) ותאריך לידה שנמסר מתחת לסף: 409 "הגיל המינימלי להרשמה הוא X".</li>
+<li><b>כפילות</b>: קיים מנוי לא-deleted בעסק עם אותו טלפון מנורמל <b>ואותו שם</b> ⇒ המנוי הקיים מחודש לתקופה חדשה במקום ליצור רשומה. אחרת נוצרת רשומה חדשה. אם השם שונה, היא מקושרת ל-customer נפרד עם shared_phone=true (אדם אחר עם אותו טלפון, <code>ARC-14</code>). אם השם זהה, היא מקושרת לאותו customer כמנוי נוסף.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: חישוב end_date (<code>addDaysIL</code>). יצירת <code>qr_token</code> אקראי.</li>
+<li>INSERT (או חידוש) מנוי עם health_notes, emergency_contact ו-emergency_phone. המצב: <code>pending_payment</code> כברירת מחדל, או <code>active</code> עם <code>balance_due=price</code> אם <code>auto_activate_purchase=true</code>. התקופה נרשמת ב-<code>sport_membership_periods</code>.</li>
+<li><b>לא נרשם</b> <code>sport_payments</code> ולא <code>logBizIncome</code>. ההכנסה נרשמת רק כשהעסק רושם תשלום (או בסליקה מקוונת, אם תתווסף לפי ARC-22), דרך "רישום תשלום ידני", ואז pending_payment עובר ל-active.</li>
+<li><code>upsertStoreCustomer</code> עם "רכש מנוי: {סוג}". התראה לעסק "בקשת מנוי חדשה: {שם} — {סוג} — ₪{מחיר}".</li>
+<li>לקוח: אם סומנה הצהרה, POST public-sign-declaration עם ה-<code>membershipId</code> שהוחזר.</li>
+</ol></div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending_payment</td><td>לקוח (STORE)</td><td>ברירת מחדל</td><td>התראה לעסק, בלי הכנסה</td></tr>
+<tr><td>—</td><td>active (balance_due)</td><td>לקוח</td><td>auto_activate_purchase</td><td>התראה לעסק, בלי הכנסה עד תשלום</td></tr>
+<tr><td>pending_payment</td><td>active</td><td>R-OPS (רישום תשלום)</td><td>תשלום &gt; 0</td><td>הכנסה, start_date=היום</td></tr>
+<tr><td>pending_payment</td><td>cancelled</td><td>R-MGR</td><td>—</td><td>הודעה ללקוח</td></tr></table></div></div>
+<div>ממשק</div><div>שלב 3 בחנות: "הבקשה התקבלה — המועדון ייצור איתך קשר להשלמת התשלום" (או "המנוי הופעל" כשהעסק בחר בהפעלה מיידית). ב-sc-auth ההודעה "⏳ ממתין לאישור המועדון … תיצור איתך קשר לתשלום" נכונה עכשיו, ובאזור האישי מוצג המצב "ממתין לתשלום".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-48</code> — (מתוקן) pending_payment כברירת מחדל, בלי הכנסה ועם התראה לעסק. הפעלה מיידית אופציונלית (auto_activate_purchase) עם balance_due. הכנסה רק בתשלום בפועל.</li>
+<li><code>SPT-12</code> — הרכישה בודקת is_active ו-is_public.</li>
+<li><code>SPT-19</code> — (מתוקן) חידוש לרשומה קיימת כשהטלפון והשם תואמים.</li>
+<li><code>SPT-15</code> — min_age נאכף.</li>
+<li><code>SPT-07</code> — נדרש טוקן לקוח, והטלפון נלקח ממנו.</li>
+<li><code>SPT-54</code> — הרכישה בטרנזקציה.</li>
+<li><code>RECON-16</code> — טלפון זהה ושם שונה יוצרים לקוח נפרד עם shared_phone, ולא מקושרים ללקוח הקיים, לפי כלל ההתאמה של tobe-arch.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="public class register booking window membership allowed lead dropin waitlist canRegister"><h3>רישום ציבורי לשיעור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitClassReg</code> (storefront-sport.html), sc-auth.js, storefront-btype.js, storefront.html. POST <code>/api/sport/public-class-register</code>.</div>
+<div>הרשאות</div><div>STORE. הטלפון נלקח מהטוקן. כשיש כמה מנויים לטלפון, הלקוח שולח <code>membershipId</code> והשרת מאמת אותו מול הטלפון והעסק.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>classId</code> חובה ("חסרים שדות חובה"). 404 "שיעור לא נמצא" (השיעור חייב להשתייך לעסק). שיעור מבוטל או שעבר ⇒ 409.</li>
+<li><b>canRegister</b> (אותה פונקציה כמו ב-BIZ, בלי עקיפה): מוקדם מדי ⇒ "ההרשמה תיפתח ב-{תאריך}". מאוחר מדי ⇒ "ההרשמה לשיעור זה נסגרה". סוג מנוי לא מורשה ⇒ "שיעור זה מצריך סוג מנוי ספציפי" (<code>requiresMembership</code>). הצהרה חסרה ⇒ "נדרשת חתימה על הצהרת בריאות" (עם קישור לחתימה). כרטיסייה מנוצלת ⇒ "כרטיסייה מנוצלת עד תום".</li>
+<li>שגיאות עסקיות מוחזרות כ-4xx עם <code>code</code> (לא כ-HTTP 200).</li>
+<li>drop-in (אין מנוי active): מותר אלא אם <code>trial_enabled===false</code> נשמר במפורש, ואז "המועדון אינו מאפשר הרשמה ללא מנוי".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בחירת המנוי: לפי <code>membershipId</code> מאומת, או המנוי האחרון האפקטיבי-active לטלפון (<code>ORDER BY created_at DESC</code>).</li>
+<li>ספירת הרישומים הלא מבוטלים.</li>
+<li>יש מנוי: יש מקום ⇒ INSERT רישום, <code>status:'registered'</code>. מלא ⇒ INSERT לרשימת ההמתנה ב-position הבא עם status='waiting' (מכונת המצבים של "רשימת המתנה: הוספה, הסרה, אישור ותפוגה"), והתשובה ללקוח נשארת <code>status:'waitlisted', waitlistPosition</code> (ערך תשובה בלבד, לא ערך DB).</li>
+<li>אין מנוי: יצירת ליד <code>source='drop-in'</code> אם אין ליד לטלפון, ו-<code>upsertStoreCustomer</code>. יש מקום ⇒ רישום עם <code>membership_id=NULL, member_phone, lead_id</code> ו-<code>warning:'no_active_membership'</code>. מלא ⇒ 409 <code>status:'full'</code>, "השיעור מלא ואין לך מנוי פעיל".</li>
+</ol></div>
+<div>חישובים</div><div><code>classDateTime = classStartsAt(class_date, start_time)</code> ב-Asia/Jerusalem. ייחודיות על <code>(class_id, COALESCE(membership_id::text, member_phone))</code>.</div>
+<div>ממשק</div><div>הודעות ההצלחה נשמרות: "✅ נרשמת בהצלחה!" / "נרשמת לרשימת המתנה (מקום X)". שדה התשובה אחיד, <code>waitlistPosition</code> (השרת מחזיר גם <code>position</code> זמנית לתאימות).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-41</code> — חישוב מועד תקין, canRegister, 409 לשיעור מבוטל או שעבר, 4xx עם code, ושדה waitlistPosition.</li>
+<li><code>SPT-38</code> — כללי רישום משותפים ל-BIZ ולציבור.</li>
+<li><code>SPT-17</code> — חובת הצהרה ברישום.</li>
+<li><code>SPT-40</code> — (מתוקן) רישום drop-in עם member_phone ו-lead_id, ייחודיות, ו-drop-in נחסם רק כש-trial_enabled===false.</li>
+<li><code>SPT-07</code> — טוקן לקוח, ובחירת מנוי לפי membershipId מאומת.</li>
+<li><code>E2E-17</code> — שורת ההמתנה נוצרת ב-status='waiting' לפי מכונת המצבים של רשימת ההמתנה; 'waitlisted' נשאר רק כערך בתשובה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="public cancel class registration phone policy token"><h3>ביטול רישום ציבורי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"ביטול" באזור האישי בחנות, וב-storefront.html. DELETE <code>/api/sport/public-class-register</code>.</div>
+<div>הרשאות</div><div>STORE. הרישום חייב להיות שייך לטלפון שבטוקן, דרך מנוי או דרך member_phone של drop-in.</div>
+<div>קלט ואימותים</div><div><ul><li><code>registrationId</code>, או <code>classId</code> (+<code>membershipId</code> כשיש כמה מנויים). 404 "לא נמצא רישום". המדיניות כמו ב-BIZ, כולל ברירת המחדל: block ⇒ 400, deduct_session ⇒ ניקוב, none ⇒ ללא עונש.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה: ביטול רך של הרישום (<code>cancelled_at, cancel_type</code>).</li><li>קידום הראשון בהמתנה ל-pending+30 דקות עם התראה, רק אם התפנה מקום מתחת לקיבולת.</li></ol></div>
+<div>חישובים</div><div><code>hoursUntilClass</code> לפי <code>classStartsAt</code>, כמו ב-BIZ.</div>
+<div>ממשק</div><div>ללא שינוי. רשימת הרישומים באזור האישי מציגה עכשיו גם רישומי drop-in.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-16</code> — חישוב הזמן תוקן, ולכן המדיניות נאכפת.</li>
+<li><code>SPT-40</code> — אפשר לבטל גם רישומי drop-in, לפי registration_id.</li>
+<li><code>SPT-07</code> — טוקן לקוח, בלי בחירה שרירותית בין מנויים.</li>
+<li><code>SPT-42</code> — קידום רק כשקיבולת התפנתה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="leads crm dropin conversion status link existing"><h3>לידים (מתעניינים) והמרה לחבר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך <code>showSportLeads</code>. לידים נוצרים ידנית, ואוטומטית ברישום ציבורי ללא מנוי. <code>/public-dropin-capture</code> (ללא צרכן) מאוחד ביצירת הליד של הרישום הציבורי (ARC-35).</div>
+<div>הרשאות</div><div>R-OPS.</div>
+<div>קלט ואימותים</div><div><ul><li>POST: לקוח: "שם או טלפון חובה" (גם בשרת). PUT: שדה שלא נשלח לא משתנה, ו-<code>null</code> מפורש מנקה אותו.</li><li><code>status='converted'</code> מחייב <code>convertedToMembershipId</code> של העסק, אחרת 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שינוי סטטוס מה-select ← PUT מיידי, עם toast משוב.</li><li>"המר למנוי ➡️" ← טופס חבר עם שם וטלפון ושמירת <code>_sportConvertingLeadId</code>. אחרי יצירת החבר הליד מסומן converted ומקושר. המזהה מאופס בסגירת הטופס.</li><li>בחירת "converted" ב-select פותחת בורר: "צור חבר חדש" (כמו "המר למנוי") או "קשר לחבר קיים" (חיפוש חבר ← PUT עם convertedToMembershipId).</li></ol></div>
+<div>מכונת מצבים</div><div>סטטוסים: <code>new</code> (ברירת מחדל ב-DB), <code>contacted</code>, <code>interested</code>, <code>converted</code>, <code>lost</code>. כל מעבר ידני חופשי, חוץ מ-converted שדורש קישור לחבר. מקורות: drop-in, website, referral, social, walk-in, other.</div>
+<div>ממשק</div><div>ללא שינוי, פרט לבורר ההמרה ול-toast.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-49</code> — (מתוקן) converted רק עם קישור לחבר, חדש או קיים. מזהה ההמרה מאופס בסגירה. PUT מאפשר ניקוי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="weflowz oneflow identify sync calendar rfq member summary self token"><h3>אינטגרציית WEFLOWZ בחנות: זיהוי, סנכרון יומן, RFQ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>storefront.html (מורשת): <code>_sportOneflowIdentify</code>, סנכרון יומן ו-RFQ. אותן יכולות זמינות לכל חנות ספורט דרך האזור האישי.</div>
+<div>הרשאות</div><div>identify ו-member-summary: מאוחדים ב-GET <code>/api/sport/me</code> (STORE), שמחזיר רק את בעל הטוקן. sync: FAMILY (משפחת הסשן) או STORE המקושר למשפחה. rfq: STORE.</div>
+<div>קלט ואימותים</div><div><ul><li>me: בלי טוקן ⇒ 401. אין חיפוש לפי טלפון או כינוי מהקלט.</li><li>sync: <code>classId</code> חובה. השיעור חייב להיות של העסק, ציבורי (scheduled) ועתידי. <code>familyGroupId</code> נלקח מהסשן ולא מהקלט.</li><li>rfq: <code>customerPhone</code> מהטוקן.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>me: מחזיר משתמש ומשפחה (אם הלקוח מקושר ל-WEFLOWZ), את המנוי האחרון במצב active/frozen/pending_payment, ועד 5 שיעורים קרובים שהוא רשום אליהם. זה מכסה את מה ש-identify ו-member-summary החזירו.</li><li>sync: INSERT <code>calendar_events</code> למשפחת הסשן, עם הכותרת "🏋️ {שיעור} — {מאמן}" ו-status 'confirmed'. אם החבר רשום, האירוע מסומן "רשום".</li><li>rfq: INSERT <code>store_orders</code> עם <code>status='quote', quote_status='waiting_business'</code>, total 0, פריט מטא "תוכנית ליווי אישית", ואז <code>quote_number = 'RFQ-' + id.padStart(6,'0')</code>. ללא שינוי.</li></ol></div>
+<div>ממשק</div><div>כפתור "זהה אותי ב-WEFLOWZ" מחליף את שדה הטלפון בהתחברות לחנות (sc-auth) ובקריאה ל-<code>/me</code>. כפתורי "הוסף ליומן המשפחה" ו"בקש תוכנית ליווי" נשמרים.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-02</code> — (מתוקן) identify ו-member-summary הציבוריים מוחלפים ב-/me מאומת שמחזיר את אותו מידע לבעליו בלבד.</li>
+<li><code>SPT-04</code> — (מתוקן) סנכרון ליומן רק למשפחת הסשן, לכל שיעור ציבורי של העסק, וסימון "רשום" כשרלוונטי.</li>
+<li><code>SPT-07</code> — RFQ ופעולות על מנוי בטוקן לקוח.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="inbox broadcast message members weflowz rate limit"><h3>הודעות: שידור לחברים, הודעה לחבר, הודעה מהחבר לעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך WEFLOWZ (<code>showSportOneFlow</code>), תיבת ההודעות, וטופס הפנייה בחנות.</div>
+<div>הרשאות</div><div>broadcast: R-ADM. member-message: R-MGR. oneflow-members: R-OPS. inbox-member-message: FAMILY או STORE. השולח (<code>sender_contact</code>, שם, משפחה) נגזר מהסשן, ו-<code>businessGroupId</code> חייב להיות עסק ספורט קיים.</div>
+<div>קלט ואימותים</div><div><ul><li><code>content</code> חובה ("חסרים שדות חובה"), באורך מקסימלי לפי ARC-34. member-message: <code>familyGroupId</code> חייב להיות משפחה שמקושרת לחבר של העסק. מגבלת קצב לפי ARC-29: עד 30 בקשות לדקה לעסק בנתיבי השליחה, וכתיבה ציבורית עד 30 לדקה ל-IP. אין תקרה יומית.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>oneflow-members: חברים active/frozen/expired שהטלפון שלהם תואם <code>users.phone</code> (כולל המרת +972↔0), DISTINCT לפי מנוי, או שיש להם קישור <code>member_business_links</code> פעיל.</li><li>broadcast: משפחות DISTINCT של חברים active/frozen ⇒ INSERT <code>inbox_messages</code> לכל משפחה (sender_type 'business', נושא ברירת המחדל "הודעה מהמועדון"). מוחזר count. audit <code>BROADCAST</code>.</li><li>member-message: INSERT יחיד למשפחה.</li><li>inbox-member-message: INSERT לעסק, עם sender_type 'customer' ו-sender_contact מהסשן.</li></ol></div>
+<div>חישובים</div><div>התאמת טלפון: נרמול שני הצדדים ל-<code>0XXXXXXXXX</code> והשוואה. שקול לתנאי של היום: <code>u.phone = sm.member_phone OR REPLACE(u.phone,'+972','0') = sm.member_phone OR …</code>.</div>
+<div>ממשק</div><div>תיבה: רשימה עם נקודת לא-נקרא, פתיחה מסמנת כנקרא (<code>PUT /api/inbox/:id/read</code>), מחיקה, כפתור חיוג. "כתיבת הודעה חכמה" יכולה למלא את טופס השידור. ויזארד WEFLOWZ לסוג ספורט: ממפה <code>member_phone</code>, ו"קיים ב-WEFLOWZ" נקבע לפי קישור פעיל או התאמת טלפון מנורמל ל-users.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-04</code> — (מתוקן) שידור והודעה לחבר מאומתים (ADMIN/MGR), עם מגבלת קצב טכנית ובלי תקרה יומית. הודעה מחבר רק מסשן, והשולח נגזר מהסשן.</li>
+<li><code>SPT-51</code> — מיפוי member_phone בויזארד, ו"קיים ב-WEFLOWZ" לפי קישור או טלפון מנורמל.</li>
+<li><code>SPT-03</code> — שידור ל-ADMIN בלבד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="member app family my orders business activity sc-auth personal area notifications"><h3>אזור אישי לחבר: אפליקציית המשפחה ואזור לקוח בחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) אפליקציית המשפחה, כרטיס עסק מקושר: <code>_memberLoadOrders</code> ← GET <code>/api/member/my-orders/:biz</code> (verifyFamily). טאב פעילות ← <code>/api/family/business-activity</code> (verifyFamily). (ב) אזור לקוח בחנות ← <code>/api/sc-auth/activity/:bizGroupId</code> (Bearer של לקוח חנות).</div>
+<div>הרשאות</div><div>(א) FAMILY. המשפחה נלקחת מהסשן ולא מ-<code>:member</code> בנתיב. (ב) STORE.</div>
+<div>קלט ואימותים</div><div><ul><li>my-orders: קישור <code>member_business_links</code> חייב להיות <code>status='active'</code>, אחרת <code>pending:true</code>. הטלפון לפי משתמש ה-ADMIN של המשפחה. מנויים לפי <code>sm.id=linked_member_ref_id OR member_phone</code> (מנורמל).</li><li>sc-auth activity: 401 "לא מחובר" בלי טוקן. רשימת הסטטוסים בשאילתה היא רשימת הסטטוסים שהמערכת כותבת: <code>active, frozen, pending_payment</code>, וגם <code>expired</code> לתצוגת היסטוריה. 5 אחרונים לפי end_date.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אפליקציית משפחה: הצגת סטטוס, כניסות נותרות ותוקף. הכפתורים "❄️ הקפא מנוי" (active) ו"▶️ שחרר הקפאה" (frozen) קוראים לנתיבי המשפחה המאומתים, עם שדות ימים וסיבה. חדש: "אשר מקום" להמתנה pending.</li><li>business-activity לספורט נכתב על הסכמה האמיתית: <code>sport_memberships.group_id</code>, <code>membership_type_id</code> ← <code>sport_membership_types</code>. מוצגים המנוי, הכניסות שנותרו, התוקף, השיעורים הקרובים והתורים.</li><li>sc-auth: פעולות מהירות (לוח, אימון אישי, רכישה, רק אם אין מנוי active), פרטי מנוי + QR (מקומי) + צ'ק-אין עצמי, ביטול רישום לשיעור, ואישור מקום בהמתנה. שאילתת הרישומים משתמשת ב-<code>scr.cancelled_at IS NULL</code>, ושאילתת התורים ב-<code>tr.name</code>.</li></ol></div>
+<div>תופעות לוואי</div><div>התראות שהחבר מקבל (ARC-16, in-app, רק כשיש קישור פעיל עם <code>linked_member_ref_id</code>): עדכון סטטוס, הקפאה (או אישור ודחייה של בקשה), הפשרה, ביטול מנוי, חידוש, ביטול ושחזור שיעור, קידום מהמתנה, אישור או ביטול תור, ותזכורות אוטומטיות. אין WhatsApp/SMS/Email במודול, כמו היום.</div>
+<div>ממשק</div><div>ללא שינוי בפריסה. הנתונים מופיעים בפועל במקום רשימות ריקות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-50</code> — השאילתות על הסכמה האמיתית (ARC-13), ורשימת הסטטוסים תואמת למה שנכתב.</li>
+<li><code>SPT-05</code> — הקפאה והפשרה דרך נתיב משפחה מאומת.</li>
+<li><code>SPT-42</code> — אישור עצמי של מקום בהמתנה.</li>
+<li><code>SPT-30</code> — QR באזור האישי נוצר מקומית מהטוקן.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">בינה מלאכותית</h2>
+
+<section class="proc" data-f="ai training plan gemini battery tokens membership type"><h3>יצירת תוכנית אימון אישית ב-AI</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"כלי AI 🤖" ← "תוכנית אימון אישית" (<code>showSportAITrainingPlan</code>/<code>_sportAIGeneratePlan</code>), וגם מכפתור 🤖 בחבר WEFLOWZ. POST <code>/api/ai/sport/training-plan</code>, דרך aiGateway (ARC-30).</div>
+<div>הרשאות</div><div>R-CLS ו-R-OPS (verifyBiz, העסק מהסשן).</div>
+<div>קלט ואימותים</div><div><ul><li>אין מפתח ⇒ 503 "שירות ה-AI אינו זמין". מכסה ריקה ⇒ 429 <code>BATTERY_EMPTY</code>. <code>membershipId</code> אופציונלי (של העסק). אם נשלח, השרת שולף את שם החבר, את סוג המנוי ואת הערות הבריאות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ספירת כל הכניסות של החבר (לפי membershipId, או לפי טלפון מנורמל).</li><li>קריאה ל-Gemini <code>gemini-2.5-flash</code> עם הפרומפט הקיים "מאמן כושר מקצועי" (שם, מטרה, רמה, ימים, <b>סוג מנוי</b>, כניסות, הערות בריאות) ודרישת JSON לפי הסכמה <code>{summary, weeks[{weekNum,goal,days[{day,focus,exercises[{name,sets,reps,notes}],duration}]}], nutrition[], safetyNotes[]}</code>.</li><li>ניקוי גדרות ```json ו-JSON.parse. בכישלון: <code>{summary: rawText, weeks:[]…}</code>.</li></ol></div>
+<div>חישובים</div><div>מכסת AI: enterprise ללא הגבלה, premium 50 ליום, אחר 10 ליום. איפוס בחצות לפי Asia/Jerusalem, ניכוי אטומי של 1 לכל קריאה, ורישום ב-<code>ai_usage_log</code> (ARC-30).</div>
+<div>ממשק</div><div>רמות: beginner/intermediate/advanced. ימים 1–7 (ברירת מחדל 3). תצוגה לפי שבועות, ימים ותרגילים, תזונה ובטיחות. התוכנית לא נשמרת, ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-52</code> — membershipType נשלף בשרת ונכלל בפרומפט.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="ai chat assistant sport context actions freeze checkin register compose insights server context"><h3>עוזר AI עסקי לספורט, פעולות AI, כתיבת הודעה ותובנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitGlobalAI</code> לעסק ספורט ← POST <code>/api/biz/chat-assistant</code> (verifyBiz, Gemini <code>gemini-2.5-flash</code>, מכסת AI), עם מקטע ההנחיות לספורט. "כתיבת הודעה חכמה" ו"תובנות" ← <code>/api/ai/generate</code>, שדורש עכשיו verifyBiz ומכסה (ARC-30).</div>
+<div>הרשאות</div><div>R-MGR (הצ'אט העסקי). הפעולות שנוצרות מהתשובה נבדקות לפי ההרשאה של כל פעולה.</div>
+<div>קלט ואימותים</div><div><ul><li>הלקוח שולח רק את השאלה. השרת בונה את <code>sportContext</code> בעצמו מנתוני ה-DB של העסק שבסשן.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>השרת אוסף KPIs (מהדשבורד), הכנסות (sport_payments לפי חודש), נטישה, חידושים קרובים, שיעורים קרובים (<code>capacity</code>, <code>registered_count</code>, <code>start_time</code>) ומשימות פתוחות. כל השדות קיימים בסכמה.</li><li>התשובה נסרקת לתגיות <code>EXPORT_EXCEL, ADD_TASK, OPEN_TAB, FREEZE_MEMBER|id|סיבה, UNFREEZE_MEMBER|id|שם, CHECKIN_MEMBER|id|שם, REGISTER_CLASS|class|member|שם, CREATE_TASK, CREATE_ALERT_RULE</code>, וכל אחת הופכת לכפתור. <code>OPEN_TAB|sport-*</code> ממופה לפעולות המודאל (<code>sport-checkin</code>, <code>sport-schedule</code> וכו') דרך מפת הפעולות. <code>FREEZE_MEMBER</code> פותח את טופס ההקפאה (סיבה + ימים) ולא מקפיא ישירות.</li><li>השרת יכול לבקש נתונים נוספים ב-<code>[NEED_DATA:…]</code> ולקרוא שנית, ללא שינוי.</li></ol></div>
+<div>חישובים</div><div>בשרת: <code>retention_pct = round(active/total×100)</code>, <code>trend_pct</code> של ההכנסה החודשית, ימי חוסר פעילות (99 אם אין כניסה). יעדים בפרומפט: retention &gt;75%, חוסר פעילות 14+ ימים, תפוסה &lt;50%/&gt;90%, &gt;2 כניסות בשבוע. ללא שינוי.</div>
+<div>ממשק</div><div>ללא שינוי. המדדים מוצגים עכשיו עם ערכים אמיתיים.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-52</code> — ההקשר נבנה בשרת משדות קיימים. OPEN_TAB ממופה לפעולות המודאל. הקפאה פותחת טופס. /api/ai/generate מאומת ועם מכסה.</li>
+<li><code>SPT-32</code> — אין יותר קריאה ל-/sport/payments/:groupId שלא קיים. משתמשים ב-GET /api/sport/payments.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">משימות רקע</h2>
+
+<section class="proc" data-f="cron background expiry unfreeze waitlist auto checkout reminders worker"><h3>משימות רקע ותזמון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימות ספורט מתוזמנות ב-worker יחיד (ARC-23), בשעון Asia/Jerusalem. כל משימה singleton ואידמפוטנטית.</div>
+<div>הרשאות</div><div>מערכת. כל משימה פועלת לכל העסקים מסוג sport שיש להם זכאות פעילה.</div>
+<div>קלט ואימותים</div><div><ul><li>כל משימה רצה פעם אחת בחלון שלה. מפתח dedup לכל ישות וריצה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>00:05 יומי — מחזור חיי מנוי</b>: active עם <code>end_date &lt; todayIL</code> ⇒ expired. frozen עם <code>frozen_until &lt; todayIL</code> ⇒ active, הארכת end_date וצבירת frozen_days_banked. כל שורה בטרנזקציה משלה.</li>
+<li><b>כל 5 דקות — המתנה</b>: pending עם <code>expires_at &lt; NOW()</code> ⇒ expired, וקידום הבא ב-waiting ל-pending+30 דקות עם התראה.</li>
+<li><b>23:59 יומי — יציאה אוטומטית</b>: כניסות פתוחות של היום ⇒ <code>checked_out_at = LEAST(checked_in_at+2h, 23:59)</code>, <code>auto_checkout=true</code>.</li>
+<li><b>09:00 יומי — תזכורות לחבר מקושר</b> (התראת inbox): 7 ימים לפני סיום מנוי, 14 ימים לפני פקיעת הצהרה, וכשנותרו 2 כניסות בכרטיסייה (נבדק גם מיד אחרי כל ניקוב). דה-דופליקציה לפי <code>(membership, סוג, תקופה)</code>.</li>
+<li>הגיבוי העצל בקריאות (רשימת חברים, effectiveStatus בצ'ק-אין ורישום) נשאר, כדי שמנוי פג לא יעבור לפני ריצת המשימה.</li>
+<li>רענון הדשבורד בלקוח כל 30 שניות, ללא שינוי.</li>
+</ol></div>
+<div>חישובים</div><div>כל גבולות היום והחצות לפי Asia/Jerusalem (ARC-25).</div>
+<div>תופעות לוואי</div><div>התראות קידום והתזכורות. כשל נכתב ללוג ומפעיל התראה תפעולית (ARC-23/33).</div>
+<div>ממשק</div><div>אין ממשק ישיר. התוצאות נראות ברשימות, בהתראות ובאזור החבר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SPT-21</code> — משימה יומית לפקיעה והפשרה, ומשימה כל 5 דקות לתפוגת ההמתנה.</li>
+<li><code>SPT-31</code> — יציאה אוטומטית ב-23:59.</li>
+<li><code>SPT-53</code> — תזכורות אוטומטיות: חידוש, הצהרה, יתרת כרטיסייה.</li>
+</ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

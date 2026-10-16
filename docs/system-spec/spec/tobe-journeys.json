@@ -1,0 +1,1225 @@
+{
+ "journeys": [
+  {
+   "id": "J01",
+   "title": "הרשמת משפחה ב-OTP → יצירת קבוצה → הזמנת בן משפחה → הצטרפות ואישור",
+   "data_f": "family signup otp group pre-invite join approve",
+   "steps": [
+    {
+     "step": "שליחת OTP ואימות טלפון בוויזארד",
+     "actor": "אנונימי",
+     "process": "אימות טלפון ב-OTP בוויזארד הקמת משפחה",
+     "file": "tobe-family.html",
+     "data": "in: phone · out: verified_token (15 דק', purpose family_verified)",
+     "status": "✓"
+    },
+    {
+     "step": "יצירת קבוצת FAMILY",
+     "actor": "נרשם (ציבורי + verified_token)",
+     "process": "יצירת קבוצה משפחתית (הקמת סביבה)",
+     "file": "tobe-family.html",
+     "data": "in: verified_token, פרטי מנהל · out: family_groups (active, solo), users ADMIN, session token (sessions, ARC-01)",
+     "status": "✓"
+    },
+    {
+     "step": "יצירת פרופילי invited",
+     "actor": "ADMIN (סשן מהוויזארד)",
+     "process": "יצירת פרופילי \"ממתין להרשמה\" (pre-invite)",
+     "file": "tobe-family.html",
+     "data": "in: members[≤8] · out: users status=invited, password_hash NULL, requested_role",
+     "status": "✓"
+    },
+    {
+     "step": "הצטרפות בקוד סביבה",
+     "actor": "בן משפחה (ציבורי)",
+     "process": "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+     "file": "tobe-auth.html",
+     "data": "in: groupCode, phone תואם · out: invited→pending, bcrypt 12, מיילים למנהל",
+     "status": "✓"
+    },
+    {
+     "step": "אישור או דחייה",
+     "actor": "ADMIN",
+     "process": "אישור בקשות הצטרפות ממתינות",
+     "file": "tobe-family.html",
+     "data": "in: pending + requested_role · out: active + role, SMS/מייל למאושר (AUTH-36)",
+     "status": "✓"
+    },
+    {
+     "step": "כניסה ראשונה",
+     "actor": "בן משפחה",
+     "process": "כניסה עם קוד סביבה + כינוי + סיסמה",
+     "file": "tobe-family.html",
+     "data": "in: code+nickname+password · out: session (ARC-05 בודק status=active)",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J02",
+   "title": "משפחה מצטרפת לקהילה → קנייה בחנות של עסק קהילתי עם מבצע → הזמנה הושלמה → קאשבק, עמלה ו-FLOW",
+   "data_f": "community join storefront promo order cashback commission flow",
+   "steps": [
+    {
+     "step": "בקשת הצטרפות לקהילה",
+     "actor": "משפחה (ADMIN/MEMBER)",
+     "process": "הצטרפות משפחה לקהילה (קוד) ואישורה",
+     "file": "tobe-community.html",
+     "data": "out: family_communities pending, badge למאשרים",
+     "status": "✓"
+    },
+    {
+     "step": "אישור ההצטרפות",
+     "actor": "CM / ZM / SA",
+     "process": "הצטרפות משפחה לקהילה (קוד) ואישורה",
+     "file": "tobe-community.html",
+     "data": "pending→approved · awardFlow join_community (15/5) + referral_join, פעם אחת",
+     "status": "✓"
+    },
+    {
+     "step": "צפייה בעסקי הקהילה ופתיחת החנות",
+     "actor": "משפחה",
+     "process": "תצוגת הקהילות והעסקים למשפחה; טעינת חנות ציבורית (GET /api/storefront/:code)",
+     "file": "tobe-community / store.html",
+     "data": "out: קוד חנות, קטלוג ציבורי",
+     "status": "✓"
+    },
+    {
+     "step": "התחברות לקוח חנות",
+     "actor": "לקוח (sc-auth)",
+     "process": "OTP לקוח חנות (sc-auth send/verify); הרשמת לקוח חנות (sc-auth/register)",
+     "file": "tobe-auth.html",
+     "data": "out: storefront session מקושר ל-family_group_id (טוקן bootstrap לא נדרש; הנתיב הוסר, E2E-04)",
+     "status": "תוקן E2E-04"
+    },
+    {
+     "step": "אימות קוד מבצע קהילה",
+     "actor": "לקוח sc-auth",
+     "process": "אימות ומימוש קוד מבצע קהילה",
+     "file": "tobe-community.html",
+     "data": "in: code, communityId, טוקן · out: מבצע approved בתוקף, משפחה approved",
+     "status": "✓"
+    },
+    {
+     "step": "יצירת הזמנה",
+     "actor": "לקוח (ערוץ חזית)",
+     "process": "יצירת הזמנה (POST /api/store/orders)",
+     "file": "tobe-store.html",
+     "data": "out: store_orders pending_approval, priceOrder breakdown, community_promo_redemptions (channel=order), FLOW promo_redemption/biz_promo_redeemed/promo_community פעם אחת",
+     "status": "תוקן E2E-02"
+    },
+    {
+     "step": "אישור והשלמה ע\"י העסק",
+     "actor": "עובד BIZ (sales)",
+     "process": "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+     "file": "tobe-store.html",
+     "data": "pending_approval→…→completed · completeOrder: הכנסה פעם אחת, מלאי, בלי promo_used",
+     "status": "תוקן E2E-01"
+    },
+    {
+     "step": "קאשבק ועמלות",
+     "actor": "מערכת (עבודה אידמפוטנטית)",
+     "process": "קאשבק קהילתי ועמלות בעת השלמת הזמנה",
+     "file": "tobe-community.html",
+     "data": "out: business_platform_dues pending, postEntry ILS_CASHBACK לקהילה, zone_manager_commissions",
+     "status": "✓"
+    },
+    {
+     "step": "גבייה מהעסק ומעקב חוב",
+     "actor": "SA (stats)",
+     "process": "עמלות פלטפורמה, קאשבק לקהילה וגבייה מעסקים",
+     "file": "tobe-sa.html",
+     "data": "dues: pending→invoiced→paid|written_off, הקצאת FIFO",
+     "status": "תוקן E2E-03"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J03",
+   "title": "אשף הקמת עסק (בחירת סוג רק באשף) → זכאויות → הוספת עובד עם תפקיד → העובד נכנס ורואה את הטאבים הנכונים",
+   "data_f": "biz wizard business_type entitlements employee role tabs",
+   "steps": [
+    {
+     "step": "הרשמת עסק ב-OTP",
+     "actor": "בעל עסק (ציבורי)",
+     "process": "הרשמת עסק (/api/biz/register); הרשמת עסק חדש (OTP + יצירת חשבון)",
+     "file": "tobe-auth / sa.html",
+     "data": "out: קבוצת BUSINESS, ADMIN, סשן biz, wizard_completed=false",
+     "status": "✓"
+    },
+    {
+     "step": "בחירת סוג עסק ומודולים באשף",
+     "actor": "ADMIN (רק כש-wizard_completed=false)",
+     "process": "אשף הקמת עסק — בחירת סוג עסק, מודולים ותמחור",
+     "file": "tobe-sa.html",
+     "data": "in: business_type (enum 15), managed_modules · out: billing_config, group_licenses, tenant_entitlements באותה טרנזקציה + ביטול cache",
+     "status": "תוקן E2E-07"
+    },
+    {
+     "step": "אכיפת זכאות",
+     "actor": "מערכת",
+     "process": "זכאות למודולים — מקור אמת יחיד; שערי מודולים — requireModule",
+     "file": "tobe-arch / biz.html",
+     "data": "in: tenant_entitlements · out: GET /api/me/entitlements, requireModule fail-closed. אין בחירת סוג עסק מחוץ לאשף ול-SA (כלל 5)",
+     "status": "✓"
+    },
+    {
+     "step": "הזמנת עובד בוואטסאפ",
+     "actor": "ADMIN",
+     "process": "הזמנת עובד, הצטרפות בקוד ואישור",
+     "file": "tobe-biz.html",
+     "data": "out: קישור ?code&role&role_type",
+     "status": "✓"
+    },
+    {
+     "step": "הצטרפות העובד",
+     "actor": "עובד (ציבורי)",
+     "process": "הצטרפות לקבוצה קיימת בקוד (/api/join)",
+     "file": "tobe-auth.html",
+     "data": "out: pending, role=MEMBER, requested_role / requested_role_type, bcrypt 12",
+     "status": "תוקן E2E-05, E2E-06"
+    },
+    {
+     "step": "אישור עם תפקיד וממשק",
+     "actor": "ADMIN",
+     "process": "הזמנת עובד, הצטרפות בקוד ואישור",
+     "file": "tobe-biz.html",
+     "data": "pending→active, role ∈ {ADMIN,MANAGER,SENIOR,MEMBER}, employee_role_type",
+     "status": "✓"
+    },
+    {
+     "step": "כניסת העובד",
+     "actor": "עובד",
+     "process": "כניסת משפחה/עסק בקוד סביבה + כינוי + סיסמה (/api/login)",
+     "file": "tobe-auth.html",
+     "data": "out: סשן biz",
+     "status": "✓"
+    },
+    {
+     "step": "חישוב טאבים",
+     "actor": "מערכת (שרת + לקוח)",
+     "process": "תפקידים והרשאות טאבים — ROLE_DEFAULTS, ROLE_TYPE_TABS; ניווט BIZ",
+     "file": "tobe-biz.html",
+     "data": "effectiveTabs = (perms ?? ROLE_DEFAULTS) ∪ ROLE_TYPE_TABS ∪ ALWAYS_OPEN, חתוך בזכאויות",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J04",
+   "title": "מכירה בקופה עם מלאי → סגירת קופה יומית → דוחות",
+   "data_f": "pos sale inventory register close reports",
+   "steps": [
+    {
+     "step": "פתיחת קופה",
+     "actor": "קופאי",
+     "process": "פתיחת/סגירת קופה (קופאי)",
+     "file": "tobe-biz.html",
+     "data": "out: register_sessions (open_float, shift_no)",
+     "status": "✓"
+    },
+    {
+     "step": "מכירה בקופה",
+     "actor": "קופאי (טאב קופה)",
+     "process": "מכירה בקופה (טאב POS ב-business-app.js)",
+     "file": "tobe-store.html",
+     "data": "out: store_orders completed, store_order_payments, created_by_user_id, customer_ledger",
+     "status": "תוקן E2E-09"
+    },
+    {
+     "step": "השלמה וניכוי מלאי",
+     "actor": "מערכת",
+     "process": "מחזור חיי הזמנה (completeOrder); רישום תנועת מלאי מרכזי — recordInventoryMovement",
+     "file": "tobe-store / biz.html",
+     "data": "הכנסה לפי תקבולים פעם אחת · reason=sale ל-track_inventory",
+     "status": "✓"
+    },
+    {
+     "step": "סגירת קופה",
+     "actor": "הקופאי (בעל ה-session)",
+     "process": "פתיחת/סגירת קופה (קופאי)",
+     "file": "tobe-biz.html",
+     "data": "expected_cash = open_float + Σ store_order_payments(cash) של הקופאי + ידני; diff; 409 בסגירה כפולה",
+     "status": "תוקן E2E-08"
+    },
+    {
+     "step": "דוחות",
+     "actor": "ADMIN / בעלי reports",
+     "process": "דוחות מאוחדים לפי סוג עסק",
+     "file": "tobe-biz.html",
+     "data": "in: transactions, store_orders · out: KPI לפי ענף",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J05",
+   "title": "בקשת הצעת מחיר מהחזית → הצעה מהעסק → אישור לקוח בקישור → פקודת עבודה → תחנות תשלום → הכנסה",
+   "data_f": "quote request link approve work order milestones income",
+   "steps": [
+    {
+     "step": "בקשת הצעה מהחזית",
+     "actor": "לקוח (sc-auth)",
+     "process": "יצירת הזמנה (orderType=quote); בקשת שירות וליד מהחזית",
+     "file": "tobe-store.html",
+     "data": "out: store_orders status=quote, quote_status=waiting_business",
+     "status": "✓"
+    },
+    {
+     "step": "עריכת ההצעה ושליחה",
+     "actor": "עסק (sales)",
+     "process": "יצירה ועריכה של הצעת מחיר; מחזור חיי הצעת מחיר ושליחה ללקוח",
+     "file": "tobe-store.html",
+     "data": "out: confirm_token, קישור /c/q/:id/:token, waiting_customer/sent",
+     "status": "✓"
+    },
+    {
+     "step": "אישור בקישור",
+     "actor": "לקוח (טוקן)",
+     "process": "קישור אישור קבלת הצעה (GET /c/q/:id/:token)",
+     "file": "tobe-store.html",
+     "data": "GET מציג, POST מאשר → customer_approved, התראה לעסק, תוקף 30 יום",
+     "status": "✓"
+    },
+    {
+     "step": "המרה לפקודת עבודה",
+     "actor": "BIZ (sales)",
+     "process": "המרת הצעת מחיר לפקודת עבודה / תיק",
+     "file": "tobe-services.html",
+     "data": "POST /api/work-orders/convert/:quoteId (to-work-order = alias; /approve מאוחד, E2E-13) → call_type=work_order, status processing",
+     "status": "תוקן E2E-13"
+    },
+    {
+     "step": "תחנות תשלום",
+     "actor": "BIZ",
+     "process": "תחנות תשלום לפקודה / הזמנה",
+     "file": "tobe-services.html",
+     "data": "out: work_order_payments pending, dealTotal, payment_status",
+     "status": "תוקן E2E-12"
+    },
+    {
+     "step": "קבלת תשלום",
+     "actor": "BIZ",
+     "process": "קבלת תשלום ומחיקת תחנה",
+     "file": "tobe-services.html",
+     "data": "pending→received → transactions income (reference payment:id), רק מעבר להכנסה שכבר הוכרה",
+     "status": "תוקן E2E-11"
+    },
+    {
+     "step": "סיום הפקודה",
+     "actor": "BIZ",
+     "process": "שינוי סטטוס פקודת עבודה; מחזור חיי הזמנה",
+     "file": "tobe-services / store.html",
+     "data": "completed. completeOrder לא רושם הכנסה מצרפית להזמנה עם תחנות. סטטוסי פקודה מטופלים ב-handler אחד",
+     "status": "תוקן E2E-10"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J06",
+   "title": "מסעדה: הזמנת שולחן ב-SMS → הושבה → הזמנת מלצר → KDS → סגירת חשבון",
+   "data_f": "restaurant table reservation sms seat waiter kds bill",
+   "steps": [
+    {
+     "step": "הזמנת שולחן עם קוד SMS",
+     "actor": "לקוח (sc-auth)",
+     "process": "הזמנת שולחן ציבורית עם אימות SMS (2 שלבים)",
+     "file": "tobe-restaurant.html",
+     "data": "out: calendar_events table_reservation pending או approved (אישור אוטומטי)",
+     "status": "✓"
+    },
+    {
+     "step": "אישור ושיבוץ",
+     "actor": "צוות יומן",
+     "process": "אישור הזמנת שולחן ע\"י העסק ושיבוץ שולחן; אישור / שינוי סטטוס אירוע",
+     "file": "tobe-restaurant / services.html",
+     "data": "pending→approved + reserved_table_number, tableNumber ידני, 409 כשאין שולחן",
+     "status": "תוקן E2E-14"
+    },
+    {
+     "step": "הושבה",
+     "actor": "צוות שולחנות",
+     "process": "מצב שולחנות (Grid) וסנכרון בין מכשירים",
+     "file": "tobe-restaurant.html",
+     "data": "reserved (נגזר)→occupied · ההזמנה approved + seated_at",
+     "status": "תוקן E2E-16"
+    },
+    {
+     "step": "הזמנת מלצר",
+     "actor": "מלצר (pos/sales)",
+     "process": "מסוף מלצר — חשבון שולחן ושליחה למטבח",
+     "file": "tobe-restaurant.html",
+     "data": "out: store_orders orderSource=table, status new (או pending_approval)",
+     "status": "✓"
+    },
+    {
+     "step": "הכנה ב-KDS",
+     "actor": "טבח",
+     "process": "KDS — כרטיסי הזמנה, סימון מנות והשלמת הכנה",
+     "file": "tobe-restaurant.html",
+     "data": "new→processing→ready, items_ready בשרת",
+     "status": "✓"
+    },
+    {
+     "step": "סגירת חשבון",
+     "actor": "מלצר",
+     "process": "סגירת חשבון שולחן",
+     "file": "tobe-restaurant.html",
+     "data": "כל הזמנות השולחן → completed דרך completeOrder, store_order_payments + created_by_user_id, שולחן→free",
+     "status": "תוקן E2E-15"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J07",
+   "title": "יופי: הזמנת תור בחנות → אישור → השלמת טיפול → עמלה והכנסה",
+   "data_f": "beauty booking approve complete commission income",
+   "steps": [
+    {
+     "step": "בקשת תור ואימות SMS",
+     "actor": "לקוחה (sc-auth)",
+     "process": "בקשת תור מהחנות הציבורית ואישורה (המרה לתור יופי)",
+     "file": "tobe-beauty.html",
+     "data": "out: calendar_events pending + preferred_practitioner_id, service_id",
+     "status": "✓"
+    },
+    {
+     "step": "אישור התור",
+     "actor": "biz (כתיבת יומן)",
+     "process": "בקשת תור מהחנות הציבורית ואישורה; אישור / שינוי סטטוס אירוע",
+     "file": "tobe-beauty / services.html",
+     "data": "pending→converted · beauty_appointments confirmed, total_price מהקטלוג, UNIQUE calendar_event_id",
+     "status": "✓"
+    },
+    {
+     "step": "השלמת טיפול",
+     "actor": "כל תפקיד עם כתיבת יומן",
+     "process": "השלמת טיפול (complete): ניכוי מלאי, עמלות, סטטיסטיקה והכנסה",
+     "file": "tobe-beauty.html",
+     "data": "confirmed→completed · הכנסה פעם אחת, beauty_commissions, מלאי",
+     "status": "✓"
+    },
+    {
+     "step": "אישור גבייה",
+     "actor": "גישת לקוחות",
+     "process": "גבייה: מרכז גבייה ואישור תשלום לתור",
+     "file": "tobe-beauty.html",
+     "data": "payment_confirmed בלבד, בלי תנועה נוספת (גם מהקופה, BTY-61)",
+     "status": "✓"
+    },
+    {
+     "step": "תשלום עמלות",
+     "actor": "ADMIN / senior / branch_manager",
+     "process": "סימון עמלות כשולמו",
+     "file": "tobe-beauty.html",
+     "data": "is_paid=TRUE, logBizExpense salary",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J08",
+   "title": "ספורט: רכישת מנוי בחנות → צ'ק-אין QR → רישום לשיעור או המתנה → שכר מאמן",
+   "data_f": "sport membership qr checkin class waitlist trainer pay",
+   "steps": [
+    {
+     "step": "רכישת מנוי",
+     "actor": "לקוח (STORE, sc-auth)",
+     "process": "רכישת מנוי עצמית מהחנות",
+     "file": "tobe-sport.html",
+     "data": "out: מנוי pending_payment (או active + balance_due), qr_token",
+     "status": "✓"
+    },
+    {
+     "step": "רישום תשלום",
+     "actor": "R-OPS",
+     "process": "רישום תשלום ידני",
+     "file": "tobe-sport.html",
+     "data": "pending_payment→active, הכנסה",
+     "status": "✓"
+    },
+    {
+     "step": "צ'ק-אין ב-QR",
+     "actor": "R-OPS / R-CLS",
+     "process": "צ'ק-אין באמצעות QR; כרטיס כניסה דיגיטלי (QR token)",
+     "file": "tobe-sport.html",
+     "data": "sportCheckinGuards, כניסה source=qr",
+     "status": "✓"
+    },
+    {
+     "step": "רישום לשיעור",
+     "actor": "לקוח (STORE)",
+     "process": "רישום ציבורי לשיעור",
+     "file": "tobe-sport.html",
+     "data": "registered, או רשומת המתנה status=waiting (בתשובה: waitlisted)",
+     "status": "תוקן E2E-17"
+    },
+    {
+     "step": "קידום ואישור מההמתנה",
+     "actor": "מערכת / החבר / מנהל",
+     "process": "רשימת המתנה: הוספה, הסרה, אישור ותפוגה",
+     "file": "tobe-sport.html",
+     "data": "waiting→pending (+30 דק')→רישום / expired",
+     "status": "✓"
+    },
+    {
+     "step": "רישום שיעור למאמן",
+     "actor": "R-MGR",
+     "process": "רישום שיעור למאמן וחישוב שכר",
+     "file": "tobe-sport.html",
+     "data": "calcTrainerPay → sport_trainer_sessions",
+     "status": "✓"
+    },
+    {
+     "step": "תשלום שכר מאמן",
+     "actor": "R-ADM",
+     "process": "סימון תשלום שכר מאמן",
+     "file": "tobe-sport.html",
+     "data": "paid_at, logBizExpense salary, audit",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J09",
+   "title": "לוגיסטיקה: הזמנה → שיוך נהג → מסירה עם POD / COD → חשבונית ומע\"מ",
+   "data_f": "logistics order driver pod cod invoice vat",
+   "steps": [
+    {
+     "step": "יצירת הזמנת משלוח",
+     "actor": "משתמש תפעול",
+     "process": "יצירת הזמנת משלוח",
+     "file": "tobe-logistics.html",
+     "data": "out: new / assigned",
+     "status": "✓"
+    },
+    {
+     "step": "שיוך נהג ורכב",
+     "actor": "משתמש תפעול",
+     "process": "שיוך נהג ורכב להזמנה",
+     "file": "tobe-logistics.html",
+     "data": "→assigned, לינק מעקב",
+     "status": "✓"
+    },
+    {
+     "step": "איסוף ונסיעה",
+     "actor": "נהג (להזמנות שלו)",
+     "process": "ממשק נהג (Driver Companion); עדכון סטטוס הזמנה",
+     "file": "tobe-logistics.html",
+     "data": "assigned→picked_up→in_transit→arrived",
+     "status": "✓"
+    },
+    {
+     "step": "גביית COD",
+     "actor": "נהג / תפעול",
+     "process": "גביית COD בשטח (סימון הזמנה כנגבתה)",
+     "file": "tobe-logistics.html",
+     "data": "cod_collected, בלי תנועה כספית",
+     "status": "✓"
+    },
+    {
+     "step": "אישור מסירה POD",
+     "actor": "נהג",
+     "process": "אישור מסירה (POD)",
+     "file": "tobe-logistics.html",
+     "data": "arrived→delivered, חשבונית single + הכנסה נטו פעם אחת",
+     "status": "✓"
+    },
+    {
+     "step": "חשבונית ומע\"מ",
+     "actor": "מערכת / תפעול",
+     "process": "חשבוניות לוגיסטיקה",
+     "file": "tobe-logistics.html",
+     "data": "vat_rate=calcVat (18% / 0 לפטור), INV-{group}-{seq}",
+     "status": "✓"
+    },
+    {
+     "step": "סגירת יום COD",
+     "actor": "תפעול",
+     "process": "סיכום COD יומי לפי נהג וסגירת יום",
+     "file": "tobe-logistics.html",
+     "data": "סגירה נועלת ביטול סימון COD",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J10",
+   "title": "קריאת שירות מהמשפחה → טכנאי → השלמה",
+   "data_f": "service call family technician completion",
+   "steps": [
+    {
+     "step": "פתיחת קריאה",
+     "actor": "משפחה (סשן family)",
+     "process": "פתיחת קריאת שירות",
+     "file": "tobe-services.html",
+     "data": "out: service_calls new, needs_triage, member_business_links pending",
+     "status": "✓"
+    },
+    {
+     "step": "סיווג ושיוך טכנאי",
+     "actor": "ADMIN / branch_manager",
+     "process": "עדכון קריאת שירות ומכונת המצבים",
+     "file": "tobe-services.html",
+     "data": "assigned_member_id (field_tech), seen",
+     "status": "✓"
+    },
+    {
+     "step": "טיפול",
+     "actor": "טכנאי (קריאה שלו)",
+     "process": "עדכון קריאת שירות ומכונת המצבים; חלקים ורכש לקריאת שירות",
+     "file": "tobe-services.html",
+     "data": "in_progress / pending_parts, התראה ללקוח",
+     "status": "✓"
+    },
+    {
+     "step": "השלמה",
+     "actor": "טכנאי / מנהל",
+     "process": "עדכון קריאת שירות ומכונת המצבים",
+     "file": "tobe-services.html",
+     "data": "→done, completed_at, הצעת תחנת גבייה",
+     "status": "✓"
+    },
+    {
+     "step": "גבייה",
+     "actor": "BIZ",
+     "process": "תחנות תשלום לקריאת שירות; קבלת תשלום ומחיקת תחנה",
+     "file": "tobe-services.html",
+     "data": "received → income פעם אחת",
+     "status": "✓"
+    },
+    {
+     "step": "דירוג",
+     "actor": "משפחה",
+     "process": "עדכון קריאת שירות (rating רק ב-done)",
+     "file": "tobe-services.html",
+     "data": "rating 1..5",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J11",
+   "title": "שגרה → משימה או פקודת עבודה → אישור לקוח בקישור",
+   "data_f": "routine occurrence task work order client approval link",
+   "steps": [
+    {
+     "step": "ייצור מופעים",
+     "actor": "system (cron)",
+     "process": "כללי חזרה וייצור מופעים (generateRoutineOccurrences)",
+     "file": "tobe-routines.html",
+     "data": "out: occurrences planned",
+     "status": "✓"
+    },
+    {
+     "step": "הפעלת מופע",
+     "actor": "system",
+     "process": "הפעלת מופע ויצירת הרשומה המקושרת לעובד",
+     "file": "tobe-routines.html",
+     "data": "planned→open, tasks (source=routine, routine_occurrence_id) / store_orders work_order status=open",
+     "status": "✓"
+    },
+    {
+     "step": "ביצוע המשימה או הפקודה",
+     "actor": "עובד",
+     "process": "מחזור חיי משימה ואישור תגמול; שינוי סטטוס פקודת עבודה",
+     "file": "tobe-biz / services.html",
+     "data": "done/approved או completed → complete פנימי של המופע (RTN-22)",
+     "status": "תוקן E2E-18, E2E-19"
+    },
+    {
+     "step": "ביצוע מופע וסבב אישור פנימי",
+     "actor": "עובד / מנהל",
+     "process": "ביצוע מופע — מסלול מהיר; מסלול מלא: סבב אישור פנימי (מנהל)",
+     "file": "tobe-routines.html",
+     "data": "in_progress, round, customer pending + טוקן",
+     "status": "✓"
+    },
+    {
+     "step": "אישור לקוח בקישור",
+     "actor": "לקוח (טוקן)",
+     "process": "אישור לקוח בקישור ציבורי (/c/rt/:occurrenceId/:token)",
+     "file": "tobe-routines.html",
+     "data": "pending→approved / rejected (המופע חוזר ל-open) / expired",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J12",
+   "title": "קול העם: טיוטה → אישור ZM → אישור ארצי SA → מעורבות וטרנדינג",
+   "data_f": "kolhaam draft zm approval sa global trending",
+   "steps": [
+    {
+     "step": "יצירת טיוטה",
+     "actor": "משפחה (כותב)",
+     "process": "יצירת פריט תוכן (טיוטה); יצירת/איתור פרופיל כותב",
+     "file": "tobe-kolhaam.html",
+     "data": "out: content_items DRAFT, scope LOCAL/GLOBAL",
+     "status": "✓"
+    },
+    {
+     "step": "שליחה לאישור",
+     "actor": "בעלים",
+     "process": "שליחת פריט לאישור",
+     "file": "tobe-kolhaam.html",
+     "data": "DRAFT→PENDING_ZM",
+     "status": "✓"
+    },
+    {
+     "step": "אישור מקומי",
+     "actor": "ZM של אזור הקהילה (manager_zones)",
+     "process": "תור אישור Zone Manager (אישור/דחייה מקומית)",
+     "file": "tobe-kolhaam.html",
+     "data": "→PUBLISHED_LOCAL או PENDING_SA, FIRST_PUBLISH ב-LOCAL",
+     "status": "✓"
+    },
+    {
+     "step": "אישור ארצי",
+     "actor": "SA (content)",
+     "process": "תור אישור ארצי (Super Admin)",
+     "file": "tobe-kolhaam.html",
+     "data": "PENDING_SA→PUBLISHED_GLOBAL, FIRST_PUBLISH",
+     "status": "✓"
+    },
+    {
+     "step": "תגמול הישג",
+     "actor": "מערכת",
+     "process": "הישגים ותגמולי FLOW",
+     "file": "tobe-kolhaam.html",
+     "data": "awardKolHaamFlow דרך ledger, idempotency kh:achievement_id",
+     "status": "✓"
+    },
+    {
+     "step": "צפיות, ריאקציות וטרנדינג",
+     "actor": "קוראים / cron",
+     "process": "רישום צפייה; ריאקציות לייק/דיסלייק; חישוב ציון טרנדינג (cron)",
+     "file": "tobe-kolhaam.html",
+     "data": "dedup 30 דק', trending score",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J13",
+   "title": "מנהל אזור: הרשמה → אישור SA → גיוס קהילה → עמלה",
+   "data_f": "zone manager register sa approve recruit commission",
+   "steps": [
+    {
+     "step": "הרשמה",
+     "actor": "ZM (ציבורי)",
+     "process": "הרשמת מנהל אזור ואישור SA",
+     "file": "tobe-auth.html",
+     "data": "out: zone_managers pending, commission_pct 5",
+     "status": "✓"
+    },
+    {
+     "step": "אישור SA",
+     "actor": "SA (לשונית partners, open)",
+     "process": "הרשמת מנהל אזור ואישור SA; ניהול מנהלי אזור ואזורים ע\"י SA",
+     "file": "tobe-auth / community.html",
+     "data": "pending→active, audit",
+     "status": "תוקן E2E-20, E2E-21"
+    },
+    {
+     "step": "יצירת אזור ושיוך קהילה",
+     "actor": "SA",
+     "process": "ניהול מנהלי אזור ואזורים ע\"י SA; יצירת קהילה ע\"י סופר-אדמין",
+     "file": "tobe-community.html",
+     "data": "manager_zones, communities.zone_id",
+     "status": "✓"
+    },
+    {
+     "step": "גיוס בלידים",
+     "actor": "ZM",
+     "process": "קמפייני גיוס (טפסי לידים) ו-CRM לידים",
+     "file": "tobe-community.html",
+     "data": "zm_campaign_leads new→converted",
+     "status": "✓"
+    },
+    {
+     "step": "עמלה מהזמנות בקהילה",
+     "actor": "מערכת",
+     "process": "קאשבק קהילתי ועמלות בעת השלמת הזמנה",
+     "file": "tobe-community.html",
+     "data": "zone_manager_commissions",
+     "status": "✓"
+    },
+    {
+     "step": "דשבורד ותשלום עמלות",
+     "actor": "ZM / SA (stats)",
+     "process": "דשבורד מנהל אזור, עמלות ותשלומים",
+     "file": "tobe-community.html",
+     "data": "total_debt = earned − paid",
+     "status": "תוקן E2E-22"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J14",
+   "title": "פולים: משפחה פותחת פול → עסקים מגישים הצעות → בחירה → FLOW",
+   "data_f": "pool open bid select flow",
+   "steps": [
+    {
+     "step": "פתיחת פול",
+     "actor": "משפחה approved, לא CHILD",
+     "process": "פתיחת פול",
+     "file": "tobe-community.html",
+     "data": "open_r1, expires +7 ימים, pool_create FLOW",
+     "status": "✓"
+    },
+    {
+     "step": "הצטרפות משפחות",
+     "actor": "משפחות בקהילה",
+     "process": "הצטרפות משפחות לפול והסרתן",
+     "file": "tobe-community.html",
+     "data": "flow_pool_members, pool_join",
+     "status": "✓"
+    },
+    {
+     "step": "הגשת הצעות",
+     "actor": "BIZ (חבר, או אורח ב-open_r2)",
+     "process": "הגשת הצעה מעסק לפול",
+     "file": "tobe-community.html",
+     "data": "flow_pool_bids pending, is_guest מהשרת",
+     "status": "✓"
+    },
+    {
+     "step": "פתיחת סיבוב 2 (אופציונלי)",
+     "actor": "יוזם / CM",
+     "process": "מכונת מצבים של פול",
+     "file": "tobe-community.html",
+     "data": "open_r1→open_r2",
+     "status": "✓"
+    },
+    {
+     "step": "בחירת הצעה",
+     "actor": "יוזם / CM",
+     "process": "מכונת מצבים של פול",
+     "file": "tobe-community.html",
+     "data": "→closed + winner, accepted/rejected, pool_bid_accepted פעם אחת",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J15",
+   "title": "SA: הקפאת עסק → ארכוב → שחזור",
+   "data_f": "sa freeze archive restore",
+   "steps": [
+    {
+     "step": "הקפאה",
+     "actor": "SA (clients)",
+     "process": "מצב חשבון: הקפאה, הפשרה וארכוב אוטומטי",
+     "file": "tobe-sa.html",
+     "data": "active→frozen, ביטול סשנים, audit",
+     "status": "✓"
+    },
+    {
+     "step": "חסימה בכל הכניסות",
+     "actor": "מערכת",
+     "process": "מודל זהות וסשן (ARC-05)",
+     "file": "tobe-arch.html",
+     "data": "frozen/archived → 403 \"החשבון מוקפא\"",
+     "status": "✓"
+    },
+    {
+     "step": "ארכוב אוטומטי",
+     "actor": "job (worker)",
+     "process": "מצב חשבון: הקפאה, הפשרה וארכוב אוטומטי",
+     "file": "tobe-sa.html",
+     "data": "frozen (30+ יום)→archived, audit system",
+     "status": "✓"
+    },
+    {
+     "step": "החזרה מארכיב",
+     "actor": "SA",
+     "process": "מצב חשבון: הקפאה, הפשרה וארכוב אוטומטי",
+     "file": "tobe-sa.html",
+     "data": "archived→active, UNARCHIVE_GROUP",
+     "status": "✓"
+    },
+    {
+     "step": "מחיקה רכה ושחזור (מסלול משלים)",
+     "actor": "SA (archive, open)",
+     "process": "מחיקה רכה, ארכיון מחוקים, שחזור ומחיקה לצמיתות",
+     "file": "tobe-sa.html",
+     "data": "is_deleted true→false, החזרת alias",
+     "status": "תוקן E2E-23"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J16",
+   "title": "כספי משפחה: דמי כיס → אישור משימת ילד בהוכחת AI → מימוש FLW של ילד",
+   "data_f": "family payday allowance task ai proof kid flw redeem",
+   "steps": [
+    {
+     "step": "הגדרת דמי כיס",
+     "actor": "ADMIN",
+     "process": "דמי כיס וריבית — הגדרה וחלוקה (Payday)",
+     "file": "tobe-family.html",
+     "data": "allowance_amount, interest_rate",
+     "status": "✓"
+    },
+    {
+     "step": "יום תשלום",
+     "actor": "ADMIN",
+     "process": "דמי כיס וריבית — הגדרה וחלוקה (Payday)",
+     "file": "tobe-family.html",
+     "data": "family_paydays, זוג תנועות לכל ילד, 409 שבועי + force",
+     "status": "✓"
+    },
+    {
+     "step": "יצירת משימה עם בדיקת AI",
+     "actor": "ADMIN",
+     "process": "יצירת משימה (יחיד, מרובה, \"מעשה טוב\")",
+     "file": "tobe-family.html",
+     "data": "require_ai_check, reward",
+     "status": "✓"
+    },
+    {
+     "step": "הוכחה בתמונה",
+     "actor": "הילד (assignee)",
+     "process": "אימות ביצוע משימה בתמונה ע\"י AI (vision-verify)",
+     "file": "tobe-family.html",
+     "data": "verified + ai_auto_approve_tasks → approved + בונוס 10%, אחרת done",
+     "status": "תוקן E2E-24"
+    },
+    {
+     "step": "צבירת FLW",
+     "actor": "ילד",
+     "process": "משחקים: קטלוג, הקצאה, סיבובים וצבירת FLW; ארנק FLW לילד",
+     "file": "tobe-family.html",
+     "data": "postEntry FLW_KID",
+     "status": "✓"
+    },
+    {
+     "step": "בקשת מימוש ואישור",
+     "actor": "ילד / ADMIN",
+     "process": "מימוש FLW של ילד לכסף (בקשה ואישור הורה)",
+     "file": "tobe-family.html",
+     "data": "pending→approved: ניכוי FLW_KID, זוג תנועות ILS",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J17",
+   "title": "איפוס סיסמה ושינויי סשן ותפקיד",
+   "data_f": "password reset session role change revoke delete",
+   "steps": [
+    {
+     "step": "איפוס סיסמת מנהל משפחה",
+     "actor": "ADMIN (ציבורי + טוקן)",
+     "process": "שחזור קוד סביבה + איפוס סיסמת מנהל משפחה",
+     "file": "tobe-auth.html",
+     "data": "bcrypt 12, used=true, revokeUserSessions",
+     "status": "✓"
+    },
+    {
+     "step": "איפוס סיסמת עסק",
+     "actor": "ADMIN עסק",
+     "process": "איפוס סיסמת עסק (קישור במייל)",
+     "file": "tobe-auth.html",
+     "data": "revokeUserSessions",
+     "status": "✓"
+    },
+    {
+     "step": "שינוי סיסמה עצמי או ע\"י מנהל",
+     "actor": "משתמש / ADMIN",
+     "process": "שינוי סיסמה עצמי ועריכת סיסמה ע\"י מנהל",
+     "file": "tobe-auth.html",
+     "data": "ביטול סשנים (מלבד הנוכחי בשינוי עצמי)",
+     "status": "✓"
+    },
+    {
+     "step": "הורדת תפקיד",
+     "actor": "ADMIN",
+     "process": "תפקידים ושינוי תפקיד (users.role); עדכון הרשאות ותפקיד מקצועי לעובד",
+     "file": "tobe-auth / biz.html",
+     "data": "ביטול סשני היעד, permissions=NULL",
+     "status": "✓"
+    },
+    {
+     "step": "מחיקת משתמש",
+     "actor": "ADMIN",
+     "process": "עריכת פרטי משתמש, סיסמה ומחיקה; רשימת צוות, עריכת פרטים ומחיקת עובד",
+     "file": "tobe-family / biz / auth.html",
+     "data": "מחיקה רכה status=deleted אחידה בנתיב המשותף, ביטול סשנים, שמירת היסטוריה",
+     "status": "תוקן E2E-25, E2E-26"
+    },
+    {
+     "step": "אכיפה בכל בקשה",
+     "actor": "מערכת",
+     "process": "מודל זהות וסשן — authenticate",
+     "file": "tobe-arch.html",
+     "data": "users.status=active, revoked_at, תקרת 90 יום",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "J18",
+   "title": "עוזר AI (FamliAI) — פעולה עם אישור",
+   "data_f": "ai famliai action confirm quota",
+   "steps": [
+    {
+     "step": "שאלה לעוזרת",
+     "actor": "מנהל עסק",
+     "process": "FamliAI — עוזרת עסקית (chat-assistant)",
+     "file": "tobe-biz.html",
+     "data": "groupId מהסשן, ניכוי סוללה (aiGateway)",
+     "status": "✓"
+    },
+    {
+     "step": "שליפת נתונים נוספים",
+     "actor": "שרת",
+     "process": "FamliAI (NEED_DATA)",
+     "file": "tobe-biz.html",
+     "data": "fetchBizAdditionalData לקבוצת הסשן בלבד",
+     "status": "✓"
+    },
+    {
+     "step": "הצגת כפתור פעולה",
+     "actor": "לקוח",
+     "process": "FamliAI (תגיות ACTION)",
+     "file": "tobe-biz.html",
+     "data": "כפתור ב-DOM API, escape",
+     "status": "✓"
+    },
+    {
+     "step": "אישור וביצוע",
+     "actor": "המשתמש (לחיצה + confirm)",
+     "process": "ביצוע פעולות AI על קטלוג (/api/ai/actions) או נתיב הדומיין (למשל orders/status, work-orders status)",
+     "file": "tobe-biz / store / services.html",
+     "data": "אותן הרשאות ומעברים של המשתמש, audit actor FamliAI",
+     "status": "✓"
+    },
+    {
+     "step": "מכסה",
+     "actor": "מערכת",
+     "process": "AI gateway ומכסות; סוללת AI — מכסת שאילתות יומית",
+     "file": "tobe-arch / biz.html",
+     "data": "10/50/ללא הגבלה, ai_usage_log",
+     "status": "✓"
+    },
+    {
+     "step": "עוזרת משפחתית (מקבילה)",
+     "actor": "משתמש משפחה",
+     "process": "FamilAI — עוזרת צ'אט עם ביצוע פעולות",
+     "file": "tobe-family.html",
+     "data": "אותו דפוס אישור",
+     "status": "✓"
+    }
+   ],
+   "notes": ""
+  }
+ ],
+ "fixes": [
+  {
+   "id": "E2E-01",
+   "file": "tobe-store.html",
+   "process": "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "change": "completeOrder לא קורא יותר ל-awardFlow('promo_used'); התגמול על מבצע קהילה ניתן רק ביצירת ההזמנה, כפי שמגדיר tobe-community (COM-15). אחרת השלמת כל הזמנה עם מבצע קהילה הייתה נכשלת."
+  },
+  {
+   "id": "E2E-02",
+   "file": "tobe-store.html",
+   "process": "יצירת הזמנה (POST /api/store/orders)",
+   "change": "createOrder רושם את מימוש מבצע הקהילה ב-community_promo_redemptions (channel='order', UNIQUE promo_id+order_id) בתוך הטרנזקציה, כפי ש-tobe-community (COM-13) מצפה, ומעניק FLOW רק על שורה חדשה."
+  },
+  {
+   "id": "E2E-03",
+   "file": "tobe-sa.html",
+   "process": "עמלות פלטפורמה, קאשבק לקהילה וגבייה מעסקים",
+   "change": "מכונת המצבים של חובות הפלטפורמה ב-SA (pending→collected) לא תאמה את tobe-community (COM-20: pending→invoiced→paid|written_off עם הקצאת FIFO). SA אומץ לנוסח הקהילה, ו-collected ממופה ל-paid."
+  },
+  {
+   "id": "E2E-04",
+   "file": "tobe-routes.html",
+   "process": "POST /api/community/bootstrap-token",
+   "change": "השורה סומנה 'נשמר' בעוד tobe-auth, tobe-family ו-tobe-community מסירים את הנתיב (AUTH-01). השורה עודכנה ל'מוסר (אבטחה)' עם הפניה לחלופה (טוקן מזרימות הכניסה), והסיכום ב-intro עודכן."
+  },
+  {
+   "id": "E2E-05",
+   "file": "tobe-biz.html",
+   "process": "הזמנת עובד, הצטרפות בקוד ואישור",
+   "change": "tobe-biz תיאר את /api/join עם bcrypt 10 בלי בדיקת אורך סיסמה וכינוי, בעוד tobe-auth ו-tobe-family (בעלי הנתיב) מגדירים bcrypt 12, AUTH-24 ו-AUTH-33. tobe-biz יושר."
+  },
+  {
+   "id": "E2E-06",
+   "file": "tobe-auth.html",
+   "process": "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "change": "tobe-auth שמר employee_role_type כבר בהצטרפות, בעוד tobe-biz (BIZ-20) שומר אותו כמבוקש וקובע אותו ב-approve-user. tobe-auth יושר כך שעובד pending לא מקבל ממשק תפקיד לפני אישור."
+  },
+  {
+   "id": "E2E-07",
+   "file": "tobe-sa.html",
+   "process": "אשף הקמת עסק — בחירת סוג עסק, מודולים ותמחור",
+   "change": "האשף כתב managed_modules כאילו הוא מקור, בעוד tobe-arch מגדיר אותו לקריאה בלבד אחרי המיגרציה. הובהר שהאשף כותב tenant_entitlements באותה טרנזקציה עם ביטול cache, כך שהעסק החדש רואה מיד את הטאבים הנכונים, ו-managed_modules נכתב רק לתאימות עד השחרור."
+  },
+  {
+   "id": "E2E-08",
+   "file": "tobe-biz.html",
+   "process": "פתיחת/סגירת קופה (קופאי)",
+   "change": "סגירת קופה חישבה מזומן צפוי מ-transactions עם payment_method NULL או cash של המשתמש. ביעד pos/sale רושם תנועת הכנסה אחת להזמנה (בלי אמצעי ולא על שם הקופאי) ואת הפיצול ב-store_order_payments, כך שאשראי/ביט היו נספרים כמזומן. החישוב עבר ל-store_order_payments לפי הקופאי."
+  },
+  {
+   "id": "E2E-09",
+   "file": "tobe-store.html",
+   "process": "מכירה בקופה (טאב POS ב-business-app.js)",
+   "change": "נוסף store_orders.created_by_user_id (מהסשן) ב-pos/sale, כדי שסגירת הקופה תוכל לסכם את תשלומי המזומן של הקופאי."
+  },
+  {
+   "id": "E2E-10",
+   "file": "tobe-store.html",
+   "process": "מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)",
+   "change": "completeOrder רשם total_amount כהכנסה גם להזמנות או פקודות שההכנסה שלהן כבר נרשמה בקבלת תחנות תשלום (tobe-services), והתוצאה הייתה הכנסה כפולה. בנוסף, סטטוסי פקודת עבודה (open/scheduled/pending_payment) נדחו בטבלת המעברים של החנות. נקבע חריג הכנסה והעברה ל-handler של פקודות העבודה."
+  },
+  {
+   "id": "E2E-11",
+   "file": "tobe-services.html",
+   "process": "קבלת תשלום ומחיקת תחנה (פקודה + קריאת שירות)",
+   "change": "קבלת תחנה רושמת הכנסה רק מעבר להכנסה שכבר הוכרה להזמנה ב-completeOrder, כדי שהזמנה שהושלמה ואז נגבתה בתחנות לא תירשם פעמיים."
+  },
+  {
+   "id": "E2E-12",
+   "file": "tobe-services.html",
+   "process": "תחנות תשלום לפקודה / הזמנה (יצירה, תבנית מקדמה, תשלום מלא)",
+   "change": "mark-paid-full בהזמנת חנות רגילה, ואחריו השלמת ההזמנה, היו רושמים הכנסה פעמיים. נוסף reference ותיאום עם completeOrder."
+  },
+  {
+   "id": "E2E-13",
+   "file": "tobe-routes.html",
+   "process": "POST /api/store/quotes/:id/approve",
+   "change": "השורה סומנה 'נשמר' בעוד tobe-store ו-tobe-services (STR-29, RECON-21) ממזגים אותה ל-handler של convert ומסירים אותה (אין לה קורא). השורה סומנה 'רישום כפול', והיכולת נשמרת דרך convert ו-to-work-order (alias)."
+  },
+  {
+   "id": "E2E-14",
+   "file": "tobe-services.html",
+   "process": "אישור / שינוי סטטוס אירוע",
+   "change": "שני מפרטים לאותו נתיב (PUT /api/calendar/events/:id/status) סתרו זה את זה: ב-tobe-services לא היה שיבוץ ידני ולא 409 כשאין שולחן, ומעבר לא חוקי החזיר 409. tobe-services יושר ל-tobe-restaurant, הבעלים של הזמנות שולחן (RST-18)."
+  },
+  {
+   "id": "E2E-15",
+   "file": "tobe-restaurant.html",
+   "process": "סגירת חשבון שולחן",
+   "change": "סגירת חשבון שולחן רשמה את התשלום רק ב-notes.payments, בעוד completeOrder (STR-22) וסגירת הקופה (E2E-08) קוראים מ-store_order_payments. נוסף רישום ב-store_order_payments וב-created_by_user_id."
+  },
+  {
+   "id": "E2E-16",
+   "file": "tobe-restaurant.html",
+   "process": "אישור הזמנת שולחן ע\"י העסק ושיבוץ שולחן",
+   "change": "רשת השולחנות \"מסמנת את ההזמנה כמומשה\" בהושבה, אבל מכונת המצבים של הזמנת השולחן לא הגדירה מצב או שדה כזה. נוסף seated_at (status נשאר approved), שגזירת reserved צורכת."
+  },
+  {
+   "id": "E2E-17",
+   "file": "tobe-sport.html",
+   "process": "רישום ציבורי לשיעור",
+   "change": "רישום ציבורי לשיעור מלא תואר כ-INSERT עם status 'waitlisted', ערך שלא קיים במכונת המצבים של רשימת ההמתנה (waiting/pending/expired). רשומה כזו לא הייתה מקודמת ל-pending ולא הייתה פגה. הובהר שה-DB מקבל waiting."
+  },
+  {
+   "id": "E2E-18",
+   "file": "tobe-biz.html",
+   "process": "מחזור חיי משימה ואישור תגמול",
+   "change": "tobe-routines (RTN-22) מגדיר שהשלמת משימה מקושרת משלימה את מופע השגרה, אבל תהליך מחזור חיי המשימה ב-tobe-biz לא הגדיר את הקריאה. נוספה כתופעת לוואי אחרי COMMIT."
+  },
+  {
+   "id": "E2E-19",
+   "file": "tobe-services.html",
+   "process": "שינוי סטטוס פקודת עבודה",
+   "change": "שינוי סטטוס פקודת עבודה לא הפעיל את סנכרון מופע השגרה ש-tobe-routines (RTN-22) מגדיר. נוסף hook אחרי COMMIT."
+  },
+  {
+   "id": "E2E-20",
+   "file": "tobe-auth.html",
+   "process": "הרשמת מנהל אזור ואישור SA",
+   "change": "tobe-auth דרש requireSAPermission('users') לאישור מנהל אזור, ו-tobe-community דרש comm. בפועל המסך יושב בלשונית partners (sa-app.js:5035), ש-tobe-arch ממפה ל-open. שני הנוסחים היו מצמצמים יכולת קיימת, ולכן יושרו לשורת partners."
+  },
+  {
+   "id": "E2E-21",
+   "file": "tobe-community.html",
+   "process": "ניהול מנהלי אזור ואזורים ע\"י SA",
+   "change": "ניהול מנהלי אזור ואזורים דרש comm ו-finance. finance לא קיימת ב-SA_TAB_PERMS, והמסך יושב בלשונית partners (open). יושר כדי לשמור את הגישה של היום ולהישאר עקבי עם tobe-arch ו-tobe-auth."
+  },
+  {
+   "id": "E2E-22",
+   "file": "tobe-community.html",
+   "process": "ארנק קהילה (₪ קאשבק) — צפייה",
+   "change": "הרשאת SA 'finance' (לא קיימת ב-SA_TAB_PERMS) הוחלפה ב-'stats', ההרשאה שלשונית finance ממופה אליה ב-tobe-arch וב-tobe-sa."
+  },
+  {
+   "id": "E2E-22",
+   "file": "tobe-community.html",
+   "process": "מנוע FLOW (awardFlow) וארנק FLOW קהילתי",
+   "change": "הרשאת SA 'finance' (לא קיימת ב-SA_TAB_PERMS) לעריכת flow_config ולמענק ידני הוחלפה ב-'comm', כמו ב-tobe-sa."
+  },
+  {
+   "id": "E2E-22",
+   "file": "tobe-community.html",
+   "process": "דשבורד מנהל אזור, עמלות ותשלומים",
+   "change": "הרשאת SA 'finance' (לא קיימת ב-SA_TAB_PERMS) הוחלפה ב-'stats', ההרשאה שלשונית finance ממופה אליה ב-tobe-arch וב-tobe-sa."
+  },
+  {
+   "id": "E2E-22",
+   "file": "tobe-community.html",
+   "process": "אישור הזמנת באנר, תזמון, חיוב ותפוגה",
+   "change": "הרשאת SA 'finance' (לא קיימת ב-SA_TAB_PERMS) הוחלפה ב-'stats', ההרשאה שלשונית finance ממופה אליה ב-tobe-arch וב-tobe-sa."
+  },
+  {
+   "id": "E2E-22",
+   "file": "tobe-community.html",
+   "process": "חיוב, אישור תשלום בחתימה דיגיטלית וסימון \"שולם\"",
+   "change": "הרשאת SA 'finance' (לא קיימת ב-SA_TAB_PERMS) הוחלפה ב-'stats', ההרשאה שלשונית finance ממופה אליה ב-tobe-arch וב-tobe-sa."
+  },
+  {
+   "id": "E2E-23",
+   "file": "tobe-sa.html",
+   "process": "מחיקה רכה, ארכיון מחוקים, שחזור ומחיקה לצמיתות",
+   "change": "טבלת המצבים של מחיקה רכה ושחזור דרשה SA (all), בעוד שדה ההרשאות (אחרי RECON-07) קובע archive=open כמו היום. הטבלה יושרה כדי שלא ייווצר צמצום יכולת."
+  },
+  {
+   "id": "E2E-24",
+   "file": "tobe-family.html",
+   "process": "אימות ביצוע משימה בתמונה ע\"י AI (vision-verify)",
+   "change": "אותו נתיב (/api/tasks/vision-verify) קרא הגדרה בשם ai_auto_approve במשפחה וב-ai_auto_approve_tasks בעסק. המפתח אוחד ל-ai_auto_approve_tasks, ומצבי המקור לפי סוג קבוצה הוגדרו במפורש."
+  },
+  {
+   "id": "E2E-25",
+   "file": "tobe-auth.html",
+   "process": "הצטרפות לקבוצה קיימת בקוד (/api/join) + פרופילי invited",
+   "change": "tobe-auth תיאר מחיקה קשיחה עם CASCADE, ו-tobe-family (FAM-20) מחיקה רכה, באותו נתיב. נקבעה מחיקה רכה, כי מחיקה קשיחה מוחקת ב-CASCADE את תנועות המשתמש. אינדקס הכינוי מחריג deleted."
+  },
+  {
+   "id": "E2E-26",
+   "file": "tobe-biz.html",
+   "process": "רשימת צוות, עריכת פרטים ומחיקת עובד",
+   "change": "tobe-biz השאיר מחיקה פיזית של עובד באותו handler משותף שבו tobe-family קובע מחיקה רכה. מחיקה פיזית מוחקת ב-CASCADE תנועות ונוכחות. יושר למחיקה רכה, עם אותה תוצאה בממשק."
+  }
+ ],
+ "summary": {
+  "journeys": 18,
+  "steps": 111,
+  "steps_fixed": 22,
+  "fix_ids": 26,
+  "fix_entries": 30
+ }
+}

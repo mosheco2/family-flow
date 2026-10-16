@@ -1,0 +1,1145 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · תחזוקה, שירות ומקצועי · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · תחזוקה, שירות ומקצועי</h1><span class="meta">60 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="">יעד · מסעדה</a><a href="tobe-sport.html" class="">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="cur">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>מפרט TO-BE: שירותים, פקודות עבודה, קריאות שירות, ציוד, יומן, פורטל לקוח ומקצועי (SRV).</b> המסמך מכסה את כל <b>60 התהליכים</b> שב-<code>rules-services.html</code>, בלי להשמיט אף תהליך ובלי למזג. מה שעובד היום הועתק כמו שהוא. שינינו רק מה שההחלטות המאושרות מחייבות, בכפוף לכלל העל: כל יכולת וכל פעולה שהמשתמש מקבל היום נשמרות.</p>
+<p><b>החלטות שהוחלו:</b> 45 פריטי SRV שאינם כפולים: FIX 15, HARDEN 12, CONSISTENCY 9, BEHAVIOR 9, SCOPE 0. שני פריטים כפולים הוחלו דרך הפריט הקנוני שלהם: <code>SRV-02</code>→<code>SA-52</code> (פונקציית התראות אחת שכותבת לסכמה בפועל), ו-<code>SRV-32</code>→<code>AUTH-04</code> (registration_token בהרשמת לקוח חנות). החלטות ARC מוזכרות לפי מזהה בלבד, במקומות שבהם הן נוגעות לתחום: אימות וסשן (<code>ARC-01</code>..<code>ARC-06</code>, <code>ARC-09</code>), ביטול legacy (<code>ARC-03</code>), groupId מהסשן (<code>ARC-04</code>), נתיבי דיבאג (<code>ARC-10</code>), טרנזקציות (<code>ARC-11</code>), מיגרציות וטבלאות רפאים (<code>ARC-12</code>/<code>ARC-13</code>), לקוח אחד (<code>ARC-14</code>), התראות (<code>ARC-16</code>), זכאות וקטלוג מודולים (<code>ARC-17</code>/<code>ARC-18</code>), איחודים (<code>ARC-19</code>), worker (<code>ARC-23</code>), מצב משותף (<code>ARC-24</code>), אזור זמן (<code>ARC-25</code>), העלאות (<code>ARC-26</code>), XSS (<code>ARC-27</code>), Rate limit ו-OTP (<code>ARC-29</code>), AI (<code>ARC-30</code>), סודות (<code>ARC-31</code>), PII (<code>ARC-32</code>), שגיאות (<code>ARC-33</code>), ולידציה (<code>ARC-34</code>).</p>
+<p><b>מושגים משותפים שהמפרט מגדיר:</b> <code>woFinancials</code> (הכנסה = total_amount + הצעות משויכות, ועלויות), <code>dealTotal</code> ו-<code>recalcPaymentStatus</code> (גביה), <code>releaseReservation</code> (שחרור שריון לפי מקור), סטטוסים קנוניים לפקודות עבודה ולקריאות שירות, וסמנטיקת PATCH: שדה שלא נשלח לא משתנה, null מנקה. כל התראה פנימית נכתבת דרך פונקציה אחת (<code>SA-52</code>/<code>ARC-16</code>), עם reference_key ל-dedup.</p>
+<p><b>פריטים שעודכנו (16)</b>. בכל אחד: מזהה, למה שונה, והכלל הסופי.</p>
+<ul>
+<li><code>SRV-01</code> (FIX). <b>למה עודכן:</b> ההצעה קבעה status='open' להמרה בלי תאריך, אבל היום המרה מעבירה ל-processing ומוצגת כ'בטיפול' בטאב התיקים. ההצעה גם לא הזכירה את שתי נקודות הכניסה בממשק ואת חילוץ הכותרת מה-metadata. <b>הכלל הסופי:</b> נתיב שרת יחיד POST /api/work-orders/convert/:quoteId לשתי נקודות הכניסה (כפתור ההמרה ומודל 'יעד אספקה'). ללא target_datetime: status=processing כמו היום. עם target_datetime: status נשאר processing, target_datetime נשמר ונוצר אירוע יומן מקושר (<code>RECON-21</code>). הכול בטרנזקציה אחת: quote_status=approved, quote_title (כולל חילוץ מה-metadata), אירוע quote_history, timeline 'created' והתראה למשפחה אחרי COMMIT. הצעה שכבר הומרה → 409. to-work-order לא מוסר: הוא נשאר alias לאותו handler (<code>ARC-34</code>), כי מודל "יעד אספקה" קורא לו היום. גם עם target_datetime הסטטוס נשאר processing, כמו היום (<code>RECON-21</code>).</li>
+<li><code>SRV-03</code> (BEHAVIOR). <b>למה עודכן:</b> ההצעה הגבילה מעברים: אין cancelled מ-completed, ופתיחה מחדש רק ל-ADMIN. היום כל משתמש עסקי מורשה יכול להעביר תיק לכל סטטוס, וזו יכולת קיימת של תיקון ידני. <b>הכלל הסופי:</b> רשימת סטטוסים סגורה ואחידה לכל המסכים: open, scheduled, processing, pending_payment, completed, cancelled. new ממופה ל-open (גם במיגרציה וגם ב-AI). ערך שאינו ברשימה → 400. בין סטטוסים קנוניים מותר כל מעבר לכל משתמש עם הרשאת כתיבה למודול, כמו היום, עם timeline ו-audit. מעבר ל-cancelled משחרר שריונים. 'פעיל' = open|scheduled|processing|pending_payment. הכותרת תמיד quote_title.</li>
+<li><code>SRV-08</code> (BEHAVIOR). <b>למה עודכן:</b> ההצעה אסרה למחוק תחנה שנגבתה (409), וזו פעולה שזמינה היום. היא גם הגבילה ל-ADMIN. <b>הכלל הסופי:</b> receive אטומי (WHERE status='pending', אחרת 409). מחיקת תחנה שנגבתה נשארת זמינה לבעלי ההרשאה של היום, והיא רושמת תנועה הפוכה ב-transactions באותה טרנזקציה. נוספה פעולה חדשה 'ביטול גביה' (ADMIN/MANAGER): התחנה חוזרת ל-pending עם תנועה הפוכה. payment_status מחושב בפונקציה אחת: אין תחנות→NULL, כולן received→paid, חלק→partial, אף אחת→pending_payment.</li>
+<li><code>SRV-09</code> (CONSISTENCY). <b>למה עודכן:</b> לפי ההצעה סכום העסקה נגזר בלבד. אבל בטופס התחנה יש היום שדה 'סכום עסקה' (wo-pay-original-amount) שהמשתמש ממלא ידנית, וביטולו היה מצמצם יכולת. <b>הכלל הסופי:</b> סכום העסקה מחושב בשרת בפונקציה אחת dealTotal: קודם override ידני שנשמר ברמת ההזמנה או הקריאה (deal_total_override), לא בכל תחנה. אחרת, לפקודה: הכנסת הפקודה (SRV-07). לקריאה: price_quote×(1−discount_pct/100). אחרת Σ amount. השרת מחזיר deal_total, received_total ו-remaining, והלקוח מציג אותם.</li>
+<li><code>SRV-14</code> (HARDEN). <b>למה עודכן:</b> לפי מטריצת ההצעה, ל-field_tech יש רק סטטוס והחזרה. אבל בממשק היום כל עובד, כולל טכנאי, עורך תזמון והצעת מחיר (business-app.js:38792-38796). <b>הכלל הסופי:</b> מטריצת שדות נאכפת בשרת. ADMIN/branch_manager: כל השדות. field_tech: status לפי המכונה, 'החזר למנהל', scheduled_at ו-price_quote, רק בקריאות שמשויכות אליו או שיצר. עובד אחר: scheduled_at ו-price_quote. FAMILY: rating רק כש-done, ובקשת ביטול. שדה שערכו זהה לקיים אינו נחשב שינוי. שדה לא מורשה שהשתנה → 403.</li>
+<li><code>SRV-15</code> (BEHAVIOR). <b>למה עודכן:</b> המעברים בהצעה היו חוסמים פעולות שקיימות היום: 'סמן כהושלם' מכל סטטוס, מעבר חופשי בבורר בין הסטטוסים הפעילים, ופתיחה מחדש על ידי טכנאי משויך. <b>הכלל הסופי:</b> סטטוסים: new, seen, in_progress, pending_parts, pending_payment, done, pending_cancel, cancelled. בין סטטוסים פעילים מותר כל מעבר (מנהל, או טכנאי בקריאה שלו). done מותר מכל סטטוס פעיל. פתיחה מחדש מ-done מותרת למנהל ולטכנאי המשויך, ו-completed_at מתאפס. new|seen→pending_cancel רק על ידי הלקוח. pending_cancel→cancelled|seen רק על ידי מנהל. cancelled סופי. ערך או מעבר לא חוקי → 400. מעבר ל-done שומר completed_at. ה-AI מוגבל לרשימה (processing→in_progress, waiting_parts→pending_parts).</li>
+<li><code>SRV-17</code> (BEHAVIOR). <b>למה עודכן:</b> לפי ההצעה business_group_id חובה תמיד. אבל אשף המשפחה פותח היום קריאה לטכנאי אישי בלי עסק (businessGroupId=null, technicianContactId, app.js:13231-13238). <b>הכלל הסופי:</b> בקריאה מסשן עסקי או מחנות, business_group_id חובה: מהסשן או מהנתיב. בקריאה מסשן משפחה, businessGroupId אופציונלי, וקריאה לטכנאי אישי בלי עסק נשמרת. מזהה קבוצה שנשלח ואינו קיים → 400, במקום איפוס שקט. אשף ההקמה משתמש בסשן.</li>
+<li><code>SRV-18</code> (BEHAVIOR). <b>למה עודכן:</b> לפי ההצעה המשפחה רואה את הקריאה רק אחרי אישור הקישור. היום היא רואה אותה מיד, ולכן ההצעה מצמצמת נראות. החלופה המאושרת שומרת את היכולת. <b>הכלל הסופי:</b> חוזה תגובה אחד לחיפוש ({groups:[...]}), והלקוח קורא d.groups. הקישור יוצר member_business_links בסטטוס pending ושולח התראה למשפחה. המשפחה רואה את הקריאה מיד. עדכוני סטטוס נשלחים אליה רק כשהקישור active, כמו היום.</li>
+<li><code>SRV-19</code> (CONSISTENCY). <b>למה עודכן:</b> ההצעה מחקה את נתיב equipment/notifications/check בלי להזכיר את תזכורות התחזוקה (7 ימים / יום) שהוא מייצר. <b>הכלל הסופי:</b> מנגנון אחד בשרת: worker שעתי ב-Asia/Jerusalem. קריאה מחר → התראה לעסק ולמשפחה (refKey sc_due_tomorrow_&lt;id&gt;_&lt;date&gt;). קריאה באיחור → לעסק בלבד. תזכורות תחזוקת הציוד (7 ימים / יום, אותם refKey ונוסחים) עוברות לאותו worker ונשלחות לקבוצת הציוד בלבד. אין הרחבה למשפחות הקהילה. הנתיבים שמופעלים מהלקוח נמחקים, והתג מתעדכן ב-polling הרגיל.</li>
+<li><code>SRV-20</code> (FIX). <b>למה עודכן:</b> לפי ההצעה הטופס שולח ל-service-request, אבל שם preferredDate הוא חובה, וטופס התיקונים שולח חלון זמן, כתובת ודחיפות בלי תאריך. בנוסף, /api/store/leads הוסיף את הפונה כלקוח עסק, ובלי זה תופעת הלוואי הייתה הולכת לאיבוד. <b>הכלל הסופי:</b> העמוד טוען נתונים מ-GET /api/storefront/:code. כשהטעינה נכשלת מוצגת הודעת שגיאה, בלי תוכן דמו ובלי ביקורות מפוברקות. ביקורות מוצגות רק אם הן אמיתיות. 'שלחו פנייה' שולח ל-POST /api/store/service-request/:groupId עם sc-auth. הנתיב מקבל preferredTime בלי תאריך, וגם address, urgency (urgent→priority) ופרטי קשר. נוצרת service_call עם needs_triage=true, וגם upsertStoreCustomer. groupId לא תקין → שגיאה.</li>
+<li><code>SRV-24</code> (CONSISTENCY). <b>למה עודכן:</b> ההצעה קבעה מגבלה של 5MB, וזה מחמיר יותר מהכלל החוצה ARC-26 (8MB לתמונה). היום אין מגבלה מעבר לגודל הגוף. <b>הכלל הסופי:</b> תמונת התקלה מועלית לאחסון קבצים לפי ARC-26 (סוגי תמונה מותרים, עד 8MB), והשורה שומרת URL בלבד. מיגרציה מעבירה את ה-data URL הקיימים.</li>
+<li><code>SRV-25</code> (BEHAVIOR). <b>למה עודכן:</b> ההצעה התירה מחיקה קשה רק לפריט בלי היסטוריה. היום אפשר למחוק פריט יחד עם ההיסטוריה שלו, אחרי אזהרה מפורשת. <b>הכלל הסופי:</b> במחיקה מוצגות שתי אפשרויות. 'העבר לארכיון' (מומלץ): status=disposed, וההיסטוריה והעלויות נשמרות וממשיכות להיספר בסיכום 12 החודשים. 'מחק לצמיתות': כמו היום, עם האזהרה הקיימת. נחסם רק פריט שמושאל כרגע (409). שחזור מ-disposed מותר.</li>
+<li><code>SRV-26</code> (HARDEN). <b>למה עודכן:</b> ההצעה הגבילה את GET היומן ל-verifyBiz, אבל החנות הציבורית קוראת את GET /api/calendar/:groupId כדי לחשב משבצות פנויות (storefront.html:947, 959, 3824). בנוסף, חנויות המסעדה, המרקט והספורט יוצרות אירועים ישירות, ולא דרך SMS. <b>הכלל הסופי:</b> נתיבי הניהול (GET מלא, settings, services, PUT status, reject, DELETE, PUT edit) דורשים verifyBiz עם group מהסשן ו-AND group_id. לחנות נוסף GET /api/calendar/public/:groupId שמחזיר הגדרות, שירותים ומשבצות תפוסות, בלי PII. יצירה ציבורית מתאפשרת עם טוקן sc-auth (החנויות כבר דורשות requireLogin), והזהות נלקחת מהטוקן. הסטטוס נקבע בשרת: pending, או approved רק לפי כלל האישור האוטומטי. משפחה יוצרת דרך verifyFamily.</li>
+<li><code>SRV-36</code> (HARDEN). <b>למה עודכן:</b> לפי ההצעה גם השם והטלפון נלקחים מהטוקן ולא מהגוף. אבל בטפסים הקיימים הלקוח מזין פרטי קשר לפנייה (שם, טלפון, כתובת), והתעלמות מהם הייתה משנה את תוכן הפנייה. <b>הכלל הסופי:</b> הנתיבים שהממשק מחייב בהם התחברות (store/leads, professional-leads, request-booking-sms, service-request, יצירת אירוע מחנות) דורשים Bearer של sc-auth בשרת, אחרת 401. זהות הלקוח, כלומר הקישור ל-storefront customer ול-family_group_id, נלקחת מהטוקן. השם והטלפון שהוזנו בטופס נשמרים כפרטי הקשר של הפנייה.</li>
+<li><code>SRV-38</code> (HARDEN). <b>למה עודכן:</b> לפי ההצעה עובד רואה רק את הרשומות שלו. היום כל בעל טאב timelog רואה את כל רשומות העסק, כולל דוח CSV, וזה היה מצמצם יכולת. <b>הכלל הסופי:</b> כל נתיבי timelog דורשים verifyBiz, עם group מהסשן ו-AND group_id בכל פעולה לפי id. user_id של רשומה חדשה נלקח מהסשן. הצפייה ו'סמן כחויב' זמינות לכל בעל הטאב, כמו היום. מחיקת רשומה של אחר מותרת רק ל-ADMIN/MANAGER, ובעל הרשומה מוחק את שלו.</li>
+<li><code>SRV-45</code> (FIX). <b>למה עודכן:</b> ההצעה הציעה שתי אפשרויות. האפשרות של 409 הייתה חוסמת את פעולת המחיקה הקיימת. <b>הכלל הסופי:</b> מחיקת סוג מסמך מותאם היא soft delete (is_active=false). הסוג נעלם מהבחירה במסמך חדש, ומסמכים קיימים עם custom_&lt;id&gt; ממשיכים להציג את שמו ואת האייקון שלו.</li>
+</ul>
+<p><b>הערות החלה:</b> <code>SRV-30</code> מתואם עם <code>ARC-29</code>: קוד בן 6 ספרות, תוקף 10 דקות, ומגבלות SMS לטלפון לפי ARC-29, ובנוסף מגבלת IP מההחלטה. <code>SRV-46</code> מחייב לעדכן את <code>professional-guide.html</code>, <code>maintenance-guide.html</code> ו-<code>services-guide.html</code> באותו קומיט עם כל שינוי UI או ניווט (כלל 6 ב-CLAUDE.md, <code>ARC-42</code>).</p>
+</div>
+<h2 class="grp">פקודות עבודה / תיקים (Work Orders)</h2>
+
+<section class="proc" data-f="work order convert quote to-work-order המרה הצעת מחיר פקודת עבודה תיק target date יעד אספקה"><h3>המרת הצעת מחיר לפקודת עבודה / תיק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בעל עסק (BIZ) הופך הצעת מחיר (<code>store_orders</code> בסטטוס quote) לפקודת עבודה. שתי נקודות הכניסה בממשק נשמרות: (א) כפתור "🔨 המר לפקודת עבודה / לתיק" (<code>business-app.js:42690 convertToWorkOrder</code>, wrapper <code>9531 convertQuoteToWorkOrder</code>); (ב) אישור הצעה עם תאריך יעד במודל "יעד אספקה" (<code>business-app.js:9649 submitTargetDatetime</code>). שתיהן קוראות לנתיב שרת יחיד <code>POST /api/work-orders/convert/:quoteId</code> עם <code>target_datetime</code> אופציונלי. פקודת העבודה נשארת <b>אותה שורה</b> ב-<code>store_orders</code> (id זהה), מסומנת <code>call_type='work_order'</code>.</div>
+<div>הרשאות</div><div>סשן BIZ בלבד (<code>ARC-01</code>/<code>ARC-03</code>: אין עוד <code>verifyBizOrLegacy</code>); groupId מהסשן (<code>ARC-04</code>); זכאות למודול sales (<code>ARC-17</code>). ההצעה חייבת להיות של העסק: <code>WHERE id=$1 AND group_id=principal.groupId</code>.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>quoteId</code> בנתיב; גוף אופציונלי: <code>target_datetime</code> (ISO, Asia/Jerusalem), <code>title</code>.</li>
+<li>הצעה לא נמצאה/לא של העסק → 404 "הצעה לא נמצאה".</li>
+<li>הצעה שכבר הומרה (<code>call_type='work_order'</code>) → 409 "ההצעה כבר הומרה לפקודת עבודה".</li>
+<li>ממשק: אישור <code>_uiConfirm</code> עם נוסח שונה לעסק <code>professional</code> ("להמיר הצעה זו לתיק?") (42691-42695) — ללא שינוי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>טרנזקציה אחת (withTransaction, ARC-11), נעילת שורת ההצעה FOR UPDATE. כוללת גם את תופעות הלוואי מ-/approve (tobe-store, STR-29): upsert לקוח (STR-42) ו-business_id מ-metadata.companyId אם הוא של העסק. created_at לא נדרס.</li>
+<li>חילוץ כותרת: <code>title</code> מהגוף, אחרת <code>quote_title</code>, אחרת מפריט metadata (<code>is_quote_metadata</code> → JSON <code>data.title/notes</code>), ברירת מחדל "פקודת עבודה — &lt;לקוח|מס' הצעה|#id&gt;" (הלוגיקה של 15094-15105 נשמרת).</li>
+<li><code>UPDATE store_orders SET call_type='work_order', quote_status='approved', quote_title=…, status='processing', target_datetime=COALESCE($t, target_datetime).</li>
+<li>הוספת אירוע <code>{type:'converted_to_work_order',actor:'business',at}</code> ל-<code>quote_history</code> (jsonb append).</li>
+<li>INSERT <code>work_order_timeline</code> (<code>event_type='created'</code>, "פקודת עבודה נוצרה מהצעת מחיר", <code>user_name</code> מהסשן או 'מנהל') — בעמודות הקיימות בסכמה בלבד.</li>
+<li>אם נשלח <code>target_datetime</code>: INSERT <code>calendar_events</code> (status approved, <code>work_order_id</code>, notes <code>ORDER_REF:&lt;id&gt;</code>, כותרת הפקודה) — במקום שתי הקריאות הנפרדות מהלקוח (<code>/calendar/events</code> + <code>PATCH target-date</code>, 9680-9702).</li>
+<li>COMMIT. אחרי COMMIT: אם <code>family_group_id</code> → התראה דרך פונקציית ההתראות היחידה (<code>SA-52</code>) trigger <code>work_order_created</code>, "&lt;שם עסק&gt; פתח פקודת עבודה עבורך", refKey <code>wo_created_&lt;id&gt;</code>.</li>
+</ol></div>
+<div>חישובים</div><div>ללא חישוב כספי; total_amount של ההצעה נשמר כפי שהוא.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>quote (call_type≠work_order)</td><td>processing + call_type=work_order + quote_status=approved</td><td>BIZ</td><td>בעלות, ללא target_datetime</td><td>timeline created, quote_history, התראה למשפחה</td></tr>
+<tr><td>quote (call_type≠work_order)</td><td>processing + call_type=work_order + quote_status=approved + target_datetime</td><td>BIZ</td><td>בעלות, עם target_datetime</td><td>כנ"ל + אירוע יומן מקושר (work_order_id)</td></tr>
+<tr><td>work_order</td><td>—</td><td>BIZ</td><td>כבר הומרה</td><td>409</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>Timeline; quote_history; אירוע יומן (רק עם תאריך); התראה למשפחה. ממשק אחרי הצלחה: <code>fetchStoreQuotes</code>, <code>fetchWorkOrders</code>, פתיחת <code>openWorkOrderModal</code>, ניווט ל-<code>cases</code> (professional) או לטאב sales/work-orders (42704-42711) — ללא שינוי.</div>
+<div>ממשק</div><div>שני הכפתורים קיימים כמו היום. כותרות: professional="תיק", maintenance_repair="קריאה #id" (43140). מודל "יעד אספקה" שולח קריאה אחת עם Bearer (<code>SRV-04</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-01</code> — נתיב שרת יחיד (convert) לשתי נקודות הכניסה; <code>/api/store/quotes/:id/to-work-order נשאר alias לאותו handler. הסטטוס processing כמו היום, ועם תאריך נוספים target_datetime ואירוע יומן באותה טרנזקציה. הצעה שהומרה → 409 (במקום 404).</li>
+<li><code>SA-52</code> (דרך <code>SRV-02</code>) — ההתראה למשפחה נכתבת לעמודות הקיימות (trigger_type, message, reference_key) ונשמרת בפועל.</li>
+<li><code>SRV-04</code> — מסלול "יעד אספקה" שולח Authorization דרך <code>bizFetch</code>.</li>
+<li><code>RECON-21</code> — יושר עם tobe-store: handler יחיד, to-work-order נשאר alias, הסטטוס processing גם עם תאריך (לא scheduled), ותופעות הלוואי של /approve מוזגו לכאן.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order new create empty case פתח תיק חדש"><h3>יצירת פקודת עבודה / תיק ריק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"פתח תיק חדש" בטאב תיקים (<code>business-app.js:55375</code>) וכן מכל מקום שקורא <code>openWorkOrderModal(null)</code> (42990-42998) → <code>POST /api/work-orders/new</code> (היום <code>/new/:groupId</code>, server.js:26574).</div>
+<div>הרשאות</div><div>סשן BIZ; groupId מהסשן (<code>ARC-04</code>; פרמטר groupId בנתיב לא משמש להרשאה).</div>
+<div>קלט ואימותים</div><div><ul><li>אין שדות חובה; הלקוח שולח <code>{}</code> או <code>{title, notes}</code>.</li><li>title עד 200 תווים, notes עד 5000 (<code>ARC-34</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT <code>store_orders</code>: <code>status='open', call_type='work_order', quote_title=title, notes, items='[]', total_amount=0</code>. הכותרת נשמרת ב-<code>quote_title</code> (כמו היום).</li><li>Timeline <code>created</code> "תיק נפתח".</li><li>החזרת id; הלקוח פותח את מודל הפקודה.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>סטטוס התחלתי <code>open</code> (ראו הסטטוסים הקנוניים ב"שינוי סטטוס פקודת עבודה").</div>
+<div>תופעות לוואי</div><div>Timeline.</div>
+<div>ממשק</div><div>התיק החדש מופיע בטאב תיקים ובפילטר "פתוח"/"פעילים" ונספר ב-KPI (ראו "טאב תיקים").</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-03</code> — הסטטוס open הוא חלק מהרשימה הקנונית ומוצג/נספר בכל המסכים; הכותרת מוצגת תמיד מ-<code>quote_title</code>.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="work order list profitability רשימה רווחיות"><h3>רשימת פקודות עבודה ורווחיות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב sales→work-orders: <code>fetchWorkOrders</code> (business-app.js:42860) קורא במקביל <code>GET /api/work-orders/list</code> ו-<code>GET /api/work-orders/profitability</code> (היום עם <code>/:groupId</code>, 26535/26553).</div>
+<div>הרשאות</div><div>סשן BIZ; groupId מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>list: פילטר <code>?status</code> (≠all) מתוך הרשימה הקנונית או <code>quote</code>; ערך אחר → 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>list: <code>store_orders</code> של העסק כאשר <code>call_type='work_order' OR (is_event=TRUE AND status='quote')</code> + ספירות: assignees, inventory reserved, equipment reserved; מיון created_at DESC (כמו היום).</li><li>profitability: רק <code>call_type='work_order'</code>; כל שורה כוללת את שדות הרווחיות המחושבים בשרת.</li></ol></div>
+<div>חישובים</div><div>פונקציית שרת אחת <code>woFinancials(woId)</code> המשמשת את list, profitability ו-detail:
+<ul><li><code>revenue = COALESCE(total_amount,0) + Σ total_amount של הצעות משויכות</code> (<code>work_order_quote_links</code>).</li>
+<li><code>team_cost=Σ(hourly_rate×hours_worked)</code> מ-<code>work_order_assignees</code>.</li>
+<li><code>inventory_cost=Σ(unit_price×reserved_qty)</code> לשורות status≠released.</li>
+<li><code>equipment_cost=Σcost</code> מ-<code>work_order_equipment</code> status≠released.</li>
+<li><code>total_cost=team+inv+eq</code>; <code>profit=revenue−total_cost</code>.</li></ul>
+בממשק (ללא שינוי בתצוגה): פס רווח <code>pct=clamp(round((revenue−total_cost)/revenue×100),0,100)</code> (42945); סיכום עליון הכנסות/עלויות/רווח (42876-42885) — מוצג מערכי השרת.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>renderWorkOrdersList</code> (42893): כרטיס status=quote → ניווט לטאב הצעות (לא נפתח מודל); הודעת ריק לפי סוג עסק (professional / restaurant / אחר). פילטר <code>wo-list-filter</code>: all, quote, open, scheduled, processing, pending_payment, completed, cancelled (נוספו open ו-pending_payment שחסרו), פילטור צד-לקוח.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-07</code> — הכנסה של פקודה כוללת הצעות משויכות ומחושבת בשרת בפונקציה אחת לרשימה, לרווחיות ולמודל; אותו מספר בכל המסכים.</li>
+<li><code>SRV-03</code> — פילטר הרשימה מכסה את כל הסטטוסים הקנוניים.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="work order detail modal tabs פרטי פקודה מודל"><h3>פרטי פקודה ומודל ניהול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openWorkOrderModal(woId)</code> (42985) → <code>GET /api/work-orders/detail/:id</code> (26601).</div>
+<div>הרשאות</div><div>סשן BIZ; הפקודה חייבת להיות <code>call_type='work_order'</code> של העסק (<code>AND group_id</code>).</div>
+<div>קלט ואימותים</div><div>לא של העסק / לא נמצאה → 404 (במקום 403/404 מעורב; אין חשיפת קיום משאב של עסק אחר, <code>ARC-04</code>).</div>
+<div>שלבי עיבוד</div><div><ol><li>שליפה מקבילה (כמו 26606-26625): הפקודה + שם/טווח סועדים/slug של תפריט (<code>menu_templates</code>), assignees, inventory (כולל מלאי pantry/catalog), messages, timeline, calendar_events לפי <code>work_order_id</code>, equipment reserved, linkedQuotes, ו-<b>financials</b> (<code>woFinancials</code>).</li><li>לקוח (business-app.js): טעינת עובדים (<code>/work-orders/users</code>, 43036), הצעות משמרת (<code>/suggest-staff</code> לפי תאריך הזימון הראשון, 43043), קטלוג (43052), תבניות תפריט (43059); עבור <code>maintenance_repair</code> — מסתיר תפריט ומציג שיוך הצעות (<code>/available-quotes</code>) (43076-43093). ללא שינוי.</li></ol></div>
+<div>חישובים</div><div>סכום מוצג = <code>financials.revenue</code> מהשרת (= total_amount + Σ linkedQuotes.total_amount, כמו 43146-43147 היום). פריטים: מסונן <code>is_quote_metadata</code>, <code>is_delivery_metadata</code>, <code>catalogId 999999</code>, שמות <code>DELIVERY_META|</code> (43153-43155); שורה=qty×price_at_order.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>טאבים (42672): overview, team, inventory, equipment, chat, custchat, notes, timeline, calendar, purchase, costs, payments, timelogs. Professional: "משתתפים", מסתיר inventory+purchase, תוויות סטטוס חלופיות (processing="בטיפול", pending_payment="הושלם — ממתין לתשלום", completed="סגור ✓") (43101-43123), כפתור "פגישת קיקאוף" כשהתיק לא completed/cancelled (43233-43246) וכפתור "צור מסמך סיכום". הערות: notes כ-JSON (<code>internalNote/customerNote</code>) או טקסט עם "הערות לקוח:" (43207-43215). בורר הסטטוס מציג את כל הסטטוסים הקנוניים. כל הערכים מוצגים דרך <code>esc()</code> (<code>ARC-27</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-07</code> — הסכום והעלויות במודל מגיעים מהשרת (financials) ולא מחושבים בלקוח.</li>
+<li><code>SRV-03</code> — בורר הסטטוס ותוויותיו לפי הרשימה הקנונית (כולל open).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="work order status change cancelled release statuses סטטוס פקודה canonical"><h3>שינוי סטטוס פקודת עבודה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בחירה ב-<code>wo-status-select</code> (business-app.js:42387) → <code>updateWorkOrderStatus</code> (43690) → <code>PUT /api/work-orders/:id/status</code> (server.js:26631). גם עוזר ה-AI: <code>_aiUpdateCaseStatus</code> (57534).</div>
+<div>הרשאות</div><div>סשן BIZ עם הרשאת כתיבה למודול (<code>ARC-06</code>); פקודה של העסק (<code>AND group_id AND call_type='work_order'</code>). אין הגבלת תפקיד נוספת — כל מי שמורשה היום לשנות סטטוס נשאר מורשה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>status</code> חובה ומתוך הרשימה הקנונית: <code>open, scheduled, processing, pending_payment, completed, cancelled</code>. ערך אחר → 400 "סטטוס לא חוקי".</li>
+<li>ערך legacy <code>new</code> (מהממשק הישן/AI) ממופה ל-<code>open</code>; מיגרציה חד-פעמית <code>UPDATE … SET status='open' WHERE call_type='work_order' AND status='new'</code> (<code>ARC-12</code>).</li>
+<li>אותו סטטוס כמו הקיים → 200 ללא תופעות (idempotent).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה (<code>ARC-11</code>): UPDATE <code>store_orders.status</code>.</li>
+<li>Timeline <code>status_change</code> עם תווית: open=פתוח, scheduled=מתוזמן, processing=בתהליך, pending_payment=בוצע — ממתין לתשלום, completed=הושלם, cancelled=בוטל.</li>
+<li>Audit <code>UPDATE_CASE_STATUS</code> (<code>logBizAction</code> → audit_log, <code>ARC-19</code>ה).</li>
+<li>מעבר ל-cancelled: לכל שורת <code>work_order_inventory</code> reserved → <code>releaseReservation(row)</code> לפי המקור (pantry או store_catalog), ושורות ציוד reserved → released.</li>
+<li>COMMIT. אחרי COMMIT: אם <code>family_group_id</code> וסטטוס ∈ {processing,scheduled,completed,cancelled} → התראה <code>work_order_status</code> "עדכון סטטוס: &lt;כותרת&gt; — &lt;בטיפול|מתוזמן|הושלם ✅|בוטל&gt;" (כמו 26641-26656), refKey <code>wo_status_&lt;id&gt;_&lt;status&gt;</code>.</li>
+</ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>כל סטטוס קנוני</td><td>כל סטטוס קנוני אחר (open / scheduled / processing / pending_payment / completed / cancelled)</td><td>BIZ עם הרשאת כתיבה</td><td>ערך מתוך הרשימה</td><td>timeline + audit; התראה ללקוח ל-processing/scheduled/completed/cancelled</td></tr>
+<tr><td>כל סטטוס</td><td>cancelled</td><td>BIZ</td><td>—</td><td>שחרור כל השריונים (pantry + catalog) והציוד</td></tr>
+<tr><td>cancelled</td><td>סטטוס פעיל</td><td>BIZ</td><td>—</td><td>השריונים לא משוחזרים אוטומטית; הממשק מציג "השריונים שוחררו בביטול — יש לשריין מחדש"</td></tr>
+<tr><td>(רשימה) quote</td><td>—</td><td>—</td><td>אירוע is_event טרם הומר</td><td>מוצג ברשימה בלבד</td></tr></table></div>
+"פעיל" בכל המסכים = open | scheduled | processing | pending_payment. "סגור" = completed. כל המסכים (בורר סטטוס, טאב תיקים, רשימה, דשבורד מקצועי, AI) משתמשים ברשימה אחת מהשרת.</div>
+<div>תופעות לוואי</div><div>פקודה עם מופע שגרה מקושר (linked_work_order_id) שעוברת ל-completed או pending_payment מפעילה אחרי COMMIT complete פנימי של המופע (tobe-routines, <code>RTN-22</code>). כשל לא מבטל את עדכון הסטטוס ונרשם בלוג. Timeline, audit, התראה, שחרור שריונים בביטול.</div>
+<div>ממשק</div><div>options בבורר (42388-42394) = הרשימה הקנונית. AI (<code>_aiUpdateCaseStatus</code>, 57545): processing/scheduled/completed/cancelled/open (new → open), נשלח עם Bearer.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-03</code> — רשימת סטטוסים סגורה ואחידה (new→open), ערך לא חוקי → 400; המעברים החופשיים בין הסטטוסים נשמרים (ראו פריט מתוקן).</li>
+<li><code>SRV-05</code> — ביטול משחרר גם שריוני pantry דרך <code>releaseReservation</code>.</li>
+<li><code>SRV-04</code> — <code>_aiUpdateCaseStatus</code> שולח Authorization (לא עוד 401 תמיד).</li>
+<li><code>SA-52</code> — ההתראה ללקוח נכתבת דרך פונקציית ההתראות היחידה.</li>
+<li><code>E2E-19</code> — נוסף ה-hook שמשלים מופע שגרה כשפקודת עבודה מקושרת עוברת ל-completed או pending_payment.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order delete מחיקה"><h3>מחיקת פקודת עבודה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>DELETE /api/work-orders/:id</code> (server.js:26590).</div>
+<div>הרשאות</div><div>סשן BIZ עם הרשאת כתיבה; <code>AND group_id AND call_type='work_order'</code>.</div>
+<div>קלט ואימותים</div><div>0 שורות → 404 "פקודת עבודה לא נמצאה".</div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה: לכל שורת <code>work_order_inventory</code> בסטטוס reserved → <code>releaseReservation(row)</code> (מחזיר <code>reserved_qty</code> ל-pantry/store_catalog).</li><li>DELETE מ-<code>store_orders</code>; טבלאות צוות/מלאי/ציוד/תשלומים/timeline/שיח ב-ON DELETE CASCADE, יומן ורכש ON DELETE SET NULL; <code>professional_documents.work_order_id</code> → SET NULL (כמו היום).</li><li>COMMIT.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>שחרור שריוני מלאי; CASCADE.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-05</code> — המחיקה משחררת שריונים לפני ה-CASCADE, בטרנזקציה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order assignees team cost hourly suggest staff shift צוות שיוך עובד"><h3>שיוך צוות / משתתפים ועלות עבודה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב team: <code>addAssigneeToWo</code> (business-app.js:43705) → <code>POST /api/work-orders/:id/assignees</code> (26693); הסרה <code>removeWoAssignee</code> → <code>DELETE .../assignees/:userId</code> (26722); עדכון שעות/תעריף <code>updateAssigneeCost</code> → <code>PUT /api/work-orders/:woId/assignees/:userId/cost</code> (17246). רשימת עובדים: <code>GET /work-orders/users</code> (26669); הצעות: <code>GET /work-orders/suggest-staff?eventDate</code> (26678).</div>
+<div>הרשאות</div><div>סשן BIZ; כל הנתיבים דורשים פקודה <code>call_type='work_order'</code> של העסק (כולל cost). <code>userId</code> חייב להיות משתמש של העסק (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>suggest-staff: חסר eventDate → 400 "חסר תאריך".</li><li>cost: hourly_rate ≥ 0, hours_worked ≥ 0 (NUMERIC).</li><li>לקוח: חובה לבחור עובד ("בחר עובד").</li><li>פקודה שאינה work_order → 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT <code>work_order_assignees</code> (UNIQUE work_order_id,user_id; בקונפליקט מעדכן רק role_label).</li><li>Timeline <code>assignee_added</code> "שויך עובד: X".</li><li>התראה לעובד דרך פונקציית ההתראות (<code>SA-52</code>): group היעד = group העסק (נמען = המשתמש, <code>ARC-16</code>), trigger <code>work_order_assigned</code>, refKey <code>wo_assign_&lt;woId&gt;_&lt;userId&gt;</code>.</li><li>הסרה: DELETE + timeline <code>assignee_removed</code> עם user_name מהסשן.</li><li>cost: <code>UPDATE hourly_rate, hours_worked</code> (ברירת מחדל 0).</li><li>suggest-staff: עובדים עם משימה <code>tasks.status='approved'</code> ו-<code>title LIKE 'SHIFT|&lt;date&gt;|%'</code>; בממשק מסומנים ⭐ "במשמרת בתאריך זה" (43048-43050).</li></ol></div>
+<div>חישובים</div><div>עלות עובד = hourly_rate × hours_worked; סה"כ צוות = Σ (43341). Professional: תווית "שעות עבודה בתיק" ופירוט "Xש' × ₪Y".</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>Timeline; התראה לעובד (נשמרת בפועל).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SA-52</code> (דרך <code>SRV-02</code>) — התראת השיוך נכתבת לסכמה בפועל ונשמרת; לא נעשה שימוש ב-<code>users.family_group_id</code>.</li>
+<li><code>SRV-12</code> — עדכון עלות (וכל נתיבי הצוות) דורשים call_type='work_order'.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="work order inventory reserve use release pantry catalog buffer auto from menu שריון מלאי"><h3>שריון מלאי לפקודה (ידני, שימוש, שחרור, אוטומטי מתפריט)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב inventory: <code>addInventoryReservation</code> (43850) → <code>POST /api/work-orders/:id/inventory</code> (26777); "אשר שימוש" <code>confirmInventoryUse</code> → <code>POST .../inventory/:resId/use</code> (26841); "שחרר" → <code>DELETE .../inventory/:resId</code> (26861); "שריון אוטומטי מהתפריט" <code>autoReserveInventoryFromMenu</code> → <code>POST .../inventory/auto-from-menu</code> (26934). קטלוג עם זמינות: <code>GET /work-orders/catalog</code> (26733).</div>
+<div>הרשאות</div><div>סשן BIZ; פקודה work_order של העסק; pantryId/catalogId חייבים להיות של העסק.</div>
+<div>קלט ואימותים</div><div><ul><li>pantry/catalog לא נמצא → 404 "פריט לא נמצא במלאי"/"פריט לא נמצא".</li><li>neededQty &gt; 0.</li><li>use: שריון לא נמצא → 404 "שריון לא נמצא"; שריון שאינו reserved → 409 "השריון כבר נוצל או שוחרר".</li><li>release: רק status=reserved → אחרת 404 "שריון לא נמצא או כבר בשימוש".</li><li>auto: חסר <code>menu_template_id</code> → 400 "לאירוע זה לא משויך תפריט"; אין פריטים עם מתכון → success עם הודעה.</li><li>לקוח: usedQty חייב &gt;0 (43885).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>reserve (טרנזקציה, נעילת שורת המלאי FOR UPDATE): חישוב זמינות → <code>UPDATE pantry|store_catalog SET reserved_qty+=actualReserved</code> (רק אם &gt;0) → INSERT <code>work_order_inventory</code> (needed_qty, reserved_qty, unit_price, reserved_by, source=pantry|catalog) → timeline <code>inventory_reserved</code> "שורין ציוד: X (a/n יח' — חסר s)". <code>unit_price</code> = הערך שנשלח אם &gt;0, אחרת עלות הפריט במחסן/בקטלוג (cost), אחרת 0.</li>
+<li>use (טרנזקציה): <code>UPDATE work_order_inventory SET status='used' … WHERE id=$1 AND status='reserved' RETURNING</code>; 0 שורות → 409. <code>actualUsed=min(usedQty||reserved, reserved)</code>; pantry/catalog: <code>quantity|stock_quantity −= actualUsed</code>, <code>reserved_qty −= reserved_qty_row</code> (GREATEST 0); timeline <code>inventory_used</code>.</li>
+<li>release: <code>releaseReservation(row)</code> — שורה→released; <code>reserved_qty −= row.reserved_qty</code> במקור הנכון; timeline <code>inventory_released</code>. אותה פונקציה משמשת בביטול ובמחיקת פקודה.</li>
+<li>auto (<b>טרנזקציה אחת</b> לכל הריצה): איסוף <code>menu_items.catalog_item_id</code> של התבנית → <code>product_ingredients</code> → איחוד לפי שם (lowercase/trim) → לכל מרכיב חיפוש <code>pantry</code> לפי <code>LOWER(item_name)</code> → שריון ו-INSERT רק אם reserved&gt;0; timeline <code>inventory_auto_reserved</code>. כשל באמצע → ROLLBACK מלא. בממשק: אם יש מחסור מציע טיוטת רכש לכל החוסרים (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div><code>buffer=stock×min_stock_buffer_pct/100</code>; <code>available=max(0, stock−reserved−buffer)</code>; <code>actualReserved=min(needed, available)</code>; <code>shortage=round4(needed−actualReserved)</code>. auto: <code>qtyPerGuest=quantity×(1+waste_pct/100)</code>; <code>needed=Σ qtyPerGuest×event_guest_count(||1)</code>. catalog זמין: <code>max(0, stock_quantity−reserved_qty)</code>, רק stock&gt;0. (ללא שינוי.)</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>reserved</td><td>BIZ</td><td>—</td><td>reserved_qty עולה</td></tr>
+<tr><td>reserved</td><td>used</td><td>BIZ</td><td>status=reserved בלבד</td><td>הורדת מלאי פיזי ושחרור השריון</td></tr>
+<tr><td>used / released</td><td>used</td><td>—</td><td>אסור</td><td>409</td></tr>
+<tr><td>reserved</td><td>released</td><td>BIZ / ביטול פקודה / מחיקת פקודה</td><td>status=reserved</td><td>הורדת reserved_qty במקור (pantry או catalog)</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>שינויי מלאי ב-pantry/store_catalog; timeline.</div>
+<div>ממשק</div><div><code>renderWoInventory</code> (43385): התראת מחסור עם כפתור <code>draftPurchaseOrderForShortage</code>; פירוט מלאי כולל/משוריין/זמין. Professional: הטאב מוסתר. בחירת פריט ממשיכה לבוא מ-<code>pantryCache</code>; ה-option נושא את מחיר העלות של הפריט במקום <code>data-price=0</code> (43824).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-05</code> — <code>releaseReservation</code> אחד לפי מקור; use רק מ-reserved (409 אחרת); שריון אוטומטי בטרנזקציה אחת; unit_price מעלות הפריט כשלא נשלח.</li>
+<li><code>SRV-12</code> — כל נתיבי המלאי דורשים call_type='work_order'.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="work order equipment reservation conflict overlaps events hub ציוד אירוע"><h3>שיוך ציוד לפקודה/אירוע (Events Hub)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב equipment: <code>addEquipmentReservation</code> (business-app.js:43993) → <code>POST /api/work-orders/:id/equipment</code> (26889); שחרור <code>removeWoEquipment</code> → <code>DELETE .../equipment/:resId</code> (26922); טעינה <code>GET .../equipment</code> (26880); יצירה מהירה של פריט ציוד → <code>POST /api/equipment/items</code> קטגוריה "אירועים".</div>
+<div>הרשאות</div><div>סשן BIZ; ההזמנה חייבת להיות של העסק ו-<code>call_type='work_order'</code> <b>או</b> <code>is_event=TRUE AND status='quote'</code> (אירוע ב-Events Hub שטרם הומר) — אחרת 404.</div>
+<div>קלט ואימותים</div><div><ul><li>חובה equipmentItemId, eventDate, startTime → 400 "חסרים נתוני ציוד/תאריך/שעה".</li><li>פריט ציוד של העסק → אחרת 404.</li><li>התנגשות: אותו פריט, status reserved, אותו תאריך, טווחים חופפים (<code>OVERLAPS</code>) → 409 "הפריט כבר משוריין לאירוע אחר (&lt;לקוח|#id&gt;) באותו חלון זמן". הבדיקה וה-INSERT באותה טרנזקציה עם נעילת שורת הפריט (מונע שריון כפול מקביל).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT <code>work_order_equipment</code> (duration ברירת מחדל 120, cost) → timeline <code>equipment_reserved</code>. שחרור: <code>status='released', released_at=NOW()</code> + timeline <code>equipment_released</code>.</div>
+<div>חישובים</div><div>חלון = [start_time, start_time + duration_minutes(||120)].</div>
+<div>מכונת מצבים</div><div>reserved → released (ידני / ביטול פקודה).</div>
+<div>תופעות לוואי</div><div>Timeline.</div>
+<div>ממשק</div><div>ברירת מחדל לתאריך/שעה מהזימון הראשון של הפקודה (43986-43990). עלות ציוד נכנסת לטאב העלויות (לא ב-professional). ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-12</code> — בדיקת הבעלות כוללת call_type='work_order' או אירוע is_event בסטטוס quote; הזמנת חנות רגילה → 404.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order purchase orders supplier delivered רכש הזמנת רכש"><h3>הזמנות רכש לפקודת עבודה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב purchase: <code>submitWoPurchaseOrder</code> (business-app.js:44669) → <code>POST /api/work-orders/:id/purchase-orders</code> (28333); אישור/קבלה/ביטול: <code>updateWoPo</code>, <code>confirmWoPoReceive</code> → <code>PATCH .../purchase-orders/:poId/status</code> (28368); רשימות: <code>GET .../purchase-orders</code> (28318), <code>GET /work-orders/purchase-orders/group</code> (28424).</div>
+<div>הרשאות</div><div>סשן BIZ; פקודה של העסק; groupId מהסשן בלבד (לא מ-body.groupId).</div>
+<div>קלט ואימותים</div><div><ul><li>POST: items ריק → 400 "נדרשים פריטים להזמנה"; quantity &gt; 0, unit_price ≥ 0.</li><li>PATCH: status ∈ {approved, delivered, cancelled}; מעבר לא חוקי → 409 "לא ניתן לשנות הזמנה במצב זה".</li><li>לקוח: לפחות פריט אחד.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם אין supplierId ויש supplierName → INSERT <code>suppliers</code> ON CONFLICT DO NOTHING או SELECT קיים.</li><li>INSERT <code>purchase_orders</code> (status 'pending', work_order_id) + timeline <code>purchase_order_created</code>.</li><li>PATCH status (טרנזקציה): <code>UPDATE purchase_orders SET status=$new WHERE id=$1 AND status = ANY($allowedFrom) RETURNING</code>; 0 שורות → 409. timeline "עודכנה ל: ממתין/אושר/התקבל/בוטל".</li><li>delivered (באותה טרנזקציה, מתבצע פעם אחת בלבד): לכל פריט — catalog_id מהפריט או מ-<code>supplier_products.catalog_id</code>; <code>store_catalog.stock_quantity += totalUnits</code>; INSERT <code>work_order_inventory</code> (status reserved, source catalog); <code>store_catalog.reserved_qty += totalUnits</code>; timeline.</li></ol></div>
+<div>חישובים</div><div><code>total_amount=Σ unit_price×quantity(||1)</code>; <code>totalUnits=quantity×units_per_package(||1)</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>approved</td><td>BIZ ("אשר הזמנה")</td><td>—</td><td>timeline</td></tr>
+<tr><td>approved</td><td>delivered</td><td>BIZ ("קבלת סחורה ועדכון ציוד")</td><td>—</td><td>מלאי + שריון לפקודה, פעם אחת</td></tr>
+<tr><td>pending / approved</td><td>cancelled</td><td>BIZ ("בטל")</td><td>—</td><td>timeline</td></tr>
+<tr><td>delivered / cancelled</td><td>כל</td><td>—</td><td>סופי</td><td>409</td></tr></table></div>המעברים תואמים בדיוק את הכפתורים המוצגים היום (business-app.js:44503-44506).</div>
+<div>תופעות לוואי</div><div>ספקים, מלאי, שריון, timeline.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-06</code> — מעברים נאכפים בשרת; delivered סופי וקליטת מלאי מתבצעת פעם אחת בטרנזקציה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order messages notes menu timeline customer chat business-message שיח הערות"><h3>שיח פנימי, הערות, תפריט, ציר זמן ושיח לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>sendWoMessage</code> → <code>POST /work-orders/:id/messages</code> (27085); <code>saveWoNotes</code> → <code>PUT .../notes</code> (27098); <code>saveWoMenu</code> → <code>PUT .../menu</code> (27111); <code>loadWoTimeline</code> → <code>GET .../timeline</code> (27183); שיח לקוח <code>sendWoCustomerMessage</code> → <code>POST /api/store/quotes/:id/business-message</code> (15130).</div>
+<div>הרשאות</div><div>סשן BIZ ובעלות (<code>AND group_id</code>); business-message: סשן BIZ + זכאות sales (<code>ARC-03</code>: ללא legacy). user_name נגזר מהסשן.</div>
+<div>קלט ואימותים</div><div>business-message: טקסט ריק → 400 "הודעה ריקה". messages: טקסט לא ריק, עד 2000 תווים. menu: תבנית לא של העסק → 400 "תפריט לא נמצא".</div>
+<div>שלבי עיבוד</div><div><ol><li>messages: INSERT <code>work_order_messages</code>.</li><li>notes (טרנזקציה): UPDATE <code>wo_notes, wo_notes_updated_at, wo_notes_updated_by</code> + INSERT <code>work_order_notes_history</code> + timeline <code>notes_updated</code>.</li><li>menu: UPDATE <code>menu_template_id</code> (או NULL) + timeline <code>menu_assigned/menu_removed</code>.</li><li>business-message: append <code>{type:'business_message',text}</code> ל-<code>quote_history</code>; התראה ללקוח דרך פונקציית ההתראות (trigger <code>quote_business_message</code>, 80 תווים ראשונים, refKey <code>qbm_&lt;orderId&gt;_&lt;ts&gt;</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>Timeline; היסטוריית הערות; התראה ללקוח (נשמרת בפועל).</div>
+<div>ממשק</div><div>שיח לקוח מוצג מ-<code>quote_history</code> אירועי business_message/customer_response (43572-43600); תוויות תגובה approved/rejected/discount_request/items_request. בועות "שלי" לפי user_name של הסשן. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-52</code> (דרך <code>SRV-02</code>) — התראת business-message נכתבת לסכמה בפועל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order quote links linked quotes maintenance שיוך הצעות"><h3>שיוך הצעות מחיר לפקודה (תחזוקה ותיקונים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>רק עבור <code>business_type='maintenance_repair'</code> בממשק (43076-43093): <code>saveWoQuoteLink</code> → <code>POST /work-orders/:id/quotes</code> (27157); הסרה → <code>DELETE .../quotes/:quoteId</code> (27173); רשימות <code>GET .../quotes</code> (27132), <code>GET .../available-quotes</code> (27144).</div>
+<div>הרשאות</div><div>סשן BIZ; פקודה והצעה של העסק.</div>
+<div>קלט ואימותים</div><div>הצעה לא של העסק → 404 "הצעת מחיר לא נמצאה". available: <code>status='quote'</code>, לא work_order, לא משויכת, LIMIT 100.</div>
+<div>שלבי עיבוד</div><div>INSERT <code>work_order_quote_links</code> ON CONFLICT DO NOTHING + timeline <code>quote_linked</code> "(₪total)"; DELETE + timeline <code>quote_unlinked</code>.</div>
+<div>חישובים</div><div>הכנסת הפקודה = total_amount של הפקודה + Σ הצעות משויכות, מחושבת רק ב-<code>woFinancials</code> בשרת; משמשת בסקירה, בעלויות, ברשימה וברווחיות, בבסיס תבנית התשלום ובסכום העסקה של התחנות.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>Timeline; שינוי הכנסת הפקודה בכל המסכים.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-07</code> — סכום ההצעות המשויכות נכלל גם ברשימה/רווחיות (לא רק במודל), מחושב בשרת במקום אחד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order calendar event zimun kickoff schedule זימון יומן תזמון"><h3>זימון ביומן מתוך פקודה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב calendar: <code>createWoCalendarEvent</code> (business-app.js:44149) → <code>POST /api/work-orders/:id/calendar</code> (27192). תזמון/שינוי מועד יעד של פקודה (<code>saveWorkOrderSchedule</code>, business-app.js:9568) → <code>PATCH /api/work-orders/:id/schedule</code>.</div>
+<div>הרשאות</div><div>סשן BIZ; פקודה work_order של העסק; groupId מהסשן (לא מ-body).</div>
+<div>קלט ואימותים</div><div>calendar: חובה נושא, תאריך, שעה (לקוח ושרת → 400). schedule: <code>target_datetime</code> חובה (ISO).</div>
+<div>שלבי עיבוד</div><div><ol><li>calendar: INSERT <code>calendar_events</code> status 'approved', <code>work_order_id</code>, address, <code>customer_name</code>=שם הלקוח של הפקודה, <code>customer_phone</code>=<code>store_orders.customer_phone</code>, <code>attendees_user_ids</code>=JSON של משויכים, duration; timeline <code>calendar_event</code>.</li><li>schedule (טרנזקציה): UPDATE <code>store_orders.target_datetime</code>; אם קיים אירוע יומן מקושר (<code>work_order_id</code>, נוצר בהמרה/תזמון) → UPDATE event_date/start_time; אחרת INSERT אירוע approved; timeline "מועד עודכן".</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אירוע יומן; timeline.</div>
+<div>ממשק</div><div>ללא שינוי בטופס.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-10</code> — customer_phone נשמר מטלפון הלקוח ולא משם הלקוח.</li>
+<li><code>SRV-11</code> — תזמון פקודה בנתיב ייעודי <code>/work-orders/:id/schedule</code> במקום PATCH שגוי ל-<code>/service-calls</code>.</li>
+<li><code>SRV-12</code> — הנתיב דורש call_type='work_order'.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="quote from menu template event per person events hub הצעת מחיר תבנית תפריט"><h3>הצעת מחיר לאירוע מתבנית תפריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"אירוע חדש מתפריט" <code>openNewEventFromMenuModal</code>/<code>submitNewEventFromMenu</code> (business-app.js:42716-42857) → <code>POST /api/store/quotes/from-template</code> (27001).</div>
+<div>הרשאות</div><div>סשן BIZ; תבנית של העסק; group מהסשן.</div>
+<div>קלט ואימותים</div><div>חובה templateId, customerName → 400; תבנית של העסק → 404. לקוח: אזהרה (לא חסימה) אם סועדים מחוץ ל-min/max.</div>
+<div>שלבי עיבוד</div><div>טרנזקציה: פריטים מ-<code>menu_items</code> זמינים (is_available≠false) לפי סדר; INSERT <code>store_orders</code> status 'quote', <code>is_event=TRUE</code>, event_guest_count, target_datetime; UPDATE <code>quote_number='QT-'+id padded 6</code>.</div>
+<div>חישובים</div><div><code>guests=max(1, guestCount||min_guests||1)</code>; per_person: quantity=guests לכל פריט + שורת "מחיר בסיס לסועד" (base_price_per_person×guests); אחרת quantity=1; <code>total=Σ price×qty</code>. הערכת לקוח: base×guests.</div>
+<div>מכונת מצבים</div><div>נוצר ב-quote; המשך במסלול הצעות המחיר / המרה לפקודה.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div>ללא שינוי (מלבד INSERT+UPDATE בטרנזקציה אחת לפי <code>ARC-11</code>).</div>
+</div></section>
+
+<h2 class="grp">גביה ותחנות תשלום</h2>
+
+<section class="proc" data-f="payments milestones work order deposit template mark paid full deal total תחנות תשלום מקדמה סכום עסקה"><h3>תחנות תשלום לפקודה / הזמנה (יצירה, תבנית מקדמה, תשלום מלא)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב payments: <code>savePaymentMilestone</code> (44274) → <code>POST /api/work-orders/:id/payments</code> (28459); <code>applyPaymentMilestoneTemplate</code> (43922) → <code>POST .../payments/apply-template</code> (27045); מהזמנות חנות: <code>markOrderPaidFull</code> (12179) → <code>POST .../mark-paid-full</code> (28494); תחנה מהזמנה רגילה (12199). הנתיב <code>/work-orders/:id/payments</code> משרת במפורש גם הזמנות חנות רגילות (<code>store_orders</code> ללא call_type).</div>
+<div>הרשאות</div><div>סשן BIZ עם הרשאת כתיבה למודול (<code>ARC-06</code>); ההזמנה של העסק (<code>AND group_id</code>). apply-template — רק work_order.</div>
+<div>קלט ואימותים</div><div><ul><li>POST payments: <code>amount&gt;0</code> → אחרת 400 "סכום נדרש"; <code>totalAmount</code> (שדה "סכום עסקה", <code>wo-pay-original-amount</code>) אופציונלי, &gt;0.</li><li>apply-template: אם קיימות תחנות → 400 "כבר קיימות אבני דרך לפרויקט זה"; depositPct מספר.</li><li>mark-paid-full: סכום העסקה ≤0 → 400 "אין סכום לגביה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>POST (טרנזקציה): אם נשלח <code>totalAmount</code> → נשמר כ-override ברמת ההזמנה (<code>store_orders.deal_total_override</code>), לא בכל תחנה. INSERT <code>work_order_payments</code> (status pending) → <code>payment_status=recalcPaymentStatus(order)</code>.</li>
+<li>template (טרנזקציה): שתי שורות — "מקדמה" due=CURRENT_DATE (Asia/Jerusalem), "יתרה — יום האירוע" due=target_datetime; payment_status מחושב; timeline <code>payments_template_applied</code>.</li>
+<li>mark-paid-full (טרנזקציה): INSERT תחנה "תשלום מלא" status received, received_amount=deal_total; <code>payment_status='paid'</code>; INSERT <code>transactions</code> (income, category sales, user = המשתמש מהסשן, "גביה הזמנה — &lt;לקוח&gt;", reference=payment:&lt;id&gt;), בכפוף לאותו כלל: אם להזמנה כבר נרשמה הכנסה ב-completeOrder, נרשם רק ההפרש (<code>E2E-11</code>). השלמה מאוחרת של ההזמנה לא רושמת הכנסה מצרפית, כי יש לה תחנה (<code>E2E-10</code>).</li></ol></div>
+<div>חישובים</div><div>פונקציה אחת <code>dealTotal(order)</code>: <code>deal_total_override</code> אם הוגדר, אחרת <code>woFinancials.revenue</code> (= total_amount + Σ הצעות משויכות; להזמנה רגילה = total_amount), אחרת Σ amount של התחנות. <code>received_total=Σ received_amount</code> (status received); <code>remaining=deal_total−received_total</code>. השרת מחזיר <code>{deal_total, received_total, remaining}</code> והלקוח מציג אותם (במקום לקרוא <code>original_amount</code>, 44198/44263/44351). template: <code>pct=clamp(depositPct||30,10,90)</code>; <code>deposit=round2(deal_total×pct/100)</code>; <code>balance=round2(deal_total−deposit)</code>. <code>recalcPaymentStatus</code>: אין תחנות→NULL; כולן received→paid; חלק received→partial; אף אחת→pending_payment.</div>
+<div>מכונת מצבים</div><div>store_orders.payment_status: NULL → pending_payment (תחנה ראשונה) → partial/paid (קבלה); mark-paid-full → paid; מחיקת תחנות → חישוב מחדש באותה פונקציה.</div>
+<div>תופעות לוואי</div><div>Timeline; transactions (mark-paid-full).</div>
+<div>ממשק</div><div>טופס התחנה ושדה "סכום עסקה" נשמרים; הסיכום (סכום עסקה / נגבה / נותר) מוצג מערכי השרת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-09</code> — סכום העסקה נגזר בשרת בפונקציה אחת; ה-override הידני נשמר ברמת ההזמנה; הלקוח לא קורא עוד <code>original_amount</code> שאינו קיים.</li>
+<li><code>SRV-08</code> — payment_status מחושב בפונקציה אחת אחידה.</li>
+<li><code>SRV-07</code> — בסיס החישוב כולל הצעות משויכות דרך woFinancials.</li>
+<li><code>E2E-12</code> — mark-paid-full כפוף לכלל ההכנסה-פעם-אחת מול completeOrder.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="payment receive delete collection income transactions partial paid reverse גביה התקבל ביטול גביה"><h3>קבלת תשלום ומחיקת תחנה (פקודה + קריאת שירות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"גבה ✓": <code>markPaymentReceived</code> (44299), <code>markScPaymentReceived</code>, ובטאב גביה (6789) → <code>PATCH /api/work-orders/payments/:paymentId/receive</code> (28520). מחיקה → <code>DELETE /api/work-orders/payments/:paymentId</code> (28581). חדש: "ביטול גביה" → <code>POST /api/work-orders/payments/:paymentId/unreceive</code>.</div>
+<div>הרשאות</div><div>סשן BIZ; בעלות = <code>store_orders.group_id</code> או <code>service_calls.business_group_id</code> == principal.groupId. receive ומחיקה — כמו היום (הרשאת כתיבה למודול). ביטול גביה (פעולה חדשה) — ADMIN/MANAGER.</div>
+<div>קלט ואימותים</div><div><ul><li>תחנה לא נמצאה/לא של העסק → 404.</li><li>receive: <code>receivedAmount</code> אופציונלי &gt;0; תחנה שכבר received → 409 "התחנה כבר נגבתה".</li><li>unreceive: רק תחנה received → אחרת 409.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>receive (טרנזקציה): <code>UPDATE work_order_payments SET status='received', received_amount=$rec, received_at=COALESCE($at,NOW()) WHERE id=$1 AND status='pending' RETURNING</code>; 0 שורות → 409. <code>recAmt=receivedAmount||amount</code>.</li>
+<li>פקודה/הזמנה: INSERT <code>transactions</code> income/sales "גביה פקודת עבודה — לקוח (שם תחנה אם ≠'תשלום')" עם <code>reference=payment:&lt;id&gt;</code>; <code>payment_status=recalcPaymentStatus</code>. אם להזמנה כבר נרשמה הכנסה מצרפית ב-completeOrder (source_order_id, הזמנה שהושלמה לפני שנוצרו תחנות), נרשם רק החלק שעובר את ההכנסה שכבר הוכרה להזמנה, והגבייה מתועדת ב-timeline כגבייה בלבד (tobe-store, "מחזור חיי הזמנה", <code>E2E-10</code>).</li>
+<li>קריאת שירות: אותו דבר על <code>service_calls.payment_status</code> ותיאור "גביה קריאת שירות".</li>
+<li>delete (טרנזקציה): אם התחנה received → INSERT תנועה הפוכה ב-<code>transactions</code> (קיזוז ההכנסה, "ביטול גביה — &lt;תיאור&gt;") ואז DELETE; אחרת DELETE בלבד. <code>payment_status=recalcPaymentStatus</code> (אין תחנות → NULL; partial כשחלק נגבה).</li>
+<li>unreceive (טרנזקציה): תנועה הפוכה ב-transactions; התחנה חוזרת ל-pending (received_amount/received_at NULL); חישוב payment_status.</li>
+</ol></div>
+<div>חישובים</div><div><code>recalcPaymentStatus</code> כמוגדר בתהליך הקודם, משותף לפקודה, להזמנה ולקריאת שירות.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>received</td><td>BIZ</td><td>בעלות; WHERE status='pending'</td><td>transaction הכנסה; payment_status</td></tr>
+<tr><td>received</td><td>received</td><td>—</td><td>לחיצה כפולה</td><td>409, ללא תנועה נוספת</td></tr>
+<tr><td>received</td><td>pending</td><td>ADMIN/MANAGER ("ביטול גביה")</td><td>—</td><td>תנועה הפוכה; payment_status</td></tr>
+<tr><td>pending</td><td>(נמחק)</td><td>BIZ</td><td>בעלות</td><td>payment_status</td></tr>
+<tr><td>received</td><td>(נמחק)</td><td>BIZ</td><td>בעלות</td><td>תנועה הפוכה באותה טרנזקציה; payment_status</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>transactions (הכנסה / קיזוז); payment_status בהזמנה/קריאה.</div>
+<div>ממשק</div><div>כפתורי "גבה ✓" ומחיקה נשמרים. במחיקת תחנה שנגבתה מוצג אישור: "התחנה נגבתה — המחיקה תקזז את ההכנסה בתזרים". כפתור "ביטול גביה" לתחנה שנגבתה (ADMIN/MANAGER).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-08</code> — receive אטומי (409 בלחיצה כפולה); מחיקת תחנה שנגבתה נשארת אפשרית אך מקזזת את ההכנסה באותה טרנזקציה; נוספה פעולת "ביטול גביה"; payment_status אחיד (partial גם אחרי מחיקה).</li>
+<li><code>E2E-11</code> — גבייה על הזמנה שכבר הוכרה כהכנסה ב-completeOrder לא רושמת הכנסה נוספת מעבר לסכום שהוכר (הכנסה פעם אחת).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="service call payments milestones תחנות תשלום קריאת שירות"><h3>תחנות תשלום לקריאת שירות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בתוך מודל הקריאה (business-app.js:38826-38863): <code>loadScPayments</code> → <code>GET /api/service-calls/:id/payments</code> (29003); <code>saveScPaymentMilestone</code> → <code>POST</code> (29014); אחרי "סמן כהושלם" — <code>_offerServiceCallCollection</code> (39003) מציע תחנה "תשלום מלא" על סכום העסקה אם אין תחנות. משפחה רואה תחנות במודל שלה (app.js:13027).</div>
+<div>הרשאות</div><div>GET: סשן משפחה או עסק + <code>_assertServiceCallAccess</code> (משפחה=family_group_id, עסק=business_group_id). POST: סשן BIZ + business_group_id==principal.groupId.</div>
+<div>קלט ואימותים</div><div>amount&gt;0 → אחרת 400 "סכום נדרש"; <code>totalAmount</code> אופציונלי &gt;0 (override).</div>
+<div>שלבי עיבוד</div><div>טרנזקציה: override (אם נשלח) נשמר ב-<code>service_calls.deal_total_override</code>; INSERT <code>work_order_payments</code> עם <code>service_call_id</code>; <code>service_calls.payment_status=recalcPaymentStatus</code>.</div>
+<div>חישובים</div><div>סכום העסקה לקריאה: <code>deal_total_override</code> אם הוגדר, אחרת <code>price_quote×(1−discount_pct/100)</code> כש-price_quote קיים, אחרת Σ amount. GET מחזיר <code>{payments, deal_total, received_total, remaining}</code>.</div>
+<div>מכונת מצבים</div><div>service_calls.payment_status: NULL → pending_payment → partial/paid (ראו "קבלת תשלום").</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי בתצוגה, מלבד סכומים מהשרת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-09</code> — סכום העסקה לקריאה = price_quote בניכוי הנחה (או override ידני), במקום "מהתחנה האחרונה".</li>
+<li><code>SRV-13</code> — POST/GET דורשים סשן ובעלות מהסשן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="collection tab alerts overdue due date גביה התראות"><h3>טאב גביה והתראות גביה בדשבורד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב גביה (business-app.js:6730) → <code>GET /api/work-orders/collection</code> (29049); דשבורד ADMIN/מנהל (6187) → <code>GET /collection-alerts</code> (29085).</div>
+<div>הרשאות</div><div>סשן BIZ; groupId מהסשן.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div>שאילתת UNION פקודות/הזמנות וקריאות של העסק עם תחנות.</div>
+<div>חישובים</div><div>collection: לכל פקודה <code>wo_total=dealTotal(order)</code>, לכל קריאה <code>wo_total=dealTotal(call)</code> (מספר <code>SC-&lt;id&gt;</code>); total_received=Σreceived_amount של received; ספירת תחנות; remaining. alerts: status pending ו-<code>due_date&lt;=todayIL()</code> (<code>ARC-25</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-09</code> — wo_total מאותה פונקציית סכום עסקה (פקודה כוללת הצעות משויכות/override; קריאה לפי price_quote), במקום total_amount / Σamount.</li></ul></div>
+</div></section>
+
+<h2 class="grp">קריאות שירות (Service Calls)</h2>
+
+<section class="proc" data-f="service call create open new triage needs_triage member link פתיחת קריאה"><h3>פתיחת קריאת שירות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/service-calls</code> (server.js:25570). מקורות: עסק — <code>submitNewServiceCall</code> (business-app.js:39241, טכנאי/מנהל); משפחה — אשף <code>scw</code> (app.js:13237) ומסך עסק מקושר (app.js:14190); חבר מקושר <code>_memberSubmitNewSc</code> (business-app.js:49048); אשף הקמה "קריאה ראשונה" (22858). מחנות ציבורית — רק דרך "בקשת שירות מחנות".</div>
+<div>הרשאות</div><div>חובה סשן (<code>ARC-02</code>). סשן BIZ: <code>business_group_id</code> = principal.groupId (מתעלם מגוף הבקשה). סשן FAMILY: <code>family_group_id</code> = principal.groupId; <code>businessGroupId</code> מהגוף אופציונלי (קריאה לעסק) או ריק (קריאה לטכנאי אישי עם <code>technicianContactId</code>, app.js:13237).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חובה <code>title</code> → 400 "שדות חסרים".</li>
+<li>סשן BIZ: business_group_id תמיד קיים (מהסשן) — אשף ההקמה משתמש באותו נתיב עם הסשן.</li>
+<li><code>businessGroupId</code> שנשלח מסשן משפחה ואינו קבוצת BUSINESS קיימת → 400 "עסק לא נמצא"; <code>familyGroupId</code> שנשלח מסשן עסק (לקוח WEFLOWZ) ואינו קיים → 400 "לקוח לא נמצא" (במקום איפוס שקט ל-NULL).</li>
+<li><code>assignedMemberId</code> (BIZ) חייב להיות משתמש field_tech של העסק; רק ADMIN/branch_manager רשאי לשייך.</li>
+<li><code>technicianContactId</code> (FAMILY) חייב להיות <code>equipment_technicians</code> של המשפחה.</li>
+<li>לקוח עסקי: חובה כותרת; משפחה: "נא לתאר את הבעיה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>autoNeedsTriage = needsTriage מפורש ? !!needsTriage : (familyGroupId קיים &amp;&amp; !assignedMemberId)</code>; אם triage → assigned_member_id=NULL.</li>
+<li>טרנזקציה: INSERT <code>service_calls</code> (priority ברירת מחדל 'normal', status 'new', created_by_user_id מהסשן). אין fallback לעמודה חסרה (<code>ARC-12</code>).</li>
+<li>אם family≠business ושניהם קיימים: UPSERT <code>member_business_links</code> status 'pending' (נשאר 'active' אם כבר active), business_type ברירת מחדל 'maintenance_repair'.</li>
+<li>COMMIT.</li></ol></div>
+<div>חישובים</div><div>needs_triage כאמור.</div>
+<div>מכונת מצבים</div><div>נוצר ב-<code>new</code> (ראו "עדכון קריאת שירות").</div>
+<div>תופעות לוואי</div><div>member_business_links pending.</div>
+<div>ממשק</div><div>עסק: שדות כותרת*, שם לקוח (+חיפוש WEFLOWZ <code>/api/groups/search-all</code> ולקוחות עסק מ-<code>storeCustomersCache</code>), טלפון, כתובת, תיאור, עדיפות (normal/high/urgent/low), שיוך טכנאי (רק ADMIN/branch_manager; רשימת <code>employee_role_type='field_tech'</code>), צ'קבוקס "העבר למנהל לסיווג" (39046-39099). התיאור נשלח עם קידומת "לקוח: &lt;שם&gt;\n" (39258). כל הלקוחות שולחים Bearer. ללא שינוי בשדות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-13</code> — הנתיב דורש סשן; הקבוצות נגזרות מהסשן.</li>
+<li><code>SRV-17</code> — אשף ההקמה כבר לא יוצר קריאה יתומה (business מהסשן); מזהה קבוצה שנשלח ואינו קיים → 400; קריאה משפחתית לטכנאי אישי ללא עסק נשמרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="store service request storefront maintenance time window sc-auth repairs בקשת שירות חנות"><h3>בקשת שירות מחנות ציבורית (תחזוקה ותיקונים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בחנות <code>storefront.html</code> לוחץ על שירות → <code>openServiceRequestModal</code>/<code>submitServiceRequest</code> (storefront.html:4183-4239), וכן טופס "שלחו פנייה" ב-<code>storefront-repairs.html</code> → <code>POST /api/store/service-request/:groupId</code> (server.js:25632). נתיב ציבורי מוצהר שדורש טוקן sc-auth (<code>ARC-02</code>).</div>
+<div>הרשאות</div><div>Bearer של sc-auth; זהות הלקוח (family_group_id, שם) מהטוקן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>_scGetCustomerByToken</code> ריק → 401 "יש להתחבר לפני שליחת בקשת שירות"; ללא family_group_id → 400.</li>
+<li>groupId לא מספרי או עסק לא קיים → 404/400 (לעולם לא success בלי שמירה).</li>
+<li>חסר serviceName → 400 "חסר שם שירות" (מטופס התיקונים: serviceName = השירות שנבחר, או "פנייה כללית").</li>
+<li>תאריך: <code>preferredDate</code> חובה → 400 "יש לבחור תאריך מועדף" — <b>אלא אם</b> נשלח <code>preferredTime</code> (חלון זמן) מטופס התיקונים, שאז התאריך אופציונלי.</li>
+<li>שדות אופציונליים מטופס התיקונים: <code>address</code>, <code>urgency</code>, <code>contactName</code>, <code>contactPhone</code>.</li>
+<li>Rate limit לנתיבים ציבוריים כותבים (<code>ARC-29</code>).</li>
+<li>לקוח: תיאור ותאריך חובה (storefront.html); שם, טלפון, תיאור (repairs); תאריך מינימלי=היום; <code>scAuth.requireLogin</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>תיאור = description + "חלון זמן מועדף: " עם תוויות morning=בוקר (08:00-12:00), afternoon=צהריים (12:00-16:00), evening=ערב (16:00-20:00).</li>
+<li>טרנזקציה: INSERT <code>service_calls</code> (family מהטוקן, business_group_id=groupId, priority = 'urgent' אם urgency דחוף אחרת 'normal', requested_date, address, <code>needs_triage=true</code>, customer_name=first+last (או contactName), customer_phone).</li>
+<li>UPSERT <code>member_business_links</code> pending (כמו בפתיחה).</li>
+<li><code>upsertStoreCustomer</code> לעסק (כמו שעשה <code>/api/store/leads</code> לטופס התיקונים) — הלקוח מופיע ברשימת לקוחות העסק.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>נוצר ב-<code>new</code> עם needs_triage=true.</div>
+<div>תופעות לוואי</div><div>member_business_links; store_customers.</div>
+<div>ממשק</div><div>ללא שינוי ב-storefront.html.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-20</code> — הנתיב משרת גם את טופס storefront-repairs (חלון זמן בלי תאריך, כתובת, דחיפות) ויוצר service_call + לקוח עסק; groupId לא תקין → שגיאה ולא success.</li>
+<li><code>SRV-17</code> — business_group_id חובה ותקף (מהנתיב).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="service call update patch status assign schedule price quote rating triage notification field matrix עדכון קריאה סטטוס"><h3>עדכון קריאת שירות ומכונת המצבים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>PATCH /api/service-calls/:id</code> (25821). מקורות: <code>saveServiceCallUpdates</code> (38886), <code>returnCallToManager</code> (38923), <code>scResolveCancelRequest</code> (38979), <code>markServiceCallDone</code> (38989), <code>_aiUpdateSCStatus</code> (57552), דירוג משפחה <code>rateFamilyServiceCall</code> (app.js:13160). (תזמון פקודת עבודה כבר לא עובר כאן — ראו "זימון ביומן מתוך פקודה".)</div>
+<div>הרשאות</div><div>חובה סשן + <code>_assertServiceCallAccess</code>. מטריצת שדות בשרת (שדה שערכו זהה לקיים אינו נחשב שינוי; שדה לא מורשה שהשתנה → 403 "אין הרשאה לעדכן שדה זה"):
+<div class="tbl-wrap"><table><tr><th>תפקיד</th><th>שדות</th><th>היקף</th></tr>
+<tr><td>BIZ ADMIN / branch_manager</td><td>כל השדות: status, assigned_member_id, scheduled_at, price_quote, discount_pct, community_discount, parts_status, needs_triage</td><td>כל קריאות העסק</td></tr>
+<tr><td>BIZ field_tech</td><td>status (לפי המכונה), "החזר למנהל" (assigned=NULL + seen), scheduled_at, price_quote</td><td>קריאות המשויכות אליו או שיצר</td></tr>
+<tr><td>BIZ עובד אחר</td><td>scheduled_at, price_quote (כמו בממשק היום)</td><td>כל קריאות העסק</td></tr>
+<tr><td>FAMILY</td><td>rating (רק כש-status=done); בקשת ביטול דרך DELETE</td><td>קריאות המשפחה</td></tr></table></div>
+ההרשאה לפי תפקיד נגזרת מהסשן (<code>ARC-06</code>, <code>SRV-47</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>אין שדות → 400 "אין שדות לעדכון"; לא נמצא/ללא גישה → 404.</li>
+<li>status מתוך הרשימה הקנונית; מעבר לא חוקי → 400 "מעבר סטטוס לא חוקי".</li>
+<li>rating 1..5 (SMALLINT); discount_pct 0..100; price_quote ≥ 0.</li>
+<li>assigned_member_id — משתמש field_tech של העסק.</li>
+<li>הלקוח שולח רק שדות שהוצגו/השתנו (לא <code>assignedMemberId:null</code> מטכנאי שאין לו שדה שיוך).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה: בניית SET דינמי מהשדות המורשים; אם assignedMemberId truthy ו-needsTriage לא נשלח → needs_triage=false; updated_at=NOW().</li>
+<li>מעבר ל-done → <code>completed_at=NOW()</code>; יציאה מ-done (פתיחה מחדש) → <code>completed_at=NULL</code>.</li>
+<li>אם status השתנה → audit <code>UPDATE_SC_STATUS</code>.</li>
+<li>COMMIT. אם status השתנה ויש link <code>status='active' AND is_active</code> → <code>_sendMemberBizNotif</code> (trigger business_update, refKey <code>mbiz_sc_&lt;id&gt;_&lt;status&gt;</code>, dedup) "קריאת השירות שלך ב&lt;עסק&gt; עודכנה: &lt;תווית&gt;".</li>
+<li>לקוח: אחרי שמירה עם scheduledAt → <code>syncServiceCallsToCalendar</code>; status pending_parts → דיאלוג "פתח הזמנת רכש" (38901-38916). ללא שינוי.</li></ol></div>
+<div>חישובים</div><div>needs_triage כאמור. דירוג: SMALLINT. completed_at לחישובי אנליטיקה.</div>
+<div>מכונת מצבים</div><div>סטטוסים: new, seen, in_progress, pending_parts, pending_payment, done, pending_cancel, cancelled. "פעיל" = new|seen|in_progress|pending_parts|pending_payment.
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>כל סטטוס פעיל</td><td>כל סטטוס פעיל אחר</td><td>מנהל; טכנאי בקריאה שלו</td><td>—</td><td>audit; התראה ללקוח אם link פעיל</td></tr>
+<tr><td>כל סטטוס פעיל</td><td>done</td><td>מנהל; טכנאי בקריאה שלו ("סמן כהושלם" / בורר)</td><td>—</td><td>completed_at; הצעת תחנת גביה על סכום העסקה</td></tr>
+<tr><td>done</td><td>סטטוס פעיל (פתיחה מחדש)</td><td>מנהל; טכנאי בקריאה שלו</td><td>—</td><td>completed_at=NULL; audit</td></tr>
+<tr><td>כל</td><td>seen + assigned=NULL</td><td>טכנאי "החזר למנהל"</td><td>קריאה שלו, לא done/cancelled</td><td>—</td></tr>
+<tr><td>new / seen</td><td>pending_cancel</td><td>לקוח (DELETE)</td><td>רק new/seen</td><td>—</td></tr>
+<tr><td>pending_cancel</td><td>cancelled</td><td>מנהל "אשר ביטול"</td><td>שרת: ADMIN/branch_manager</td><td>התראה</td></tr>
+<tr><td>pending_cancel</td><td>seen</td><td>מנהל "דחה בקשה"</td><td>שרת: ADMIN/branch_manager</td><td>התראה</td></tr>
+<tr><td>cancelled</td><td>כל</td><td>—</td><td>סופי</td><td>400</td></tr>
+<tr><td>כל</td><td>pending_cancel / cancelled</td><td>BIZ ישירות</td><td>אסור (לא קיים בממשק היום)</td><td>400</td></tr></table></div>
+תוויות: new חדשה, seen נצפתה, in_progress בטיפול, pending_parts ממתין לחלקים, pending_payment ממתין לתשלום, pending_cancel בקשת ביטול, done הושלם, cancelled בוטל. parts_status: waiting_delivery (יצירת PO מקושר), parts_ready (קבלת סחורה). AI: מקבל רק סטטוס קנוני; מילים נרדפות ממופות processing→in_progress, waiting_parts→pending_parts; scheduled אינו סטטוס — ה-AI מתבקש לעדכן scheduled_at.</div>
+<div>תופעות לוואי</div><div>audit; התראה ללקוח; completed_at.</div>
+<div>ממשק</div><div>ללא שינוי: מנהל — סטטוס+שיוך; field_tech — סטטוס + "החזר למנהל"; לכולם — תזמון והצעת מחיר; option list ללא cancelled/pending_cancel (38695-38698). <code>_aiUpdateSCStatus</code> שולח Bearer.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-13</code> — PATCH דורש סשן ובדיקת גישה תמיד (לא רק כשנשלח groupId).</li>
+<li><code>SRV-14</code> — מטריצת שדות לפי תפקיד נאכפת בשרת, ושומרת את כל מה שכל תפקיד יכול לערוך בממשק היום.</li>
+<li><code>SRV-15</code> — רשימת סטטוסים סגורה ומעברים נאכפים, תוך שמירת כל הפעולות שקיימות היום (כולל "סמן כהושלם" מכל סטטוס פעיל ופתיחה מחדש); completed_at; AI מוגבל לרשימה.</li>
+<li><code>SRV-11</code> — PATCH לא מקבל עוד מזהי פקודות עבודה מ-saveWorkOrderSchedule.</li>
+<li><code>SRV-04</code> — קריאת ה-AI נשלחת עם Authorization.</li>
+<li><code>SRV-47</code> — תפקידי field_tech/branch_manager נאכפים בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="service call cancel request customer delete pending_cancel ביטול קריאה"><h3>בקשת ביטול קריאה ע"י הלקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה: <code>cancelFamilyServiceCall</code> (app.js:13149) / מסך עסק (app.js:14111) → <code>DELETE /api/service-calls/:id</code> (server.js:25874). חדש: גם מפאנל "הפעילות שלי" בחנות (טוקן sc-auth, ראו פאנל).</div>
+<div>הרשאות</div><div>סשן FAMILY שהקריאה שלו (family_group_id), או טוקן sc-auth של לקוח שה-family_group_id שלו תואם. נשלח עם Bearer (app.js:13151).</div>
+<div>קלט ואימותים</div><div>לא נמצא/ללא גישה → 404 (במקום 403 על groupId אופציונלי); status חייב להיות new/seen → 400 "ניתן לבקש ביטול רק לקריאה שטרם החל בה טיפול".</div>
+<div>שלבי עיבוד</div><div><code>UPDATE service_calls SET status='pending_cancel' WHERE id=$1 AND status IN ('new','seen')</code> (לא מחיקה; אטומי). התראה לעסק "בקשת ביטול לקריאה #id". אישור/דחייה בצד העסק (ראו מכונה).</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>new/seen → pending_cancel → cancelled | seen (מנהל).</div>
+<div>תופעות לוואי</div><div>התראה לעסק.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-13</code> — DELETE דורש סשן משפחה/טוקן לקוח ובעלות.</li>
+<li><code>SRV-15</code> — המעבר מוגדר במכונה הקנונית ומבוצע אטומית.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="service call messages chat notes polling צ'אט הערות טיפול"><h3>צ'אט לקוח-עסק ויומן טיפול לקריאה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>צ'אט: <code>GET/POST /api/service-calls/:id/messages</code> (25907/25915). יומן טיפול פנימי: <code>GET/POST .../notes</code> (25932/25939).</div>
+<div>הרשאות</div><div>messages: סשן משפחה או עסק + <code>_assertServiceCallAccess</code> (ללא שינוי). notes: סשן BIZ בלבד + business_group_id==principal.groupId (המשפחה לא משתמשת בנתיב היום); field_tech — בקריאות שלו.</div>
+<div>קלט ואימותים</div><div><ul><li>messages: הודעה ריקה → 400; קיצור ל-2000 תווים; <code>sender_type</code> נגזר מהסשן.</li><li>notes: note ריק → 400 "הערה ריקה"; author = שם המשתמש מהסשן (ברירת מחדל 'טכנאי').</li></ul></div>
+<div>שלבי עיבוד</div><div>משפחה שולחת → UPDATE updated_at בקריאה. INSERT <code>service_call_messages</code> / <code>service_call_notes</code>.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>מודל עסק מרענן צ'אט כל 10 שניות (<code>_scChatInterval</code>, business-app.js:38874-38883); משפחה גם עם polling (app.js:13117). <code>senderType</code> מהלקוח לא נשלח עוד (ממילא התעלמו ממנו). ללא שינוי חזותי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-13</code> — notes דורש סשן עסקי ובעלות; לא ניתן עוד לקרוא/לכתוב יומן טיפול לפי id בלי אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="service call link oneflow weflowz family customer קישור לקוח"><h3>קישור קריאה קיימת ללקוח WEFLOWZ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במודל קריאה ללא family: "🔗 קשר ל-WEFLOWZ" <code>scInviteToOneflow</code> → <code>_scOflSearch</code>/<code>_scOflLink</code> (business-app.js:39102-39167), או יצירת חבר חדש באשף (49053/49079) → <code>PATCH /api/service-calls/:id/link-oneflow</code> (25678).</div>
+<div>הרשאות</div><div>סשן BIZ; הקריאה של העסק (business_group_id==principal.groupId).</div>
+<div>קלט ואימותים</div><div>חסר familyGroupId → 400 "חסרים שדות"; קריאה לא נמצאה/לא של העסק → 404; familyGroupId חייב להיות קבוצת FAMILY קיימת → 400.</div>
+<div>שלבי עיבוד</div><div>טרנזקציה: UPDATE family_group_id → UPSERT <code>member_business_links</code> pending → COMMIT → התראה למשפחה דרך פונקציית ההתראות (trigger <code>sc_received</code>, "&lt;עסק&gt; פתח עבורך קריאת שירות — ממתין לאישורך", refKey <code>sc_received_&lt;id&gt;</code>).</div>
+<div>חישובים</div><div>חיפוש: <code>/api/groups/search-all</code> מחזיר <code>{groups:[...]}</code> והלקוח קורא <code>d.groups</code>.</div>
+<div>מכונת מצבים</div><div>link: pending → active (אישור המשפחה). הקריאה מוצגת למשפחה מיד עם הקישור (כמו היום, דרך שליפת קריאות המשפחה); עדכוני סטטוס נשלחים למשפחה רק אחרי שהקישור active (כמו היום ב-<code>_sendMemberBizNotif</code>).</div>
+<div>תופעות לוואי</div><div>member_business_links; התראה.</div>
+<div>ממשק</div><div>ללא שינוי, מלבד שהחיפוש מחזיר תוצאות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-18</code> — חוזה תגובה אחד לחיפוש (<code>groups</code>) כך ש"לא נמצא ב-WEFLOWZ" לא מוצג תמיד; הנראות למשפחה נשארת מיידית.</li>
+<li><code>SRV-13</code> — הנתיב דורש סשן עסקי ובעלות על הקריאה.</li>
+<li><code>SA-52</code> — התראת sc_received נשמרת בפועל.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="service call schedule notifications due tomorrow overdue alerts cron תזמון התראות"><h3>התראות תזמון קריאות (מחר / באיחור)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימת רקע שעתית ב-worker (<code>ARC-23</code>) בשעון Asia/Jerusalem — במקום הקריאה מהדשבורד (business-app.js:38389 → <code>POST /api/service-calls/check-schedule-notifications/:groupId</code>, 25747), שמוסרת. זו גם המשימה שמחליפה את חלק הקריאות ב"בדיקת התראות ציוד".</div>
+<div>הרשאות</div><div>תהליך מערכת; אין נתיב HTTP.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol><li>שליפת קריאות status∉{done,cancelled,pending_cancel} עם scheduled_at.</li><li>מחר: התראה אחת לעסק (business_group_id) ואחת למשפחה (family_group_id, אם קיימת); refKey <code>sc_due_tomorrow_&lt;id&gt;_&lt;date&gt;</code> (+ נמען).</li><li>באיחור: התראה לעסק בלבד, refKey <code>sc_overdue_&lt;id&gt;_&lt;today&gt;</code> — פעם ביום לכל קריאה.</li><li>ריצה singleton + אידמפוטנטית (dedup לפי reference_key).</li></ol></div>
+<div>חישובים</div><div>מחר: <code>scheduled_at ∈ [tomorrowIL 00:00, dayAfterIL 00:00)</code>; באיחור: <code>scheduled_at &lt; todayIL 00:00</code> (<code>ARC-25</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>INSERT התראות trigger_type sc_due_soon / sc_overdue (לעסק) ו-sc_due_soon (למשפחה). שיוך קפדני — ללא הרחבה למשפחות הקהילה.</div>
+<div>ממשק</div><div>ההתראות מופיעות במרכז ההתראות ובתג (badge) הרגיל, גם בלי שמנהל פתח את הדשבורד.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-19</code> — מנגנון יחיד בשרת (cron) במקום שני מנגנונים מופעלי-לקוח; ללא כפילות "מחר"; לפי שעון ישראל; ללא זליגה לקבוצות אחרות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="service call lists family business customer by-customer debug שליפות"><h3>שליפות קריאות (משפחה, עסק, לקוח, היסטוריית לקוח)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /service-calls/family</code> (היום <code>/family/:groupId</code>, 25714); <code>/business</code> (25727); <code>/customer/:biz</code> (היום <code>/customer/:biz/:family</code>, 25807 — קריאות המשפחה מול עסק מסוים); <code>/by-customer?name&amp;phone</code> (25951, LIMIT 20 — היסטוריית לקוח בכרטיס העסק).</div>
+<div>הרשאות</div><div>family, customer: סשן FAMILY, family_group_id מהסשן. business, by-customer: סשן BIZ, business_group_id מהסשן. field_tech ב-business: קריאות המשויכות אליו או שיצר (כמו הסינון בממשק היום, 39311-39312, 38317) — נאכף בשרת.</div>
+<div>קלט ואימותים</div><div>by-customer: name או phone חובה.</div>
+<div>שלבי עיבוד</div><div>SELECT עם רשימת שדות מפורשת (<code>ARC-32</code>).</div>
+<div>חישובים</div><div>by-customer: אם יש טלפון — התאמה מדויקת על ספרות <code>regexp_replace(customer_phone,'\D')</code> או LIKE על שם משפחה/תיאור; אחרת LIKE על שם בלבד (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>טכנאי רואה רק קריאות משויכות אליו או שיצר; מנהל — הכל. KPIs מנהל: פתוחות, ממתין לסיווג, דחופות, טכנאים (38396-38401). רשימה "כל הקריאות" עם חיפוש טקסט ופילטרים new/in_progress/pending_parts/done. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-13</code> — family/customer/by-customer דורשים סשן; groupId מהסשן בלבד; נתיבי הדיבאג <code>/api/debug/sc-columns</code> ו-<code>/api/debug/sc-business-test/:gid</code> נמחקים (<code>ARC-10</code>).</li>
+<li><code>SRV-47</code> — סינון field_tech נאכף בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="service call analytics reports technician trend csv pdf completed_at דוחות אנליטיקה"><h3>אנליטיקת קריאות ודוחות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>showMaintenanceReports</code> (business-app.js:38540) → <code>GET /api/service-calls/analytics?days&amp;memberId</code> (25985); ייצוא CSV/PDF בצד לקוח (38447-38471).</div>
+<div>הרשאות</div><div>סשן BIZ (groupId מהסשן); field_tech — memberId נכפה למזהה שלו (כמו בממשק, 38543-38544).</div>
+<div>קלט ואימותים</div><div>days מספר; memberId משתמש של העסק.</div>
+<div>שלבי עיבוד</div><div>שאילתות אגרגציה; memberId (אם נשלח) מסנן <b>את כל המדדים</b> כולל byTech.</div>
+<div>חישובים</div><div>total, open (∉done,cancelled), done, cancelled, urgent_open, completed_today/week(7d)/month לפי <code>completed_at</code> ב-Asia/Jerusalem, created_this_month, <code>avg_completion_hours=round1(AVG(completed_at−created_at)/3600)</code> על done, <code>total_revenue=Σprice_quote</code> של done, revenue_this_month; לפי סטטוס/עדיפות(פתוחות)/טכנאי (מיון הכנסה, done); מגמה <code>trendDays=min(max(days||6,6),89)</code>. רשומות done ישנות ללא completed_at: מיגרציה ממלאת <code>completed_at=updated_at</code>.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-16</code> — זמן ומועד השלמה לפי completed_at (דירוג אחרי done לא משנה אותו); memberId חל גם על byTech; שעון ישראל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="service call parts procurement purchase order waiting delivery parts ready חלקים רכש"><h3>חלקים ורכש לקריאת שירות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>סטטוס pending_parts → "פתח הזמנת רכש" <code>openProcurementForSC</code> (business-app.js:39280) — מעבר למסך shop עם <code>_pendingScForPo</code>; הזמנה ב-<code>/api/b2b/orders(/create)</code> עם serviceCallId.</div>
+<div>הרשאות</div><div>סשן BIZ; serviceCallId חייב להיות קריאה של העסק (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div>כמו בהזמנת B2B; serviceCallId אופציונלי.</div>
+<div>שלבי עיבוד</div><div>טרנזקציה: יצירת PO עם <code>purchase_orders.service_call_id</code> + <code>service_calls.parts_status='waiting_delivery'</code>. קבלת סחורה <code>/api/b2b/orders/receive</code>: parts_status='parts_ready' + התראה sc_parts_ready (דרך פונקציית ההתראות).</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>parts_status: NULL → waiting_delivery → parts_ready. (סטטוס הקריאה עצמו משתנה ידנית לפי המכונה.)</div>
+<div>תופעות לוואי</div><div>התראה sc_parts_ready.</div>
+<div>ממשק</div><div>תגיות "📦 ממתין לאספקה" / "✅ חלקים לאיסוף"; פירוט פריטי PO מקושר מ-<code>b2bOrdersHistory</code> (38719-38733). ללא שינוי.</div>
+<div>שינויים מהקיים</div><div>ללא שינוי (מלבד טרנזקציה ובדיקת שייכות serviceCallId לפי <code>ARC-04</code>/<code>ARC-11</code>).</div>
+</div></section>
+
+<h2 class="grp">ציוד, תחזוקה, תקלות וטכנאים</h2>
+
+<section class="proc" data-f="equipment items crud history warranty disposed archive ציוד פריטים היסטוריה"><h3>פריטי ציוד והיסטוריית פריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>BIZ טאב equipment (<code>loadEquipment</code>, business-app.js:36415) וגם FAMILY "ניהול בית" (app.js:12240-12410). <code>GET/POST /api/equipment/items</code> (26050/26062), <code>DELETE /items/:id</code> (26081), <code>GET /items/:id/history</code> (26242). חדש: <code>POST /items/:id/dispose</code> (העברה לארכיון).</div>
+<div>הרשאות</div><div>סשן משפחה או עסק (נתיב משותף מוצהר, <code>ARC-05</code>); groupId תמיד מהסשן (principal.groupId; לא req.bizAuth לסשן משפחתי). עדכון/מחיקה מותנים group_id.</div>
+<div>קלט ואימותים</div><div>name חובה → 400 "שם חובה". status ∈ {active, inactive, disposed}.</div>
+<div>שלבי עיבוד</div><div><ol><li>id קיים → UPDATE (סמנטיקת PATCH: שדה שלא נשלח לא משתנה), אחרת INSERT; category ברירת מחדל 'כללי', status 'active'.</li><li>history: איחוד תחזוקות (event_date=completed או scheduled) ותקלות (created_at) ממוין יורד.</li><li>"הסר" — dispose: <code>status='disposed'</code>, ההיסטוריה (תחזוקות, תקלות, השאלות, עלויות) נשמרת.</li><li>"מחק לצמיתות": DELETE (כמו היום — התחזוקות והתקלות נמחקות איתו), בטרנזקציה; השאלה פעילה → 409 "הפריט מושאל כרגע".</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>item.status: active / inactive / disposed (תוויות 36524). disposed → active (שחזור) מותר.</div>
+<div>תופעות לוואי</div><div>מחיקה קשה מוחקת תחזוקות/תקלות של הפריט (כמו היום); dispose שומר הכל.</div>
+<div>ממשק</div><div>צבע אחריות: פגה=אדום, &lt;30 יום=כתום (36547-36552); ספירת תחזוקות/תקלות פתוחות; כפתור השאלה/החזרה. כפתור המחיקה פותח דיאלוג עם שתי אפשרויות: "העבר לארכיון (מומלץ — ההיסטוריה נשמרת)" ו"מחק לצמיתות" עם האזהרה הקיימת "כל נתוני התחזוקה והתקלות שלו יימחקו". מסנן "הצג פריטים בארכיון". ב-FAMILY ובטאב BIZ באותו אופן.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-25</code> — נוספה העברה לארכיון (disposed) ששומרת היסטוריה ועלויות, כאפשרות המומלצת; מחיקה לצמיתות נשארת זמינה עם האזהרה הקיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment maintenance schedule complete interval recurring תחזוקה מחזורית"><h3>תחזוקה מתוזמנת והשלמה מחזורית</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitMaintenanceRecord</code> (business-app.js:37146) → <code>POST /api/equipment/maintenance</code> (26099); "בוצע" <code>completeMaintenanceRecord</code> → <code>PUT /maintenance/:id/complete</code> (26118); DELETE (26138). גם ממסך המשפחה.</div>
+<div>הרשאות</div><div>סשן משפחה או עסק; group_id מהסשן; equipmentId חייב להיות של הקבוצה.</div>
+<div>קלט ואימותים</div><div>equipmentId חובה → 400 "ציוד חובה"; interval_days ≥ 1 אם נשלח; cost ≥ 0. complete על רשומה שאינה pending → 409 "התחזוקה כבר סומנה כבוצעה".</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>equipment_maintenance</code> (type ברירת מחדל 'periodic', interval_days); UPDATE בסמנטיקת PATCH.</li><li>complete (טרנזקציה): <code>UPDATE … SET status='completed', completed_date=todayIL(), cost/technician/notes=COALESCE WHERE id=$1 AND status='pending' RETURNING</code>; 0 שורות → 409.</li><li>באותה טרנזקציה: אם interval_days → INSERT רשומה חדשה (pending) עם <code>scheduled_date=completed_date+interval_days</code>.</li></ol></div>
+<div>חישובים</div><div>נקודת תג בטאב = תחזוקות לא completed עם תאריך ≤ היום+7 + תקלות ≠ resolved (36503-36518). overdue = pending ותאריך &lt; היום.</div>
+<div>מכונת מצבים</div><div>pending → completed (+ יצירת pending הבא, פעם אחת). completed → completed → 409.</div>
+<div>תופעות לוואי</div><div>רשומת המשך.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-22</code> — complete רק מ-pending (409 אחרת) ורשומת ההמשך באותה טרנזקציה; עדכון בסמנטיקת PATCH.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment faults status notes severity image technician תקלות"><h3>תקלות ציוד: פתיחה, סטטוס והערות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitFault</code> (business-app.js:37256) / משפחה (app.js:12787) → <code>POST /api/equipment/faults</code> (26185); שינוי סטטוס <code>submitFaultStatusChange</code> → <code>PATCH /faults/:id/status</code> (26205); הערות <code>GET/POST /faults/:id/notes</code> (26160/26171); DELETE (26235). שליחה לטכנאי ב-WhatsApp/מייל בצד לקוח (37477-37498).</div>
+<div>הרשאות</div><div>סשן משפחה או עסק; בעלות group_id (→ 404); equipmentId ו-technicianId של הקבוצה.</div>
+<div>קלט ואימותים</div><div>equipmentId+title חובה → 400 "ציוד וכותרת חובה"; status חובה ב-PATCH ∈ {open, in_progress, pending_parts, resolved}; severity ∈ {low, medium, high, critical}; note חובה בהערות. תמונה: קובץ image/* לפי <code>ARC-26</code>.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT (severity ברירת מחדל medium, status open) / UPDATE בסמנטיקת PATCH — שדה שלא נשלח (למשל technicianId, scheduledDate מעריכת BIZ) לא מתאפס; null מפורש מנקה.</li><li>תמונה: מועלית לאחסון אובייקטים (<code>ARC-26</code>) והשורה שומרת URL בלבד.</li><li>PATCH status (טרנזקציה): <code>resolved_date</code> = הקיים או היום אם status=resolved, אחרת NULL; INSERT <code>equipment_fault_notes</code> עם status_from/to וטקסט "סטטוס שונה ל"X": note" או "סטטוס שונה מ"A" ל"B"".</li><li>משפחה: אחרי פתיחה עם טכנאי — הצעת WhatsApp (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>open</td><td>in_progress / pending_parts</td><td>BIZ/FAMILY</td><td>—</td><td>הערת היסטוריה</td></tr>
+<tr><td>כל</td><td>resolved</td><td>BIZ/FAMILY</td><td>—</td><td>resolved_date נקבע</td></tr>
+<tr><td>resolved</td><td>open/in_progress</td><td>BIZ/FAMILY</td><td>—</td><td>resolved_date מתאפס</td></tr></table></div>תוויות open/in_progress/resolved; pending_parts מוכר רשמית (מוצג בדשבורד טכנאי, 38258).</div>
+<div>תופעות לוואי</div><div>היסטוריית הערות.</div>
+<div>ממשק</div><div>ללא שינוי; בחירת תמונה מעלה קובץ במקום data URL ב-<code>window._eqFaultImageData</code>.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-22</code> — עריכת תקלה מ-BIZ לא מאפסת טכנאי ותאריך (סמנטיקת PATCH).</li>
+<li><code>SRV-24</code> — תמונת התקלה נשמרת באחסון קבצים (URL בשורה), מגבלות לפי ARC-26; תמונות קיימות מועברות במיגרציה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment technicians contacts link business oneflow verified טכנאים אנשי קשר"><h3>טכנאים / אנשי קשר וקישור לעסק WEFLOWZ</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET/POST /api/equipment/technicians</code> (25458/25465), DELETE (25484), <code>POST /technicians/:id/link-business</code> (25492). משפחה מחפשת עסק <code>GET /api/groups/search-business?q&amp;type</code> (25516) ומקשרת (app.js:13296-13320).</div>
+<div>הרשאות</div><div>סשן משפחה או עסק; group_id מהסשן; link-business מוגבל ל-group_id של המבקש (→ 404 "לא נמצא"). search-business דורש סשן.</div>
+<div>קלט ואימותים</div><div>name חובה. search-business: q≥2 תווים; טלפון רק אם ≥7 ספרות; רק type BUSINESS; LIMIT 10. businessGroupId (אם נשלח) — קבוצת BUSINESS קיימת.</div>
+<div>שלבי עיבוד</div><div>INSERT / UPDATE בסמנטיקת PATCH של <code>equipment_technicians</code> — עריכה שלא שולחת businessGroupId לא מאפסת אותו; <code>oneflow_verified=(business_group_id IS NOT NULL)</code> מחושב מהערך הסופי. BIZ: אזהרה אם קיים field_tech רשום בשם זהה (37438-37449).</div>
+<div>חישובים</div><div>oneflow_verified כאמור.</div>
+<div>מכונת מצבים</div><div>לא מקושר → מקושר (link-business); ניתוק רק ב-null מפורש.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-22</code> — עריכת טכנאי מ-BIZ לא מאפסת business_group_id ו-oneflow_verified.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment notifications check maintenance 7 days service call tomorrow cron התראות ציוד"><h3>בדיקת התראות ציוד ותחזוקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימת רקע (אותו worker שעתי של התראות התזמון, <code>ARC-23</code>) — במקום הקריאה בכל <code>loadEquipment</code> (BIZ 36466, משפחה app.js:12229) ל-<code>POST /api/equipment/notifications/check/:groupId</code> (26264), שמוסרת.</div>
+<div>הרשאות</div><div>תהליך מערכת.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol><li>תחזוקות: לכל קבוצה (משפחה או עסק) — תחזוקות pending עם scheduled_date ∈ [היום, היום+7] → התראה לקבוצת הציוד בלבד.</li><li>קריאות שירות "מחר" — לא כאן; מטופלות פעם אחת במשימת "התראות תזמון קריאות" (ללא כפילות sc_scheduled).</li></ol></div>
+<div>חישובים</div><div><code>diffDays=round((date−todayIL)/86400000)</code>; 2..7 → refKey <code>eq_maint_&lt;id&gt;_7d_&lt;date&gt;</code> "🔧 תחזוקה בעוד N ימים"; ≤1 → <code>_1d_</code> "היום/מחר" (ללא שינוי בנוסחים).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>INSERT התראה trigger_type equipment_maintenance (dedup לפי reference_key). תג ההתראות מתעדכן ב-polling הרגיל של ההתראות (<code>updateAlertBadge</code>).</div>
+<div>ממשק</div><div>אין קריאת בדיקה בטעינת הטאב; ההתראות קיימות כבר כשהמשתמש נכנס.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-19</code> — התראות התחזוקה (7 ימים / יום) נשמרות ועוברות ל-cron בשרת; התראת "קריאה מחר" מאוחדת למנגנון אחד; ללא בחירת קריאות של משפחות אחרות בקהילה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment loans borrow return השאלות ציוד"><h3>השאלת ציוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>_eqLoanItem</code>/<code>_eqReturnLoan</code> (business-app.js:36442/36457) → <code>POST /api/equipment/loans</code> (26331), <code>POST /loans/:id/return</code> (26345), <code>GET /loans</code> (26320, רק פעילות).</div>
+<div>הרשאות</div><div>סשן BIZ; group מהסשן.</div>
+<div>קלט ואימותים</div><div>equipmentId+borrowerName → 400 "ציוד ושם לקוח חובה"; equipmentId חייב להיות פריט של העסק → 404; השאלה פעילה קיימת לפריט (בתוך העסק) → 400 "הפריט כבר מושאל כרגע"; return רק השאלה פעילה של העסק → 404 "לא נמצאה השאלה פעילה".</div>
+<div>שלבי עיבוד</div><div>INSERT השאלה (בדיקה ו-INSERT בטרנזקציה עם נעילת שורת הפריט); return: <code>returned_at=NOW() WHERE id=$1 AND group_id=$g AND returned_at IS NULL</code>.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>פעיל (returned_at NULL) → הוחזר (returned_at=NOW()).</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-23</code> — הפריט חייב להיות של העסק; בדיקת השאלה פעילה ו-return מסוננות לפי group_id.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="equipment costs summary 12 months עלויות ציוד"><h3>סיכום עלויות ציוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>fetchEquipmentCostSummary</code> → <code>GET /api/equipment/costs</code> (26356).</div>
+<div>הרשאות</div><div>סשן BIZ (או משפחה, לפי הקורא הקיים); group מהסשן.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div>אגרגציה על <code>equipment_maintenance</code> של הקבוצה, כולל פריטים בסטטוס disposed.</div>
+<div>חישובים</div><div>לפי חודש: <code>SUM(cost)</code> על COALESCE(completed,scheduled) ב-6 חודשים אחרונים, cost&gt;0; סה"כ 12 חודשים: completed_date בלבד (ללא שינוי). מוצג "💰 סה"כ עלות תחזוקת ציוד ב-12 החודשים האחרונים".</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-25</code> — עלויות של פריטים שהועברו לארכיון ממשיכות להיספר בסיכום.</li></ul></div>
+</div></section>
+
+<h2 class="grp">יומן ותורים (Calendar / Booking)</h2>
+
+<section class="proc" data-f="calendar settings services open close interval beauty catalog הגדרות יומן שירותים"><h3>הגדרות יומן ושירותי יומן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב calendar→settings: <code>saveCalendarSettings</code> (business-app.js:27036) → <code>POST /api/calendar/settings</code> (22855); <code>submitCalendarService</code> → <code>POST /api/calendar/services</code> (22869); <code>DELETE /calendar/services/:id</code> (22885).</div>
+<div>הרשאות</div><div>סשן BIZ עם הרשאת כתיבה ליומן; groupId מהסשן (לא מה-body); מחיקה/עדכון <code>AND group_id</code>.</div>
+<div>קלט ואימותים</div><div>open/close בפורמט HH:MM, open&lt;close; interval ∈ {5..240}; cancellation_hours ≥ 0; שירות: name חובה, duration &gt; 0, price ≥ 0.</div>
+<div>שלבי עיבוד</div><div>UPSERT <code>calendar_settings</code> (open 09:00, close 18:00, interval 30, cancellation_hours 0, <code>show_in_storefront</code> true אלא אם false/'false'). שירות — יצירה/עריכה/מחיקה מנותבות לפי business_type לאותה טבלה: עסק beauty → <code>beauty_service_catalog</code>, אחרת <code>calendar_services</code> (duration 30, price 0).</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>הגדרות ושירותים מוצגים בחנות (show_in_storefront).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-26</code> — הגדרות ושירותים דורשים סשן עסקי ובעלות.</li>
+<li><code>SRV-29</code> — מחיקת שירות בעסק beauty מוחקת מ-<code>beauty_service_catalog</code> (אותה טבלה כמו ביצירה); איחוד לקטלוג אחד לפי <code>ARC-19</code>ג בבנייה מחדש.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar get events beauty synthetic merge service calls quotes availability public שליפת יומן זמינות"><h3>שליפת יומן (כולל מיזוג יופי וקריאות שירות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ניהול: <code>fetchCalendarData</code> (26110) → <code>GET /api/calendar</code> (היום <code>/:groupId</code>, 22800), ולאחר מכן <code>syncServiceCallsToCalendar</code> (26716) ו-<code>syncQuotesToCalendar</code> (26795-26801). ציבורי (חנות): storefront.html (947, 959, 3824) → <code>GET /api/calendar/public/:groupId</code> — זמינות בלבד.</div>
+<div>הרשאות</div><div>ניהול: סשן BIZ, groupId מהסשן. ציבורי: נתיב מוצהר ציבורי (<code>ARC-02</code>) שמחזיר הגדרות (open/close/interval, is_active, show_in_storefront), שירותים פעילים, ו<b>משבצות תפוסות</b> (event_date, start_time, duration) — ללא שמות, טלפונים או הערות (<code>ARC-32</code>); רק כש-show_in_storefront.</div>
+<div>קלט ואימותים</div><div>טווח תאריכים אופציונלי (from/to).</div>
+<div>שלבי עיבוד</div><div><ol><li>הגדרות (ברירת מחדל is_active false, 09:00-18:00, 30).</li><li>beauty: שירותים מ-<code>beauty_service_catalog</code> פעילים; אירועים = calendar_events pending + "אירועים סינתטיים" מ-<code>beauty_appointments</code> (status∉cancelled,no_show, segment 1, אזור Asia/Jerusalem) עם id <code>bap-&lt;id&gt;</code>, status approved.</li><li>לקוח: קריאות עם scheduled_at ולא done/cancelled מוזרקות כ-<code>sc_&lt;id&gt;</code> approved (טכנאי — רק שלו).</li><li>ציבורי: אותו מקור, מוחזר רק כטווחי זמן תפוסים.</li></ol></div>
+<div>חישובים</div><div>משבצות פנויות בחנות מחושבות בלקוח מ-open/close/interval פחות תפוסות ושעות שעברו (ללא שינוי, storefront.html:3840-3858).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>בקשות ממתינות (<code>renderCalendarRequests</code>, 26648): כרטיס עם אישור; לשולחן — "דחה + חלופות", אחרת "המר להצעת מחיר"; מחיקה. מנהל רואה גם "קריאות מתוזמנות" (טכנאי — רק שלו) (26140-26175). ללא שינוי. החנות עוברת לנתיב הציבורי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-26</code> — שליפת היומן המלא דורשת סשן עסקי; לחנות נוסף נתיב זמינות ציבורי ללא PII, כך שבחירת משבצות בחנות ממשיכה לעבוד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar create edit event table reservation auto approve guests table assign יצירת תור הזמנת שולחן עריכה"><h3>יצירת אירוע/תור ביומן (כולל אישור אוטומטי לשולחן)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/calendar/events</code> (22891). מקורות: מודל אירוע עסקי (status approved, business-app.js:26595-26627), חנויות restaurant/market/sport (storefront-restaurant.html:2422, storefront-market.html:1419, storefront-sport.html:1462), אפליקציית משפחה (app.js:14759), AI (57309), המרת הצעה (כעת בתוך נתיב ההמרה). עריכה: <code>PUT /api/calendar/events/:id</code>.</div>
+<div>הרשאות</div><div>שלושה ערוצים, הסטטוס נקבע בשרת:
+<ul><li>BIZ (סשן עסקי): group מהסשן; רשאי לקבוע status approved (כמו המודל העסקי היום).</li>
+<li>חנות (טוקן sc-auth — החנויות כבר דורשות <code>requireLogin</code> לפני הזמנה; הלקוח מצרף Bearer): group מהנתיב/גוף ומאומת כקבוצת BUSINESS פעילה; customer_name/phone/customer_group_id מהטוקן; status נקבע בשרת: pending, או approved רק לפי כלל האישור האוטומטי לשולחן.</li>
+<li>FAMILY (סשן משפחה): customer_group_id מהסשן; status pending.</li></ul>
+עריכה (PUT) — BIZ בלבד, <code>AND group_id</code>.</div>
+<div>קלט ואימותים</div><div>title, event_date, start_time חובה בשרת (400) — לקוח עסקי מחייב אותם כבר היום; duration &gt; 0; numGuests ≥ 1 לשולחן. Rate limit לערוץ החנות (<code>ARC-29</code>).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>status לפי הערוץ (ראו הרשאות); ערך status מגוף בקשה ציבורית מתעלמים ממנו.</li>
+<li>table_reservation: אם <code>auto_approve_max_guests</code> מוגדר ו-<code>numGuests≤</code>ערך → חיפוש שולחן פנוי 1..<code>table_count</code>(8) שאין לו הזמנה approved באותו תאריך בהפרש &lt;2 שעות; נמצא → status approved + reserved_table_number (ללא שינוי).</li>
+<li>INSERT <code>calendar_events</code> (כולל <code>preferred_practitioner_id</code> אם נשלח).</li>
+<li>beauty + customerGroupId+phone: קישור/יצירת <code>beauty_client_records</code> (אחרי COMMIT, עם לוג שגיאה).</li>
+<li>table_reservation: inbox_messages נכנסת לעסק "הזמנת שולחן 🍽️"; אם אושר אוטומטית ויש customerGroupId → inbox יוצאת ללקוח "הזמנת השולחן אושרה!".</li>
+<li>עריכה (PUT): UPDATE title, event_date, start_time, duration, notes, attendees, address — id וקשרים (<code>work_order_id</code>, <code>ORDER_REF</code>, תור יופי) נשמרים. שינוי מועד של אירוע approved עם customer_group_id/טלפון → הודעת inbox ללקוח "מועד התור עודכן ל-…"; בתור יופי מקושר — עדכון מועד ה-<code>beauty_appointments</code>.</li></ol></div>
+<div>חישובים</div><div>קונפליקט שולחן: <code>|start_time − req|/3600 &lt; 2</code> שעות.</div>
+<div>מכונת מצבים</div><div>נוצר pending / approved (BIZ או אישור אוטומטי) — המשך ב"אישור / שינוי סטטוס אירוע".</div>
+<div>תופעות לוואי</div><div>inbox; beauty_client_records; הודעת שינוי מועד.</div>
+<div>ממשק</div><div>מודל העריכה העסקי שולח PUT במקום DELETE+POST (26619-26621). שאר הטפסים ללא שינוי; החנויות מצרפות את טוקן sc-auth.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-26</code> — יצירה דורשת זהות (BIZ / sc-auth / FAMILY) והסטטוס נקבע בשרת; לקוח ציבורי לא יכול לקבוע approved.</li>
+<li><code>SRV-28</code> — עריכה בנתיב PUT ששומר id וקשרים, עם הודעה ללקוח על שינוי מועד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar status approve beauty appointment sms twilio inbox reminder אישור תור תזכורת"><h3>אישור / שינוי סטטוס אירוע</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>approveCalendarEvent</code> (business-app.js:26809) → <code>PUT /api/calendar/events/:id/status</code> (22977). id בתבנית <code>quote_&lt;id&gt;</code> מנותב לאישור הצעה (ללא שינוי). מחיקה: <code>DELETE /api/calendar/events/:id</code> (23175).</div>
+<div>הרשאות</div><div>סשן BIZ; <code>AND group_id</code> בכל שאילתה לפי id.</div>
+<div>קלט ואימותים</div><div>status ∈ {approved, rejected, cancelled}. אישור חוזר של אירוע שכבר אושר → 409 "האירוע כבר טופל" (אידמפוטנטיות). מעבר אחר שאינו בטבלה → 400 "מעבר סטטוס לא חוקי", כמו ב-tobe-restaurant. להזמנת שולחן (call_type='table_reservation') תהליך הבעלים הוא tobe-restaurant, "אישור הזמנת שולחן ע"י העסק ושיבוץ שולחן": tableNumber ידני אופציונלי, ביטול ע"י העסק גם מ-pending.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה: UPDATE calendar_events SET status='approved' (בעסק beauty: status='converted', BTY-41) WHERE id=$1 AND group_id=$g AND status='pending' RETURNING; 0 שורות על אירוע שכבר approved → 409 בלי תור/SMS/שולחן נוספים.</li>
+<li>approved + table_reservation: אם נשלח tableNumber, שיבוץ ידני (שולחן קיים ולא disabled; חפיפה מחזירה overlap:true והשיבוץ נשמר). אחרת הקצאת שולחן פנוי (checkTableAvailability) → UPDATE reserved_table_number. אין שולחן פנוי → 409 "אין שולחן פנוי בשעה זו" עם רשימת השולחנות, והסטטוס נשאר pending עד בחירה ידנית (<code>RST-18</code>); אחרי COMMIT: SMS ב-Twilio "&lt;עסק&gt; — הזמנת שולחן אושרה! … WEFLOWZ" (טלפון 0X→+972); inbox ללקוח.</li>
+<li>עסק beauty (תהליך הבעלים: tobe-beauty, "בקשת תור מהחנות"): האירוע עובר ל-converted, ונוצר beauty_appointments עם calendar_event_id (UNIQUE) ו-calendar_events.converted_appointment_id (source storefront, confirmed, total_price = מחיר השירות מהקטלוג, BTY-40) + segment 1 (duration מקטלוג או 60, practitioner = <code>preferred_practitioner_id</code> של האירוע אם קיים, אחרת המועדף); אחרי COMMIT: SMS "התור שלך אושר! ✅ … 💅"; inbox "הסלון".</li>
+<li>cancelled (אירוע approved): status cancelled; תור יופי מקושר → cancelled; הודעה ללקוח "התור בוטל".</li>
+<li>DELETE: נשאר כמו היום ("הבקשה נדחתה"/"התור בוטל").</li>
+<li>תזכורת (חדש, opt-in): משימת worker שולחת SMS שעתיים לפני אירוע approved עם customer_phone, פעם אחת (refKey <code>cal_remind_&lt;id&gt;</code>), רק אם העסק הפעיל "תזכורת SMS" בהגדרות היומן (ברירת מחדל כבוי).</li></ol></div>
+<div>חישובים</div><div>זמן תזכורת = event_date+start_time (Asia/Jerusalem) − 2 שעות.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>converted (עסק beauty)</td><td>BIZ</td><td>אטומי, בדיקת התנגשות</td><td>תור יופי confirmed + SMS + inbox (פעם אחת); אישור חוזר → 409 "הבקשה כבר טופלה"</td></tr>
+<tr><td>pending</td><td>approved</td><td>BIZ</td><td>אטומי</td><td>שולחן/תור יופי + SMS + inbox (פעם אחת)</td></tr>
+<tr><td>approved</td><td>approved</td><td>—</td><td>אישור חוזר</td><td>409, ללא תופעות</td></tr>
+<tr><td>pending</td><td>rejected</td><td>BIZ (reject-with-alts)</td><td>—</td><td>alternatives_json + inbox</td></tr>
+<tr><td>approved</td><td>cancelled</td><td>BIZ</td><td>—</td><td>ביטול תור מקושר + הודעה</td></tr>
+<tr><td>כל</td><td>(נמחק)</td><td>BIZ</td><td>—</td><td>"הבקשה נדחתה"/"התור בוטל"</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>SMS (Twilio), <code>inbox_messages</code>, תזכורת אופציונלית. ממשק: יופי → ניווט ל-<code>beauty_calendar</code> לתאריך; אחרים → יומן ראשי.</div>
+<div>ממשק</div><div>ללא שינוי; בהגדרות היומן נוסף מתג "תזכורת SMS שעתיים לפני" (כבוי כברירת מחדל).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-27</code> — אישור אטומי מ-pending בלבד; אישור חוזר → 409 בלי תור/SMS כפולים; תור יופי מקושר ב-UNIQUE ל-calendar_event_id; נוסף approved→cancelled.</li>
+<li><code>SRV-26</code> — שינוי סטטוס ומחיקה דורשים סשן עסקי ובעלות.</li>
+<li><code>SRV-30</code> — המטפלת המועדפת עוברת מהבקשה לאירוע ולתור היופי.</li>
+<li><code>SRV-31</code> — התיעוד מתאר את המודל בפועל (אירוע pending → אישור/דחייה); תזכורת SMS שעתיים לפני — אופציונלית, כבויה כברירת מחדל.</li>
+<li><code>RECON-23</code> — בעסק beauty האירוע עובר ל-converted (BTY-41), והתור מקבל את מחיר השירות מהקטלוג (BTY-40) ולא 0, כמו ב-tobe-beauty. הקישור UNIQUE לפי calendar_event_id נשמר, ונוסף converted_appointment_id.</li><li><code>E2E-14</code> — להזמנת שולחן יושר לתהליך הבעלים ב-tobe-restaurant: tableNumber ידני, 409 כשאין שולחן (בלי שינוי סטטוס), 400 למעבר לא חוקי, וביטול גם מ-pending.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar suggest alternatives reject with alts table restaurant חלופות דחייה"><h3>דחיית הזמנת שולחן עם 3 חלופות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>rejectTableReservation</code> (26885) → <code>GET /api/calendar/events/:id/suggest-alts</code> (23084, preview בלבד); בחירה → <code>_confirmRejectWithAlts</code> → <code>POST .../reject-with-alts</code> (23112).</div>
+<div>הרשאות</div><div>סשן BIZ; <code>AND group_id</code>.</div>
+<div>קלט ואימותים</div><div>אירוע לא נמצא → 404 "אירוע לא נמצא"; reject רק מ-pending (אחרת 409). לקוח: לפחות שעה אחת.</div>
+<div>שלבי עיבוד</div><div><code>UPDATE … SET status='rejected', alternatives_json=$alts WHERE id=$1 AND group_id=$g AND status='pending'</code>; אם customer_group_id ויש חלופות → inbox "הזמנת שולחן — חלופות זמינות" עם רשימה ממוספרת.</div>
+<div>חישובים</div><div>זמנים תפוסים = approved table_reservation באותו יום. הצעות: שעות עגולות 12:00..22:00 שאינן תפוסות ושונות מהמבוקשת, עד 3; אם חסר — 12:30..21:30. מודל לקוח מציג 12:00-22:30 בחצאי שעה ירוק/אדום/כתום. (ללא שינוי.)</div>
+<div>מכונת מצבים</div><div>pending → rejected.</div>
+<div>תופעות לוואי</div><div>inbox ללקוח.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-26</code> — suggest/reject דורשים סשן עסקי ובעלות.</li>
+<li><code>SRV-27</code> — הדחייה אטומית ורק מ-pending.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="calendar public booking request sms verify temp booking code digits rate limit בקשת תור ציבורית"><h3>בקשת תור ציבורית עם אימות SMS (יופי/תיקונים/שירותים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חנות <code>storefront.html</code>: <code>submitBookingRequest</code> (3870) → <code>POST /api/calendar/request-booking-sms</code> (33685); קוד → <code>verifySmsCode</code> (4271) → <code>POST /api/calendar/verify-booking-sms</code> (33713). משבצות פנויות מחושבות בלקוח מנתיב הזמינות הציבורי.</div>
+<div>הרשאות</div><div>Bearer של sc-auth (הממשק כבר מחייב <code>scAuth.requireLogin</code>); זהות הלקוח מהטוקן; שם/טלפון שהוזנו בטופס נשמרים כפרטי הקשר של הבקשה.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>request: חובה name, phone, eventDate, startTime → 400 "חסרים פרטים חובה".</li>
+<li>Rate limit: לפי <code>ARC-29</code> (3 SMS לשעה ו-10 ליום לטלפון) ובנוסף 10 בקשות ל-IP בשעה → 429.</li>
+<li>verify: קוד באורך 6 → אחרת 400 "קוד שגוי"; temp pending לאותו group → 404 "בקשה לא נמצאה"; קוד שגוי → "קוד שגוי" ו-attempts+1; 5 ניסיונות שגויים → הבקשה נפסלת ("יותר מדי ניסיונות — שלח בקשה חדשה"); תוקף 10 דקות (<code>ARC-29</code>) → "קוד פג תוקף".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קוד אקראי 6 ספרות (crypto); נשמר hashed (<code>ARC-31</code>). <code>system_settings.sms_debug_code: מחוץ לייצור כמו היום; בייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן).</li>
+<li>INSERT <code>temp_booking_requests</code> (כולל preferred_practitioner_id, attempts=0) + SMS "בקשת תור ✅ … קוד אישור: XXXXXX".</li>
+<li>verify (טרנזקציה): איתור customer_group_id מ-<code>storefront_customers.phone</code>; INSERT <code>calendar_events</code> pending (title "שם — שירות", <code>preferred_practitioner_id</code>); temp→verified; <code>upsertStoreCustomer</code>.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>temp_booking_requests: pending → verified | rejected (5 ניסיונות) | expired. האירוע נכנס pending לאישור העסק (ה-SMS הסופי נשלח רק באישור).</div>
+<div>תופעות לוואי</div><div>SMS; לקוח חנות.</div>
+<div>ממשק</div><div>שדה הקוד במודל האימות מקבל 6 ספרות; נוסח "הזן את הקוד בן 6 הספרות". שאר הזרימה ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-30</code> — rate limit, מגבלת 5 ניסיונות, קוד 6 ספרות, קוד דיבאג רק מחוץ לייצור, המטפלת המועדפת נשמרת על האירוע.</li>
+<li><code>SRV-36</code> — הנתיב דורש טוקן sc-auth בשרת, בהתאם לשער ההתחברות שכבר קיים בממשק.</li>
+<li><code>RECON-05</code> — קוד הדיבאג בייצור רק לטלפוני בדיקה (SA-49 מתוקן).</li></ul></div>
+</div></section>
+
+<h2 class="grp">פורטל לקוח חנות (sc-auth)</h2>
+
+<section class="proc" data-f="sc-auth otp send verify sms email rate limit bcrypt קוד אימות"><h3>שליחת ואימות OTP ללקוח חנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כפתור "🔑 כניסה" צף (sc-auth.js:20-46) → <code>sendOtp</code> (233) → <code>POST /api/sc-auth/send-otp</code> (server.js:43210); גיבוי מייל <code>sendOtpByEmail</code> (245); <code>verifyOtp</code> (258) → <code>POST /api/sc-auth/verify-otp</code> (43255).</div>
+<div>הרשאות</div><div>נתיבים ציבוריים מוצהרים (<code>ARC-02</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>phone חובה; ספרות 9..15 → "מספר טלפון לא תקין".</li>
+<li>email channel: regex מייל על ה-email או המייל השמור → "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li>
+<li>Rate: מגבלות <code>ARC-29</code> בלבד (3 לשעה ו-10 ליום לטלפון, לפי otp_send_log ב-DB, כמו ב-tobe-auth) → 429 "נשלחו יותר מדי קודים — נסה שוב מאוחר יותר".</li>
+<li>verify: OTP לא used ולא פג; attempts≥5 → סימון used + "יותר מדי ניסיונות — שלח קוד חדש"; קוד שגוי → attempts+1.</li>
+<li>לקוח: טלפון ≥9 ספרות, קוד 6 ספרות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קוד 6 ספרות 100000-999999 (crypto); bcrypt cost 10 (<code>ARC-31</code>); INSERT storefront_otp expires +10 דק' (<code>ARC-29</code>; תואם ל-tobe-auth), channel sms/email.</li>
+<li>שליחה: <code>sendSystemEmail</code> או Twilio "WEFLOWZ\nקוד האימות שלך: X (בתוקף 10 דקות)"; ב-non-production מודפס ללוג. כשל שליחת SMS → 502 JSON "שליחת ה-SMS נכשלה — ניתן לקבל את הקוד במייל" (<code>channelFallback:'email'</code>).</li>
+<li>verify הצלחה: used=TRUE; לקוח חדש → <code>{isNew:true, registration_token}</code> (ראו הרשמה); קיים → יצירת סשן storefront (token 96 hex / טבלת sessions <code>ARC-01</code>, 30 יום) והחזרת לקוח ללא pin_hash.</li>
+<li>כל הנתיב עטוף בטיפול שגיאות: כשל DB → 500 <code>{success:false, error:'שגיאת שרת'}</code> (<code>ARC-33</code>).</li></ol></div>
+<div>חישובים</div><div>E.164: מתחיל 972 → '+'; מתחיל 0 → '+972'+slice(1); אחרת '+'.</div>
+<div>מכונת מצבים</div><div>storefront_otp: active → used | expired | locked (5 ניסיונות).</div>
+<div>תופעות לוואי</div><div>SMS/מייל; סשן.</div>
+<div>ממשק</div><div>ללא שינוי; בכשל SMS מוצג כפתור "שלח במייל" (הקיים, <code>sendOtpByEmail</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-35</code> — כל נתיבי sc-auth עטופים בטיפול שגיאות (500 JSON), וכשל SMS מחזיר הודעה ומציע ערוץ מייל.</li><li><code>RECON-01</code> — תוקף הקוד 10 דקות (במקום 5) ומגבלת שליחה 3 לשעה ו-10 ליום, לפי <code>ARC-29</code> ו-tobe-auth, שהוא בעל התהליך.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sc-auth register pin 6 digits family solo account shopper registration token הרשמה"><h3>הרשמת לקוח חנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי verify-otp עם isNew: <code>register</code> (sc-auth.js:270) → <code>POST /api/sc-auth/register</code> (43297).</div>
+<div>הרשאות</div><div>ציבורי, אך מחייב <code>registration_token</code> חד-פעמי שהונפק ב-verify-otp (<code>AUTH-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>registration_token חובה, תקף (15 דק'), לא משומש וקשור לטלפון; אחרת 400 "יש לאמת את הטלפון מחדש". הטלפון נלקח מהטוקן בלבד (phone בגוף לא קובע).</li>
+<li>firstName, lastName, pin חובה → "חסרים שדות חובה"; PIN בדיוק 6 ספרות; טלפון קיים עם pin_hash → "מספר טלפון זה כבר רשום — נסה להתחבר".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה: מחיקה/סימון הטוקן כמשומש (אטומי).</li>
+<li>pin bcrypt cost 12 (<code>ARC-31</code>, AUTH-23).</li>
+<li>חיפוש משתמש קיים עם הטלפון בקבוצה active (עדיפות FAMILY, אח"כ BUSINESS) → family_group_id; אחרת יצירת <code>family_groups</code> (FAMILY, plan solo, <code>group_code מ-generateGroupCode האחיד (AUTH-45), account_kind shopper לפי <code>ARC-20</code>) + <code>users</code> ADMIN עם הטלפון.</li>
+<li>חשבון "שקט" קיים (בלי PIN) → UPDATE, אחרת INSERT <code>storefront_customers</code>.</li>
+<li>יצירת session 30 יום. COMMIT.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>storefront_customers: שקט (ללא PIN) → רשום (עם PIN).</div>
+<div>תופעות לוואי</div><div>family_groups/users חדשים; סשן.</div>
+<div>ממשק</div><div><code>_saveSession</code> (291) שומר <code>sc_auth_token</code>/<code>sc_customer</code> ב-localStorage, ממלא שדות checkout, ומריץ פעולה ממתינה <code>window._pendingAfterScLogin</code>. הלקוח מעביר את ה-registration_token שקיבל מ-verify-otp. ללא שינוי חזותי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-04</code> (קנוני ל-<code>SRV-32</code>) — הרשמה מחייבת registration_token מ-verify-otp; הטלפון מהטוקן; אין השתלטות על חשבון שקט או על קישור משפחה.</li><li><code>RECON-02</code> — PIN ב-bcrypt 12 וקוד קבוצה מ-generateGroupCode, כמו בתהליך ההרשמה ב-tobe-auth.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sc-auth session me profile logout sliding expiry סשן פרופיל"><h3>סשן, פרופיל והתנתקות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>init</code> → <code>_verifySession</code> (sc-auth.js:55) → <code>GET /api/sc-auth/me</code> (43367); <code>saveProfile</code> → <code>PATCH /profile</code> (43376); <code>logout</code> → <code>POST /logout</code> (43483).</div>
+<div>הרשאות</div><div>Bearer של sc-auth (principal_type storefront, <code>ARC-01</code>).</div>
+<div>קלט ואימותים</div><div>profile: שדות טקסט באורך מוגבל; email בפורמט תקין.</div>
+<div>שלבי עיבוד</div><div>profile: COALESCE לכל שדה (ערך ריק לא מוחק) — ללא שינוי. logout: ביטול הסשן (revoked_at / DELETE).</div>
+<div>חישובים</div><div><code>_scGetCustomerByToken</code>: session לא פג → עדכון <code>last_activity</code> והארכה ל-NOW()+30 יום (sliding), עם תקרה מוחלטת 90 יום (<code>ARC-09</code>). ניקוי יומי של sessions/otp/sso פגים (worker, <code>ARC-23</code>).</div>
+<div>מכונת מצבים</div><div>session: active → expired | revoked.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div>ללא שינוי (מלבד תקרת 90 יום וניקוי ב-worker לפי <code>ARC-09</code>/<code>ARC-23</code>).</div>
+</div></section>
+
+<section class="proc" data-f="sc-auth pin verify change forgot reset lockout PIN"><h3>PIN: אימות לפעולה, שינוי, שכחתי ואיפוס</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>requirePin/confirmPin</code> (sc-auth.js:322-344) → <code>POST /verify-pin</code> (43411); <code>doChangePin</code> → <code>PATCH /change-pin</code> (43393); <code>sendForgotPin</code> → <code>POST /forgot-pin</code> (43442); <code>doResetPin</code> → <code>POST /reset-pin</code> (43462).</div>
+<div>הרשאות</div><div>verify-pin, change-pin: Bearer של sc-auth. forgot-pin, reset-pin: ציבוריים מוצהרים.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>verify-pin: נעילה נשמרת ב-DB בטבלה <code>pin_attempts(customer_id, attempts, locked_until)</code> (AUTH-38, כמו ב-tobe-auth): אחרי 5 כשלונות נעילה 15 דקות ("יותר מדי ניסיונות — נסה שוב בעוד N דקות"); הודעה "PIN שגוי (k ניסיונות נוספים)"; הצלחה מאפסת את המונה.</li>
+<li>change-pin: newPin 6 ספרות; currentPin שגוי → "ה-PIN הנוכחי שגוי" (נספר במונה הנעילה).</li>
+<li>forgot-pin: תגובה אחידה תמיד, "אם המספר רשום — נשלח קוד" (AUTH-44), גם כשהטלפון לא רשום; עד 3 קודים ל-10 דקות לטלפון (ובנוסף <code>ARC-29</code>) → 429.</li>
+<li>reset-pin: OTP purpose pin_reset בתוקף; קוד שגוי → "קוד שגוי" ו-attempts+1; 5 ניסיונות → הקוד נפסל ("יותר מדי ניסיונות — שלח קוד חדש").</li></ul></div>
+<div>שלבי עיבוד</div><div>forgot: OTP 6 ספרות (hashed), תוקף 10 דקות, SMS "קוד לאיפוס ה-PIN". reset (טרנזקציה): used=TRUE, pin_hash חדש לפי טלפון, איפוס מונה נעילה, ביטול סשנים אחרים של הלקוח (<code>ARC-09</code>).</div>
+<div>חישובים</div><div>locked_until = NOW()+15 דק' בכשלון החמישי.</div>
+<div>מכונת מצבים</div><div>לקוח: פעיל → נעול (15 דק') → פעיל.</div>
+<div>תופעות לוואי</div><div>SMS.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-33</code> — forgot-pin מוגבל ל-3 ל-10 דקות; reset-pin עם 5 ניסיונות לקוד; נעילת PIN נשמרת ב-DB (שורדת ריסטארט ומופעים מרובים, <code>ARC-24</code>).</li><li><code>RECON-02</code> — מונה הנעילה בטבלת <code>pin_attempts</code>, ו-forgot-pin מחזיר תגובה אחידה (AUTH-44) במקום "מספר לא רשום", כמו ב-tobe-auth.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sc-auth sso token family app my-families phone match SSO כניסה למשפחה"><h3>SSO מחנות לאפליקציית המשפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>goToOFL</code> (sc-auth.js:961) → <code>GET /my-families</code> (43496) ואז <code>GET /sso-token</code> (43519) → פתיחת <code>/?sso_token=</code> → app.js:114 → <code>GET /api/family/sso-login</code> (43791).</div>
+<div>הרשאות</div><div>my-families, sso-token: Bearer של sc-auth. sso-login: טוקן SSO חד-פעמי.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>my-families: כל המשפחות הפעילות (FAMILY, account_kind≠shopper/member) שבהן קיים משתמש active עם <code>users.phone</code> תואם לטלפון הלקוח. יותר מאחת → בחירה לכל לקוח (לא רק לטלפון בדיקות); הקבוע <code>SC_MULTI_FAMILY_TEST_PHONE</code> מוסר.</li>
+<li>sso-token: familyGroupId שנבחר חייב להיות ברשימה של הלקוח.</li>
+<li>sso-login: token לא used ולא פג; ללא משפחה → "אין חשבון משפחה מקושר"; BUSINESS → 403 "חשבון עסקי אינו נגיש דרך חנות לקוח"; אין משתמש active שהטלפון שלו תואם → "לא נמצא משתמש מתאים במשפחה — היכנס עם שם משתמש וסיסמה".</li></ul></div>
+<div>שלבי עיבוד</div><div>SSO token תוקף 60 שניות, חד-פעמי (used=TRUE, אטומי); <code>createFamilySession(fgId, matchedUserId, 'storefront-sso', 'family')</code> — למשתמש שהטלפון שלו תואם (לא ל-ADMIN הראשון).</div>
+<div>חישובים</div><div>התאמת טלפון לפי phone_normalized (E.164).</div>
+<div>מכונת מצבים</div><div>sso token: issued → used | expired.</div>
+<div>תופעות לוואי</div><div>סשן משפחתי.</div>
+<div>ממשק</div><div>מסך בחירת משפחה מוצג לכל לקוח עם יותר ממשפחה אחת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-34</code> — הסשן נוצר למשתמש שהטלפון שלו תואם; בחירת משפחה לכל לקוח עם כמה משפחות; טלפון הבדיקות הקבוע מוסר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sc-auth activity panel orders bookings beauty sport restaurant service calls פעילות לקוח"><h3>פאנל "הפעילות שלי" מול עסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openActivityPanel</code> (sc-auth.js:370) → <code>GET /api/sc-auth/activity/:bizGroupId</code> (43636).</div>
+<div>הרשאות</div><div>Bearer של sc-auth; הנתונים מסוננים לפי טלפון / family_group_id של הלקוח מהטוקן ולפי העסק.</div>
+<div>קלט ואימותים</div><div>bizGroupId — קבוצת BUSINESS קיימת → אחרת 404.</div>
+<div>שלבי עיבוד</div><div>שליפה מקבילה: store_orders (20), calendar_events (20), רישומי שיעורים עתידיים, מנויים (active/trial/frozen/pending), תורי ספורט (מ-7 ימים אחורה), צ'ק-אינים, ביקורי מסעדה; ל-beauty: תורים פעילים והיסטוריה (cancelled/no_show/completed/pending_cancel) — כמו היום. <b>נוסף:</b> <code>service_calls</code> של הלקוח מול העסק (לפי family_group_id או customer_phone), עד 20 אחרונות: כותרת, סטטוס (תווית קנונית), scheduled_at. מחזיר businessType לבניית UI.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>בקשת ביטול מהפאנל: new/seen → pending_cancel (אותו כלל כמו "בקשת ביטול קריאה").</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>סעיף "קריאות שירות" בפאנל (מוצג כשיש קריאות), עם כפתור "בקש ביטול" כשהסטטוס new/seen. שאר הסעיפים ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-21</code> — הפאנל מציג גם קריאות שירות, עם אפשרות בקשת ביטול.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sc-auth requireLogin gate pending action storefront server enforcement שער התחברות"><h3>שער התחברות לפעולות בחנות (requireLogin)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>scAuth.requireLogin(actionName, hint)</code> (sc-auth.js:83) לפני כל הזמנה/תור/פנייה; משמש ב-storefront.html, storefront-professional.html (662, 704), storefront-repairs.html (674), storefront-restaurant/market/sport/logistics.</div>
+<div>הרשאות</div><div>צד לקוח: כמו היום. <b>צד שרת:</b> כל נתיב שהממשק מחייב בו התחברות דורש Bearer של sc-auth → 401 "יש להתחבר": <code>/api/store/leads</code>, <code>/api/professional-leads</code>, <code>/api/calendar/request-booking-sms</code>, <code>/api/store/service-request</code>, יצירת אירוע מחנות (<code>/api/calendar/events</code> ערוץ חנות).</div>
+<div>קלט ואימותים</div><div>זהות הלקוח (קישור ל-storefront customer / family_group_id) מהטוקן; שם/טלפון שהוזנו בטופס נשמרים כפרטי הקשר של הפנייה ואינם קובעים זהות.</div>
+<div>שלבי עיבוד</div><div>מחובר → true; אחרת שומר <code>_pendingAfterScLogin</code>, מוסיף רמז ירוק ופותח מודל טלפון; לאחר הצלחה מריץ <code>window[action]()</code> (מקרים מיוחדים openBookingModal, submitOrderAfterLogin). כל fetch לנתיבים המוגנים מצרף <code>Authorization: Bearer sc_auth_token</code>.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי חזותי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-36</code> — שער ההתחברות נאכף גם בשרת; זהות מהטוקן ופרטי הקשר מהטופס נשמרים כחלק מהפנייה.</li></ul></div>
+</div></section>
+
+<h2 class="grp">אנכי מקצועי (Professional)</h2>
+
+<section class="proc" data-f="professional content hero about cta ai gemini אתר תדמית תוכן"><h3>ניהול תוכן אתר תדמית (Hero / אודות) + AI</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>content</code> (רק business_type professional, מודולים 37539): <code>renderProfessionalContentTab</code> (business-app.js:55703); שמירה <code>saveProfContentHero/About</code> → <code>POST /api/professional-content</code> (28665); קריאה ציבורית <code>GET /api/professional-content/:groupId</code> (28659).</div>
+<div>הרשאות</div><div>POST: סשן BIZ, groupId מהסשן. GET: ציבורי מוצהר.</div>
+<div>קלט ואימותים</div><div>8 שדות טקסט (he/en: hero_title, hero_subtitle, cta_text, about_text) באורך מוגבל.</div>
+<div>שלבי עיבוד</div><div>UPSERT <code>professional_content</code> (UNIQUE group_id) בסמנטיקת PATCH: שדה שלא נשלח — ללא שינוי; <code>null</code> מפורש — ניקוי; '' — נשמר ריק.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>AI: <code>_profContentAI</code> → <code>POST /api/ai/generate</code> → aiGateway (<code>ARC-30</code>: סשן, זכאות, מכסה). פרומפטים: כותרת+תת-כותרת+CTA ב-JSON (55822), אודות 3-4 משפטים (55851). תשובה מנוקה מ-```json ומפורסרת. סדר מודלים/ניסיונות לפי config.</div>
+<div>ממשק</div><div>תתי-טאבים hero/expertise/articles/about; קישור "צפה באתר הציבורי" ל-<code>/storefront.html?store=&lt;group_code&gt;</code>. תוכן מוצג בממשק דרך <code>esc()</code>/textContent.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-41</code> — סמנטיקת PATCH אחידה במקום COALESCE (אפשר לנקות שדה).</li>
+<li><code>SRV-44</code> — הצגת התוכן בממשק הניהול ובאתר מקודדת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional expertise areas ai suggest icons תחומי עיסוק"><h3>תחומי עיסוק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openAddExpertise/saveExpertise</code>, <code>openEditExpertise/saveEditExpertise</code>, <code>deleteExpertise</code>, AI <code>aiSuggestExpertise</code> (5 הצעות לבחירה), <code>aiFillExpertise</code>, <code>aiWriteExpertiseDesc</code> (business-app.js:55868-56121) → <code>/api/professional-expertise</code> (28680-28716).</div>
+<div>הרשאות</div><div>POST/PATCH/DELETE: סשן BIZ, group מהסשן, <code>AND group_id</code>. GET: ציבורי מוצהר.</div>
+<div>קלט ואימותים</div><div>שם חובה (לקוח: "הזן שם תחום"); icon עד 4 תווים.</div>
+<div>שלבי עיבוד</div><div>INSERT (icon ברירת מחדל ⚖️); PATCH בסמנטיקת PATCH (שדה שלא נשלח — ללא שינוי, null — ניקוי); DELETE = soft (<code>is_active=FALSE</code>). GET מחזיר רק is_active, מיון sort_order,id.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>פעיל → לא פעיל (soft delete).</div>
+<div>תופעות לוואי</div><div>AI דרך aiGateway (<code>ARC-30</code>).</div>
+<div>ממשק</div><div>ללא שינוי; שם ותיאור מוצגים מקודדים.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-41</code> — PATCH מאפשר ניקוי שדה.</li>
+<li><code>SRV-44</code> — שם ותיאור התחום מקודדים בכל תצוגה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional articles publish share linkedin whatsapp ai מאמרים"><h3>מאמרים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openAddArticle/saveArticle</code>, <code>toggleArticlePublish</code>, <code>deleteArticle</code>, <code>aiWriteArticle</code> (300-500 מילים, he+en+tags), שיתוף <code>openArticleShare</code> (LinkedIn/WhatsApp/העתקה) → <code>/api/professional-articles</code> (28719-28756).</div>
+<div>הרשאות</div><div>כמו תחומי עיסוק. GET <code>?published=1</code> ציבורי (לאתר); GET מלא (כולל טיוטות) — סשן BIZ בלבד.</div>
+<div>קלט ואימותים</div><div>כותרת חובה; "פרסם מיד" מסומן כברירת מחדל.</div>
+<div>שלבי עיבוד</div><div>INSERT/PATCH (סמנטיקת PATCH)/DELETE כמו היום.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>טיוטה (is_published=false) ⇄ פורסם; כפתור שיתוף רק למפורסם.</div>
+<div>תופעות לוואי</div><div>AI דרך aiGateway.</div>
+<div>ממשק</div><div>ללא שינוי; תוכן מקודד בתצוגה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-44</code> — כותרת ותוכן מאמר מוצגים מקודדים באתר ובממשק.</li>
+<li><code>SRV-41</code> — PATCH אחיד.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional leads contact form store leads convert customer status פניות לידים"><h3>פניות נכנסות (לידים) והמרה ללקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טפסי פנייה באתר: <code>POST /api/professional-leads/:groupId</code> (28803) — storefront.html:1607, storefront-professional.html:680 (קביעת פגישה) ו-717 ("צור קשר", היום ל-<code>/api/store/leads</code>); טופס כללי: <code>POST /api/store/leads/:groupId</code> (28759). ניהול: <code>renderProfessionalLeadsTab</code> (business-app.js:56277) → <code>GET</code> (28796), <code>updateLeadStatus</code> → <code>PATCH</code> (28816); <code>convertLeadToCustomer</code> (56354); "קבע פגישה" → מודל יומן עם "שיחת היכרות — שם" (56341). AI: <code>_aiUpdateLeadStatus</code> (57520).</div>
+<div>הרשאות</div><div>POST טפסים: טוקן sc-auth (<code>SRV-36</code>). GET/PATCH: סשן BIZ + בעלות.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>professional-leads POST: groupId לא מספרי / עסק לא קיים → 400/404 (לא success בלי שמירה); חייב name/phone/email → 400 "פרטים חסרים".</li>
+<li>store/leads: groupId 'general'/'public'/לא מספרי → 400 (לא success בלי שמירה); חייב name או phone → 400 "חסרים פרטים".</li>
+<li>PATCH status ∈ {new, contacted, converted, closed}.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>professional-leads (טרנזקציה): INSERT <code>professional_leads</code> (status new, source=form|appointment|site) + <code>upsertStoreCustomer</code> (notes "פנייה: נושא").</li>
+<li>store/leads: לעסק <code>professional</code> — מנותב לאותה פונקציה של professional-leads (נוצר ליד + לקוח). לשאר העסקים — כמו היום: הערות מורכבות "מקור | תיאור | כתובת | איסוף | מסירה | דחיפות | דחוף | זמן מועדף" → <code>upsertStoreCustomer</code>; לוגיסטיקה גם <code>logistics_customers</code>. (טופס storefront-repairs עובר ל-service-request, ראו שם.)</li>
+<li>PATCH: UPDATE status + audit <code>UPDATE_LEAD_STATUS</code>.</li>
+<li>המרה: <code>POST /api/store/customers</code> ואז PATCH status converted; מודל עם "שלח הצעת מחיר"/"צפה בכרטיס".</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>new → contacted → converted / closed (כל מעבר מותר, select בממשק 56286) — ללא שינוי.</div>
+<div>תופעות לוואי</div><div><code>upsertStoreCustomer</code> יוצר/מעדכן לקוח עסק (<code>ARC-14</code>) וחשבון storefront "שקט".</div>
+<div>ממשק</div><div>ללא שינוי; כל פניות האתר (צור קשר, קביעת פגישה, טופס storefront.html) מופיעות בטאב הפניות. <code>_aiUpdateLeadStatus</code> שולח Bearer.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-42</code> — כל טופס פנייה של עסק professional יוצר professional_leads (גם "צור קשר" ו-/api/store/leads לעסק professional).</li>
+<li><code>SRV-04</code> — עדכון סטטוס ליד ע"י AI נשלח עם Authorization.</li>
+<li><code>SRV-36</code> — טפסי הפנייה דורשים טוקן sc-auth בשרת; groupId לא תקין מחזיר שגיאה.</li>
+<li><code>SRV-46</code> — הנתיבים בפועל (<code>/api/professional-leads</code> וכו') מתועדים, ו-<code>professional-guide.html</code> מתעדכן באותו קומיט.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional documents templates versions signature email pdf case work order מסמכים חתימה"><h3>מסמכים מקצועיים (תבניות, גרסאות, חתימה, מייל, PDF)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב documents: <code>renderDocumentsTab</code> (56409); יצירה/עריכה <code>openNewDocModal</code>, <code>openDocFromTemplate</code>, <code>editDocModal</code>, <code>saveDocModal</code> (56695-56843); כרטיס לקוח <code>loadCustomerDocuments</code>, <code>openNewDocForCustomer</code>; חתימה <code>openSignaturePad/_saveSignature</code>; גרסאות <code>showDocVersions</code>; מייל <code>sendDocEmail</code>; PDF <code>exportDocPDF</code> (הדפסה בחלון). API: <code>/api/professional-documents</code> (28829-28937).</div>
+<div>הרשאות</div><div>סשן BIZ + בעלות (group_id של המסמך == principal.groupId); work_order_id (אם נשלח) — פקודה של העסק.</div>
+<div>קלט ואימותים</div><div><ul><li>send-email: חסר to_email → 400 "חסרה כתובת מייל"; פורמט מייל תקין.</li><li>status ∈ {draft, sent, signed, approved, cancelled}; doc_type ∈ {document, contract, quote, letter, report, custom_&lt;id&gt;}.</li><li>חתימה: PNG dataURL → מועלית לאחסון (<code>ARC-26</code>), נשמר URL.</li><li>לקוח: כותרת חובה; מייל regex <code>\S+@\S+\.\S+</code>; חתימה — canvas לא ריק ("נא לחתום קודם").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>POST: INSERT (doc_type document, status draft, is_template, work_order_id) — תבנית נשמרת ללא פרטי לקוח/תיק.</li>
+<li>PATCH (טרנזקציה): אם נשלח title/content/status ולמסמך היה title/content → INSERT <code>professional_document_versions</code> עם הערכים הקודמים, ומחיקת גרסאות מעבר ל-20 האחרונות; UPDATE בסמנטיקת PATCH (שדה שלא נשלח — ללא שינוי; null — ניקוי, כולל ניתוק <code>work_order_id</code>).</li>
+<li>חתימה: PATCH <code>{signature_data, status:'signed'}</code>.</li>
+<li>send-email: HTML מתבנית עם auto-escape (<code>ARC-27</code>) הכולל title, content, שם סוג וחתימה — <b>ללא</b> <code>notes</code> (הערות פנימיות) → <code>sendSystemEmail</code>; draft → sent. אם המייל שונה — PATCH customer_email.</li>
+<li>DELETE (טרנזקציה): מוחק גרסאות ואז המסמך.</li></ol></div>
+<div>חישובים</div><div>שמירת 20 גרסאות אחרונות.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>draft</td><td>sent</td><td>BIZ (send-email)</td><td>status=draft</td><td>מייל</td></tr>
+<tr><td>כל</td><td>signed</td><td>BIZ (חתימה)</td><td>—</td><td>signature</td></tr>
+<tr><td>כל</td><td>draft/sent/signed/approved/cancelled</td><td>BIZ (select)</td><td>—</td><td>גרסה נשמרת</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>גרסאות; מייל.</div>
+<div>ממשק</div><div>ללא שינוי; <code>editDocModal</code> שולף עם Bearer ולכן עריכה עובדת (במקום "מסמך לא נמצא"). בתצוגה מקדימה של המייל מצוין "הערות פנימיות לא נשלחות ללקוח".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-04</code> — עריכת מסמך שולפת עם Authorization (דרך <code>bizFetch</code>).</li>
+<li><code>SRV-40</code> — המייל ללקוח לא כולל הערות פנימיות; כל השדות מקודדים.</li>
+<li><code>SRV-41</code> — סמנטיקת PATCH: אפשר לנתק work_order_id ולנקות שדות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional doc types custom soft delete סוגי מסמכים"><h3>סוגי מסמכים מותאמים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>_addDocType/_saveNewDocType/_deleteDocType</code> (57035-57063) → <code>/api/professional-doc-types</code> (28939-28965).</div>
+<div>הרשאות</div><div>סשן BIZ + בעלות.</div>
+<div>קלט ואימותים</div><div>name חובה → 400 "חסר שם"; icon ברירת מחדל 📄 (maxlength 2 בממשק).</div>
+<div>שלבי עיבוד</div><div>INSERT; "מחיקה" = soft delete (<code>is_active=false</code>): הסוג נעלם מבחירה במסמך חדש, אך מסמכים קיימים עם <code>custom_&lt;id&gt;</code> ממשיכים להציג את שמו ואייקונו.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>פעיל → לא פעיל.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>כפתור המחיקה נשאר; הסוג נעלם מרשימת הבחירה כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-45</code> — מחיקת סוג היא soft delete, כך שמסמכים קיימים שומרים תווית (נבחרה החלופה שאינה חוסמת מחיקה).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="professional dashboard kpi active cases unbilled hours leads revenue דשבורד מקצועי"><h3>דשבורד מקצועי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>renderProfessionalDashboard</code> (business-app.js:45639) → <code>GET /api/professional/dashboard</code> (28967).</div>
+<div>הרשאות</div><div>סשן BIZ; group מהסשן.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div>שאילתות מקבילות; שגיאת שאילתה נרשמת בלוג ומוחזרת כשגיאה (לא כאפס/[] שקט), <code>ARC-33</code>.</div>
+<div>חישובים</div><div><ul>
+<li><code>active_cases=count(call_type='work_order' AND status ∈ open,scheduled,processing,pending_payment)</code>; <code>completed_cases=count(status='completed')</code>.</li>
+<li><code>unbilled_hours=round1(Σminutes לא מחויב/60)</code>; total_hours (ללא שינוי).</li>
+<li>new_leads (status new) (ללא שינוי).</li>
+<li><code>month_revenue=Σ transactions.amount WHERE type='income' AND group_id AND חודש נוכחי (Asia/Jerusalem)</code> (<code>ARC-13</code>: cashflow_entries→transactions).</li>
+<li><code>today_appointments=calendar_events WHERE group_id AND event_date=todayIL() AND status='approved'</code>.</li>
+<li>pending_quotes (status quote + quote_status waiting_customer) (ללא שינוי).</li></ul></div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>6 KPI עם ניווט (cases, timelog, leads, cashflow); משימות דחופות מ-allTasks עד מחר. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-37</code> — KPIs מתוקנים: תיקים פעילים/סגורים לפי הסטטוסים הקנוניים, הכנסות החודש מ-transactions, פגישות היום מ-event_date; שגיאות לא נבלעות.</li>
+<li><code>SRV-03</code> — הגדרת "פעיל" אחידה עם שאר המסכים.</li>
+<li><code>SRV-46</code> — הנתיב מתועד בשמו בפועל.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="timelog timer hours billing csv invoice work order שעות עבודה טיימר חשבונית"><h3>שעות עבודה (Timelog)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב timelog (<code>renderTimelogTab</code>, business-app.js:55428) ובטאב timelogs במודל פקודה (<code>loadWoTimeLogs</code> 43643). API: <code>GET/POST /api/timelog</code> (היום <code>/:groupId</code>, 28619/28629), <code>PATCH /timelog/entry/:id/bill</code> (28642), <code>DELETE /timelog/entry/:id</code> (28649). חדש: <code>POST /api/timelog/bill</code> ("צור חשבונית מהשעות").</div>
+<div>הרשאות</div><div>סשן BIZ עם טאב timelog; group מהסשן; כל פעולה לפי id כוללת <code>AND group_id</code>. user_id של רשומה חדשה מהסשן. קריאה ו"סמן כחויב" — לכל בעל הטאב (כמו היום: הצוות רואה את כל רשומות העסק, CSV). מחיקה — בעל הרשומה או ADMIN/MANAGER.</div>
+<div>קלט ואימותים</div><div>POST: minutes ≥1 → 400 "minutes required"; wo_id (אם נשלח) — פקודה של העסק; rate ≥ 0. לקוח: "הזן מספר דקות". bill: לפחות רשומה אחת לא-מחויבת בבחירה → אחרת 400 "אין שעות לחיוב".</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טיימר: start נשמר ב-localStorage <code>_timelog_timer</code> {groupId,start}; תצוגה כל 1 שנייה; עצירה → <code>elapsed=round(ms/60000)</code> ממלא את שדה הדקות ותיק (ללא שינוי).</li>
+<li>INSERT <code>time_logs</code> (wo_id אופציונלי, rate). "סמן כחויב" → is_billed=TRUE (ללא שינוי).</li>
+<li>"צור חשבונית מהשעות" (טרנזקציה): בחירת רשומות לא-מחויבות (לפי תיק / לקוח / טווח תאריכים; ברירת מחדל — המסננים המוצגים) → תצוגה מקדימה עם הסכום → אישור → יצירת תחנת תשלום ב-<code>work_order_payments</code> (כשיש תיק) או מסמך מקצועי מסוג quote (כשאין) בסכום הנ"ל → סימון הרשומות <code>is_billed=TRUE, billed_ref=&lt;payment|document id&gt;</code>. אחרי ההצלחה — ניווט לתחנה/למסמך (במקום לתזרים בלבד).</li></ol></div>
+<div>חישובים</div><div>שווי = minutes/60 × hourly_rate; "שעות לחיוב" בכותרת = ceil(Σmin לא מחויב/60); סכום חיוב = Σ round2(minutes/60×rate). CSV עם BOM, שם קובץ <code>דוח_שעות_YYYY_MM.csv</code>.</div>
+<div>מכונת מצבים</div><div>time_log: לא מחויב → מחויב (ידני, או דרך חשבונית עם billed_ref).</div>
+<div>תופעות לוואי</div><div>תחנת תשלום / מסמך.</div>
+<div>ממשק</div><div>ללא שינוי בטיימר, ברשימה, ב-CSV ובכפתור "סמן כחויב"; הכפתור "צור חשבונית מהשעות" פותח תצוגה מקדימה ויוצר מסמך חיוב בפועל.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-38</code> — כל נתיבי timelog דורשים סשן עסקי ומסוננים לפי group; user_id מהסשן; מחיקת רשומה של אחר — רק ADMIN/MANAGER (הצפייה בכל רשומות העסק נשמרת).</li>
+<li><code>SRV-39</code> — "צור חשבונית מהשעות" יוצר תחנת תשלום/מסמך ומסמן את הרשומות כמחויבות בטרנזקציה אחת; הסימון הידני נשמר.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="professional cases tab תיקים"><h3>טאב תיקים (Cases)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>switchTab('cases')</code> → <code>renderCasesTab</code> (business-app.js:55341) — שולף <code>GET /api/work-orders/list</code> (במקום <code>/api/store/orders/:groupId</code> וסינון בלקוח) ומקבל רק <code>call_type='work_order'</code>.</div>
+<div>הרשאות</div><div>סשן BIZ עם טאב cases; תפקידי consultant/associate/partner מקבלים את הטאב כברירת מחדל (בנוסף להרשאות המפורשות).</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div>כרטיס לכל תיק עם כותרת מ-<code>quote_title</code>.</div>
+<div>חישובים</div><div>KPI: פעילים (open+scheduled+processing+pending_payment), בטיפול (processing), חדשים/פתוחים (open), הושלמו (completed).</div>
+<div>מכונת מצבים</div><div>לפי הסטטוסים הקנוניים של פקודות עבודה.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>פילטרים all/open/scheduled/processing/pending_payment/completed/cancelled בצד לקוח (במקום all/new/processing/completed; "חדשים" = open); כרטיס פותח <code>openWorkOrderModal</code>; "פתח תיק חדש". תוויות professional ("בטיפול", "הושלם — ממתין לתשלום", "סגור ✓") נשמרות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-03</code> — תיקים בסטטוס open מוצגים ונספרים; כותרת מ-quote_title; פילטרים לפי הרשימה הקנונית.</li>
+<li><code>SRV-47</code> — טאב התיקים (ו-leads, timelog, documents, calendar, tasks) מוגדר כברירת מחדל לתפקידי consultant/associate/partner מתוך קטלוג התפקידים בשרת.</li>
+<li><code>SRV-46</code> — התיעוד מתאר את הנתיב בפועל (אין <code>/api/professional/cases</code>); <code>professional-guide.html</code> מתעדכן.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">חלונות ראווה ציבוריים</h2>
+
+<section class="proc" data-f="storefront professional html booking contact services articles חנות מקצועית"><h3>storefront-professional.html</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מוגש כשה-<code>store_settings.template_id='professional'</code> דרך נתיב <code>/:alias</code> (server.js:23377-23395). <code>initStore</code> (storefront-professional.html:449) → <code>GET /api/storefront/:code</code>.</div>
+<div>הרשאות</div><div>קריאה ציבורית; טפסים — טוקן sc-auth (<code>requireLogin</code> + Bearer).</div>
+<div>קלט ואימותים</div><div>טפסים: כמו בפניות (name/phone/email).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>רינדור מ-<code>settings</code>: שם, לוגו, תמונת בעלים, tagline, תיאור, תווית סוג (lawyer/accountant/consultant/coach/financial/architect/engineer/medical/therapy), badges מ-expertise/specialties/tags (עד 6), סטטיסטיקות (ניסיון, לקוחות, דירוג), highlights, WhatsApp — ללא שינוי.</li>
+<li>שירותים: מ-<code>GET /api/storefront/:code</code> (במקום <code>/api/store/products/:gid</code> שאינו קיים).</li>
+<li>תוכן מנוהל: <code>/api/professional-content/:groupId</code>, <code>/api/professional-expertise/:groupId</code>, <code>/api/professional-articles/:groupId?published=1</code> — אותו מקור כמו <code>renderProfessionalSite</code>; כשאין תוכן מנוהל — fallback לשדות settings הקיימים (מאמרים מ-<code>s.articles||data.articles</code>).</li>
+<li>"קביעת פגישה" → <code>POST /api/professional-leads/:groupId</code> עם message "בקשה לקביעת פגישה — זמן מועדף: X" (source appointment).</li>
+<li>"צור קשר" → <code>POST /api/professional-leads/:groupId</code> (source form) — במקום <code>/api/store/leads</code>.</li>
+<li>שני הטפסים דורשים <code>scAuth.requireLogin</code> ומצרפים Bearer.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>ליד + לקוח עסק.</div>
+<div>ממשק</div><div>עיצוב העמוד ללא שינוי; סעיף השירותים ותחומי העיסוק/מאמרים מציגים נתונים אמיתיים, מקודדים (<code>ARC-27</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-43</code> — שירותים מ-<code>/api/storefront/:code</code> ותוכן מנוהל מנתיבי professional_* (לא עוד "אין שירותים" תמיד).</li>
+<li><code>SRV-42</code> — "צור קשר" יוצר ליד בטאב הפניות.</li>
+<li><code>SRV-36</code> — הטפסים נשלחים עם טוקן sc-auth שנאכף בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront repairs html lead form service request חנות תיקונים"><h3>storefront-repairs.html</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מוגש ל-template_id <code>repairs</code>/<code>maintenance_repair</code> (server.js:23384-23385). <code>loadStore</code> (storefront-repairs.html:496): מזהה מ-<code>?store|storeId|id</code> או alias מתת-דומיין/נתיב <code>/:alias</code>.</div>
+<div>הרשאות</div><div>קריאה ציבורית; טופס הפנייה — טוקן sc-auth.</div>
+<div>קלט ואימותים</div><div>טופס "שלחו פנייה": חובה שם, טלפון, תיאור (לקוח ושרת); כתובת, דחיפות, זמן מועדף אופציונליים.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טעינה מ-<code>GET /api/storefront/:code</code> (כמו שאר החנויות; השרת מזריק את הקוד גם בהגשה דרך <code>/:alias</code>) — במקום <code>/api/store/public/*</code> שאינו קיים. שם, טלפון, שירותים וביקורות מהנתונים האמיתיים; סעיף ביקורות מוצג רק אם יש ביקורות אמיתיות.</li>
+<li>כשל טעינה → הודעת שגיאה "החנות אינה זמינה כרגע" — ללא תוכן דמו, ללא טלפון דמו וללא ביקורות מפוברקות (<code>populateDemo</code> מוסר מהייצור).</li>
+<li>"שלחו פנייה": <code>requireLogin</code>; payload עם serviceName (השירות שנבחר או "פנייה כללית"), description, address, urgency, preferredTime, contactName/contactPhone → <code>POST /api/store/service-request/:groupId</code> → נוצרת <code>service_call</code> עם needs_triage=true + לקוח עסק (ראו "בקשת שירות מחנות").</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>הקריאה נוצרת ב-new (needs_triage).</div>
+<div>תופעות לוואי</div><div>service_call; store_customers; member_business_links.</div>
+<div>ממשק</div><div>עיצוב העמוד, הטופס ושדותיו ללא שינוי; הודעת הצלחה אחרי יצירת הקריאה בפועל.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-20</code> — העמוד טוען נתונים אמיתיים מ-<code>/api/storefront/:code</code>, בלי מצב דמו וביקורות מפוברקות; הפנייה יוצרת קריאת שירות (לא נבלעת ב-'general').</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront html professional branding site renderProfessionalSite אתר תדמית מקצועי"><h3>אתר תדמית מקצועי בתוך storefront.html</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ב-storefront.html במצב branding ו-<code>_btype==='professional'</code> → <code>renderProfessionalSite</code> (1066, 1175).</div>
+<div>הרשאות</div><div>קריאה ציבורית; טופס — טוקן sc-auth.</div>
+<div>קלט ואימותים</div><div>טופס <code>submitProfContact</code> (1590): name או phone חובה, requireLogin.</div>
+<div>שלבי עיבוד</div><div>שליפת <code>/professional-content</code>, <code>/professional-expertise</code>, <code>/professional-articles?published=1</code>; תמיכה ב-?lang=en (dir ltr, שדות _en עם fallback) — ללא שינוי; הטופס → POST professional-leads (source site) עם Bearer.</div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>ליד + לקוח עסק.</div>
+<div>ממשק</div><div>כל טקסט מנוהל (תחומי עיסוק, מאמרים, Hero, אודות) מוצג דרך <code>esc()</code>/textContent (1218-1222 ואילך).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SRV-44</code> — כותרות ותיאורי תחומי עיסוק (וכל תוכן מנוהל) מקודדים — סגירת XSS.</li>
+<li><code>SRV-42</code> — טופס האתר יוצר ליד בטאב הפניות (כמו היום, עם source=site).</li>
+</ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

@@ -350,17 +350,17 @@
 <li>טלפון חובה מגיל 10, ומנורמל (AUTH-34).</li>
 <li>סיסמה: לפי מדיניות AUTH-24 (CHILD לפחות 4, אחרים לפחות 6, מקסימום 72) → 400.</li>
 <li>כינוי קיים בקבוצה (לא תלוי רישיות) → 409 "הכינוי כבר תפוס בסביבה" (AUTH-33).</li>
-<li>employee_role_type (עסק): ערך מחוץ ל-EMPLOYEE_ROLE_TYPES או לא מורשה → נשמר NULL וההצטרפות ממשיכה (AUTH-30 בגרסה המתוקנת).</li>
+<li>employee_role_type (עסק): ערך תקין מהקישור (role_type) נשמר כ-requested_role_type, ונקבע כ-employee_role_type רק באישור המנהל (approve-user, <code>BIZ-20</code>). ערך מחוץ ל-EMPLOYEE_ROLE_TYPES או לא מורשה → נשמר NULL וההצטרפות ממשיכה (AUTH-30 בגרסה המתוקנת).</li>
 <li>pre-invite: שם לא ריק. טלפון מנורמל שלא קיים בקבוצה. כינוי ייחודי (409 על כפילות).</li>
 </ul></div>
-<div>שלבי עיבוד</div><div><ol><li>bcrypt(password,12). email באותיות קטנות.</li><li>אם יש phone ויש משתמש <code>status='invited'</code> באותה קבוצה עם אותו טלפון מנורמל → UPDATE שלו (nickname, שמות, birth_year, hash, role, requested_role, <code>status='pending'</code>, email, employee_role_type).</li><li>אחרת INSERT users עם <code>status='pending'</code>.</li><li>ברקע: <code>sendAlertEmail</code> למנהל אם יש <code>admin_email</code> (כולל "ביקש/ה הרשאת הורה" כשיש requested_role), ו-<code>sendSystemEmail</code> ל-<code>adminNotificationEmail</code> של SA.</li><li>pre-invite: INSERT users עם <code>status='invited'</code>, <code>password_hash=NULL</code> (AUTH-08). role: 'ילד'→CHILD, 'הורה'→MEMBER + requested_role='ADMIN', אחרת MEMBER.</li></ol></div>
-<div>חישובים</div><div>nickname ייחודי לפי (group_id, LOWER(nickname)).</div>
+<div>שלבי עיבוד</div><div><ol><li>bcrypt(password,12). email באותיות קטנות.</li><li>אם יש phone ויש משתמש <code>status='invited'</code> באותה קבוצה עם אותו טלפון מנורמל → UPDATE שלו (nickname, שמות, birth_year, hash, role, requested_role, <code>status='pending'</code>, email, requested_role_type).</li><li>אחרת INSERT users עם <code>status='pending'</code>.</li><li>ברקע: <code>sendAlertEmail</code> למנהל אם יש <code>admin_email</code> (כולל "ביקש/ה הרשאת הורה" כשיש requested_role), ו-<code>sendSystemEmail</code> ל-<code>adminNotificationEmail</code> של SA.</li><li>pre-invite: INSERT users עם <code>status='invited'</code>, <code>password_hash=NULL</code> (AUTH-08). role: 'ילד'→CHILD, 'הורה'→MEMBER + requested_role='ADMIN', אחרת MEMBER.</li></ol></div>
+<div>חישובים</div><div>nickname ייחודי לפי (group_id, LOWER(nickname)) WHERE status&lt;&gt;'deleted', כך שכינוי של משתמש שנמחק משתחרר.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
 <tr><td>—</td><td>invited</td><td>ADMIN בוויזארד (pre-invite)</td><td>סשן ADMIN, שם לא ריק, טלפון וכינוי לא קיימים בקבוצה</td><td>password_hash=NULL, אין אפשרות כניסה</td></tr>
 <tr><td>— / invited</td><td>pending</td><td>המצטרף (/api/join)</td><td>קוד תקף, סיסמה וכינוי תקינים</td><td>מיילים למנהל ול-SA</td></tr>
 <tr><td>pending</td><td>active</td><td>ADMIN (approve-user)</td><td>אותה קבוצה</td><td>role לפי בחירת המנהל, התראה למאושר</td></tr>
 <tr><td>pending</td><td>נמחק</td><td>ADMIN (reject-user)</td><td>אותה קבוצה</td><td>—</td></tr>
-<tr><td>כל מצב</td><td>נמחק</td><td>ADMIN (DELETE /api/users/:id)</td><td>לא ה-ADMIN הפעיל היחיד</td><td>CASCADE סשנים</td></tr>
+<tr><td>כל מצב</td><td>deleted (מחיקה רכה)</td><td>ADMIN (DELETE /api/users/:id)</td><td>לא ה-ADMIN הפעיל היחיד</td><td>ביטול כל הסשנים, ניקוי phone, email ו-password_hash. ההיסטוריה (תנועות, משימות) נשמרת, לפי tobe-family (<code>FAM-20</code>)</td></tr>
 </table></div></div>
 <div>תופעות לוואי</div><div>מיילים למנהל ול-SA.</div>
 <div>ממשק</div><div>app.js: חובת סימון תקנון (<code>join-tos</code>). nickname = firstName+lastName. בהצלחה: toast "בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה." ומעבר ל-login. כפתור "הורה" נשמר: הבחירה מגיעה למנהל כבקשה. 409 מוצג כהודעת שגיאה בטופס. בוויזארד, הקריאה ל-pre-invite עוברת דרך apiFetch עם הטוקן שכבר קיים אחרי היצירה.</div>
@@ -372,7 +372,7 @@
 <li><code>AUTH-34</code> — התאמת invited לפי טלפון מנורמל.</li>
 <li><code>AUTH-30</code> — employee_role_type לא חוקי נשמר NULL (בגרסה המתוקנת).</li>
 <li><code>AUTH-23</code> — bcrypt 12.</li>
-</ul></div>
+<li><code>E2E-06</code> — בעסק, role_type מהקישור נשמר כ-requested_role_type ונקבע רק באישור, כמו ב-tobe-biz (BIZ-20).</li><li><code>E2E-25</code> — מחיקת משתמש יושרה למחיקה רכה (FAM-20) בכל הנתיב המשותף, והייחודיות של כינוי לא כוללת משתמשים שנמחקו.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="approve user reject pending-users admin approval status active notify"><h3>אישור משתמשים ממתינים (pending-users / approve-user)</h3>
@@ -736,14 +736,14 @@
 <section class="proc" data-f="zone manager register pending approve sa status commission"><h3>הרשמת מנהל אזור ואישור SA</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>zone-manager.html <code>zmRegister</code>. SA מאשר ב-PUT.</div>
-<div>הרשאות</div><div>הרשמה: ציבורי מוצהר, עם rate לכל IP. נתיבי SA: verifySA + requireSAPermission('users').</div>
+<div>הרשאות</div><div>הרשמה: ציבורי מוצהר, עם rate לכל IP. נתיבי SA: verifySA + הרשאת הלשונית partners, שהיא open לכל איש צוות SA פעיל לפי SA_TAB_PERMS (tobe-arch), עם audit. כך ניגשים היום (sa-app.js:5035, loadSAPartners → loadZoneManagers).</div>
 <div>קלט ואימותים</div><div><ul><li>חובה name, email ו-password → 400. סיסמה 6 לפחות בשרת ובלקוח. email קיים: pending → "בקשת הרשמה כבר קיימת ומחכה לאישור". active → "כתובת מייל זו כבר רשומה ופעילה במערכת". אחר → "כתובת מייל זו כבר רשומה". ההודעות נשארות, כי בזרימות הרשמה מותר לציין קיום חשבון (AUTH-44). מוגבל ל-30 בקשות בדקה לכל IP.</li></ul></div>
 <div>שלבי עיבוד</div><div>INSERT zone_managers(status 'pending', commission_pct 5, bcrypt 12). SA: <code>GET /api/sa/zone-managers/pending</code>. <code>PUT /api/sa/zone-managers/:id</code> עם <code>status</code>. <code>POST /api/sa/zone-managers</code> יוצר ישירות (status 'active').</div>
 <div>חישובים</div><div>commission_pct ברירת מחדל 5.</div>
 <div>מכונת מצבים</div><div>pending → active (SA, PUT status). active → כל ערך אחר (SA): כל סשני המנהל מבוטלים (ARC-08). מחיקה (SA DELETE): CASCADE סשנים. כניסה רק ל-active.</div>
 <div>תופעות לוואי</div><div>ביטול סשנים בשינוי status.</div>
 <div>ממשק</div><div>אחרי הרשמה מוצגת לשונית "pending". ללא שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>ARC-08</code> (AUTH-03) — שינוי status מבטל סשנים.</li><li><code>AUTH-44</code> — ההודעות נשמרות, עם rate.</li><li><code>AUTH-24</code> — מינימום 6 גם בשרת.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-08</code> (AUTH-03) — שינוי status מבטל סשנים.</li><li><code>AUTH-44</code> — ההודעות נשמרות, עם rate.</li><li><code>AUTH-24</code> — מינימום 6 גם בשרת.</li><li><code>E2E-20</code> — הרשאת אישור מנהל אזור יושרה ל-SA_TAB_PERMS: לשונית partners (open) במקום users, כמו הגישה בפועל היום.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="zone manager login zm_token zm_manager session db"><h3>כניסת מנהל אזור</h3>

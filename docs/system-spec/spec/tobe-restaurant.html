@@ -180,7 +180,7 @@
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>סה"כ = Σ<code>price×qty</code> של submitted שלא בוטלו (אחרי טיפול ב-pending).</li>
-<li><code>POST /api/tables/:tableNumber/close-bill {method}</code> בטרנזקציה אחת (<code>ARC-11</code>): כל הזמנות השולחן הפתוחות (orderId בחשבון) עוברות ל-<code>completed</code> דרך <code>completeOrder</code> — פעם אחת לכל הזמנה (אידמפוטנטי, ראו "מחזור חיים"); רישום התשלום ב-<code>notes.payments</code>/רשומת תשלום של ההזמנות; INSERT לארכיון <code>restaurant_closed_bills(group_id, table, total, method, items, closed_at, waiter_id)</code>; מחיקת החשבון; השולחן → free, טיימר מאופס.</li>
+<li><code>POST /api/tables/:tableNumber/close-bill {method}</code> בטרנזקציה אחת (<code>ARC-11</code>): כל הזמנות השולחן הפתוחות (orderId בחשבון) עוברות ל-<code>completed</code> דרך <code>completeOrder</code> — פעם אחת לכל הזמנה (אידמפוטנטי, ראו "מחזור חיים"); רישום התשלום ב-<code>store_order_payments(order_id, method, amount)</code> לכל הזמנה (method: cash / credit / app / unspecified, כש-unspecified נספר כתקבול), כמו ב-pos/sale (<code>STR-22</code>), ובנוסף ב-<code>notes.payments</code> לתאימות. store_orders.created_by_user_id = המלצר מהסשן, כדי שמזומן ייספר בסגירת הקופה שלו (tobe-biz, <code>E2E-08</code>); INSERT לארכיון <code>restaurant_closed_bills(group_id, table, total, method, items, closed_at, waiter_id)</code>; מחיקת החשבון; השולחן → free, טיימר מאופס.</li>
 <li>הלקוח: ארכיון <code>closed_bills_{gid}</code> מקומי נשאר כמטמון (עד 200), פתיחה מחדש של המסוף (כקיים).</li>
 </ol></div>
 <div>חישובים</div><div>total כנ"ל; הכנסה נרשמת פעם אחת לכל הזמנה ב-completeOrder (לא בסגירה בנפרד) — אין כפל.</div>
@@ -188,7 +188,7 @@
 <div>תופעות לוואי</div><div>תופעות ה-completed (cashback, הכנסה, ניכוי מלאי, FLOW, audit, התראה) — פעם אחת לכל הזמנה. הארכיון בשרת זמין לדוח יומי (backlog — <code>RST-47</code>).</div>
 <div>ממשק</div><div>מודאל הסגירה ללא שינוי (3 אמצעים + "לא צוין"); דיאלוג pending חדש; הודעת שגיאה אמיתית אם הסגירה נכשלה (השולחן לא משוחרר).</div>
 <div>שינויים מהקיים</div><div><ul><li><code>RST-13</code> (מתוקן) — סגירה בשרת: completed לכל הזמנה, רישום תשלום, ארכיון בשרת; pending מטופל בדיאלוג; אמצעי תשלום נשאר אופציונלי.</li>
-<li><code>RST-47</code> — "הדפס דוח יומי" במדריך (restaurant-guide.html:390) נשאר ומסומן backlog.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+<li><code>RST-47</code> — "הדפס דוח יומי" במדריך (restaurant-guide.html:390) נשאר ומסומן backlog.</li><li><code>RST-01</code> — אימות.</li><li><code>E2E-15</code> — סגירת חשבון רושמת store_order_payments ו-created_by_user_id, ש-completeOrder (הכנסה לפי תקבולים) וסגירת הקופה צורכים.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="waiter ready section items ready served pickup delivered shipped"><h3>רשימת "מוכן להגשה/איסוף" למלצר</h3>
@@ -364,12 +364,13 @@
 <tr><td>pending</td><td>rejected</td><td>עסק "דחה עם חלופות"</td><td>—</td><td><code>alternatives_json</code>, inbox</td></tr>
 <tr><td>pending/approved</td><td>cancelled</td><td>עסק (ביטול ללא מחיקה)</td><td>—</td><td>inbox ללקוח; שחרור שולחן</td></tr>
 <tr><td>rejected</td><td>cancelled</td><td>לקוח בחר חלופה / "לא מתאים"</td><td>—</td><td>הזמנה חדשה נוצרת (בחלופה)</td></tr>
+<tr><td>approved</td><td>approved + seated_at=NOW()</td><td>צוות שולחנות (הושבה ב-openReservedTableModal)</td><td>השולחן המשובץ מסומן occupied</td><td>ההזמנה "מומשה": לא נגזרת עוד כ-reserved ולא נספרת כממתינה. אין שינוי בערך status, כדי לא לשבור מסכים קיימים</td></tr>
 <tr><td>pending/approved</td><td>cancelled_by_customer</td><td>לקוח מאומת</td><td>חלון ביטול</td><td>inbox לעסק; שחרור שולחן</td></tr>
 <tr><td>כל מצב</td><td>(נמחק)</td><td>עסק ✕ (<code>DELETE /api/calendar/events/:id</code>, בעלות)</td><td>—</td><td>—</td></tr>
 </table></div></div>
 <div>תופעות לוואי</div><div>SMS Twilio, inbox; audit.</div>
 <div>ממשק</div><div>כרטיס בקשה "🍽️ הזמנת שולחן" עם "אשר", "דחה", ✕ (26673-26690); מונה ממתינות ב-KPI ובפעולה מהירה "📅 הזמנות שולחן" (5940, 39836) — כקיים. חדש: בורר שולחן כשהאישור מחזיר 409, ותצוגת השולחן המשובץ.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>RST-18</code> (מתוקן) — מעברים מוגדרים, 409 עם בחירה ידנית, ביטול ע"י העסק.</li><li><code>RST-47</code> — עדכון מדריך הזמנות שולחן (שיבוץ, 409, ביטול).</li><li><code>RST-04</code> — אישור משתקף כ-reserved ברשת.</li><li><code>RST-15</code> — שיבוץ לפי הפונקציה האחידה.</li><li><code>RST-01</code> — אימות ובעלות.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-18</code> (מתוקן) — מעברים מוגדרים, 409 עם בחירה ידנית, ביטול ע"י העסק.</li><li><code>RST-47</code> — עדכון מדריך הזמנות שולחן (שיבוץ, 409, ביטול).</li><li><code>RST-04</code> — אישור משתקף כ-reserved ברשת.</li><li><code>RST-15</code> — שיבוץ לפי הפונקציה האחידה.</li><li><code>RST-01</code> — אימות ובעלות.</li><li><code>E2E-16</code> — הוגדר מצב "מומשה" (seated_at) שרשת השולחנות כותבת בהושבה, במקום תופעה שלא הוגדרה במכונת המצבים של ההזמנה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="table reservation reject alternatives suggest-alts reject-with-alts accept alt decline sc-auth rejected"><h3>דחיית הזמנה עם הצעת שעות חלופיות ובחירת חלופה ע"י הלקוח</h3>

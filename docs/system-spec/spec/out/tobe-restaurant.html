@@ -1,0 +1,1055 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · מסעדה ומזון · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · מסעדה ומזון</h1><span class="meta">54 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="cur">יעד · מסעדה</a><a href="tobe-sport.html" class="">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>מפרט TO-BE — מסעדה, תפריטי אירועים, Food Cost, רכש ומלאי עסקי.</b> המסמך מכסה את כל <b>54 התהליכים</b> שב-rules-restaurant.html (אף תהליך לא הושמט ולא מוזג), ומחיל את כל <b>47 פריטי ההחלטה</b> של RST (אין פריטי dup_of בתחום). החלטות ARC חוצות מוחלות לפי מזהה בלבד: מודל אימות ו-default-deny (<code>ARC-01</code>, <code>ARC-02</code>, <code>ARC-03</code>), groupId מהסשן וסינון לפי group_id (<code>ARC-04</code>), תפקידים בשרת (<code>ARC-06</code>), טרנזקציות אמיתיות (<code>ARC-11</code>), מיגרציות (<code>ARC-12</code>), הסרת נתיבי DDL (<code>ARC-10</code>), לקוח מאוחד (<code>ARC-14</code>), הודעות/inbox מאוחדים (<code>ARC-16</code>), זכאות מודולים (<code>ARC-17</code>), audit_log ו-appointments מאוחדים (<code>ARC-19</code>), מע"מ 18% (<code>ARC-21</code>), תהליכי רקע (<code>ARC-23</code>), מצב משותף (<code>ARC-24</code>), שעון Asia/Jerusalem (<code>ARC-25</code>), העלאות (<code>ARC-26</code>), escaping (<code>ARC-27</code>), trust proxy (<code>ARC-28</code>), rate-limit ו-OTP (<code>ARC-29</code>), AI gateway (<code>ARC-30</code>), קודי דיבאג (<code>ARC-31</code>), בחירת סוג עסק (<code>ARC-37</code>), מדריכים (<code>ARC-42</code>).</p>
+<p><b>סיווג:</b> FIX 18 · HARDEN 8 · CONSISTENCY 8 · BEHAVIOR 11 · SCOPE 2. <b>פריטים שתוקנו לפי הכלל המנחה: 15.</b></p>
+<p><b>מוסכמות בכל התהליכים:</b> "צוות שולחנות" = כל סשן biz פעיל של הקבוצה (אריח <code>__tables__</code> הוא INTRINSIC ומוצג לכולם — נשמר). "מנהלי משמרת" = ADMIN, MANAGER, או <code>employee_role_type ∈ {shift_manager, branch_manager}</code>. "בעל טאב X" = מי שהטאב מופיע אצלו היום (ADMIN/MANAGER, <code>permissions.tabs</code>, <code>ROLE_TYPE_TABS</code> business-app.js:37506) — השרת אוכף בדיוק את אותה נראות (<code>ARC-06</code>), כך שמשתמש לגיטימי לא מאבד פעולה. localStorage נשאר <b>מטמון בלבד</b> בכל מקום שהוחלט על מקור אמת בשרת.</p>
+<h4>פריטים שתוקנו (REVISED)</h4>
+<ul>
+<li><code>RST-03</code> — ההצעה מנעה מטבח (cook) לכתוב ב-Food Cost, אף שהטאב פתוח לו היום. <b>כלל סופי:</b> מטריצת השרת נגזרת מנראות הטאבים הקיימת (ADMIN/MANAGER + permissions.tabs + ROLE_TYPE_TABS); בעל טאב רשאי לקרוא ולכתוב בו כמו היום. הגבלות נוספות רק לפעולות רגישות: ביטול פריט שנשלח (RST-11), שינוי מחיר מכירה בקטלוג (RST-31), הגדרת אישור אוטומטי, שינוי סטטוס רכש ידני (ADMIN, כקיים).</li>
+<li><code>RST-10</code> — "אין שולחן פנוי מתאים" היה חוסם הושבה כשיש שולחן פנוי קטן מדי/ללא קיבולת. <b>כלל סופי:</b> התור בשרת; הושבה בוחרת שולחן free בקיבולת הקטנה ביותר ≥ guests; שולחן ללא קיבולת מוגדרת נחשב מתאים; אם אין מתאים אך יש free — מוצעת בחירה ידנית של שולחן פנוי (override); רק כשאין אף free → "אין שולחן פנוי כרגע".</li>
+<li><code>RST-11</code> — ההצעה שללה ממלצר את היכולת להסיר פריט שנשלח. <b>כלל סופי:</b> מנהלי משמרת מבטלים ישירות (void בשרת, עם סיבה); כל משתמש אחר במסוף המלצר מבצע "בקש ביטול" עם סיבה, והבקשה מאושרת/נדחית ע"י מנהל משמרת (תואם restaurant-guide.html:1476). פריט שסומן מוכן — סיבה חובה בכל מקרה.</li>
+<li><code>RST-12</code> — ההצעה העבירה גם הזמנות QR ישירות למטבח וביטלה כליל את שלב "אשר לטבח" להזמנות שולחן. <b>כלל סופי:</b> הזמנות <code>table</code> (מסוף מלצר) ו-<code>internal</code> (קופה) נוצרות ב-<code>new</code>, אלא אם ההגדרה <code>store_settings.table_orders_require_approval=true</code> (ברירת מחדל false) — אז כמו היום <code>pending_approval</code>. הזמנות <code>qr_table</code>, אתר ו-<code>restaurant-v3</code> נשארות <code>pending_approval</code> (המדריך restaurant-guide.html:370).</li>
+<li><code>RST-13</code> — ההצעה חסמה סגירה עם פריטי pending וחייבה אמצעי תשלום. <b>כלל סופי:</b> בסגירה עם pending מוצג "שלח למטבח וסגור" / "הסר וסגור" (אין סגירה עם pending ללא הזמנה); אמצעי תשלום נשאר לא-חובה — הערך "לא צוין" נשמר כ-<code>unspecified</code>.</li>
+<li><code>RST-15</code> — עסק ללא שעות פתיחה/קיבולות היה מאבד זמינות. <b>כלל סופי:</b> פונקציה אחת <code>checkTableAvailability</code>; שעות מ-store_settings, ובהיעדרן 10:00–23:00 (כקיים); שולחן ללא קיבולת מתאים לכל הרכב; סלוטים כל 30 דק'; משך ישיבה 90 דק' (ניתן להגדרה).</li>
+<li><code>RST-18</code> — 409 ללא שולחן היה חוסם אישור, ופעולת AI הייתה נכשלת. <b>כלל סופי:</b> מעברים מוגדרים + מנהל רשאי גם <code>pending/approved→cancelled</code>; 409 מחזיר רשימת שולחנות ומאפשר בחירה ידנית (גם שולחן חופף, עם אזהרה); יצירה ב-approved (AI) ללא שולחן פנוי → נשמרת <code>pending</code> עם הודעה.</li>
+<li><code>RST-22</code> — ההצעה מחקה נתיבים וטבלאות CRM מסעדה (נתונים קיימים). <b>כלל סופי:</b> היכולות (לקוח, ביקורים, צ'ק-אין עצמי, צ'ק-אאוט, היסטוריה, KPI, לקוחות רדומים) נשמרות; <code>restaurant_customers</code> מועברת במיגרציה ל-<code>customers</code> (ARC-14) ו-<code>restaurant_visits</code> נשמרת כטבלת הרחבה עם FK; הנתיבים מאובטחים (verifyBiz; self-visit/my-visits ב-sc-auth); "רדום" = 60 יום (ניתן להגדרה).</li>
+<li><code>RST-26</code> — "או שהכפתור מוסר". <b>כלל סופי:</b> שכפול תבנית ממומש (לא מוסר).</li>
+<li><code>RST-29</code> — אירוע ללא שורות הצעה היה מאבד שריון אוטומטי. <b>כלל סופי:</b> שריון מהשורות שנבחרו בהצעה/הזמנה המקושרת; בהיעדרן — כל מנות התבנית כקיים; בשני המקרים נוסחת פחת והמרת יחידות אחידות.</li>
+<li><code>RST-35</code> — הסרת הבורר צמצמה את היכולת לבחור תבנית קטגוריות אחרת. <b>כלל סופי:</b> הבורר נשמר בשם "תבנית קטגוריות" (ללא "סוג עסק"), ברירת המחדל נגזרת מ-<code>business_type</code>, ואינו כותב <code>business_type</code> (ARC-37). ייבוא לקטלוג עובר דרך bulk-import עם מגבלת התוכנית.</li>
+<li><code>RST-40</code> — ההצעה מחקה את הסטטוס pending ואת בורר ה-ADMIN החופשי. <b>כלל סופי:</b> נתיב יחיד; pending נשמר; ADMIN רשאי לקבוע כל סטטוס מלבד delivered מכל מצב שאינו delivered (כקיים); delivered רק דרך receive ואינו ניתן לשינוי ידני.</li>
+<li><code>RST-44</code> — הסתרת כפתור "סריקה חכמה". <b>כלל סופי:</b> הכפתור והודעת "בקרוב" נשארים; שאר ההצעה (שימוש בקישורים בקבלת סחורה, req_N) מיושם.</li>
+<li><code>RST-45</code> — מניעת מחיקה ב-0 גם במזווה המשפחתי הייתה משנה התנהגות משפחה (תחום FAM). <b>כלל סופי:</b> בעסק <code>use</code> לעולם לא מוחק; בכל קבוצה אין מחיקה כש-reserved_qty&gt;0; משפחה ללא שריון — כקיים.</li>
+<li><code>RST-47</code> — עדכון מדריך לא יוחק הבטחות. <b>כלל סופי:</b> המדריך מתעדכן באותו קומיט; הבטחות שהחלטות מממשות (QR לשולחן, ביטול באישור מנהל משמרת, רדום 60 יום, סגירת חשבון בשרת) נשארות; הבטחה שלא מומשה ("הדפס דוח יומי" מסגירת חשבונות) נשארת ומסומנת backlog — לא נמחקת.</li>
+</ul>
+</div>
+
+<h2 class="grp">מסעדה — ניהול שולחנות ושירות (מלצר / מנהל)</h2>
+
+<section class="proc" data-f="tables table states grid sync polling restaurant_tables free occupied awaiting_payment reserved disabled version"><h3>מצב שולחנות (Grid) וסנכרון בין מכשירים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל/מנהל משמרת/מלצר בעסק מסוג מסעדה פותח את פאנל "ניהול שולחנות" (<code>window.openAdminTablesPanel</code> business-app.js:41568, אריח <code>__tables__</code> INTRINSIC business-app.js:35160 — נשמר) או את דשבורד התפקיד. לחיצה על אריח שולחן משנה את מצבו.</div>
+<div>הרשאות</div><div>צוות שולחנות (כל סשן biz של הקבוצה, כקיים בממשק), נאכף בשרת: <code>authenticate()+requireType('biz')</code>, groupId מ-<code>req.principal</code> בלבד (<code>RST-01</code>, <code>ARC-02</code>, <code>ARC-04</code>). קביעת/ביטול <code>disabled</code> — מנהלי משמרת.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>מספר השולחנות = <code>family_groups.table_count</code> (ברירת מחדל 8, <code>parseInt(table_count)||8</code>), נקבע ב-<code>PATCH business-settings</code> כקיים; שורות <code>restaurant_tables</code> 1..table_count נוצרות/מסונכרנות אוטומטית בשינוי המספר (שולחן שהוסר מסומן is_disabled ולא נמחק אם יש לו חשבון פתוח).</li>
+<li>שולחן <code>disabled</code> — לחיצה לא עושה דבר (כקיים).</li>
+<li>שולחן <code>reserved</code> — לחיצה פותחת <code>openReservedTableModal</code> (כקיים).</li>
+<li><code>PATCH /api/tables/:tableNumber</code> עם <code>{state, version}</code>; state ∈ {free, occupied, awaiting_payment, disabled}; <code>reserved</code> אינו ניתן לכתיבה (נגזר). version לא תואם → 409 "השולחן עודכן ממכשיר אחר" + המצב העדכני.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מקור אמת: <code>restaurant_tables(group_id, table_number, capacity, merged_into, is_disabled, state, state_changed_at, version)</code> (<code>RST-06</code>, מיגרציה <code>ARC-12</code>; ייבוא ראשוני מ-<code>restaurant_table_states.states</code>).</li>
+<li><code>_applyTableState</code>: הלקוח שולח PATCH לשולחן בודד; בשרת UPDATE … WHERE version=$v → version+1; מעבר ל-<code>occupied</code> ממצב אחר קובע <code>state_changed_at=NOW()</code> (טיימר הישיבה); כל מצב אחר מאפס את הטיימר (כקיים).</li>
+<li>localStorage <code>tables_{groupId}</code> נשאר מטמון לתצוגה מיידית בלבד.</li>
+<li>Polling כל 4000ms (<code>startTablePolling</code>) קורא <code>GET /api/tables</code> + bills; דילוג אם זהה; אחרת השרת גובר ורינדור <code>.table-grid-card</code> (כקיים). <code>startTableGridPolling</code> כל 5000ms לשיוכים, למעט כשמודאל POS המלצר פתוח (כקיים).</li>
+<li><code>reserved</code> נגזר בשרת בכל GET (<code>RST-04</code>): שולחן עם הזמנת שולחן <code>approved</code> ו-<code>reserved_table_number=N</code> שמועדה בטווח [start−30 דק', start+15 דק'] ושמצבו free → מוחזר <code>reserved</code> עם שעת ההזמנה. משהשולחן הושב (occupied) — המצב האמיתי גובר.</li>
+<li><code>loadTableReservationsForGrid</code> טוען הזמנות 7 ימים קדימה לתצוגת שעות על אריחי reserved (עד 2) — כעת התצוגה אכן מופיעה.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li>טיימר ישיבה: <code>elapsed = floor((now − state_changed_at)/60000)</code>; ספים ברירת מחדל <code>{amber:60, orange:80, red:90, maxBar:120}</code>, נשמרים ב-<code>store_settings.table_timer_thresholds</code> (<code>RST-06</code>; localStorage — מטמון); ≤60 ירוק, ≤80 ענבר, ≤90 כתום, מעל אדום; רוחב פס <code>min(100, round(elapsed/maxBar×100))%</code>.</li>
+<li>סיכום: פנויים = count − (occupied+awaiting_payment) − reserved; תפוסים = occupied; ממתינים = awaiting_payment. שולחנות ממוזגים (<code>merged_into</code> לא ריק) לא מוצגים (כקיים).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>ערכים: free, reserved (נגזר), occupied, awaiting_payment, disabled. מחזור ידני <code>TABLE_STATE_CYCLE</code> כקיים.
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>free</td><td>occupied</td><td>צוות שולחנות (לחיצה / "הושב" מתור)</td><td>version תואם</td><td>טיימר מתחיל; טוסט</td></tr>
+<tr><td>occupied</td><td>awaiting_payment</td><td>לחיצה / ⚙️ / מלצר "בקש חשבון"</td><td>—</td><td>טיימר נמחק</td></tr>
+<tr><td>awaiting_payment</td><td>free</td><td>לחיצה / "שולם — שחרר" / סגירת חשבון</td><td>—</td><td>—</td></tr>
+<tr><td>awaiting_payment</td><td>occupied</td><td>⚙️ "חזור לתפוס"</td><td>—</td><td>טיימר מתאפס</td></tr>
+<tr><td>כל מצב ≠free</td><td>free</td><td>"שחרר שולחן"</td><td>—</td><td>—</td></tr>
+<tr><td>free</td><td>awaiting_payment</td><td>⚙️</td><td>—</td><td>—</td></tr>
+<tr><td>occupied/awaiting_payment</td><td>free</td><td>תשלום מלא בקופה לשולחן (<code>finalizePOSOrder</code>)</td><td>שולם במלואו</td><td>טיימר נמחק; חשבון השולחן נסגר (<code>RST-05</code>)</td></tr>
+<tr><td>free (נגזר reserved)</td><td>occupied / free</td><td><code>openReservedTableModal</code></td><td>—</td><td>הושבה מסמנת את ההזמנה כמומשה</td></tr>
+<tr><td>free</td><td>disabled</td><td>מנהלי משמרת, מודאל הגדרות שולחנות</td><td>אין חשבון פתוח</td><td>is_disabled=true</td></tr>
+<tr><td>disabled</td><td>free</td><td>מנהלי משמרת</td><td>—</td><td>—</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>אין התראות/ארנק. שינוי disabled נרשם ב-audit_log (<code>ARC-19</code>).</div>
+<div>ממשק</div><div><code>renderTableGrid</code> — ללא שינוי: רשת 4 עמודות; מספר, קיבולת 👥, מלצר, תווית מצב, שעות הזמנה (עד 2), טיימר, ↔️ (רק occupied/awaiting_payment), ⚙️ (לא ל-free/disabled), 📱 QR. כותרת "📅 חלונות" ו-⚙️. תור המתנה מתחת. KPI: פנויים/תפוסים/לתשלום/בקשות שירות. במודאל ההגדרות נוסף מתג "השבת שולחן" למנהלי משמרת. התנגשות 409 → טוסט ורינדור מחדש.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RST-01</code> — PUT/GET states ללא אימות → verifyBiz, groupId מהסשן.</li>
+<li><code>RST-06</code> — מקור אמת ב-restaurant_tables עם PATCH לשולחן בודד ו-version (409); ספי טיימר בשרת.</li>
+<li><code>RST-04</code> — reserved נגזר מהזמנה מאושרת ומשובצת; disabled ידני ע"י מנהל ונשמר בשרת.</li>
+<li><code>RST-05</code> — תשלום מלא בקופה לשולחן משחרר ל-free במקום awaiting_payment.</li>
+<li><code>RST-47</code> — restaurant-guide.html מתעדכן באותו קומיט (מצבי reserved/disabled, סנכרון, 409).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="table assignments waiter assign shift_date restaurant_table_assignments"><h3>שיוך מלצרים לשולחנות (משמרת יומית)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל בפאנל ניהול שולחנות בוחר מלצר לכל שולחן (<code>window.assignTableWaiter</code> business-app.js:40392).</div>
+<div>הרשאות</div><div>כתיבה: מנהלי משמרת וצוות שולחנות כפי שהפאנל נגיש היום; קריאה: צוות שולחנות. verifyBiz + groupId מהסשן (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>רשימת המלצרים: חברי צוות שאינם ADMIN ו-<code>employee_role_type==='waiter'</code> או ללא תפקיד (business-app.js:41399; dropdown 39706) — ללא שינוי.</li><li>שרת: כל table_number קיים בעסק; כל שם/מזהה מלצר הוא משתמש של הקבוצה (<code>ARC-04</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מטמון מקומי <code>table_assign_{gid}_{shiftDate}</code> = <code>{tableId: waiterName}</code>; ריק = מחיקה (כקיים).</li>
+<li><code>PUT /api/tables/assignments</code> → UPSERT <code>restaurant_table_assignments(group_id, assignments, shift_date, updated_at)</code>.</li>
+<li><code>GET</code>: אם <code>shift_date</code> ≠ יום המשמרת הנוכחי מחזיר <code>{}</code> — איפוס יומי אוטומטי (כקיים, בנוסחה החדשה).</li>
+<li>מסוף המלצר מושך כל 5 שניות ומאזין ל-<code>storage</code> לטוסט "שולחנות עודכנו" (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div><ul><li>יום משמרת (<code>RST-08</code>, <code>ARC-25</code>): <code>shiftDate = toILDate(now − 5h)</code> — לפי Asia/Jerusalem עם החלפה ב-05:00 (משמרת לילה שייכת ליום הקודם); אותה פונקציה בלקוח ובשרת.</li><li>סיכום למלצר: Σ<code>price×qty</code> של פריטי submitted (ללא פריטים שבוטלו) בחשבונות שולחנותיו + מספר שולחנותיו ב-awaiting_payment (כקיים).</li></ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>"👥 תמונת-על מלצרים"; שם המלצר על האריח ובצ'יפ במסוף — ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות ובעלות בשרת.</li><li><code>RST-08</code> — shift_date לפי שעון ישראל עם החלפה ב-05:00 במקום UTC.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table transfer merge capacity qr table_cap table_merge qr_table"><h3>העברת שולחן, מיזוג, קיבולת ו-QR לשולחן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל/מלצר: ↔️ באריח (<code>openTableTransferModal</code> 40317), ⚙️ "הגדרות שולחנות" (<code>openTableSettingsModal</code> 40728), 📱 (<code>showTableQR</code> 40529).</div>
+<div>הרשאות</div><div>העברה/מיזוג/קיבולת/QR — צוות שולחנות (כקיים); verifyBiz + בעלות על השולחנות (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>העברה (<code>RST-07</code>): יעדים = שולחן ≠ מקור, לא disabled. יעד <code>free</code> → העברה. יעד תפוס/ממתין לתשלום → לא מועבר בשקט; מוצג "השולחן תפוס — למזג?" שמבצע מיזוג (כולל איחוד החשבונות) — היכולת להושיב יחד נשמרת.</li>
+<li>קיבולת: 1–20; ≤0/ריק מוחק (כקיים).</li>
+<li>מיזוג: יעדים שאינם כבר ממוזגים (כקיים).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>העברה</b> — <code>POST /api/tables/:from/transfer {to}</code> בטרנזקציה אחת (<code>ARC-11</code>): <code>state[to]=state[from]</code>, <code>state[from]='free'</code>, העברת <code>state_changed_at</code> (טיימר), העברת החשבון הפתוח ב-<code>restaurant_table_bills</code>, העברת שיוך המלצר ב-<code>restaurant_table_assignments</code>; version+1 לשני השולחנות.</li>
+<li><b>קיבולת</b> — <code>PATCH /api/tables/:n {capacity}</code> נשמר ב-<code>restaurant_tables.capacity</code> (<code>RST-06</code>).</li>
+<li><b>מיזוג</b> <code>mergeTable(A,B)</code>: <code>merged_into[B]=A</code> (B מוסתר); הקיבולת האפקטיבית של A = capA+capB (מחושבת, הקיבולות המקוריות נשמרות); אם ל-B חשבון פתוח — הפריטים מצורפים לחשבון A. <b>ביטול מיזוג</b> מנקה <code>merged_into</code> וכל שולחן חוזר לקיבולתו המקורית.</li>
+<li><b>QR</b> (<code>RST-09</code>): URL <code>{origin}/{store_alias||id}?table={N}</code> (נתיב קיים server.js:23346); תמונה 200×200 כקיים.</li>
+</ol></div>
+<div>חישובים</div><div>קיבולת אפקטיבית לשולחן ראשי = capacity + Σcapacity של הממוזגים אליו; משמשת בזמינות (RST-15) ובהושבה מתור (RST-10).</div>
+<div>מכונת מצבים</div><div>ראו "מצב שולחנות".</div>
+<div>תופעות לוואי</div><div>הזמנה מ-QR: החזית קוראת <code>table</code>, שומרת את מספר השולחן, מציגה "הזמנה לשולחן N", מבטלת אפשרות משלוח ושולחת <code>orderSource='qr_table'</code> + <code>tableNumber</code>; ההזמנה נכנסת כ-<code>pending_approval</code> (ראו RST-12 מתוקן) ומתווספת לחשבון השולחן אצל המלצר כ-submitted עם orderId.</div>
+<div>ממשק</div><div>מודאלים תחתונים וטוסטים "שולחן X הועבר לשולחן Y", "שולחן A + B מוזגו" — כקיים; דיאלוג "השולחן תפוס — למזג?" חדש.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RST-07</code> — אין דריסה שקטה של יעד תפוס (מוצע מיזוג); ההעברה בשרת כוללת חשבון ושיוך מלצר.</li>
+<li><code>RST-06</code> — קיבולת ומיזוג בשרת; ביטול מיזוג מחזיר קיבולת מקורית.</li>
+<li><code>RST-09</code> — QR לנתיב קיים, פרמטר table נקרא והזמנה משויכת לשולחן.</li>
+<li><code>RST-47</code> — סעיף "📱 QR לשולחן" במדריך (restaurant-guide.html:543) נשאר ומתעדכן לנתיב החדש.</li>
+<li><code>RST-01</code> — אימות ובעלות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="waitlist queue waiting seat restaurant_waitlist capacity"><h3>תור המתנה (Waitlist)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מארחת/מנהל לוחץ "+ הוסף" בכרטיס "⏳ תור המתנה" מתחת לרשת (business-app.js:40865).</div>
+<div>הרשאות</div><div>צוות שולחנות; verifyBiz + group_id מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שם חובה — "נא להזין שם לקוח"; סועדים ברירת מחדל 2 (1–30); טלפון והערות אופציונליים.</li>
+<li>הושבה: חייב לפחות שולחן <code>free</code> אחד — אחרת "אין שולחן פנוי כרגע" (כקיים).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הוספה: INSERT <code>restaurant_waitlist(group_id, name, phone, guests, notes, added_at, status='waiting')</code> (<code>RST-10</code>); מוצג בכל המכשירים (polling הרשת).</li>
+<li>הושבה <code>seatFromWaitlist</code>: בחירת שולחן free בעל הקיבולת האפקטיבית הקטנה ביותר ≥ guests; שולחן ללא קיבולת נחשב מתאים; שוויון → המספר הנמוך. אם אין מתאים אך יש free — דיאלוג בחירת שולחן ידנית מתוך הפנויים. בטרנזקציה: <code>status='seated'</code> + מעבר השולחן ל-occupied.</li>
+<li>הסרה: <code>status='removed'</code>.</li>
+</ol></div>
+<div>חישובים</div><div>זמן המתנה <code>floor((now−added_at)/60000)</code>; ≥30 דק' בכתום (כקיים).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>—</td><td>waiting</td><td>צוות</td><td>שם</td><td>—</td></tr><tr><td>waiting</td><td>seated</td><td>צוות "הושב"</td><td>יש שולחן free</td><td>שולחן → occupied</td></tr><tr><td>waiting</td><td>removed</td><td>צוות "הסר"</td><td>—</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי חזותי; התור משותף לכל המכשירים; דיאלוג בחירה ידנית כשאין שולחן מתאים בקיבולת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-10</code> (מתוקן) — תור בשרת והושבה לפי קיבולת עם fallback לבחירה ידנית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="waiter pos table bill submit kitchen restaurant_table_bills pending submitted orderSource table void"><h3>מסוף מלצר — חשבון שולחן ושליחה למטבח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מלצר/מנהל פותח "🍽️ הזמנה לשולחן" (<code>window.showWaiterPOS</code> business-app.js:31890), בוחר שולחן, מוסיף מנות ושולח למטבח.</div>
+<div>הרשאות</div><div>בעלי טאב pos/sales (waiter, cashier, shift_manager, branch_manager, ADMIN, MANAGER — כקיים), נאכף בשרת (<code>RST-03</code>, <code>ARC-06</code>). ביטול ישיר של פריט שנשלח — מנהלי משמרת; שאר המשתמשים — "בקש ביטול" (<code>RST-11</code> מתוקן).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הוספת פריט ללא שולחן — "בחר שולחן תחילה" (כקיים).</li>
+<li>מוצרים: <code>storeCatalogCache</code> עם <code>is_active!==false</code>; קאש ריק → טעינת קטלוג (כקיים).</li>
+<li>מוצר עם <code>options_text</code> (אורך&gt;10) → מודאל bundle/pizza/modifiers עם <code>_waiterPOSMode</code> (כקיים); <code>is_complimentary</code> → "ללא חיוב" (כקיים).</li>
+<li>שליחה ללא פריטים חדשים — "אין פריטים חדשים לשליחה" (כקיים).</li>
+<li>שרת: כל <code>catalogId</code> שייך לעסק (<code>ARC-04</code>); מחיר נלקח מהקטלוג בשרת.</li>
+<li>ביטול פריט שנשלח: סיבה חובה כשהפריט סומן מוכן או כשהמבצע אינו מנהל משמרת.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מבנה חשבון כקיים <code>{tableId:{openedAt, submitted:[…], pending:[…]}}</code>; מקור אמת <code>restaurant_table_bills</code> בשרת (localStorage — מטמון).</li>
+<li>pending נשמר בכל שינוי ומסונכרן <code>PUT /api/tables/bills</code> (כקיים, מאובטח).</li>
+<li><code>waiterSubmitOrder</code>: items <code>{catalogId,name,quantity,price,note,kitchenStation}</code> + פריט מטא <code>{tableNumber, waiter}</code>; <code>POST /api/store/orders</code> עם <code>customerName='שולחן N'</code>, <code>orderSource:'table'</code>. סטטוס בשרת (<code>RST-12</code> מתוקן): <code>new</code>, או <code>pending_approval</code> אם <code>store_settings.table_orders_require_approval=true</code>.</li>
+<li>בהצלחה pending→submitted (orderId, delivered:false) כקיים.</li>
+<li>Polling חשבונות כל 4 שניות — מיזוג כקיים (submitted מהשרת גובר; pending מקומי רק לשולחן הנבחר; שולחן שנמחק בשרת נמחק).</li>
+<li>"סופק" (<code>waiterMarkDelivered</code>) — מסמן delivered ונשמר בשרת.</li>
+<li>"×" על פריט שנשלח (<code>RST-11</code>): מנהל משמרת → <code>POST /api/store/orders/:id/items/:itemId/void {reason}</code> — בטרנזקציה: השורה ב-<code>store_order_items</code> מסומנת <code>voided_at, voided_by, void_reason</code>, <code>total_amount</code> מחושב מחדש, הפריט מוסר מ-<code>items_ready</code>, audit <code>VOID_ORDER_ITEM</code>. משתמש אחר → <code>POST …/void-request {reason}</code> (<code>void_status='requested'</code>), הפריט מסומן "ממתין לאישור ביטול"; מנהל משמרת מאשר (→ void כנ"ל) או דוחה. שולחן שכל פריטיו בוטלו ואין pending — החשבון נמחק (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div>"חדש לשליחה" = Σ<code>price×qty</code> של pending; סה"כ חשבון לא כולל פריטים שבוטלו; כפתור ראשי → "💳 סגור חשבון" כשאין pending וכל ה-submitted (שלא בוטלו) סופקו — כקיים.</div>
+<div>מכונת מצבים</div><div>פריט בחשבון: pending → submitted → delivered; submitted/delivered → void_requested → voided | submitted (נדחה); submitted → voided (מנהל משמרת). הזמנה — ראו "מחזור חיים".</div>
+<div>תופעות לוואי</div><div>יצירת <code>store_orders</code> + <code>store_order_items</code> (תחום החנות); audit בביטול; התראה למנהלי משמרת על בקשת ביטול (<code>ARC-16</code>).</div>
+<div>ממשק</div><div>ללא שינוי: מסך מלא, צ'יפים (ענבר=נבחר, אינדיגו=יש חשבון, "N הוזמן +M חדש"), תג "🍽️ מוכן", "טען"/"רענן". חדש: חלון סיבה בביטול ותג "ממתין לאישור ביטול"; בפאנל ניהול השולחנות — רשימת בקשות ביטול לאישור.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RST-11</code> (מתוקן) — ביטול פריט שנשלח הוא void בשרת המעדכן את ההזמנה וסכומה; ישיר למנהל משמרת, בקשה לאחרים.</li>
+<li><code>RST-12</code> (מתוקן) — הזמנת שולחן נכנסת ב-new, אלא אם הוגדר אישור חובה.</li>
+<li><code>RST-47</code> — המדריך (ביטול באישור מנהל משמרת, restaurant-guide.html:1476) נשאר ותואם למימוש.</li>
+<li><code>RST-01</code>/<code>RST-03</code> — אימות והרשאות תפקיד בשרת.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="close bill table payment method closed_bills waiter close-bill"><h3>סגירת חשבון שולחן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מלצר: "סגור חשבון 💳" (<code>waiterCloseBill</code> 32335) או "💳 נאסף+תשלום" ברשימת המוכנים (<code>collectAndBill</code> 31832 — כעת פותח את הסגירה; השלמת ההזמנה מתבצעת בסגירה עצמה).</div>
+<div>הרשאות</div><div>בעלי טאב pos/sales (כקיים); verifyBiz, השולחן וההזמנות שייכים לעסק.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>חייב שולחן נבחר; חשבון ללא פריטים — "אין חשבון פתוח לשולחן זה" (כקיים).</li>
+<li>אמצעי תשלום: מזומן/כרטיס/אפליקציה או "לא צוין" (ברירת מחדל, נשמר <code>unspecified</code>) — לא חובה, כקיים (<code>RST-13</code> מתוקן).</li>
+<li>יש פריטי pending → דיאלוג "שלח למטבח וסגור" (מבצע waiterSubmitOrder ואז סגירה) / "הסר וסגור" / ביטול. אין סגירה שבה נגבה סכום לפריטים שלא נוצרה עבורם הזמנה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>סה"כ = Σ<code>price×qty</code> של submitted שלא בוטלו (אחרי טיפול ב-pending).</li>
+<li><code>POST /api/tables/:tableNumber/close-bill {method}</code> בטרנזקציה אחת (<code>ARC-11</code>): כל הזמנות השולחן הפתוחות (orderId בחשבון) עוברות ל-<code>completed</code> דרך <code>completeOrder</code> — פעם אחת לכל הזמנה (אידמפוטנטי, ראו "מחזור חיים"); רישום התשלום ב-<code>store_order_payments(order_id, method, amount)</code> לכל הזמנה (method: cash / credit / app / unspecified, כש-unspecified נספר כתקבול), כמו ב-pos/sale (<code>STR-22</code>), ובנוסף ב-<code>notes.payments</code> לתאימות. store_orders.created_by_user_id = המלצר מהסשן, כדי שמזומן ייספר בסגירת הקופה שלו (tobe-biz, <code>E2E-08</code>); INSERT לארכיון <code>restaurant_closed_bills(group_id, table, total, method, items, closed_at, waiter_id)</code>; מחיקת החשבון; השולחן → free, טיימר מאופס.</li>
+<li>הלקוח: ארכיון <code>closed_bills_{gid}</code> מקומי נשאר כמטמון (עד 200), פתיחה מחדש של המסוף (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div>total כנ"ל; הכנסה נרשמת פעם אחת לכל הזמנה ב-completeOrder (לא בסגירה בנפרד) — אין כפל.</div>
+<div>מכונת מצבים</div><div>שולחן occupied/awaiting_payment → free; הזמנות השולחן (new/processing/ready) → completed.</div>
+<div>תופעות לוואי</div><div>תופעות ה-completed (cashback, הכנסה, ניכוי מלאי, FLOW, audit, התראה) — פעם אחת לכל הזמנה. הארכיון בשרת זמין לדוח יומי (backlog — <code>RST-47</code>).</div>
+<div>ממשק</div><div>מודאל הסגירה ללא שינוי (3 אמצעים + "לא צוין"); דיאלוג pending חדש; הודעת שגיאה אמיתית אם הסגירה נכשלה (השולחן לא משוחרר).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-13</code> (מתוקן) — סגירה בשרת: completed לכל הזמנה, רישום תשלום, ארכיון בשרת; pending מטופל בדיאלוג; אמצעי תשלום נשאר אופציונלי.</li>
+<li><code>RST-47</code> — "הדפס דוח יומי" במדריך (restaurant-guide.html:390) נשאר ומסומן backlog.</li><li><code>RST-01</code> — אימות.</li><li><code>E2E-15</code> — סגירת חשבון רושמת store_order_payments ו-created_by_user_id, ש-completeOrder (הכנסה לפי תקבולים) וסגירת הקופה צורכים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="waiter ready section items ready served pickup delivered shipped"><h3>רשימת "מוכן להגשה/איסוף" למלצר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>דשבורד מלצר (<code>renderWaiterDashboard</code> 41132) ופאנל ניהול שולחנות; רענון כל 5000ms, פאנל ניהול כל 10000ms (כקיים).</div>
+<div>הרשאות</div><div>בעלי טאב pos/sales ומנהלים; verifyBiz על <code>GET /api/store/orders</code>, <code>PATCH item-ready</code>, <code>POST status</code> (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>שינוי סטטוס רק לפי טבלת המעברים (ראו "מחזור חיים").</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /api/store/orders</code>; שלוש רשימות: <b>ממתין לאישור</b> (<code>pending_approval</code>), <b>מוכן</b> (<code>ready</code>), <b>מנות מוכנות</b> — הזמנות <code>pending_approval/new/processing</code> עם <code>items_ready</code> לא ריק (נוסף pending_approval, <code>RST-12</code>).</li>
+<li>מספר שולחן מ-<code>notes.tableNumber</code> (או <code>table_number</code> להזמנות qr_table); פריטי מטא ו-<code>DELIVERY_META|</code> מסוננים (כקיים).</li>
+<li>"הוגש ✓" → <code>PATCH item-ready {idx, ready:false}</code> (כקיים).</li>
+<li>מוכן: משלוח → "📦 ממתין לשליח" (<code>shipped</code>+<code>is_delivery=true</code>) או "✅ נמסר" (<code>completed</code>); הזמנת שולחן → "💳 נאסף+תשלום" (פותח סגירת חשבון); אחרת "✅ נאסף" (<code>completed</code>). <code>markReadyDelivered</code> מסמן delivered לפריטי החשבון עם אותו orderId (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>ראו "מחזור חיים של הזמנת מסעדה".</div>
+<div>תופעות לוואי</div><div>ב-completed/delivered: completeOrder אידמפוטנטי — cashback, <code>logBizIncome</code>, <code>deductPantryForOrder</code>, FLOW, audit, התראת חבר-עסק — פעם אחת.</div>
+<div>ממשק</div><div>עד 12 מנות ועד 8 הזמנות; תגי מקור "🍽️ שולחן"/"🌐 אתר"/"🛵 משלוח" ונוסף "📱 QR" — כקיים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-12</code> — מנות מוכנות מוצגות גם להזמנה ב-pending_approval.</li><li><code>RST-13</code> — "נאסף+תשלום" משלים דרך סגירת החשבון (פעם אחת).</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מסעדה — KDS (מסך מטבח)</h2>
+
+<section class="proc" data-f="kds kitchen display cook ticket station item-ready items_ready bon hot cold drinks bread"><h3>KDS — כרטיסי הזמנה, סימון מנות והשלמת הכנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טבח (<code>employee_role_type='cook'</code> → <code>renderCookDashboard</code> 38130/41623) או מנהל דרך אריח "KDS מטבח" (<code>openAdminKDSPanel</code> 41590).</div>
+<div>הרשאות</div><div>cook, מנהלי משמרת, ADMIN/MANAGER ובעלי מודול kds; verifyBiz על <code>PATCH /api/store/orders/:id/item-ready</code> ו-<code>POST /api/store/orders/status</code>, ההזמנה שייכת לעסק (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>כרטיסים: הזמנות <code>status ∈ {pending_approval,new,processing}</code> שנוצרו היום (יום עסקי Asia/Jerusalem, <code>ARC-25</code>), עד 15; הזמנה ללא created_at מוצגת. הזמנה ב-<code>ready</code> יורדת מה-KDS לפי השרת (<code>RST-14</code>) — <code>kds_done</code> מקומי מבוטל כמקור אמת.</li>
+<li>"✅ הכנה הושלמה" פעיל רק כשמספר המנות שסומנו (לפי <code>items_ready</code> בשרת) ≥ סך המנות (&gt;0) — כקיים.</li>
+<li><code>idx</code> בטווח פריטי ההזמנה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פריטים עם quantity&gt;1 נפרשים לשורות; מטא מסוננים (כקיים).</li>
+<li>קיבוץ לפי תחנה: <code>item.kitchenStation</code> ← <code>store_catalog.kitchen_station</code> ← <code>other</code>; תחנות hot 🔥, cold ❄️, drinks 🥤, bread 🍞, other 📋 (כקיים).</li>
+<li>סימון מנה <code>kdsItemCheck</code>: <code>PATCH item-ready {idx,name,tableNum,station,ready}</code> — ready=true מוסיף <code>{idx,name,tableNum,station,time}</code> ל-<code>items_ready</code> אם אינו קיים; false מסיר. <code>items_ready</code> הוא מקור האמת היחיד; <code>kds_items_*</code> המקומי מבוטל (<code>RST-14</code>).</li>
+<li>מנה ראשונה שסומנה והסטטוס <code>new</code> → <code>processing</code> (כקיים).</li>
+<li>"הכנה הושלמה" <code>cookDoneOrder</code>: <code>POST status 'ready'</code> ו-<code>items_ready='[]'</code> באותה פעולה בשרת; הכרטיס יורד בכל המסכים בריענון הבא.</li>
+<li>"🎫 בון מלא" <code>kdsShowBon</code>: נבנה מנתוני ההזמנה (פריטים, idx, station) ולא מה-DOM/regex; תיבות מסונכרנות דרך items_ready.</li>
+<li>רענון: כל מסכי KDS — פאנל מנהל ודשבורד טבח — כל 10 שניות, אלא אם מודאל בון פתוח.</li>
+</ol></div>
+<div>חישובים</div><div>"X/Y מוכנים" (Y = מנות לאחר פריסה; X = רשומות items_ready של ההזמנה).</div>
+<div>מכונת מצבים</div><div>ראו "מחזור חיים של הזמנת מסעדה".</div>
+<div>תופעות לוואי</div><div>התראת חבר-עסק על כל שינוי סטטוס (תוויות כקיים server.js:14706).</div>
+<div>ממשק</div><div>ללא שינוי חזותי; דשבורד הטבח כולל "🚨 חסרים במלאי" ו"רשימת הכנה יומית" (עד 6) — כקיים, וכעת מתרענן אוטומטית.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-47</code> — עדכון מדריך KDS (סנכרון בין מסכים).</li><li><code>RST-14</code> — items_ready בשרת מקור אמת יחיד (כולל station), כרטיס יורד לפי status=ready, רענון 10 שניות לכל המסכים, בון מנתונים.</li><li><code>RST-01</code> — אימות על item-ready ו-status.</li><li><code>ARC-25</code> — "היום" לפי שעון ישראל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="restaurant order lifecycle pending_approval new processing ready completed shipped cancelled approve kitchen reject completeOrder"><h3>מחזור חיים של הזמנת מסעדה (אישור למטבח → מוכן → נאסף)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הזמנה נכנסת (אתר, מסוף מלצר, קופה, QR); מלצר/מנהל "✅ אשר לטבח" (<code>approveDeliveryToKitchen</code> 23329) או "❌ דחה" (<code>rejectStoreOrder</code> 23355, עם אישור) — כקיים.</div>
+<div>הרשאות</div><div>verifyBiz, ההזמנה של העסק (<code>RST-01</code>, <code>ARC-04</code>); אישור/דחייה — בעלי טאב pos/sales ומנהלים; ready — KDS; completed/shipped — מלצר/קופה.</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST /api/store/orders/status</code>: סטטוס מרשימה סגורה ומעבר לפי הטבלה; אחר → 400 "מעבר סטטוס לא חוקי".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>סטטוס התחלתי ביצירה (<code>RST-12</code> מתוקן): <code>table</code>/<code>internal</code> → <code>new</code> (או <code>pending_approval</code> כשההגדרה פעילה); אתר/<code>restaurant-v3</code>/<code>qr_table</code> → <code>pending_approval</code>; קופה → נוצרת ומושלמת מיד (<code>finalizePOSOrder</code>).</li>
+<li>UPDATE <code>status</code>, <code>status_changed_at</code> (+<code>is_delivery=true</code> ב-setDelivery) — כקיים.</li>
+<li>מעבר ל-completed/delivered קורא <code>completeOrder(orderId)</code>: תפיסה אטומית <code>UPDATE store_orders SET completed_effects_at=NOW() WHERE id=$1 AND completed_effects_at IS NULL</code>; רק אם נתפסה שורה — מבוצעות תופעות הלוואי. כך מעבר חוזר לא רושם הכנסה כפולה.</li>
+<li>תשובה נשלחת; התופעות רצות אסינכרונית כקיים (כשלון נרשם בלוג, <code>ARC-33</code>).</li>
+</ol></div>
+<div>חישובים</div><div><code>logBizIncome(group, total, 'הזמנה הושלמה — שם (#id)')</code> כקיים, פעם אחת להזמנה; total לא כולל פריטים שבוטלו (RST-11).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending_approval</td><td>יצירה מאתר/QR/restaurant-v3, או שולחן כשנדרש אישור</td><td>—</td><td>—</td></tr>
+<tr><td>—</td><td>new</td><td>יצירה ממסוף מלצר / פנימית</td><td>אישור לא נדרש</td><td>מופיע ב-KDS</td></tr>
+<tr><td>pending_approval</td><td>processing</td><td>"אשר לטבח"</td><td>—</td><td>התראה; רענון KDS</td></tr>
+<tr><td>pending_approval</td><td>cancelled</td><td>"דחה"</td><td>אישור UI</td><td>התראה</td></tr>
+<tr><td>new</td><td>processing</td><td>KDS — מנה ראשונה</td><td>status=new</td><td>—</td></tr>
+<tr><td>pending_approval/new/processing</td><td>ready</td><td>טבח "הכנה הושלמה"</td><td>כל המנות סומנו</td><td>items_ready נוקה</td></tr>
+<tr><td>new/processing/ready</td><td>completed</td><td>מלצר "נאסף"/"נמסר", סגירת חשבון</td><td>—</td><td>completeOrder (פעם אחת)</td></tr>
+<tr><td>ready</td><td>shipped</td><td>"ממתין לשליח"</td><td>משלוח</td><td>is_delivery=true</td></tr>
+<tr><td>shipped</td><td>delivered/completed</td><td>מסירה</td><td>—</td><td>completeOrder (פעם אחת)</td></tr>
+<tr><td>(קופה)</td><td>completed</td><td><code>finalizePOSOrder</code></td><td>שולם</td><td>completeOrder; שולחן → free (<code>RST-05</code>)</td></tr>
+<tr><td>completed/delivered</td><td>completed/delivered</td><td>חזרה</td><td>—</td><td>אין תופעות נוספות</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>ב-completed/delivered (פעם אחת): <code>triggerCashbackForOrder</code>, <code>logBizIncome</code>, <code>deductPantryForOrder</code>, <code>awardFlow</code> אם <code>community_promo_id</code>; audit <code>UPDATE_ORDER_STATUS</code> לכל שינוי; התראת חבר-עסק.</div>
+<div>ממשק</div><div>כפתורי "אשר לטבח"/"דחה" כקיים; הגדרה חדשה בהגדרות המסעדה: "הזמנות שולחן דורשות אישור לפני מטבח".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RST-12</code> (מתוקן) — סטטוס התחלתי לפי מקור, עם הגדרה לשמירת האישור.</li>
+<li><code>RST-05</code> — הזמנת קופה לשולחן משחררת את השולחן.</li>
+<li><code>RST-13</code> — completeOrder אידמפוטנטי; אין הכנסה כפולה.</li>
+<li><code>RST-01</code> — רשימת סטטוסים מותרת ובדיקת בעלות.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">מסעדה — הזמנות שולחן</h2>
+
+<section class="proc" data-f="table reservation availability public storefront slots table_count checkTableAvailability"><h3>בדיקת זמינות שולחנות (ציבורי)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בחנות המסעדה בוחר תאריך במודאל "הזמנת שולחן" (<code>bookDateChange</code> storefront-restaurant.html:2295) → <code>GET /api/public/restaurants/:groupId/availability/:date?guests=N</code>.</div>
+<div>הרשאות</div><div>ציבורי במכוון (allowlist <code>ARC-02</code>, <code>RST-01</code>); rate-limit לנתיב ציבורי (<code>ARC-29</code>). מחזיר רק סלוטים ומספר שולחנות פנויים — ללא PII.</div>
+<div>קלט ואימותים</div><div><ul><li>עסק לא קיים → 404 "עסק לא נמצא" (כקיים).</li><li>date בפורמט YYYY-MM-DD ולא לפני היום (Asia/Jerusalem) → אחרת 400 "תאריך לא תקין"; guests 1–30 (ברירת מחדל 2).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קריאה ל-<code>checkTableAvailability(groupId, date, null, guests)</code> — פונקציה אחת לכל המסלולים (<code>RST-15</code> מתוקן).</li>
+<li>שעות: <code>store_settings</code> open/close של אותו יום; ללא הגדרה — 10:00–23:00 (כקיים). סלוטים כל 30 דק'; הסלוט האחרון = סגירה − משך ישיבה.</li>
+<li>לכל סלוט: שולחנות (לא disabled, לא ממוזגים אל אחר) שאין להם הזמנה <code>approved</code> משובצת החופפת ל-[slot, slot+duration), ובקיבולת אפקטיבית ≥ guests (ללא קיבולת → מתאים). הזמנות <code>pending</code> ו-<code>approved</code> ללא שולחן נספרות כצורכות שולחן מתאים אחד כל אחת בחלון החופף.</li>
+</ol></div>
+<div>חישובים</div><div><code>duration = store_settings.table_seating_minutes || 90</code>; חפיפה: <code>startA &lt; startB+duration ∧ startB &lt; startA+duration</code>; <code>tables = max(0, fitting_free − unassigned_overlapping)</code>; <code>available = tables&gt;0</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין (לוגי קונסול מפורטים מוסרים — <code>ARC-33</code>).</div>
+<div>ממשק</div><div>גלולות שעה ירוקות/מלאות, tooltip "N שולחנות פנויים", רק פנויות לחיצות — כקיים; הגרנולריות כעת 30 דק'.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-15</code> (מתוקן) — פונקציה אחידה: שעות פתיחה (fallback 10–23), חלון 90 דק', קיבולת במקום הנחת 2 סועדים לשולחן, סלוטים של 30 דק'.</li><li><code>RST-01</code> — מוצהר ציבורי במכוון.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table reservation book-table sms verify temp_table_reservations twilio otp storefront rate limit"><h3>הזמנת שולחן ציבורית עם אימות SMS (2 שלבים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר (sc-auth) בחנות: "הזמנת שולחן" (<code>openBooking('table')</code> storefront-restaurant.html:2256 — דורש התחברות, כקיים), שלב 1 <code>POST /book-table</code>, שלב 2 <code>POST /verify-table-sms</code>.</div>
+<div>הרשאות</div><div>ציבורי במכוון (allowlist), עם מגבלות <code>RST-16</code>/<code>ARC-29</code>; אם נשלח טוקן sc-auth — מזהה הלקוח נלקח ממנו.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>קליינט: שם, טלפון ≥9, תאריך, סלוט (כקיים).</li>
+<li>book-table: <code>name, phone, date, time, numGuests</code> חובה → 400 "חסרים פרטים חובה" (כקיים); זמינות דרך <code>checkTableAvailability</code> לשעה ולמספר הסועדים (<code>RST-15</code>) → אחרת 400 "אין זמינות בשעה זו".</li>
+<li>הגבלות שליחה: עד 3 SMS לטלפון לשעה ו-10 ליום (<code>ARC-29</code>), עד 10 לעסק לשעה לכל IP (<code>RST-16</code>) → 429.</li>
+<li>verify: קוד באורך 6 בדיוק (<code>ARC-29</code>) אחרת "קוד שגוי"; רשומה <code>pending</code> של אותו עסק → אחרת 404 "הזמנה לא נמצאה"; קוד שגוי → "קוד שגוי" ו-attempts+1; אחרי 5 ניסיונות הרשומה נפסלת (<code>status='locked'</code>) → "יותר מדי ניסיונות — בקש קוד חדש"; עברו &gt;10 דק' מ-<code>sms_sent_at</code> → "קוד פג תוקף" (<code>ARC-29</code>).</li>
+<li>verify בודק זמינות שוב לפני יצירת האירוע (<code>RST-15</code>) → אחרת 409 "השעה נתפסה בינתיים".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קוד אקראי 6 ספרות (<code>crypto.randomInt</code>), נשמר מגובב (<code>ARC-31</code>).</li>
+<li>INSERT <code>temp_table_reservations(... sms_code_hash, sms_sent_at=NOW(), attempts=0)</code>, expires_at=NOW()+10min.</li>
+<li><code>sms_debug_code: מחוץ לייצור כמו היום; בייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן, RST-16, <code>ARC-31</code>).</li>
+<li>SMS דרך <code>sendSMSviaTwilio</code>; 0 → +972; גוף כקיים (שם העסק, שם, תאריך he-IL, שעה, סועדים, קוד, "נשלח דרך WEFLOWZ").</li>
+<li>verify: איתור לקוח לפי טלפון → <code>customer_group_id</code> (כקיים).</li>
+<li>אישור אוטומטי (<code>RST-17</code>): אם <code>auto_approve_max_guests</code> מוגדר, <code>numGuests ≤</code> הערך ויש שולחן פנוי מתאים → <code>status='approved'</code> + <code>reserved_table_number</code> + SMS אישור (נוסח האישור של "אישור הזמנה ע"י העסק"); אחרת <code>pending</code>.</li>
+<li>INSERT <code>calendar_events</code> (<code>title='{שם} — {N} סועדים'</code>, <code>call_type='table_reservation'</code>, num_guests, customer_group_id, <code>source='store'</code>) — בטרנזקציה יחד עם UPDATE temp → <code>verified, verified_at</code> (<code>ARC-11</code>).</li>
+<li><code>upsertStoreCustomer</code> כקיים (ללקוח המאוחד, <code>ARC-14</code>); inbox לעסק כמו ביצירה דרך היומן.</li>
+<li>ניקוי: worker יומי מוחק רשומות temp שפג תוקפן לפני 24 שעות (<code>RST-16</code>, <code>ARC-23</code>).</li>
+</ol></div>
+<div>חישובים</div><div>תוקף קוד 10 דק'; ניסיונות ≤5; SMS ≤3/שעה/טלפון.</div>
+<div>מכונת מצבים</div><div><code>temp_table_reservations.status</code>: pending → verified | locked (5 כשלונות) | (נמחק ע"י ניקוי). האירוע נוצר pending או approved (אישור אוטומטי).</div>
+<div>תופעות לוואי</div><div>SMS Twilio (קוד; ואישור אם אושר אוטומטית); לקוח חנות נוצר/מתעדכן; inbox לעסק.</div>
+<div>ממשק</div><div>מודאל 3 שלבים כקיים, עם <b>6</b> תיבות קוד ומעבר אוטומטי; "שלח שוב" מריץ שלב 1 (כפוף למגבלות, עם הודעת 429 ברורה); מסך הסיום מציין "ההזמנה אושרה — שולחן N" כשאושר אוטומטית, אחרת "ממתינה לאישור המסעדה".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RST-16</code> — הגבלת ניסיונות ושליחות, ניקוי רשומות, קוד דיבאג רק מחוץ לייצור (עם <code>ARC-29</code>: 6 ספרות, 10 דק').</li>
+<li><code>RST-15</code> — זמינות לפי שעה וקיבולת, ובדיקה חוזרת ב-verify.</li>
+<li><code>RST-17</code> — אישור אוטומטי חל גם על הזמנה ציבורית.</li>
+<li><code>RECON-05</code> — קוד הדיבאג חל בייצור רק על טלפוני הבדיקה (SA-49 מתוקן), כמו ב-tobe-sa וב-tobe-arch.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table reservation calendar events auto approve auto_approve_max_guests reserved_table_number inbox app family ai"><h3>יצירת הזמנת שולחן דרך היומן (אפליקציית משפחה / AI / עסק) ואישור אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/calendar/events</code> עם <code>callType:'table_reservation'</code>. מקורות: אפליקציית המשפחה <code>_submitTableReservation</code> (app.js:14748, "🍽️ הזמן שולחן" app.js:14471), פעולת AI בעסק <code>_aiCreateTableRes</code> (business-app.js:57307).</div>
+<div>הרשאות</div><div>סשן family (הזמנה לעסק יעד — <code>customerGroupId</code> נלקח מהסשן, לא מהגוף) או סשן biz של העסק עצמו (AI/ידני) (<code>RST-01</code>, <code>ARC-04</code>). status=approved ביצירה — רק biz.</div>
+<div>קלט ואימותים</div><div><ul><li>תאריך ושעה חובה (כקיים בקליינט, כעת גם בשרת); numGuests 1–30.</li><li>זמינות דרך <code>checkTableAvailability</code> (<code>RST-15</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>finalStatus = status||'pending'</code> (status מהגוף מכובד רק מסשן biz).</li>
+<li>אישור אוטומטי כקיים בעיקרו: <code>auto_approve_max_guests</code> מוגדר ו-<code>numGuests ≤</code> → שיבוץ השולחן המתאים (קיבולת קטנה ביותר ≥ guests, אחרת המספר הנמוך) ללא חפיפה ב-90 דק' → <code>approved</code>.</li>
+<li>status=approved מפורש (AI) מחייב שיבוץ (<code>RST-18</code> מתוקן): נמצא שולחן → approved+שיבוץ; לא נמצא → נשמר <code>pending</code> והתגובה <code>{status:'pending', reason:'no_table'}</code> (ה-AI מודיע "אין שולחן פנוי — ההזמנה נשמרה כממתינה").</li>
+<li>INSERT <code>calendar_events</code> כולל <code>reserved_table_number</code> ו-<code>source ∈ {app, ai, manual}</code> (<code>RST-21</code>).</li>
+<li>(יופי בלבד: קישור <code>beauty_client_records</code> — כקיים, תחום BTY.)</li>
+<li>תשובה <code>{eventId, status, assignedTable}</code>; אחריה הודעת inbox לעסק ("הזמנת שולחן — {יום} {שעה}", כולל "(אושר אוטומטית, שולחן N)"), ואם אושר ויש <code>customerGroupId</code> — inbox ללקוח "הזמנת שולחן אושרה ✅" — כקיים, דרך מודל ההודעות המאוחד (<code>ARC-16</code>).</li>
+</ol></div>
+<div>חישובים</div><div>חלון התנגשות: חפיפת 90 דק' (ניתן להגדרה) — מחליף את "פחות מ-2 שעות בין שעות ההתחלה" (<code>RST-15</code>).</div>
+<div>מכונת מצבים</div><div>— → pending | approved (אישור אוטומטי / AI עם שולחן). ראו "אישור הזמנת שולחן".</div>
+<div>תופעות לוואי</div><div>inbox לעסק וללקוח; אין SMS באישור האוטומטי ממסלול זה (כקיים).</div>
+<div>ממשק</div><div>app.js: "ההזמנה אושרה! שולחן N מחכה לך" / "בקשת ההזמנה נשלחה"; רענון האקורדיון — כקיים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות; זהות הלקוח מהסשן.</li><li><code>RST-15</code> — חלון חפיפה וקיבולת אחידים.</li><li><code>RST-18</code> (מתוקן) — approved ביצירה מחייב שיבוץ; ללא שולחן נשמר pending.</li><li><code>RST-21</code> — שמירת מקור ההזמנה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table reservation approve business calendar status sms inbox assign table override"><h3>אישור הזמנת שולחן ע"י העסק ושיבוץ שולחן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל בטאב יומן → בקשות: "אשר" (<code>approveCalendarEvent</code> 26811) → <code>PUT /api/calendar/events/:id/status {status:'approved', tableNumber?}</code>.</div>
+<div>הרשאות</div><div>בעלי טאב calendar בעסק (ADMIN/MANAGER/waiter/… כקיים), verifyBiz, האירוע של העסק (0 שורות → 404) (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>מעבר מותר לפי הטבלה; אחר → 400 "מעבר סטטוס לא חוקי" (<code>RST-18</code>).</li><li>tableNumber (override) חייב להיות שולחן קיים ולא disabled.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בטרנזקציה: UPDATE status.</li>
+<li>אם <code>call_type='table_reservation'</code>: tableNumber נשלח → שיבוץ ידני (אם חופף להזמנה מאושרת אחרת — מוחזרת אזהרה <code>overlap:true</code>, השיבוץ נשמר). אחרת שיבוץ אוטומטי דרך <code>checkTableAvailability</code>; אין שולחן → 409 "אין שולחן פנוי בשעה זו" + רשימת כל השולחנות ומצבם, והממשק מציע בחירה ידנית (<code>RST-18</code> מתוקן) — הסטטוס לא משתנה עד הבחירה.</li>
+<li>SMS ללקוח אם יש טלפון: "{עסק} — הזמנת שולחן אושרה! 🎉 / תאריך / שעה / סועדים / שולחן N / WEFLOWZ" (כקיים).</li>
+<li>אם יש <code>customer_group_id</code> — inbox "הזמנת שולחן אושרה ✅" (כקיים).</li>
+<li>השולחן ברשת מוצג <code>reserved</code> בחלון ההזמנה (נגזר — <code>RST-04</code>).</li>
+</ol></div>
+<div>חישובים</div><div>חפיפה 90 דק' וקיבולת (<code>RST-15</code>).</div>
+<div>מכונת מצבים</div><div><code>calendar_events.status</code> להזמנות שולחן:
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח (חנות/אפליקציה)</td><td>זמינות</td><td>inbox לעסק</td></tr>
+<tr><td>—</td><td>approved</td><td>אישור אוטומטי / AI</td><td>סועדים ≤ סף (אוטומטי) ויש שולחן</td><td>שיבוץ; inbox ללקוח</td></tr>
+<tr><td>pending</td><td>approved</td><td>עסק</td><td>שולחן אוטומטי או ידני</td><td>שיבוץ, SMS, inbox</td></tr>
+<tr><td>pending</td><td>rejected</td><td>עסק "דחה עם חלופות"</td><td>—</td><td><code>alternatives_json</code>, inbox</td></tr>
+<tr><td>pending/approved</td><td>cancelled</td><td>עסק (ביטול ללא מחיקה)</td><td>—</td><td>inbox ללקוח; שחרור שולחן</td></tr>
+<tr><td>rejected</td><td>cancelled</td><td>לקוח בחר חלופה / "לא מתאים"</td><td>—</td><td>הזמנה חדשה נוצרת (בחלופה)</td></tr>
+<tr><td>approved</td><td>approved + seated_at=NOW()</td><td>צוות שולחנות (הושבה ב-openReservedTableModal)</td><td>השולחן המשובץ מסומן occupied</td><td>ההזמנה "מומשה": לא נגזרת עוד כ-reserved ולא נספרת כממתינה. אין שינוי בערך status, כדי לא לשבור מסכים קיימים</td></tr>
+<tr><td>pending/approved</td><td>cancelled_by_customer</td><td>לקוח מאומת</td><td>חלון ביטול</td><td>inbox לעסק; שחרור שולחן</td></tr>
+<tr><td>כל מצב</td><td>(נמחק)</td><td>עסק ✕ (<code>DELETE /api/calendar/events/:id</code>, בעלות)</td><td>—</td><td>—</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>SMS Twilio, inbox; audit.</div>
+<div>ממשק</div><div>כרטיס בקשה "🍽️ הזמנת שולחן" עם "אשר", "דחה", ✕ (26673-26690); מונה ממתינות ב-KPI ובפעולה מהירה "📅 הזמנות שולחן" (5940, 39836) — כקיים. חדש: בורר שולחן כשהאישור מחזיר 409, ותצוגת השולחן המשובץ.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-18</code> (מתוקן) — מעברים מוגדרים, 409 עם בחירה ידנית, ביטול ע"י העסק.</li><li><code>RST-47</code> — עדכון מדריך הזמנות שולחן (שיבוץ, 409, ביטול).</li><li><code>RST-04</code> — אישור משתקף כ-reserved ברשת.</li><li><code>RST-15</code> — שיבוץ לפי הפונקציה האחידה.</li><li><code>RST-01</code> — אימות ובעלות.</li><li><code>E2E-16</code> — הוגדר מצב "מומשה" (seated_at) שרשת השולחנות כותבת בהושבה, במקום תופעה שלא הוגדרה במכונת המצבים של ההזמנה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table reservation reject alternatives suggest-alts reject-with-alts accept alt decline sc-auth rejected"><h3>דחיית הזמנה עם הצעת שעות חלופיות ובחירת חלופה ע"י הלקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל "דחה" (<code>rejectTableReservation</code> 26884) → <code>GET /api/calendar/events/:id/suggest-alts</code> → עד 3 שעות → <code>POST /reject-with-alts</code>. לקוח בוחר חלופה (<code>_acceptTableAlt</code> app.js:14829) או "✕ לא מתאים" (<code>_declineAllTableAlts</code> 14844) — וכעת גם בחנות הציבורית (sc-auth).</div>
+<div>הרשאות</div><div>מנהל: verifyBiz + בעלות על האירוע. לקוח: סשן family של <code>customer_group_id</code> או sc-auth שהטלפון שלו תואם להזמנה (<code>RST-19</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>reject-with-alts: רק מ-<code>pending</code> (<code>RST-18</code>); slots בפורמט HH:MM, עד 3.</li><li>בחירת חלופה: רק כשהסטטוס rejected והשעה ברשימת <code>alternatives_json</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>suggest-alts (preview): הצעות מתוך <code>checkTableAvailability</code> לאותו יום ולמספר הסועדים (<code>RST-15</code>) — שעות עגולות 12:00–22:00 פנויות, שונות מהמבוקשת, עד 3; אם חסר — חצאי שעה 12:30–21:30 (כקיים בסדר ההעדפה).</li>
+<li>reject-with-alts: UPDATE <code>status='rejected', alternatives_json</code>; inbox "הזמנת שולחן — חלופות זמינות" (כקיים).</li>
+<li>לקוח בוחר חלופה: מודאל הזמנה עם תאריך/שעה ו-<code>origEventId</code>; אחרי יצירת הזמנה חדשה — הישנה <code>cancelled</code> (כקיים).</li>
+<li>"לא מתאים": <code>cancelled</code> (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div>"תפוס" = אין שולחן מתאים פנוי בחלון 90 דק' (לא שעה זהה בלבד).</div>
+<div>מכונת מצבים</div><div>pending → rejected → cancelled (ראו טבלת "אישור הזמנת שולחן").</div>
+<div>תופעות לוואי</div><div>inbox ללקוח.</div>
+<div>ממשק</div><div>מודאל מנהל: 3 שדות + תצוגת שעות 12:00–22:30 (כתום=מבוקש, אדום=תפוס, ירוק=פנוי) — כקיים. אפליקציה: כפתורי שעות — כקיים. sc-auth (<code>RST-20</code>): תווית "נדחתה — הוצעו מועדים חלופיים" עם כפתורי החלופות ו"לא מתאים" (כמו app.js:14829-14844), במקום טקסט גולמי (sc-auth.js:609).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-20</code> — תווית ופעולות חלופה ב-sc-auth.</li><li><code>RST-15</code> — "תפוס" לפי זמינות שולחנות.</li><li><code>RST-18</code> — דחייה רק מ-pending.</li><li><code>RST-01</code>/<code>RST-19</code> — אימות מנהל ולקוח.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table reservation cancel customer cancellation_hours window cancelled_by_customer sc-auth"><h3>ביטול הזמנת שולחן ע"י הלקוח (חלון ביטול)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח מחובר בפאנל הפעילות של החנות (sc-auth.js:820) → <code>DELETE /api/public/restaurants/:groupId/reservation/:eventId</code>.</div>
+<div>הרשאות</div><div>טוקן sc-auth (או family) חובה (<code>RST-19</code>); טלפון הלקוח המאומת (או family_group) תואם ל-<code>customer_phone</code>/<code>customer_group_id</code> של ההזמנה → אחרת 403 "אין הרשאה". הטלפון לא נלקח מהגוף.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>קליינט: כפתור רק כשהסטטוס אינו cancelled/cancelled_by_customer/rejected ותאריך ≥ היום (כקיים).</li>
+<li>שרת: אירוע של העסק, <code>table_reservation</code>, לא מבוטל → אחרת 404 "הזמנה לא נמצאה" (כקיים).</li>
+<li><code>cancellation_hours</code> (ברירת מחדל 0): &gt;0 ו-<code>(מועד − עכשיו)/3600000 &lt; חלון</code> → 400 "לא ניתן לבטל פחות מ-N שעות לפני מועד ההזמנה" (כקיים).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>status='cancelled_by_customer'</code>; <code>reserved_table_number</code> משתחרר (הזמנה מבוטלת לא נספרת בזמינות).</li><li>הודעת inbox לעסק "הזמנת שולחן בוטלה ע"י הלקוח — {שם} {תאריך} {שעה}" (<code>RST-19</code>).</li></ol></div>
+<div>חישובים</div><div>מועד = תאריך+שעה בשעון Asia/Jerusalem (<code>ARC-25</code>) במקום שעון השרת.</div>
+<div>מכונת מצבים</div><div>pending/approved → cancelled_by_customer.</div>
+<div>תופעות לוואי</div><div>inbox לעסק; השולחן חוזר לזמינות.</div>
+<div>ממשק</div><div>ללא שינוי בצד הלקוח.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-19</code> — אימות זהות חובה, הודעה לעסק ושחרור שולחן.</li><li><code>ARC-25</code> — חלון הביטול לפי שעון ישראל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="table settings auto approve guests table-settings settings"><h3>הגדרות שולחנות: אישור אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>⚙️ ברשת השולחנות → "אשר אוטומטית עד N סועדים" → <code>saveAutoApproveSettings</code> (40793) → <code>PATCH /api/groups/table-settings</code>.</div>
+<div>הרשאות</div><div>ADMIN/MANAGER ומנהלי משמרת (<code>RST-03</code>, <code>RST-01</code>); groupId מהסשן בלבד.</div>
+<div>קלט ואימותים</div><div>ריק/null/≤0 → NULL (ביטול); אחרת parseInt בטווח 1–30 (כקיים, כעת גם בשרת).</div>
+<div>שלבי עיבוד</div><div>UPDATE <code>family_groups.auto_approve_max_guests</code>; עדכון <code>currentGroup</code>; טוסט "✅ אישור אוטומטי פעיל עד N סועדים" / "אישור אוטומטי בוטל" (כקיים). הסף חל על כל המסלולים: יומן, AI והזמנה ציבורית (<code>RST-17</code>).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>audit לשינוי הגדרה.</div>
+<div>ממשק</div><div>ללא שינוי; למי שאינו מנהל השדה מוצג לקריאה בלבד.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code>/<code>RST-03</code> — אימות והגבלה למנהלים.</li><li><code>RST-17</code> — הסף חל גם על הזמנות ציבוריות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="seating windows reservations today upcoming 7 days timeline source unassigned"><h3>חלונות הושבה ורשימות הזמנות (היום / 7 ימים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"📅 חלונות" ברשת (<code>openSeatingWindowsModal</code> 40547) ומודאל שולחן מוזמן.</div>
+<div>הרשאות</div><div>צוות שולחנות; verifyBiz, groupId מהסשן (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>אין.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/tables/reservations-today</code> — approved/pending של היום לפי Asia/Jerusalem (<code>RST-21</code>); <code>GET /reservations-upcoming</code> — היום עד +7, ממוין, LIMIT 50 (כקיים). שתיהן מחזירות <code>source</code> (store/app/manual/ai).</li><li>איחוד ללא כפילויות, סינון לתאריך, מיון לפי שעה (כקיים).</li></ol></div>
+<div>חישובים</div><div>ציר 10:00–23:00 (או שעות הפתיחה אם הוגדרו); <code>x = ((h−start)×60+m)/totalMinutes×100%</code>; משך = <code>table_seating_minutes||90</code>; רוחב מינימלי 2%. הזמנה ללא שולחן משובץ — בשורה "לא משובץ" (<code>RST-21</code>) במקום על שולחן 1. KPI: הזמנות, סך סועדים, ממתינות (כקיים).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כחול=מאושרת, ענבר=ממתינה; רשימת היום עם תווית מקור (כעת מוצגת בפועל) וקישור טלפון.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-21</code> — "היום" לפי שעון ישראל, שדה מקור מוחזר, שורת "לא משובץ".</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מסעדה — לקוחות וביקורים (CRM)</h2>
+
+<section class="proc" data-f="restaurant customer upsert restaurant_customers customers search"><h3>לקוח מסעדה — הוספה/עדכון ורשימה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/restaurant/customer</code>, <code>GET /api/restaurant/customers?search=</code> — נשמרים כיכולת (<code>RST-22</code> מתוקן), כממשק מעל טבלת הלקוח המאוחדת.</div>
+<div>הרשאות</div><div>verifyBiz; בעלי טאב customers (כקיים בנראות); groupId מהסשן (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>שם חובה (חדש, <code>ARC-34</code>); טלפון מנורמל; UNIQUE(group_id, phone_normalized) WHERE NOT shared_phone (<code>ARC-14</code>). טלפון קיים מעדכן את הלקוח הקיים, כמו היום.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מיגרציה: כל שורות <code>restaurant_customers</code> עוברות ל-<code>customers</code> (מיזוג לפי טלפון), עם restaurant_guest_profile(customer_id, visits_total, status) (השם הקנוני של tobe-arch); אין מחיקת נתונים.</li>
+<li>Upsert כקיים: טלפון קיים → UPDATE name/email/notes/updated_at ו-<code>updated:true</code>; אחרת INSERT (status active, visits_total 0).</li>
+<li>רשימה כקיים: search → ILIKE שם/טלפון, LIMIT 50 לפי שם; בלי → LIMIT 100 לפי <code>visits_total DESC</code>; כולל <code>last_visit</code>. מונה הביקורים כולל גם הזמנות completed של הלקוח (כרטיס לקוח מאוחד, STR-43).</li>
+</ol></div>
+<div>חישובים</div><div><code>visits_total</code> = ביקורים רשומים + הזמנות שהושלמו המשויכות ללקוח.</div>
+<div>מכונת מצבים</div><div>status: active ↔ inactive.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין ממשק ייעודי היום; הנתונים מוצגים בכרטיס הלקוח המאוחד (טאב customers).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-22</code> (מתוקן) — היכולת נשמרת מעל customers המאוחד; נתונים מועברים ולא נמחקים; שם חובה.</li><li><code>RST-01</code> — אימות.</li><li><code>RECON-16</code> — האילוץ חלקי (shared_phone), כמו ב-tobe-arch.</li><li><code>RECON-17</code> — טבלת ההרחבה נקראת restaurant_guest_profile, כמו ב-tobe-arch.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="restaurant visit check-in checkout self-visit restaurant_visits guests"><h3>ביקור: צ'ק-אין (עסק/עצמי), ביטול וצ'ק-אאוט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: <code>POST /api/restaurant/visit</code>; לקוח: <code>POST /api/restaurant/self-visit</code>; ביטול <code>DELETE /visit/:id</code>; יציאה <code>POST /visit/:id/checkout</code>; היסטוריה <code>GET /my-visits</code>; היום <code>GET /visits</code> — כולם נשמרים (<code>RST-22</code> מתוקן).</div>
+<div>הרשאות</div><div>visit/ביטול/checkout/visits — verifyBiz, הביקור של העסק. self-visit ו-my-visits — sc-auth חובה, הטלפון נלקח מהטוקן (<code>RST-01</code>, <code>RST-22</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>self-visit: groupId חובה ("חסרים פרמטרים"); ביקור קיים היום (Asia/Jerusalem) לאותו טלפון → 400 "כבר נרשמה כניסה היום" (<code>alreadyIn</code>) — כקיים.</li><li>checkout: רק <code>checked_out_at IS NULL</code> → אחרת 404 "ביקור לא נמצא או כבר יצא" (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם הטלפון שייך ללקוח קיים — <code>visits_total+1</code>; self-visit של טלפון לא מוכר יוצר לקוח ב-customers (שם מה-sc-auth).</li><li>INSERT <code>restaurant_visits(group_id, customer_id, customer_name||'אורח', customer_phone, guests||1)</code> (טבלה נשמרת, FK ל-customers).</li><li>ביטול: DELETE + <code>visits_total=GREATEST(visits_total−1,0)</code>; checkout: <code>checked_out_at=NOW()</code> — כקיים, בטרנזקציה (<code>ARC-11</code>).</li></ol></div>
+<div>חישובים</div><div>"יושבים כעת" = ביקורי היום ללא יציאה.</div>
+<div>מכונת מצבים</div><div>ביקור: פתוח (<code>checked_out_at NULL</code>) → יצא | (נמחק בביטול).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין ממשק ייעודי היום (נשמר כ-API מאובטח לממשק צ'ק-אין עתידי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-22</code> (מתוקן) — נשמר; מאובטח; self-visit דורש sc-auth ויוצר לקוח חסר.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="restaurant dashboard kpi alerts dormant 60 days pending reservations"><h3>דשבורד KPI והתראות (לקוחות רדומים / הזמנות ממתינות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/restaurant/dashboard</code>, <code>GET /api/restaurant/alerts</code> — נשמרים.</div>
+<div>הרשאות</div><div>verifyBiz, ADMIN/MANAGER ומנהלי משמרת; groupId מהסשן.</div>
+<div>קלט ואימותים</div><div>אין.</div>
+<div>שלבי עיבוד</div><div>שאילתות קריאה בלבד מעל customers/restaurant_visits/calendar_events.</div>
+<div>חישובים</div><div><ul><li>visits_today = ביקורים ביום העסקי (Asia/Jerusalem).</li><li>reservations_today = הזמנות שולחן היום pending/approved.</li><li>customers_total = לקוחות active.</li><li>dormant = לקוחות active ללא ביקור וללא הזמנה ב-<code>store_settings.dormant_days||60</code> הימים האחרונים (<code>RST-22</code>; תואם restaurant-guide.html:1318).</li><li>seated_now = ביקורי היום ללא checkout.</li><li>alerts: עד 50 רדומים (last_visit DESC) + עד 20 הזמנות pending — כקיים.</li></ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין צרכן היום; התראת "לקוח לא חזר" זמינה למנגנון ההתראות (<code>ARC-16</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-22</code> (מתוקן) — רדום = 60 יום (ניתן להגדרה) כולל הזמנות; נשמר ומאובטח.</li><li><code>RST-47</code> — "לקוח לא חזר 60 יום" במדריך (restaurant-guide.html:1318) תואם.</li><li><code>ARC-33</code> — שגיאה ב-alerts מחזירה שגיאה ולא רשימות ריקות בשקט.</li></ul></div>
+</div></section>
+
+<h2 class="grp">תפריטי אירועים (Menu Templates) ופניות</h2>
+
+<section class="proc" data-f="menu templates create update delete duplicate slug public pricing_mode per_person per_item event_mode hide_prices menu_templates preview_token"><h3>תבנית תפריט — יצירה, עריכה, מחיקה רכה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל בטאב "תפריטים" (<code>loadMenuTemplates</code> 58495): "צור תפריט" (<code>_mtCreateTemplate</code> 58681), עורך עם שמירה אוטומטית (<code>_mtEF</code> debounce 1500ms → <code>_mtSave</code>), מחיקה (<code>_mtDeleteConfirm</code>), שכפול (<code>_mtDuplicate</code> — חדש במקום "בקרוב").</div>
+<div>הרשאות</div><div><code>authenticate()+requireType('biz')</code> + <code>requireModule('menu_templates')</code> לפי tenant_entitlements (<code>ARC-03</code>, <code>ARC-17</code>) — ללא מצב legacy; בעלי הטאב.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>POST: שם חובה "שם התבנית נדרש"; min/max_guests ≥1, max≥min; <code>base_price_per_person ≥0</code>; <code>pricing_mode ∈ {per_person, per_item}</code> אחרת per_person — כקיים.</li>
+<li>PUT: בעלות (group_id + template_type='menu') אחרת 404; min/max מול השמור; לפחות שדה אחד — "לא נשלחו שדות לעדכון"; רשימת שדות מותרים כקיים (name … event_image_url).</li>
+<li><code>event_type ∈ {wedding, bar_mitzvah, corporate, birthday, general}</code> (<code>RST-26</code>); הקליינט שולח את המפתחות הקנוניים.</li>
+<li>קליינט: "שם התפריט נדרש" (כקיים).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>slug <code>_menuSlug</code>: אותיות לטיניות/ספרות מהשם (עד 20, ריק→"menu") + "-" + 3 בתים hex; עד 5 ניסיונות → 500 "שגיאת שרת — נסה שנית" (כקיים).</li>
+<li>INSERT <code>menu_templates</code> (template_type='menu', is_active true, is_public false) — כקיים.</li>
+<li>PUT דינמי + <code>updated_at</code>; DELETE רך <code>is_active=false</code>; GET רשימה (פעילות + section_count/item_count) ויחידה (sections+items) — כקיים.</li>
+<li>שכפול <code>POST /api/menu-templates/:id/duplicate</code> (<code>RST-26</code> מתוקן): בטרנזקציה מעתיק תבנית ("עותק של {שם}", slug חדש, <code>is_public=false</code>), שלבים ופריטים עם sort_order.</li>
+<li>מיגרציה: <code>event_type='barmitzvah'</code> → <code>bar_mitzvah</code>.</li>
+</ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><code>is_public</code> false (טיוטה, נגיש עם preview_token) ↔ true (פורסם); <code>is_active</code> true → false (נמחק) — כקיים.</div>
+<div>תופעות לוואי</div><div>העלאת תמונות: signed upload ל-Cloudinary בתיקייה <code>family-flow-menus</code>, דחיסה 1600px/0.85 בקליינט (<code>ARC-26</code>).</div>
+<div>ממשק</div><div>סוגי אירוע בתוויות כקיים; כפתור "שכפול" פעיל; תצוגה מקדימה (<code>_mtPreview</code>) ו-PDF מצרפים תמיד <code>preview_token</code> (<code>RST-26</code>) — טיוטה נפתחת בתצוגה מקדימה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-26</code> (מתוקן) — preview_token בתצוגה מקדימה, מפתחות event_type קנוניים, שכפול ממומש.</li><li><code>ARC-03</code>/<code>ARC-17</code> — ביטול legacy, זכאות fail-closed.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu sections steps min_choices max_choices is_required price_modifier"><h3>שלבי תפריט (Sections)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"הוספת שלב" (<code>_mtDoAddSec</code> 59165) → <code>POST /api/menu-templates/:templateId/sections</code>; עריכה <code>PUT /api/menu-sections/:id</code>; מחיקה <code>DELETE</code> (confirm "למחוק שלב זה ואת כל פריטיו?").</div>
+<div>הרשאות</div><div>כמו תבנית תפריט; בעלות דרך JOIN לתבנית (כקיים).</div>
+<div>קלט ואימותים</div><div><ul><li>שם חובה "שם הסקשן נדרש"; min 0, max 1 ברירת מחדל; ≥0; max≥min (כקיים).</li><li>קליינט: max ברירת מחדל 99, <code>is_required = minC&gt;0</code> (כקיים).</li><li><code>price_modifier</code> NUMERIC ≥0, ברירת מחדל 0.</li></ul></div>
+<div>שלבי עיבוד</div><div>sort_order חסר → MAX+1; INSERT <code>menu_sections</code> כקיים. DELETE פיזי בטרנזקציה עם מחיקת פריטי השלב במפורש (<code>ARC-11</code>).</div>
+<div>חישובים</div><div><code>price_modifier</code> משתתף במחיר (<code>RST-27</code>): per_person — כל שלב שנבחר בו לפחות פריט מוסיף price_modifier לאיש; per_item — מתווסף פעם אחת לפנייה. חישוב זהה בלקוח (menu.html <code>calcTotal</code>) ובשרת (convert). שלב עם 0 — ללא שינוי לתפריטים קיימים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי; שדה "תוספת מחיר לשלב" בעורך השלב (אופציונלי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-27</code> — price_modifier מחושב במחיר (בלקוח ובשרת).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu items catalog_item_id custom_price allergens is_available image resolveMenuItem"><h3>פריטי תפריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"הוסף פריט" ידני (<code>_mtDoAddItem</code>) או מהקטלוג (<code>_mtDoAddFromCatalog</code>, ריבוי בחירה); זמינות (<code>_mtToggleItemA</code>); תמונה (Cloudinary <code>family-flow-menu-items</code>); מחיקה.</div>
+<div>הרשאות</div><div>כמו תבנית תפריט.</div>
+<div>קלט ואימותים</div><div><ul><li><code>catalog_item_id</code> של אותו עסק → 400 "מוצר קטלוג לא נמצא או לא שייך לעסק זה" (כקיים).</li><li>שם חובה כשאין catalog_item_id; <code>custom_price ≥0</code> (כקיים).</li><li>קליינט: מהקטלוג נשלח custom_price רק אם מחיר הקטלוג &gt;0 (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div>INSERT/PUT/DELETE כקיים (<code>menu_items</code>).</div>
+<div>חישובים</div><div>פונקציה אחת <code>resolveMenuItem(item)</code> (<code>RST-25</code>): <code>name = catalog.name אם מקושר, אחרת item.name</code>; <code>price = custom_price ?? catalog.price ?? 0</code>; <code>image = image_url || catalog.image_url</code>. משמשת בתצוגה הציבורית, בפנייה (snapshot), ב-convert, ב-from-template וב-catalog-request. בתצוגה ציבורית מחיר חסר מוצג כ"ללא מחיר" (null נשמר לתצוגה).</div>
+<div>מכונת מצבים</div><div><code>is_available</code> true ↔ false.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-25</code> — כלל שם/מחיר אחיד בכל המסלולים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu public view menu.html preview_token og related catalog menus.html alias wizard"><h3>תצוגת תפריט ציבורית (menu.html / menus.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>/menu/:slug</code> (תגיות OG "{עסק} — תפריט") או <code>/menus/:alias</code> (<code>GET /api/menus/public/:alias</code>) — כקיים.</div>
+<div>הרשאות</div><div>ציבורי במכוון (allowlist <code>ARC-02</code>). טיוטה (<code>is_public=false</code>) — רק עם <code>preview_token</code> = סשן biz בתוקף של אותו group (מטבלת sessions המאוחדת, <code>ARC-01</code>) → אחרת 404 "תבנית לא נמצאה". related — פומבי בלבד (כקיים).</div>
+<div>קלט ואימותים</div><div>כקיים.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>החזרת התבנית ללא group_id/is_public, עם <code>store_id = COALESCE(store_alias, group_code)</code>, sections ופריטים דרך <code>resolveMenuItem</code> (<code>RST-25</code>) + price_modifier לשלב.</li>
+<li>קליינט מסנן שלבים ללא פריט זמין; ניתוב לפי <code>show_related_options</code> (אשף/קטלוג/דף נחיתה) — כקיים.</li>
+<li>אשף: <code>toggleItem</code> (max=1 בחירה יחידה; אחרת עד max — "ניתן לבחור עד N פריטים"); <code>nextStep</code> — חובה ≥min (כקיים).</li>
+<li>מצב קטלוג: <code>GET /catalog</code> — פריטי store_catalog זמינים, עגלה עם כמויות (כקיים).</li>
+<li>מצבי PDF/WhatsApp (<code>?pdf=1</code>) — כקיים.</li>
+</ol></div>
+<div>חישובים</div><div><code>calcTotal</code>: per_item → Σ מחירי הנבחרים + Σprice_modifier של שלבים שנבחר בהם פריט (פעם אחת); per_person → אין מחיר בסיס ואין modifiers → 0, אחרת <code>base + Σ מחירים + Σmodifiers</code> ("סה״כ משוער לאיש") (<code>RST-27</code>). הסתרת מחירים כש-<code>hide_prices || event_mode</code> (כקיים).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>event_mode (ברכה/פתיח/תמונה), כפתור חנות — כקיים; כל ערך מוזרק עובר escaping (<code>ARC-27</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-25</code> — מחיר/שם דרך resolveMenuItem.</li><li><code>RST-27</code> — price_modifier בחישוב המשוער.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu quote request public form wizard selections snapshot rate limit notification email HG"><h3>שליחת פנייה מאשף התפריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח ממלא פרטים בסוף האשף (<code>submitForm</code> menu.html:688) → <code>POST /api/menu/public/:slug/request</code>.</div>
+<div>הרשאות</div><div>ציבורי במכוון, עם rate-limit (<code>RST-28</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>Rate-limit (<code>RST-28</code>, <code>ARC-24</code>, <code>ARC-28</code>): IP דרך <code>req.ip</code> עם trust proxy מוגדר; מונה באחסון משותף; 5 פניות לשעה ל-IP (משותף ל-catalog-request) ו-20 ליום לתבנית → 429 "יותר מדי בקשות. נסה שנית בעוד N שניות." (נוסח כקיים).</li>
+<li>תבנית פעילה ופומבית; שם (אחרי ניקוי HTML) חובה; טלפון 7–15 תווים <code>^[0-9+\-() ]+$</code>; תאריך לא בעבר (Asia/Jerusalem); guest_count ≥1 ובטווח min/max — כקיים.</li>
+<li>selections: אובייקט; section שייך לתבנית; מערך; אורך בין min ל-max; item ids שייכים ל-section; שלב חובה חסר עם min&gt;0 → "{שלב}: בחירה זו חובה" — כקיים.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בניית snapshot בשרת (<code>RST-23</code>): <code>[{section_id, section_name, item_id, item_name, unit_price, price_modifier}]</code> כששם ומחיר דרך <code>resolveMenuItem</code> (<code>RST-25</code>) — פריט מקושר-קטלוג ללא name מקבל את שם הקטלוג.</li>
+<li>INSERT <code>menu_quote_requests(..., selections=snapshot, source='public_form', status='pending')</code>.</li>
+<li>מספר פנייה <code>'HG-'+id.padStart(4,'0')</code> (כקיים).</li>
+<li>אם <code>notification_email</code> — מייל HTML לעסק עם פרטים ו"N בחירות" לכל שלב (כקיים, תבנית עם auto-escape <code>ARC-27</code>).</li>
+</ol></div>
+<div>חישובים</div><div>אין (המחירים נשמרים ב-snapshot לשימוש ההמרה).</div>
+<div>מכונת מצבים</div><div>— → pending.</div>
+<div>תופעות לוואי</div><div>מייל לעסק.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-23</code> — selections נשמרות כ-snapshot עם מזהים, שמות ומחירים מהשרת.</li><li><code>RST-25</code> — שם קטלוג לפריט מקושר.</li><li><code>RST-28</code> — IP אמין, מונה משותף, תקרה יומית לתבנית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu catalog request catalog_builder cart"><h3>פנייה מ"הרכבת קטלוג"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitCatalogForm</code> (menu.html:422) → <code>POST /api/menu/public/:slug/catalog-request</code>.</div>
+<div>הרשאות</div><div>ציבורי במכוון, rate-limit משותף (<code>RST-28</code>).</div>
+<div>קלט ואימותים</div><div>תבנית פומבית; שם חובה; טלפון ≥7 ("טלפון לא תקין"); <code>cart_items</code> לא ריק → "לא נבחרו פריטים" (כקיים); כל <code>catalog_item_id</code> שייך לעסק וזמין → אחרת 400 "פריט לא זמין"; qty ≥1.</div>
+<div>שלבי עיבוד</div><div>השרת מחליף שם ומחיר לכל שורה לפי <code>catalog_item_id</code> (<code>RST-25</code>) ושומר snapshot <code>[{catalog_item_id, name, price, qty}]</code> עם <code>source='catalog_builder'</code>; מייל לעסק עם שורות פריטים ומחירים (כקיים).</div>
+<div>חישובים</div><div><code>row_total = price × qty</code> לפי מחיר השרת.</div>
+<div>מכונת מצבים</div><div>— → pending.</div>
+<div>תופעות לוואי</div><div>מייל לעסק.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-25</code> — מחירים ושמות מאומתים מול הקטלוג.</li><li><code>RST-28</code> — rate-limit מחוזק.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="menu quote requests status viewed closed convert quote menu_request converted"><h3>ניהול פניות תפריט: סטטוס והמרה להזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל ברשימת "פניות תפריט" (<code>fetchMenuRequests</code> 8864, <code>renderMenuRequests</code> 8907): "סגור" (<code>updateMenuRequestStatus</code>), "המר" (<code>convertMenuRequest</code>).</div>
+<div>הרשאות</div><div>verifyBiz + requireModule('menu_templates'); בעלות (כקיים).</div>
+<div>קלט ואימותים</div><div><ul><li>PATCH status: רק <code>pending|viewed|closed</code> (כקיים).</li><li>convert: אם כבר <code>converted</code> → 400 "כבר הומר להצעה מספר HG-XXXX (הזמנה #N)" (כקיים), בדיקה תחת <code>SELECT … FOR UPDATE</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>status: viewed לראשונה → <code>viewed_at=NOW()</code> (כקיים).</li>
+<li>convert (<code>RST-23</code>): שורות נבנות מה-snapshot בלבד — לכל פריט <code>{name:item_name, price:unit_price, item_type:'selection'}</code>; per_person — כמות = guest_count; per_item — 1; שורת "מחיר בסיס לאורח × N" אם base&gt;0 ו-guest_count&gt;0 (כקיים); שורות "תוספת שלב" לפי price_modifier (<code>RST-27</code>). פנייה ישנה בפורמט שמות/עגלה (ללא snapshot) — ממופה לפי שם הפריט/catalog_item_id לתבנית, ואם לא נמצא — שורה בשם הפריט במחיר 0 לעריכה (אין איבוד פריטים).</li>
+<li>טרנזקציה (<code>ARC-11</code>): INSERT <code>store_orders(status='quote', quote_status='draft', is_event=TRUE, order_source='menu_request', menu_template_id, event_guest_count, target_datetime, items, notes=custom_notes)</code>; <code>quote_number='QT-'+id.padStart(6,'0')</code> (<code>RST-24</code>); UPDATE פנייה <code>status='converted', linked_order_id</code>; COMMIT.</li>
+</ol></div>
+<div>חישובים</div><div><code>total = Σ row_total</code>; בסיס = <code>base_price_per_person × guest_count</code>; per_person: פריט = <code>unit_price × guest_count</code>; modifiers כמו בתצוגה. מע"מ — לפי <code>calcVat</code> בהפקת ההצעה (<code>ARC-21</code>).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>לקוח ציבורי</td><td>ולידציה</td><td>מייל לעסק</td></tr>
+<tr><td>pending</td><td>viewed</td><td>PATCH (אין כפתור)</td><td>—</td><td>viewed_at</td></tr>
+<tr><td>pending/viewed</td><td>closed</td><td>מנהל "סגור"</td><td>—</td><td>—</td></tr>
+<tr><td>pending/viewed/closed</td><td>converted</td><td>מנהל "המר" (מוסתר ל-closed/converted כקיים)</td><td>לא converted</td><td>הצעת מחיר (quote) חדשה</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>הצעת מחיר בטאב quotes, ממשיכה בזרימת ההצעות הקיימת (שליחה/אישור/המרה להזמנה — תחום החנות).</div>
+<div>ממשק</div><div>סינון לפי סטטוס, תגי ממתינות <code>menu-requests-badge</code>/<code>mt-requests-badge</code>, תצוגת בחירות (כולל "בקשה ישנה"), ואחרי המרה מעבר לטאב "quotes" — שם ההצעה מופיעה כעת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-23</code> — ההמרה בונה שורות מ-snapshot; פריטים לא אובדים (כולל פניות ישנות).</li><li><code>RST-24</code> — ההמרה יוצרת הצעת מחיר QT- ולא הזמנה new.</li><li><code>RST-27</code> — modifiers בהמרה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="quote from template menu work order assign menu auto reserve inventory from menu event guest"><h3>הצעת מחיר מתבנית תפריט, שיוך תפריט לפקודת עבודה ושריון מלאי אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>Events Hub: <code>POST /api/store/quotes/from-template</code>, <code>PUT /api/work-orders/:id/menu</code>, <code>POST /api/work-orders/:id/inventory/auto-from-menu</code> — כקיים.</div>
+<div>הרשאות</div><div>verifyBiz (כקיים); groupId מהסשן; templateId/menuId/pantry ids של העסק (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>from-template: templateId + customerName חובה; תבנית של העסק (כקיים).</li><li>menu: פקודה <code>call_type='work_order'</code> של העסק (אחרת 403); תפריט של העסק (אחרת 400 "תפריט לא נמצא"); ריק מסיר שיוך (כקיים).</li><li>auto-from-menu: חייב <code>menu_template_id</code> → "לאירוע זה לא משויך תפריט" (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>from-template: כל פריטי התבנית הזמינים; <code>guests = max(1, guestCount||min_guests||1)</code>; מחיר ושם לכל פריט דרך <code>resolveMenuItem</code> (<code>RST-25</code>) — במקום <code>custom_price||0</code> וללא שם; כמות = guests ב-per_person, אחרת 1; שורת "מחיר בסיס לסועד" × guests; INSERT <code>store_orders(status='quote', is_event, menu_template_id, event_guest_count, target_datetime)</code>; <code>QT-</code>+6 ספרות — כקיים.</li>
+<li>menu: UPDATE <code>menu_template_id</code> + ציר זמן <code>menu_assigned/menu_removed</code> (כקיים).</li>
+<li>auto-from-menu (<code>RST-29</code> מתוקן): מקור המנות — שורות ההצעה/ההזמנה המקושרת לאירוע (המנות שנבחרו × כמות); אם אין שורות — כל מוצרי הקטלוג המקושרים לתבנית × guests (כקיים). מרכיבים מ-<code>product_ingredients</code>; קישור לפריט מחסן לפי <code>pantry_id</code> ואחרת <code>lower(trim(name))</code> (<code>RST-33</code>); המרת יחידות משותפת (<code>RST-30</code>); שריון <code>min(needed, available)</code>; INSERT <code>work_order_inventory</code>; ציר זמן <code>inventory_auto_reserved</code> — בטרנזקציה (<code>ARC-11</code>).</li>
+</ol></div>
+<div>חישובים</div><div>auto-from-menu: <code>effectivePerUnit = convert(quantity, ing.unit → pantry.unit) / (1 − min(waste_pct,95)/100)</code> (נוסחה אחידה עם Food Cost); <code>needed = Σ effectivePerUnit × qty_of_dish</code>; כשל המרה → המרכיב לא משוריין ומסומן <code>unit_mismatch</code> בתוצאה; <code>available = max(0, stock − reserved − stock×min_stock_buffer_pct/100)</code> (כקיים).</div>
+<div>מכונת מצבים</div><div>הצעה: <code>quote</code> (תחום החנות). שריון: reserved → used | released.</div>
+<div>תופעות לוואי</div><div>ציר זמן פקודת העבודה; עדכון <code>reserved_qty</code> במחסן.</div>
+<div>ממשק</div><div>ללא שינוי; תוצאת השריון מציגה גם מרכיבים עם אי-התאמת יחידות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-29</code> (מתוקן) — שריון מהמנות שנבחרו (fallback לכל התבנית), נוסחת פחת והמרת יחידות אחידות.</li><li><code>RST-25</code> — from-template מתמחר פריט מקושר לפי הקטלוג ועם שם.</li><li><code>RST-33</code> — קישור מרכיב↔מחסן לפי pantry_id/שם מנורמל.</li></ul></div>
+</div></section>
+
+<h2 class="grp">Food Cost — תמחור מנות ועץ מוצר</h2>
+
+<section class="proc" data-f="food cost calculation recipe ingredients price shopping_trip_items unit conversion foodcostpct units waste unit_mismatch"><h3>חישוב עלות מנה ו-Food Cost % (כולל המרת יחידות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>foodcost</code> (<code>fetchFoodCost</code> 23401, switchTab 2989) → <code>GET /api/food-cost</code> (groupId מהסשן). מודול זמין ל-restaurant/food_production ולתפקיד cook — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב foodcost (ADMIN/MANAGER, cook, permissions.tabs) — קריאה וכתיבה כקיים (<code>RST-03</code> מתוקן); verifyBiz + requireModule('foodcost') (<code>RST-01</code>, <code>ARC-17</code>).</div>
+<div>קלט ואימותים</div><div>רק מוצרי <code>store_catalog</code> עם <code>is_available=TRUE</code>, ממוינים לפי קטגוריה ושם (כקיים).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מרכיבים: <code>product_ingredients</code> של מוצרי העסק (כקיים), כולל <code>pantry_id</code> אופציונלי (<code>RST-33</code>).</li>
+<li>מחירון: לכל פריט המחיר האחרון (<code>DISTINCT ON … ORDER BY trip_date DESC</code>) מ-<code>shopping_trip_items</code>⋈<code>shopping_trips</code> של העסק; מפתח = <code>pantry_id</code> אם מקושר, אחרת שם מנורמל <code>lower(trim)</code> (כקיים).</li>
+<li>לכל מרכיב: אין מחיר → <code>no_price_data</code>; אחרת המרה במודול המשותף <code>unitConvert(qty, from, to, unit_weight_grams)</code> (קובץ אחד לשרת וללקוח, <code>RST-30</code>); כשל → <code>unit_mismatch</code>, <b>עלות המרכיב 0 ולא נספרת</b>, ו-<code>has_incomplete_data=true</code>.</li>
+<li>תקורות: Σ<code>cost</code> של <code>overhead_details</code> (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li>יחידות (ללא שינוי בערכים): משקל <code>{גרם:1, ג:1, קג:1000, ק"ג:1000, ק'ג:1000}</code>, נפח <code>{מל:1, מ"ל:1, ליטר:1000, ל':1000}</code>, ספירה <code>{יח, יח', יח., יחידה, יחידות}</code>; המרה <code>qty×factor[from]/factor[to]</code>; חוצה-משפחה רק עם <code>w=unit_weight_grams&gt;0</code>: יח'→משקל <code>qty×w/factor[to]</code>, משקל→יח' <code>qty×factor[from]/w</code>.</li>
+<li>פחת: <code>waste = min(waste_pct,95)</code>; <code>effectiveQty = convQty/(1−waste/100)</code>.</li>
+<li><code>cost = conv.ok ? price_per_unit × effectiveQty : 0</code>; <code>total = Σingredients + Σoverheads</code>; <code>foodCostPct = total/salePrice×100</code> (0 אם מחיר 0); <code>profit = salePrice − total</code>.</li>
+<li>אותו כלל בכשל המרה ברשימה, בבונה, בתקורה הקבועה ובניכוי המלאי (<code>RST-30</code>).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>renderFoodCostList</code> — ספי צבע כקיים (0 אפור; &gt;40 "בעייתי"; &gt;33 "גבוה"; &gt;28 "טוב"; אחרת "מצוין"); באנר תפריט כקיים; אזהרת "חלק מהמרכיבים ללא מחיר רכישה תואם" כש-has_incomplete_data, וכעת מציינת גם "יחידה לא תואמת" למרכיב; חיפוש; KPI ממוצע (&lt;30 לבן, &lt;40 צהוב, אחרת אדום) — כקיים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-30</code> — מודול המרה משותף; כשל המרה = 0 + סימון, זהה בכל המסלולים (במקום כמות לא מומרת).</li><li><code>RST-33</code> — מחירון לפי pantry_id כשיש.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="recipe builder save product_ingredients overhead_details new dish catalog duplicate target price ai sale_price"><h3>בונה המתכון — שמירת עץ מוצר ויצירת מנה חדשה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"עץ מוצר" (<code>openRecipeBuilder(id)</code> 23899), "הוסף מנה חדשה לחנות ותמחר מאפס" (כפתור מוזרק — <code>injectCreateRecipeBtn</code>), "שכפל" (<code>duplicateRecipeFromFC</code>) — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב foodcost (כולל cook) לשמירת עץ מוצר (<code>RST-03</code> מתוקן). שינוי מחיר מכירה ויצירת מנה בקטלוג — בעלי הרשאת עריכת קטלוג (ADMIN/MANAGER/מנהלי משמרת ובעלי טאב sales) (<code>RST-31</code>). בעלות על catalogId (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>מרכיב: שם וכמות &gt;0 → "הכנס שם וכמות תקינה"; פחת ≤95 (כקיים).</li>
+<li>תקורה: שם ועלות &gt;0 → "הכנס שם ועלות תקינה" (כקיים).</li>
+<li>מנה חדשה: שם ומחיר &gt;0 → "יש להזין שם מנה ומחיר מכירה גדול מ-0" (כקיים).</li>
+<li>אישור רווחיות <code>checkRBProfitabilityBeforeSave</code> — הפסד / &gt;40% / &gt;33% עם confirm; ביטול = לא נשמר (כקיים).</li>
+<li>מנה קיימת: שם וקטגוריה נעולים; מחיר פתוח לעריכה למורשי קטלוג (למי שאינו מורשה — לקריאה בלבד); sale_price &gt;0.</li>
+<li>שרת: <code>catalogId</code> שייך לעסק → אחרת 404.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מנה חדשה: <code>POST /api/store/catalog</code> (<code>productType:'food'</code>, description "מנה שהורכבה במערכת התמחור.") → id (כקיים).</li>
+<li><code>POST /api/food-cost/recipe/:catalogId {ingredients, overheads, sale_price?}</code> בטרנזקציה (<code>ARC-11</code>): UPDATE <code>overhead_details</code>; אם sale_price נשלח ושונה — UPDATE <code>store_catalog.price</code> (<code>RST-31</code>) + audit; DELETE כל המרכיבים; INSERT לכל מרכיב עם שם (<code>quantity||0</code>, <code>unit||"יח'"</code>, <code>waste_pct||0</code>, <code>unit_weight_grams</code>, <code>pantry_id</code>); COMMIT/ROLLBACK.</li>
+<li>רענון רשימת Food Cost (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div><ul><li>תצוגה חיה <code>refreshRBUI</code>: עלות מרכיב = <code>conv.ok ? conv.value×price : 0</code> עם <code>effectiveQty=qty/(1−waste)</code> — דרך המודול המשותף (<code>RST-30</code>); פס &gt;40 אדום, &gt;33 כתום, אחרת ירוק (כקיים).</li><li>מחיר מומלץ <code>calcRBTargetPrice</code>: <code>totalCost/(target%/100)</code>, ברירת מחדל 30; "החל" מעגל ב-<code>Math.ceil</code> (כקיים) — כעת נשמר בפועל.</li></ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>"ייעוץ AI להוזלת עלות המנה" (<code>analyzeRBCostAI</code>) — דרך aiGateway עם זכאות ומכסה (<code>ARC-30</code>), אותו הקשר "יועץ קולינרי וכלכלי למסעדות" ו-<code>executeWithAIWarning</code>.</div>
+<div>ממשק</div><div>ללא שינוי; טוסט "המחיר עודכן ל-₪X" כשהמחיר השתנה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-31</code> — sale_price נשמר בטרנזקציית עץ המוצר (למורשי קטלוג).</li><li><code>RST-01</code> — בדיקת בעלות על catalogId.</li><li><code>RST-30</code> — מודול המרה משותף.</li><li><code>RST-03</code> (מתוקן) — cook ממשיך לשמור עץ מוצר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="recipe ingredient single update famliai ai action"><h3>עדכון מרכיב בודד במתכון (FamliAI)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פעולת AI בעסק (business-app.js:57375) → <code>POST /api/food-cost/recipe/:catalogId/ingredient</code>.</div>
+<div>הרשאות</div><div>verifyBiz, בעלי טאב foodcost; groupId מהסשן (במקום "groupId required" מהגוף — <code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div>שם מרכיב ("שם מרכיב חסר"); כמות &gt;0 ("כמות לא תקינה"); המנה שייכת לעסק → אחרת 404 "מנה לא נמצאה בעסק זה"; פחת ≤95 — כקיים.</div>
+<div>שלבי עיבוד</div><div>חיפוש מרכיב קיים לפי <code>pantry_id</code> או <code>lower(trim(name))</code> (<code>RST-33</code>): UPDATE (quantity, unit, waste_pct, unit_weight_grams) או INSERT; audit <code>UPDATE_RECIPE_INGREDIENT</code> (actor FamliAI + המשתמש) — כקיים, ל-audit_log המאוחד (<code>ARC-19</code>).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>audit.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות; groupId מהסשן.</li><li><code>RST-33</code> — התאמה לפי pantry_id/שם מנורמל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="overhead presets food_cost_overhead_presets"><h3>סטי תקורות שמורים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בבונה: "שמור כסט" (<code>saveOverheadPreset</code>, prompt לשם) / "טען סט" (<code>applyOverheadPreset</code>).</div>
+<div>הרשאות</div><div>בעלי טאב foodcost; verifyBiz; מחיקה לפי id+group_id מהסשן (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>קליינט: חייבות להיות תקורות; שרת: שם חובה "שם הסט חסר", חיתוך 100 תווים (כקיים).</div>
+<div>שלבי עיבוד</div><div>INSERT <code>food_cost_overhead_presets(group_id,name,overheads JSON)</code>; טעינה מחליפה את <code>rbOverheads</code> בעותק עמוק (כקיים).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות ובעלות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="fixed overhead break even profit targets apply to all food_cost_fixed_overhead budget transactions period"><h3>תקורה תפעולית קבועה, נקודת איזון והחלה על כל התפריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"תקורה קבועה ונקודת איזון" (<code>openFixedOverheadModal</code> 23646): קטגוריות הוצאה (actual/budget), מצב כמות (auto/manual), יעדי רווח; "שמור וחשב מחדש" (<code>_foSave</code>), "החל תקורה על כל התפריט" (<code>_foApplyToAll</code>, confirm) — כקיים.</div>
+<div>הרשאות</div><div>קריאה: בעלי טאב foodcost; שמירה והחלה על כל התפריט (משנה overhead_details בכל המנות): ADMIN/MANAGER ובעלי טאב foodcost כקיים (<code>RST-03</code> מתוקן); verifyBiz.</div>
+<div>קלט ואימותים</div><div><ul><li>קטגוריות: DISTINCT מ-<code>budget_allocations</code> ∪ הוצאות <code>transactions</code>, ללא allocations/allowance/tasks/academy/savings (כקיים).</li><li>POST: קטגוריות עם שם, source ∈ {budget, actual}; יעדים ייחודיים, <code>max(0, round)</code>, ממוינים, ריק → <code>[0,10,20,30]</code>; <code>labor_cost_manual</code> נכפה ל-0 (כקיים).</li><li>apply-to-all: <code>overheadPct</code> לא &gt;0 → 400 "אין עדיין אחוז תקורה לחישוב …" (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT <code>food_cost_fixed_overhead</code> ואז <code>computeFixedOverhead</code> (כקיים).</li><li>apply-to-all בטרנזקציה אמיתית (<code>ARC-11</code>): לכל מוצר עם מחיר&gt;0 מסיר שורות "תקורה תפעולית קבועה (" ומוסיף <code>{name:'תקורה תפעולית קבועה (X% ממחיר המנה = ₪Y)', cost}</code>; ללא מחיר — skipped (כקיים).</li><li>בבונה: "הוסף תקורה תפעולית קבועה" (<code>addFixedOverheadToRB</code>) — דורש מחיר (כקיים).</li></ol></div>
+<div>חישובים</div><div><ul>
+<li>תקופה אחידה לשני הצדדים (<code>RST-32</code>): החודש הקלנדרי המלא האחרון (Asia/Jerusalem); אם אין בו מכירות completed/delivered — 30 הימים האחרונים <b>לשני הצדדים</b>.</li>
+<li>סכום קטגוריה: budget = Σ<code>amount_limit</code> (כקיים); actual = Σ הוצאות באותה תקופה. <code>totalFixed = Σ + laborCost(0)</code>.</li>
+<li>כמות/הכנסה אוטומטית: Σ<code>quantity×price_at_order</code> באותה תקופה; אחרת none.</li>
+<li>מנה נכללת אם מחיר&gt;0, יש מתכון ועלות&gt;0 (עלות לפי כלל <code>RST-30</code>); ממוצע משוקלל-מכירות של מחיר ו-CM=<code>price−cost</code>, ואם 0 — פשוט (כקיים).</li>
+<li>הכנסה אפקטיבית: manual → <code>qtyManual × (avgCatalogPriceAll || avgPrice)</code>; auto → <code>autoRevenue</code> או <code>autoQty × avg</code>; <code>overheadPct = totalFixed / effectiveRevenue</code> (כקיים).</li>
+<li>יעד: <code>denom = avgCM − target%×avgPrice</code>; avgPrice≤0 או denom≤0 → לא בר-השגה; אחרת <code>requiredQty = ceil(totalFixed/denom)</code> (כקיים).</li>
+<li>תקורה למנה = <code>round(price × overheadPct × 100)/100</code> (כקיים).</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>עדכון overhead_details בכל המנות (apply-to-all).</div>
+<div>ממשק</div><div>ללא שינוי; מוצגת התקופה שעליה מבוסס החישוב (למשל "ספטמבר 2026").</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-32</code> — הוצאות והכנסות מאותה תקופה.</li><li><code>RST-30</code> — כלל כשל המרה אחיד בחישוב העלות.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pantry auto deduct order completed product_ingredients pantry_deducted_at"><h3>ניכוי מלאי אוטומטי בעת השלמת מכירה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>deductPantryForOrder</code>, נקרא מתוך <code>completeOrder</code> כשהזמנה עוברת ל-completed/delivered (כקיים, פעם אחת).</div>
+<div>הרשאות</div><div>פנימי (שרת).</div>
+<div>קלט ואימותים</div><div>תפיסה אטומית <code>pantry_deducted_at</code> (כקיים); דילוג אם אין פריטים עם catalog_id / מתכונים / מלאי (כקיים). פריטים שבוטלו (void, RST-11) לא מנוכים.</div>
+<div>שלבי עיבוד</div><div><ol><li>פריטי <code>store_order_items</code> → מתכונים → פריט מחסן לפי <code>pantry_id</code>, אחרת <code>lower(trim(name))</code> (<code>RST-33</code>); אין תואם → דילוג.</li><li>צבירה לכל pantry.id; UPDATE <code>quantity = GREATEST(quantity − x, 0)</code> בטרנזקציה (<code>ARC-11</code>).</li><li>audit <code>PANTRY_AUTO_DEDUCT</code> עם מפת הניכויים (כקיים).</li></ol></div>
+<div>חישובים</div><div><code>base = ing.quantity × soldQty</code>; <code>effective = base/(1−min(waste,95)/100)</code>; המרה ליחידת המלאי במודול המשותף; כשל → לא מנכים ומסמנים ב-audit (<code>RST-30</code>).</div>
+<div>מכונת מצבים</div><div>הזמנה: pantry_deducted_at NULL → חותמת (פעם אחת).</div>
+<div>תופעות לוואי</div><div>עדכון כמויות מחסן; audit.</div>
+<div>ממשק</div><div>אין.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-33</code> — התאמה לפי pantry_id/שם מנורמל.</li><li><code>RST-30</code> — מודול המרה משותף.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="known ingredients datalist purchase history"><h3>רשימת מרכיבים מוכרים (לבחירה בבונה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/food-cost/known-ingredients</code> בפתיחת הבונה (<code>_rbLoadKnownIngredients</code>).</div>
+<div>הרשאות</div><div>בעלי טאב foodcost; verifyBiz; groupId מהסשן (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>אין.</div>
+<div>שלבי עיבוד</div><div>שמות ייחודיים מ-<code>shopping_trip_items</code> של העסק (כקיים), ובנוסף מזהה pantry_id כשקיים קישור (לבחירת קישור במרכיב, <code>RST-33</code>); ממוינים בעברית → datalist.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות.</li><li><code>RST-33</code> — החזרת pantry_id לקישור.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ייבוא Excel לקטלוג / לאשף</h2>
+
+<section class="proc" data-f="excel import catalog ai mapping bulk-import plan limit xlsx"><h3>ייבוא קטלוג מ-Excel (מיפוי עמודות → bulk-import)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"ייבוא Excel" בקטלוג (<code>importExcelToCatalog</code> 20159) → <code>_excelCatOpenModal</code> → תצוגה מקדימה → <code>_excelCatDoImport</code> → <code>POST /api/store/catalog/bulk-import</code>.</div>
+<div>הרשאות</div><div><code>authenticate()+requireType('biz')</code> + <code>requireModule('sales')</code> (במקום verifyBizOrLegacy — <code>ARC-03</code>); groupId מהטוקן (כקיים).</div>
+<div>קלט ואימותים</div><div><ul><li>XLSX נטען; &lt;2 שורות → "לא הצלחנו לקרוא את הקובץ — נסה פורמט אחר" (כקיים).</li><li>מיפוי: עמודת שם חובה ("יש לבחור עמודת שם מוצר") (כקיים).</li><li>שורה ללא שם לא ניתנת לבחירה; ללא מחיר — ענבר (כקיים).</li><li>שרת: products לא ריק → 400 "נתונים חסרים"; מגבלת תוכנית: enterprise 500, premium 100, אחרת 50 כולל קיימים → 400 "הגעת למגבלת N המוצרים. שדרג לתוכנית גבוהה יותר." (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מיפוי ראשוני ללא AI (<code>RST-34</code>): ניחוש מילות מפתח (שם/name/מנה/מוצר, מחיר/price/עלות, קטגוריה/category/סוג, תיאור/description/הערות, מקט/sku) — הלוגיקה הקיימת, כעת כברירת מחדל.</li>
+<li>כפתור "מיפוי חכם" (יזום): <code>POST /api/ai/map-columns</code> עם הכותרות ו-6 שורות ראשונות דרך aiGateway (<code>ARC-30</code>) → <code>{mapping}</code>; חיוב סוללת AI רק כשהוחזר mapping תקין; כשל → הודעה, המיפוי הידני נשאר.</li>
+<li><code>_excelCatApplyMapping</code>: התאמה מדויקת או הכלה; מחיר = ספרות ונקודה; קטגוריה ברירת מחדל "כללי" (כקיים).</li>
+<li>עריכה inline; INSERT לכל מוצר <code>store_catalog(..., product_type='retail')</code> עד המגבלה בטרנזקציה; <code>{imported, skipped}</code> (כקיים).</li>
+</ol></div>
+<div>חישובים</div><div>מקום פנוי = מגבלה − קיימים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>קריאת AI רק ביזמה; חיוב סוללה רק בהצלחה.</div>
+<div>ממשק</div><div>מודאל ללא שינוי; נוסף כפתור "✨ מיפוי חכם".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-34</code> — אין קריאת AI אוטומטית שנכשלת; מיפוי חכם יזום בנתיב ייעודי שמחזיר mapping, חיוב רק בהצלחה.</li><li><code>ARC-03</code> — ביטול legacy.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="excel smart import excel_biz_types category template wizard row types smart parse"><h3>ייבוא Excel "חכם" (EXCEL_BIZ_TYPES) לאשף ההקמה / לקטלוג</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>importExcelToWizard</code> (20136) מאשף ההקמה, או <code>_readExcelFile</code> → מודאל שלב 1 (בחירת תבנית קטגוריות + "מנות/מוצרים/שירותים") → תצוגה מקדימה → <code>_excelConfirmImport</code> (20825).</div>
+<div>הרשאות</div><div>אשף: ADMIN בסשן הוויזארד; קטלוג: כמו bulk-import (requireModule('sales')).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>EXCEL_BIZ_TYPES</code> נשמר כ"תבנית קטגוריות" (<code>RST-35</code> מתוקן): restaurant 🍽️ [ראשונות, עיקריות, קינוחים, שתיה, תוספות, רטבים]; shop 🛍️; service 🔧 — התווית "תבנית קטגוריות" (ללא "סוג עסק"), ברירת המחדל נבחרת לפי <code>family_groups.business_type</code>, והבחירה <b>אינה</b> כותבת business_type (<code>ARC-37</code>). סוגי שורה <code>EXCEL_ROW_TYPES</code> כקיים.</li>
+<li>"המשך" פעיל רק כשנבחרו תבנית ותווית; בחירה inline באשף מדלגת על שלב 1 (כקיים).</li>
+<li>אשף: עד 25 פריטים (כקיים).</li>
+<li>קטלוג: מגבלת התוכנית של bulk-import חלה (<code>RST-35</code>, STR-34).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>_excelSmartParse</code>: שורת כותרת, עמודות לפי מילות מפתח (כקיים).</li>
+<li>מחיר: regex <code>N ש"ח/₪/שח</code> או מספר 0&lt;n&lt;10000; תא שם מספרי → מחיר והשם מעמודה אחרת (או "פריט") — כקיים.</li>
+<li>שורת קטגוריה: תא יחיד, לא מספרי, ללא מחיר ותואם מילת מפתח או שאחת מ-6 השורות הבאות מכילה מחיר — כקיים.</li>
+<li>סוג פריט מהקטגוריה או משם הפריט — כקיים.</li>
+<li>אישור: אשף → <code>wizardProducts</code> (כקיים); קטלוג → <code>POST /api/store/catalog/bulk-import</code> אחד עם <code>productType: type==='פריט' ? 'retail' : 'addon'</code> לכל שורה (במקום POST לכל פריט).</li>
+</ol></div>
+<div>חישובים</div><div>כקיים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>גרירה, עריכת תאים, בחירה לפי סוג, הוספה/מחיקה, תבנית להורדה <code>תבנית-תפריט.xlsx</code> (<code>downloadCatalogTemplate</code>) — כקיים; כותרת הבורר "תבנית קטגוריות".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-35</code> (מתוקן) — הבורר נשמר כ"תבנית קטגוריות" עם ברירת מחדל מ-business_type; ייבוא לקטלוג דרך bulk-import עם מגבלת התוכנית.</li></ul></div>
+</div></section>
+
+<h2 class="grp">קופה — פיצול חשבון</h2>
+
+<section class="proc" data-f="split bill by items pos tender _split_colors _split_labels parts discount tip proportional"><h3>פיצול חשבון לפי מנות (קופה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>במסך התשלום בקופה: "✂️ פיצול לפי מנות" (<code>openItemSplitModal</code> 32864).</div>
+<div>הרשאות</div><div>בעלי טאב pos (כקיים); החישוב בלקוח, התשלומים נשמרים בהזמנה דרך נתיב מאומת.</div>
+<div>קלט ואימותים</div><div><ul><li>עגלה ריקה → "העגלה ריקה!" (כקיים).</li><li>חלקים 2–6; הקטנה מוחקת שיוכים לחלקים שבוטלו (כקיים).</li><li>מנות לא משויכות → confirm "N מנות לא שויכו. הן יתווספו לחלק א." (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שיוך שורות לחלקים בצבעי <code>_SPLIT_COLORS</code> ותוויות "חלק א"…"חלק ו" (כקיים).</li><li>אישור: <code>posItemSplitParts</code> = חלקים עם סכום &gt;0.005 (כקיים).</li><li>תקציר, "הכנס ▶" ממלא את סכום החלק (כעת הסכום המותאם), <code>addPaymentToSplit</code> לכל חלק (כקיים).</li><li>"ביטול פיצול" מאפס (כקיים).</li></ol></div>
+<div>חישובים</div><div><ul><li><code>raw_i = Σprice×qty</code> של מנות החלק; <code>rawTotal = Σraw_i</code>.</li><li>(<code>RST-36</code>) <code>part_i = round2(raw_i/rawTotal × grand)</code> לכל חלק פרט לאחרון; <code>part_last = grand − Σ(part_1..n−1)</code>; כך Σחלקים = grand.</li><li><code>grand = Σcart − (promo+manual discount) + tip</code> (≥0); סיום מותר כש-<code>grand − Σpayments ≤ 0.01</code>; "שי" (<code>applyFullDiscount</code>) = תשלום gift בסך <code>max(0, net − promo)</code> — כקיים.</li></ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין; הפיצול לא נשמר, רק רשימת התשלומים (<code>notes.payments</code>) — כקיים.</div>
+<div>ממשק</div><div>ללא שינוי; כל חלק מציג סכום לפני ואחרי הנחה/טיפ.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-36</code> — הנחה וטיפ מחולקים יחסית; עיגול ל-0.01 ושארית לחלק האחרון.</li></ul></div>
+</div></section>
+
+<h2 class="grp">חנות מסעדה ציבורית (storefront-restaurant.html)</h2>
+
+<section class="proc" data-f="storefront restaurant online order delivery pickup coupon bogo min order restaurant-v3 payment method done screen"><h3>הזמנה אונליין מחנות המסעדה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח בחנות (מוגשת כש-<code>store_settings.template_id='restaurant'</code>) מוסיף מנות ומבצע הזמנה (<code>submitOrder</code> storefront-restaurant.html:2161) — כקיים.</div>
+<div>הרשאות</div><div>ציבורי לצפייה; יצירת הזמנה דורשת sc-auth (<code>scAuth.requireLogin</code> — כקיים), והשרת לוקח את זהות הלקוח מהטוקן. מחירים מחושבים מחדש בשרת (תחום החנות).</div>
+<div>קלט ואימותים</div><div><ul><li>טעינה <code>GET /api/storefront/:code</code> (נתיב/<code>?store</code>/<code>?groupId</code>, ברירת מחדל "demo") — כקיים.</li><li>מינימום הזמנה: "מינימום הזמנה ₪X. חסר עוד ₪Y." (כקיים).</li><li>שם חובה; טלפון ≥9; במשלוח עיר ורחוב חובה (כקיים).</li><li><code>paymentMethod ∈ {cash, card_on_delivery}</code> (<code>RST-37</code>).</li><li>הזמנה מ-QR (<code>?table=N</code>): משלוח מבוטל, <code>orderSource='qr_table'</code>, <code>tableNumber</code> (<code>RST-09</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>POST /api/store/orders</code> עם items, <code>totalAmount=final</code>, isDelivery, deliveryFee, deliveryDetails, notes, <code>paymentMethod</code>, <code>orderSource:'restaurant-v3'</code> (או <code>qr_table</code>) → בשרת <code>pending_approval</code> (כקיים, <code>RST-12</code>).</li><li>הצלחה רק בתשובת 2xx עם <code>orderId</code>; ללא id → הודעת שגיאה "ההזמנה לא נקלטה — נסה שוב" (אין מספר אקראי) (<code>RST-37</code>).</li><li>שמירה ב-<code>localStorage['_last_restaurant_order']</code>, איפוס עגלה וקופון (כקיים).</li></ol></div>
+<div>חישובים</div><div><ul><li>דמי משלוח: 0 באיסוף; 0 אם <code>free_delivery_above&gt;0</code> והסכום ≥; אחרת דמי אזור (Nominatim + haversine) או <code>delivery_fee</code> — כקיים.</li><li>קופון: <code>fixed:X</code> → <code>min(sub,X)</code>; אחרת <code>round(sub×pct)</code> — כקיים.</li><li>BOGO: <code>floor(qty/2)×price</code> לשורה מתאימה, ללא קופון — כקיים.</li><li><code>final = max(0, sub + fee − coupon − bogo)</code>; "הנחת קהילה X%" — מוצגת בלבד, כקיים (החלתה בפועל — תחום COM/STR).</li><li>שעות פתיחה <code>isStoreOpen</code> כולל מעבר חצות — כקיים.</li></ul></div>
+<div>מכונת מצבים</div><div>ראו "מחזור חיים של הזמנת מסעדה" (נכנסת pending_approval).</div>
+<div>תופעות לוואי</div><div>יצירת הזמנה (תחום החנות); התראות סטטוס ללקוח (כקיים).</div>
+<div>ממשק</div><div>עברית/אנגלית, רשימה/כרטיסים, בונה פיצה, קוד FLOW, מצב branding — כקיים. כפתורי אמצעי תשלום (מזומן / כרטיס בעת המסירה) מוצגים ונשלחים. מסך הסיום (<code>RST-37</code>): "ההזמנה התקבלה וממתינה לאישור המסעדה" + מספר ההזמנה מהשרת; שלבי הסטטוס מתעדכנים מהשרת (polling על ההזמנה) במקום "שולמה ואושרה"/"בהכנה" קבועים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-37</code> — מסך סיום אמיתי, paymentMethod נשלח ונשמר, אין מספר אקראי.</li><li><code>RST-09</code> — מצב הזמנה לשולחן מ-QR.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront event catering booking calendar request event_request"><h3>בקשת אירוע/קייטרינג מהחנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openBooking('event')</code> → <code>submitEventBooking</code> (storefront-restaurant.html:2413).</div>
+<div>הרשאות</div><div>sc-auth חובה (כקיים בקליינט, כעת גם בשרת); זהות הלקוח מהטוקן.</div>
+<div>קלט ואימותים</div><div>שם, טלפון ותאריך חובה (כקיים); שעה — ברירת מחדל 12:00 (כקיים) וניתנת לבחירה; מספר אורחים 1–2000 אופציונלי.</div>
+<div>שלבי עיבוד</div><div><code>POST /api/calendar/events</code> עם <code>callType:'event_request'</code> (<code>RST-38</code>), <code>startTime</code> שנבחר, <code>numGuests</code>, <code>status:'pending'</code>, notes "הזמנת אירוע / קייטרינג\n…" — מופיע כבקשה ביומן העסק (כקיים) ומסווג כבקשת אירוע; inbox לעסק.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>pending → approved | rejected | (הומר להצעה — נשמר <code>linked_order_id</code>).</div>
+<div>תופעות לוואי</div><div>inbox לעסק.</div>
+<div>ממשק</div><div>שדות שעה ומספר אורחים נוספים למודאל; בכרטיס הבקשה ביומן כפתור "המר להצעת מחיר" שמפעיל from-template (בחירת תבנית) או הצעה ריקה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-38</code> — callType ייעודי, שעה ואורחים מהלקוח, המרה להצעה.</li></ul></div>
+</div></section>
+
+<h2 class="grp">רכש, ספקים ו-B2B (טאב shop)</h2>
+
+<section class="proc" data-f="init-procurement migrations suppliers supplier_products purchase_orders schema"><h3>אתחול מנוע הרכש (init-procurement)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירת סכמת הרכש (<code>suppliers</code>, <code>supplier_products</code>, <code>purchase_orders</code>, <code>purchase_requests</code>, <code>supplier_product_catalog_links</code>) — מתבצעת <b>רק</b> במיגרציות מגורסות בשלב ה-deploy (<code>ARC-12</code>).</div>
+<div>הרשאות</div><div>אין נתיב HTTP; <code>GET /api/init-procurement</code> נמחק (<code>RST-02</code>, <code>ARC-10</code>). איפוס בסביבת פיתוח — <code>npm run db:reset</code> בלבד.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div>המיגרציה יוצרת את הטבלאות עם כל העמודות שנוספו בפועל (כולל customer_number, confirm_token, service_call_id, work_order_id, email_status, received_qty לשורה, expected_delivery_date) וברירות המחדל הקיימות: <code>min_order</code>, <code>delivery_days JSONB</code>, <code>cutoff_time '12:00'</code>, <code>unit_type "יח'"</code>, <code>units_per_package 1</code>, <code>properties JSONB</code>, <code>is_active</code>, <code>status 'pending'</code>. אין DROP.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין (לא היה ממשק).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-02</code> — הנתיב ההרסני נמחק; הסכמה במיגרציות בלבד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="suppliers create update delete delivery days cutoff min_order customer_number"><h3>ספקים — הוספה/עריכה/מחיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב shop → "ספקים" (<code>switchProcurementTab('suppliers')</code> 18160) → <code>submitSupplier</code> → <code>POST /api/suppliers</code>; מחיקה <code>deleteSupplier</code> (confirm "יימחקו גם כל המוצרים בקטלוג שלו") → <code>DELETE /api/suppliers/:id</code> — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב shop (ADMIN/MANAGER, warehouse, permissions.tabs) (<code>RST-03</code> מתוקן); verifyBiz; עדכון ומחיקה לפי <code>id AND group_id</code> (0 שורות → 404) (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>שם חובה "חובה להזין שם ספק / חברה" (כקיים, גם בשרת); delivery_days מערך 0–6; cutoff_time HH:MM; min_order ≥0.</div>
+<div>שלבי עיבוד</div><div>INSERT/UPDATE <code>suppliers</code> (contact_person, phone, email, category, <code>min_order||0</code>, <code>delivery_days</code>, <code>cutoff_time||'12:00:00'</code>, customer_number) — כקיים. מחיקה בטרנזקציה עם מוצרי הספק (כמו ה-confirm).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>מחיקת מוצרי הספק וקישוריהם.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות ובדיקת בעלות גם ב-DELETE.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="supplier products catalog links supplier_product_catalog_links qty_per_unit sku smart scan"><h3>קטלוג מוצרי ספק וקישור למוצרי החנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"קטלוג" של ספק → <code>submitSupplierProduct</code> (18493) → <code>POST /api/suppliers/products</code>.</div>
+<div>הרשאות</div><div>בעלי טאב shop; verifyBiz; הספק ו-catalog_id של העסק (<code>RST-01</code>, <code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div>שם ומחיר חובה (כקיים, גם בשרת); qty_per_unit &gt;0.</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT/UPDATE <code>supplier_products</code> (price, <code>unit_type||"יח'"</code>, <code>units_per_package||1</code>, properties כולל sku) — כקיים.</li><li><code>catalogLinks</code>: בטרנזקציה DELETE + INSERT <code>supplier_product_catalog_links(supplier_product_id, catalog_id, qty_per_unit||1)</code> — כקיים.</li><li>החזרה עם catalog_links (כקיים).</li><li>שימוש בקישורים (<code>RST-44</code>): בקבלת סחורה, מוצר ספק מקושר מגדיל <code>store_catalog.stock_quantity</code> ב-<code>qty × qty_per_unit</code> ומעדכן <code>cost_price = price_per_unit / qty_per_unit</code> (ראו "קבלת סחורה").</li></ol></div>
+<div>חישובים</div><div><code>stock += received_qty × qty_per_unit</code>; <code>cost_price = price / qty_per_unit</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>עדכון מלאי ועלות מוצר החנות בקבלת סחורה.</div>
+<div>ממשק</div><div>ללא שינוי; כפתור "סריקה חכמה" נשאר עם "תהיה זמינה בקרוב!" (<code>RST-44</code> מתוקן).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-44</code> (מתוקן) — הקישורים משמשים בפועל בקבלת סחורה; כפתור הסריקה נשאר.</li><li><code>RST-01</code> — אימות ובעלות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="b2b catalog cart checkout split suppliers min order vat expected delivery"><h3>מרקטפלייס B2B — עגלה וצ'קאאוט מפוצל לספקים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב shop → "list" (<code>fetchB2BCatalog</code> → <code>GET /api/b2b/catalog</code> — מוצרים פעילים של העסק עם פרטי הספק) — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב shop; verifyBiz; groupId מהסשן.</div>
+<div>קלט ואימותים</div><div><code>openB2BCheckout</code>: ספק עם <code>min_order&gt;0</code> והסכום נמוך — אדום וכפתור השיגור מושבת (כקיים); אותה בדיקה נאכפת בשרת בשיגור (<code>RST-43</code>).</div>
+<div>שלבי עיבוד</div><div>עגלה בזיכרון <code>b2bCart{productId:qty}</code>; פיצול לפי <code>supplier_id</code> לשורות <code>{id, sku, name, quantity, unit, price_per_unit, row_total}</code> — כקיים. לכל ספק מוצג "אספקה צפויה: {תאריך}".</div>
+<div>חישובים</div><div><ul><li><code>row_total = price × qty</code>; סה"כ ספק וכללי (כקיים).</li><li>PDF: מע"מ מחולץ <code>net = total/(1+rate/100)</code>, כש-rate מ-<code>calcVat</code> בשרת (18%, <code>ARC-21</code>) ולא ערך מקומי; עוסק פטור — 0.</li><li><code>expected_delivery_date</code> (<code>RST-43</code>): היום הקרוב (כולל היום) שנמצא ב-<code>delivery_days</code>; אם היום הוא יום אספקה והשעה (Asia/Jerusalem) אחרי <code>cutoff_time</code> — יום האספקה הבא אחריו; delivery_days ריק → ללא תאריך.</li></ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי; נוסף תאריך אספקה צפוי לכל ספק.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-43</code> — מינימום הזמנה נאכף גם בשרת; חישוב מועד אספקה.</li><li><code>ARC-21</code> — שיעור מע"מ מהשרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="purchase order create send email pdf confirm token supplier confirm /c/po service call email_status"><h3>שיגור הזמנות רכש: יצירה, PDF, מייל ואישור קבלה ע"י הספק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שגר הזמנות לספקים" (<code>submitB2BOrders</code> 18903) — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב shop; verifyBiz; כל supplier_id/serviceCallId של העסק (<code>RST-01</code>). <code>/c/po/:id/:token</code> — ציבורי במכוון (טוקן).</div>
+<div>קלט ואימותים</div><div>לכל ספק: סכום ≥ <code>min_order</code> → אחרת 400 "ההזמנה לספק X נמוכה מהמינימום ₪Y" (<code>RST-43</code>); לפחות שורה אחת.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>POST /api/b2b/orders/create</code> בטרנזקציה אמיתית (<code>ARC-11</code>): לכל ספק INSERT <code>purchase_orders(status='sent', items, total_amount, created_by, expected_delivery_date)</code>; <code>serviceCallId</code> → <code>service_call_id</code> + <code>parts_status='waiting_delivery'</code>; <code>confirm_token</code> 24 בתים hex; URL <code>{APP_URL}/c/po/{id}/{token}</code> — כקיים.</li>
+<li>PDF לרוחב A4 (html2pdf 0.10.1) — כקיים.</li>
+<li><code>POST /api/b2b/orders/send-email</code>: מייל (נושא "הזמנת רכש חדשה מ-{עסק} (הזמנה #N)", פריטים, "✅ אשר קבלת הזמנה", PDF) — כקיים; התוצאה נשמרת <code>email_status ∈ {sent, failed, no_email}</code> (<code>RST-42</code>); SMTP חסר או לספק אין email → <code>no_email</code> (לא success שקט).</li>
+<li>ספק: <code>GET /c/po/:id/:token</code> מציג כפתור (לא מאשר ב-GET) — כקיים; <code>POST</code> קובע <code>supplier_confirmed_at=NOW()</code> פעם אחת, ואם status=sent → <code>approved</code> (<code>RST-42</code>).</li>
+<li>איפוס עגלה, מעבר ל-"rfq" — רק אחרי 2xx.</li>
+</ol></div>
+<div>חישובים</div><div>כקיים.</div>
+<div>מכונת מצבים</div><div>— → sent; sent → approved (אישור ספק). ראו "סטטוסי הזמנת רכש".</div>
+<div>תופעות לוואי</div><div>מייל לספק; עדכון קריאת שירות; WhatsApp ידני (<code>sendPurchaseOrderWhatsApp</code> — הורדת PDF ו-wa.me עם פירוט, ח.פ, איש קשר וקישור אישור) — כקיים.</div>
+<div>ממשק</div><div>הלקוח מציג הצלחה רק על 2xx; שגיאה → "ההזמנה לא נוצרה" (במקום "ההזמנה נשלחה — בדוק בהיסטוריה"). בהיסטוריה: תג מצב מייל (נשלח/נכשל/אין מייל) וכפתור "שלח שוב".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-42</code> — email_status אמיתי + "שלח שוב"; הצלחה רק על 2xx; אישור ספק → approved.</li><li><code>RST-43</code> — מינימום בשרת ומועד אספקה.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="purchase request assign supplier draft b2b orders shopping"><h3>העברת דרישת רכש (רשימת קניות) לספק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פריט ברשימת הדרישות → "לאיזה ספק לשייך" → <code>submitAssignSupplier</code> (7430) → <code>POST /api/b2b/orders</code>.</div>
+<div>הרשאות</div><div>בעלי טאב shop; verifyBiz; הספק והדרישה של העסק.</div>
+<div>קלט ואימותים</div><div>חובה לבחור ספק "יש לבחור ספק מהרשימה" (כקיים); <code>status ∈ {draft}</code> מכובד (<code>RST-39</code>).</div>
+<div>שלבי עיבוד</div><div><ol><li>שורה <code>{id:'req_'+reqId, name, quantity, unit, price_per_unit}</code>; אם נבחר מוצר ספק תואם — <code>supplier_product_id</code> ומחירו (<code>RST-44</code>), אחרת 0.</li><li>שרת (<code>RST-39</code>): INSERT <code>purchase_orders(status='draft')</code> — <b>ללא</b> מייל וללא confirm_token; שליחה לספק רק ב"שגר" מפורש מהטיוטה (draft→sent, יצירת טוקן ומייל כבשיגור).</li><li>מחיקת הדרישה <code>DELETE /api/shopping/delete/:id</code>; מעבר ל-"rfq" (כקיים).</li></ol></div>
+<div>חישובים</div><div><code>total = Σ price×qty</code> (0 אם אין מחיר).</div>
+<div>מכונת מצבים</div><div>— → draft → sent (שגר).</div>
+<div>תופעות לוואי</div><div>אין מייל ביצירה.</div>
+<div>ממשק</div><div>"הועברה לטיוטת הזמנה" — כעת נכון; בטיוטה כפתור "שגר לספק".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-39</code> — השרת יוצר טיוטה ללא מייל; שליחה רק בשיגור.</li><li><code>RST-44</code> — שורת דרישה נשמרת עם supplier_product_id אם נבחר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="purchase order status pending draft approved sent processing shipped delivered cancelled"><h3>סטטוסי הזמנת רכש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ADMIN רואה בורר סטטוס בהיסטוריה (19055) → <code>updateB2BOrderStatus</code> → <code>POST /api/b2b/orders/status</code> — נתיב יחיד; <code>PUT /api/b2b/orders/:id/status</code> הכפול מוסר (אין לו קורא) (<code>RST-40</code>, <code>ARC-35</code>).</div>
+<div>הרשאות</div><div>שינוי ידני — ADMIN בלבד, נאכף בשרת (כקיים בממשק); verifyBiz + בעלות.</div>
+<div>קלט ואימותים</div><div><ul><li>enum: pending, draft, approved, sent, processing, shipped, delivered, cancelled (<code>RST-40</code> מתוקן — pending נשמר).</li><li>"סופק במלואו" אינו ניתן לבחירה ידנית — טוסט "לסימון כ"סופק" יש להשתמש בכפתור "קבלת סחורה ועדכון מלאי"" (כקיים) וגם השרת דוחה (400).</li><li>הזמנה ב-delivered אינה ניתנת לשינוי ידני (נעולה) — מונע קבלה כפולה.</li><li>כפתור קבלת סחורה רק כשהסטטוס אינו delivered/cancelled/draft/pending (כקיים).</li></ul></div>
+<div>שלבי עיבוד</div><div>UPDATE status + audit (<code>ARC-19</code>).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>תוויות כקיים (19023).
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>sent</td><td>שיגור</td><td>מינימום ספק</td><td>מייל, טוקן</td></tr>
+<tr><td>—</td><td>draft</td><td>העברת דרישה / קבלה עם חוסרים</td><td>—</td><td>אין מייל</td></tr>
+<tr><td>draft</td><td>sent</td><td>"שגר לספק"</td><td>—</td><td>מייל, טוקן</td></tr>
+<tr><td>sent</td><td>approved</td><td>אישור ספק (<code>/c/po</code>)</td><td>טוקן תקף</td><td>supplier_confirmed_at</td></tr>
+<tr><td>כל מצב ≠ delivered</td><td>pending/draft/approved/sent/processing/shipped/cancelled</td><td>ADMIN בבורר</td><td>—</td><td>audit</td></tr>
+<tr><td>sent/approved/processing/shipped</td><td>delivered</td><td>בעל טאב shop — "קבלת סחורה" בלבד</td><td>FOR UPDATE</td><td>מלאי, מחיר, טיוטת חוסרים</td></tr>
+<tr><td>draft</td><td>(נמחק)</td><td>"משוך לעגלה"</td><td>—</td><td>פריטים חוזרים לעגלה</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>audit.</div>
+<div>ממשק</div><div>ללא שינוי; בהזמנה delivered הבורר מוצג לקריאה בלבד.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-40</code> (מתוקן) — נתיב יחיד, delivered רק דרך receive ונעול; pending ובורר ADMIN נשמרים.</li><li><code>RST-42</code> — sent→approved באישור ספק.</li><li><code>RST-39</code> — draft→sent מפורש.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="receive goods pantry shopping_trips price missing draft parts_ready service call idempotent received_qty"><h3>קבלת סחורה ועדכון מלאי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"קבלת סחורה ועדכון מלאי" (<code>openReceiveGoodsModal</code> → <code>submitReceiveGoods</code> 19340) → <code>POST /api/b2b/orders/receive</code>.</div>
+<div>הרשאות</div><div>בעלי טאב shop או pantry (ADMIN/MANAGER, warehouse, branch_manager, cook — כקיים בנראות); verifyBiz + בעלות.</div>
+<div>קלט ואימותים</div><div><ul><li>לכל שורה כמות שהתקבלה וחסרה; שורות 0 לא נשלחות (כקיים).</li><li>(<code>RST-41</code>) <code>SELECT … FOR UPDATE</code> על ההזמנה; מותר רק כש-status ∈ {sent, approved, processing, shipped} → אחרת 409 "ההזמנה כבר התקבלה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה אמיתית (<code>ARC-11</code>): <code>status='delivered'</code>; לכל שורה <code>received_qty</code> נשמר (<code>RST-41</code>).</li>
+<li>קריאת שירות מקושרת: <code>parts_status='parts_ready'</code> + התראה <code>sc_parts_ready</code> "✅ חלקים הגיעו לקריאה …" (reference_key יומי) — כקיים, דרך notifications המאוחד (<code>ARC-16</code>).</li>
+<li>לכל פריט שהתקבל: פריט מחסן לפי <code>pantry_id</code> של מוצר הספק, אחרת <code>lower(trim(name))</code> (<code>RST-33</code>) → <code>quantity += qty</code>; אחרת INSERT (unit "יח'") ושמירת הקישור <code>supplier_product → pantry_id</code>.</li>
+<li>מוצר ספק עם קישור לקטלוג: <code>stock_quantity += qty×qty_per_unit</code>, <code>cost_price</code> מתעדכן (<code>RST-44</code>).</li>
+<li>פריטים עם מחיר&gt;0: INSERT <code>shopping_trips(store_name=שם הספק, total, buyer_id)</code> + <code>shopping_trip_items(price_per_unit, pantry_id)</code> — מקור המחיר של Food Cost (כקיים; כשל כאן לא מפיל — נרשם בלוג).</li>
+<li>חוסרים: הזמנה חדשה לאותו ספק <code>status='draft'</code> עם מזהי המוצרים המקוריים, notes "הזמנת השלמת חוסרים שנוצרה אוטומטית (הזמנה #N)" — כקיים.</li>
+<li>COMMIT.</li>
+</ol></div>
+<div>חישובים</div><div><code>row_total = price×qty</code>; <code>missingTotal = Σ</code> (כקיים).</div>
+<div>מכונת מצבים</div><div>sent/approved/processing/shipped → delivered (פעם אחת).</div>
+<div>תופעות לוואי</div><div>התראת קריאת שירות; עדכון מחסן ומלאי חנות; רישום מחיר רכש; טיוטת חוסרים.</div>
+<div>ממשק</div><div>ללא שינוי; 409 מציג "ההזמנה כבר התקבלה".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-41</code> — אידמפוטנטי (FOR UPDATE + 409) ושמירת received_qty.</li><li><code>RST-33</code> — התאמת מחסן לפי pantry_id/שם מנורמל במקום רגישות רישיות.</li><li><code>RST-44</code> — עדכון מלאי ועלות מוצר חנות מקושר.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="draft order pull back cart delete purchase order req_"><h3>משיכת טיוטת חוסרים חזרה לעגלה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בהזמנת draft: <code>editDraftOrder</code> (19153, confirm "למחוק הזמנה זו לצמיתות?") — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב shop; verifyBiz; <code>DELETE /api/b2b/orders/:id</code> רק להזמנה של העסק ורק ב-status=draft (<code>RST-01</code>).</div>
+<div>קלט ואימותים</div><div>הזמנה שאינה draft → 400 "ניתן למשוך רק טיוטה".</div>
+<div>שלבי עיבוד</div><div>לכל שורה עם מזהה מוצר ספק — <code>b2bCart[id] += quantity</code>; שורת דרישה (<code>req_N</code>) עם <code>supplier_product_id</code> → נכנסת לעגלה לפי המוצר (<code>RST-44</code>); ללא מוצר — מוצגת ברשימת "פריטים ללא מוצר ספק" לבחירה ידנית (לא נספרת ללא מחיר); מחיקה פיזית של הטיוטה; מעבר ל-list (כקיים).</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>draft → (נמחק).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי; הודעה על פריטים שלא אותרו.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — אימות ובעלות, רק draft.</li><li><code>RST-44</code> — שורות req_N משויכות למוצר ספק כשנבחר.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מלאי עסקי (Pantry)</h2>
+
+<section class="proc" data-f="pantry add update use delete inventory business verifyfamilyorbiz units_per_package reserved_qty"><h3>פריטי מלאי — הוספה, עדכון, שימוש ומחיקה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב <code>pantry</code> (מודול משותף למשפחה ולעסק): GET, add, update, use, delete — כקיים, groupId מהטוקן.</div>
+<div>הרשאות</div><div>עסק: קריאה וכתיבה לבעלי טאב pantry (ADMIN/MANAGER, warehouse, branch_manager, cook, permissions.tabs) (<code>RST-03</code> מתוקן), נאכף בשרת; סוג הסשן מוצהר (<code>ARC-05</code>). משפחה — לפי החלטות FAM.</div>
+<div>קלט ואימותים</div><div><ul><li>GET: groupId של הקורא → 403 "אין הרשאה" (כקיים).</li><li>add: שם חובה "שם פריט נדרש" (100 תווים); כמות ≥0, ברירת מחדל 1 (כקיים).</li><li>update/delete: בעלות → 404 "פריט לא נמצא" (כקיים).</li><li>use: פריט לפי id, או לפי <code>lower(trim(name))</code> (<code>RST-33</code>) → 404 "Item not found".</li><li>delete: חסום כש-<code>reserved_qty&gt;0</code> → 409 "לפריט יש שריונים פעילים" (<code>RST-45</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: שם זהה (מנורמל) — <code>quantity += q</code>; אחרת INSERT (<code>unit||"יח'"</code>, <code>units_per_package||1</code>); <code>logActivity('pantry_add')</code> — כקיים.</li><li>update: <code>quantity = max(0, q)</code> — כקיים.</li><li>use (<code>RST-45</code> מתוקן): <code>quantity = max(0, q − deduct)</code>; בעסק — לעולם לא נמחק (נשאר 0, מוצג "אזל"); בכל קבוצה — לא נמחק כש-reserved_qty&gt;0; משפחה ללא שריון — נמחק ב-≤0 כקיים.</li></ol></div>
+<div>חישובים</div><div>use: <code>deduct = usedUnits&gt;0 ∧ units_per_package&gt;0 ? usedUnits/units_per_package : usedQuantity</code> (כקיים).</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>logActivity.</div>
+<div>ממשק</div><div>ללא שינוי; פריט בכמות 0 בעסק מסומן "אזל".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-45</code> (מתוקן) — use לא מוחק בעסק/כשיש שריון; מחיקה חסומה עם שריון.</li><li><code>RST-33</code> — התאמת שם מנורמלת.</li><li><code>RST-03</code> — הרשאת תפקיד בשרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="inventory count bulk-update pantry store inventory-count stock_quantity email pdf"><h3>ספירת מלאי (מחסן / מוצרי חנות) עם דוח במייל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מחסן: <code>POST /api/pantry/bulk-update</code>; מוצרי חנות: <code>POST /api/store/inventory-count</code> — כקיים.</div>
+<div>הרשאות</div><div>בעלי טאב pantry (מחסן) / sales או pantry (חנות); verifyBiz; groupId מהסשן — inventory-count אינו מקבל groupId מהגוף (<code>RST-01</code>, <code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div>items מערך → אחרת 400 "נתונים חסרים"; כמות ריקה מדולגת (כקיים); כל id שייך לעסק.</div>
+<div>שלבי עיבוד</div><div><ol><li>מחסן: UPDATE <code>quantity=max(0,q)</code> לפי id+group; חנות: UPDATE <code>stock_quantity=parseInt</code> לפי id+group — בטרנזקציה (<code>ARC-11</code>).</li><li><code>sendEmail</code> ויש <code>admin_email</code>: טבלת HTML (פריט/יחידה/כמות בפועל); שני המסלולים דרך <code>sendSystemEmail</code> עם PDF מצורף אופציונלי (איחוד ערוץ המייל; התוכן כקיים).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>מייל דוח.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-01</code> — inventory-count מאומת, groupId מהסשן.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="work order inventory reservation buffer min_stock_buffer_pct reserved_qty use release inventory-settings"><h3>שריון מלאי לפקודת עבודה/אירוע (כולל מרווח ביטחון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>Events Hub/פקודת עבודה: <code>POST /api/work-orders/:id/inventory</code>, שימוש <code>/:resId/use</code>, שחרור <code>DELETE</code>; הגדרות <code>PUT /api/groups/inventory-settings</code>; צפייה בשריונים — כקיים.</div>
+<div>הרשאות</div><div>verifyBiz; פקודה <code>call_type='work_order'</code> של העסק (אחרת 403 "אין הרשאה" — כקיים); הגדרות — ADMIN/MANAGER.</div>
+<div>קלט ואימותים</div><div>פריט מחסן/קטלוג של העסק; שחרור רק ל-<code>status='reserved'</code> ("שריון לא נמצא או כבר בשימוש") — כקיים.</div>
+<div>שלבי עיבוד</div><div><ol><li>שריון (טרנזקציה + FOR UPDATE על הפריט, <code>ARC-11</code>): <code>reserved_qty += actual</code>; INSERT <code>work_order_inventory</code>; ציר זמן <code>inventory_reserved</code> ("חסר X") — כקיים.</li><li>שימוש: <code>status='used', used_qty</code>; <code>quantity −= used</code>, <code>reserved_qty −= reserved</code> (≥0) — הפריט לא נמחק גם ב-0 (<code>RST-45</code>).</li><li>שחרור: <code>status='released'</code>, <code>reserved_qty −= reserved</code> — כקיים.</li></ol></div>
+<div>חישובים</div><div><code>buffer = stock × min_stock_buffer_pct/100</code>; <code>available = max(0, stock − reserved − buffer)</code>; <code>actual = min(needed, available)</code>; <code>shortage = round4(needed − actual)</code>; <code>used = min(usedQty||reserved, reserved)</code> — כקיים.</div>
+<div>מכונת מצבים</div><div><code>work_order_inventory.status</code>: reserved → used | released.</div>
+<div>תופעות לוואי</div><div>ציר זמן פקודת העבודה.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-11</code> — שריון בטרנזקציה עם נעילת שורה.</li><li><code>RST-45</code> — שימוש בשריון לא מוחק פריט.</li><li><code>RST-01</code> — groupId מהסשן בהגדרות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pantry ai insight gemini procurement familai"><h3>תובנת AI למלאי ורכש</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/pantry/familai-insight</code> — כקיים.</div>
+<div>הרשאות</div><div>groupId של הקורא מהסשן (403); זכאות ומכסה דרך aiGateway (<code>ARC-30</code>) → <code>BATTERY_EMPTY</code> כשנגמרה (כקיים).</div>
+<div>קלט ואימותים</div><div>כקיים.</div>
+<div>שלבי עיבוד</div><div>Gemini <code>gemini-2.5-flash</code> דרך aiGateway; לעסק פרומפט "מנהל מלאי ורכש" עם המלאי והיסטוריית רכש מתחילת החודש הקודם, 3–4 משפטים, פותח "דוח מלאי ורכש תקופתי:" — כקיים; הפחתת מכסה אטומית ו-ai_usage_log.</div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>הפחתת מכסת AI.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-30</code> — מעבר ל-aiGateway (ללא שינוי בתוצאה).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="cook low stock pantry kds dashboard min_quantity"><h3>מלאי נמוך בדשבורד הטבח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>renderCookDashboard</code> (41623) טוען <code>GET /api/pantry</code> — כקיים.</div>
+<div>הרשאות</div><div>cook ובעלי טאב pantry; verifyFamilyOrBiz → סשן biz.</div>
+<div>קלט ואימותים</div><div>אין.</div>
+<div>שלבי עיבוד</div><div>סינון פריטים נמוכים, עד 5 (כקיים); הצגת <code>item_name</code> (<code>RST-46</code>).</div>
+<div>חישובים</div><div>(<code>RST-46</code>) <code>available = quantity − reserved_qty</code>; <code>threshold = pantry.min_quantity</code>; אם NULL — סף לפי <code>min_stock_warning_pct</code> של העסק (אחוז מהכמות שנקלטה בקבלת הסחורה האחרונה); בהיעדר שתיהן — 2 (הסף הקיים נשמר); נמוך = <code>available ≤ threshold</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>"🚨 חסרים במלאי" — כעת עם שם הפריט; שדה "כמות מינימום" בעריכת פריט מחסן (אופציונלי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-46</code> — item_name במקום name; עמודת min_quantity וסף לפי זמינות.</li></ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

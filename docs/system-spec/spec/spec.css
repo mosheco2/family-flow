@@ -52,3 +52,7 @@ section.proc table{font-size:12px}
 section.proc .kv>div,section.proc li{min-width:0;overflow-wrap:anywhere}
 section.proc code{overflow-wrap:anywhere;word-break:break-word}
 section.proc table{display:block;overflow-x:auto;max-width:100%}
+.wrap>table,.intro table,.wrap>div>table{display:block;overflow-x:auto;max-width:100%}
+.intro,.intro li,.wrap td{overflow-wrap:anywhere}
+.intro code,.wrap td code{word-break:break-word}
+pre{max-width:100%;overflow-x:auto}

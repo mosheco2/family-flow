@@ -482,7 +482,7 @@
 <li>שליפה מקבילה של הקטלוג, ההגדרות, סוג העסק, הווריאציות והאזורים. כשל מחזיר 500.</li>
 <li><code>priceOrder()</code> (<code>STR-09</code>) מחזיר breakdown: <code>subtotal, promoDiscount, couponDiscount, communityDiscount, flowDiscount, manualDiscount (צוות בלבד), tip (צוות בלבד), deliveryFee, vatRate, vatAmount, total</code>. אכיפת המבצעים חלה עכשיו בכל הערוצים ובכל סוגי העסקים, כי הסכום הוא תמיד סכום השרת.</li>
 <li><code>withTransaction</code> (<code>ARC-11</code>): INSERT ל-<code>store_orders</code> (status לפי הכללים, <code>order_source = orderSource||'website'</code>, <b><code>total_amount</code> = total של השרת</b>, <code>delivery_fee</code> של השרת, <code>pricing_breakdown</code> JSONB, <code>vat_rate</code> בזמן היצירה לפי <code>ARC-21</code>, <code>delivery_details</code> מובנה, <code>target_datetime</code> אם נשלח), ואז <code>items</code> JSONB, INSERT ל-<code>store_order_items</code> לכל פריט אמיתי (<code>quantity NUMERIC(10,3)</code>), <code>promo_code=UPPER</code>, מימוש קופון (<code>store_coupon_redemptions</code>), ומימוש FLW: בדיקת יתרה FOR UPDATE, ניכוי מהארנק ורישום <code>flow_redemptions(order_id)</code> (<code>STR-12</code>, <code>ARC-15</code>). כל כשל מבטל את כל ההזמנה. COMMIT.</li>
-<li>אחרי COMMIT (ללא שינוי): אם יש promoCode ו-familyGroupId ומבצע קהילתי תואם, <code>awardFlow</code> מעניק family 'promo_redemption', business 'biz_promo_redeemed' ו-community 'promo_community'. ההענקה אידמפוטנטית לפי order_id (<code>ARC-15</code>).</li>
+<li>בתוך הטרנזקציה: אם נשמר communityPromoCode תקף, INSERT ל-<code>community_promo_redemptions(promo_id, family_group_id, order_id, channel='order')</code> עם UNIQUE על (promo_id, order_id) (<code>COM-13</code>). אחרי COMMIT, ורק אם השורה נוצרה: <code>awardFlow</code> מעניק family 'promo_redemption', business 'biz_promo_redeemed' ו-community 'promo_community', עם reference_id=orderId. ההענקה אידמפוטנטית לפי order_id (<code>ARC-15</code>).</li>
 <li><code>upsertStoreCustomer</code> (<code>STR-42</code>): יוצר או מעדכן רק את לקוח העסק (<code>customers</code>, <code>ARC-14</code>). דילוג על "לקוח קופה" ו"לקוח מזדמן" (ללא שינוי). לקוח מחובר (sc-auth/FAMILY) מקבל <code>member_business_links</code> בסטטוס 'active'. טלפון שתואם משתמש FAMILY קיים בלי התחברות מקבל קישור 'pending'. לא נוצר חשבון FAMILY או shopper אוטומטית.</li>
 <li>מייל לעסק (ללא שינוי) ל-<code>order_notification_email || admin_email</code> אם <code>send_order_email !== false</code>. הכתובת מוצגת מהמבנה האחיד (<code>STR-16</code>), והתבנית עם auto-escape (<code>ARC-27</code>).</li>
 <li>וואטסאפ order_received ללקוח לפי <code>whatsapp_settings.customer_order</code> (<code>STR-46</code>).</li>
@@ -506,22 +506,22 @@
 <li><code>STR-46</code>: וואטסאפ order_received אוטומטי.</li>
 <li><code>STR-04</code>: status התחלתי מוגבל ודורש סשן צוות.</li>
 <li><code>ARC-21</code>: שיעור המע"מ נשמר בהזמנה.</li>
-</ul></div>
+<li><code>E2E-02</code> — מימוש מבצע קהילה בהזמנה נרשם ב-community_promo_redemptions (channel='order') בתוך הטרנזקציה, וה-FLOW מוענק רק כשהשורה נוצרה, בהתאם ל-tobe-community.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="order status lifecycle pending_approval new processing ready shipped delivering delivered completed cancelled cashback income pantry"><h3>מחזור חיי הזמנה ועדכון סטטוס (POST /api/store/orders/status)</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>עובדי העסק: מודאל הזמנה (<code>updateStoreOrderStatus</code> 15961, כפתורים ב-business.html:3940-3947), שליח (<code>updateStoreOrderStatusCourier</code> 23316), אישור ודחייה במסעדה (<code>approveDeliveryToKitchen</code> 23333, <code>rejectStoreOrder</code> 23358), KDS (<code>kdsItemCheck</code> 40982, <code>cookDoneOrder</code> 41110), מלצר (<code>markReadyDelivered</code> 31840). הקופה משלימה דרך pos/sale. הלקוח משלים דרך customer-feedback.</div>
 <div>הרשאות</div><div>סשן BIZ, מודול sales, ובדיקה ש-<code>store_orders.group_id=session.groupId</code>, אחרת 404 (<code>STR-04</code>). הטאבים: הזמנות, שליחויות, KDS או מלצר, לפי סוג הפעולה (<code>ARC-06</code>). פתיחה מחדש של הזמנה שהושלמה: ADMIN בלבד.</div>
-<div>קלט ואימותים</div><div><ul><li><code>status</code> מתוך enum סגור: pending_approval, new, processing, ready, shipped, delivering, completed, cancelled. הערך 'delivered' מתקבל ומתורגם ל-completed (<code>STR-17</code>).</li><li>המעבר חייב להופיע בטבלת המעברים, אחרת 400 "מעבר סטטוס לא חוקי" (<code>STR-04</code>).</li></ul></div>
+<div>קלט ואימותים</div><div><ul><li><code>status</code> מתוך enum סגור: pending_approval, new, processing, ready, shipped, delivering, completed, cancelled. הערך 'delivered' מתקבל ומתורגם ל-completed (<code>STR-17</code>).</li><li>המעבר חייב להופיע בטבלת המעברים, אחרת 400 "מעבר סטטוס לא חוקי" (<code>STR-04</code>).</li><li>שורה עם call_type='work_order' (פקודת עבודה שהומרה מהצעה) מאומתת מול רשימת הסטטוסים של פקודות העבודה (open, scheduled, processing, pending_payment, completed, cancelled) ומועברת לאותו handler של PUT /api/work-orders/:id/status (tobe-services, "שינוי סטטוס פקודת עבודה"), כך שהעדכון מרשימת ההזמנות ממשיך לעבוד בלי מכונת מצבים שנייה.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li><code>withTransaction</code>: <code>SELECT ... FOR UPDATE</code> על ההזמנה, בדיקת המעבר, ואז UPDATE של <code>status</code> ו-<code>status_changed_at=NOW()</code>. עם <code>setDelivery</code> גם <code>is_delivery=true</code> (ללא שינוי).</li>
 <li>אם היעד הוא completed, נקראת <code>completeOrder(tx, order)</code>, נקודה אחת לכל המסלולים: עובד, שליח, קופה, מלצר, קיוסק ולקוח (<code>STR-17</code>). כל תופעה אידמפוטנטית:
- <ul><li>הכנסה (<code>STR-18</code>, <code>STR-22</code>): INSERT ל-<code>transactions</code> (type income, category 'sales', <code>source_order_id</code>) עם <code>ON CONFLICT (group_id, source_order_id, type) DO NOTHING</code>. הסכום הוא סך התקבולים בפועל לפי <code>store_order_payments</code>: gift ו-on_account לא נספרים. להזמנת חזית בלי שורות תשלום, נספר total_amount.</li>
+ <ul><li>הכנסה (<code>STR-18</code>, <code>STR-22</code>): INSERT ל-<code>transactions</code> (type income, category 'sales', <code>source_order_id</code>) עם <code>ON CONFLICT (group_id, source_order_id, type) DO NOTHING</code>. הסכום הוא סך התקבולים בפועל לפי <code>store_order_payments</code>: gift ו-on_account לא נספרים. להזמנת חזית בלי שורות תשלום, נספר total_amount. חריג: להזמנה או פקודה שיש לה שורות <code>work_order_payments</code> (תחנות תשלום, tobe-services) לא נרשמת הכנסה מצרפית, כי ההכנסה נרשמת בקבלת כל תחנה. כך הכנסה נרשמת פעם אחת בלבד.</li>
  <li>קאשבק קהילה (ללא שינוי, כבר מוגן פעם אחת להזמנה).</li>
  <li>ניכוי מחסן (ללא שינוי, תפיסה אטומית לפי <code>pantry_deducted_at</code>).</li>
  <li>ניכוי מלאי חנות, תנועת 'sale' (<code>STR-19</code>).</li>
- <li>FLOW 'promo_used' למשפחה עם <code>community_promo_id</code>, עם מפתח idempotency להזמנה.</li></ul></li>
+ <li>FLOW של מבצע קהילה: אין הענקה בהשלמה. התגמול (promo_redemption / biz_promo_redeemed / promo_community) ניתן פעם אחת ביצירת ההזמנה (tobe-community, "אימות ומימוש קוד מבצע קהילה", <code>COM-15</code>). הקריאה ל-'promo_used' מוסרת, כי ביעד מפתח חסר ב-flow_config הוא שגיאה ולא no-op, והיא הייתה מכשילה את completeOrder.</li></ul></li>
 <li>אם היעד הוא cancelled, וההזמנה כבר הושלמה בעבר: תנועת הכנסה שלילית מקושרת (type 'income_reversal', <code>STR-18</code>) ותנועות מלאי 'cancelled_order' (<code>STR-19</code>). זיכוי קופון ו-FLW לפי ה-ledger (<code>ARC-15</code>).</li>
 <li>רישום ב-audit עם userId (<code>STR-04</code>, <code>ARC-19</code>). היום מתבצע <code>logBizAction('UPDATE_ORDER_STATUS')</code> בלי זהות.</li>
 <li>אחרי COMMIT (ללא שינוי בתוכן): אם להזמנה יש <code>family_group_id</code> וקישור פעיל, נשלחת התראה דרך <code>notify()</code> (<code>SA-52</code>, <code>ARC-16</code>), עם dedup לפי <code>reference_key=mbiz_order_{id}_{status}</code>. התוויות: new=חדשה, processing=בטיפול, ready=מוכנה לאיסוף, shipped=נשלחה, delivering=בדרך, completed=הושלמה, cancelled=בוטלה.</li>
@@ -557,7 +557,7 @@
 <li><code>STR-22</code>: הכנסה לפי אמצעי התשלום.</li>
 <li><code>STR-46</code>: וואטסאפ order_ready אוטומטי.</li>
 <li><code>SA-52</code>: (מכסה את STR-27) התראות דרך notify() לפי הסכמה.</li>
-</ul></div>
+<li><code>E2E-01</code> — הוסרה הענקת 'promo_used' מ-completeOrder (מפתח שהוסר ב-COM-15 ושביעד מחזיר שגיאה). FLOW של מבצע קהילה ניתן פעם אחת ביצירת ההזמנה.</li><li><code>E2E-10</code> — אין הכנסה מצרפית ב-completeOrder להזמנה עם תחנות תשלום (ההכנסה נרשמת בקבלת התחנה); שורת work_order מאומתת ומטופלת ב-handler של פקודות העבודה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="order schedule target date item ready kds"><h3>תזמון הזמנה ומוכנות פריטים (KDS)</h3>
@@ -620,7 +620,7 @@
 <div>שלבי עיבוד</div><div><ol>
 <li>החישוב בלקוח לתצוגה, ללא שינוי בנוסחאות: net, הנחת מבצעים (<code>calcPOSPromotions</code>, לא בתשלום חוב), הנחה ידנית וטיפ.</li>
 <li>תשלומים מפוצלים (ללא שינוי): cash, credit, bit, paybox, on_account, gift ("שי / חינם": <code>applyFullDiscount</code> מגדיר תשלום יחיד בסכום המלא), ועכשיו גם store_credit. פיצול לפי מנות (posItemSplitAssignments).</li>
-<li><b>קריאה אטומית אחת</b> <code>POST /api/store/pos/sale</code> (<code>STR-21</code>) עם שורות, payments, הנחה ידנית, טיפ, tableNumber, is_debt_recovery ו-customerId/phone. השרת, ב-<code>withTransaction</code>: <code>createOrder</code> עם orderSource 'table' (אם נבחר שולחן) או 'internal', <code>isDelivery:false</code>, ו-customerName של הלקוח המזוהה או "לקוח קופה" (ללא שינוי). מחשב את הסכום ב-<code>priceOrder</code>. רושם <code>store_order_payments(order_id, method, amount)</code> (<code>STR-22</code>). רושם ב-<code>customer_ledger</code> charge עבור on_account ו-payment עבור פירעון חוב (<code>STR-23</code>, <code>ARC-15</code>). מנכה store_credit מהארנק (<code>STR-20</code>). קובע status='completed' ומפעיל <code>completeOrder()</code>. כשל: אין הזמנה, והקופה מציגה שגיאה.</li>
+<li><b>קריאה אטומית אחת</b> <code>POST /api/store/pos/sale</code> (<code>STR-21</code>) עם שורות, payments, הנחה ידנית, טיפ, tableNumber, is_debt_recovery ו-customerId/phone. השרת, ב-<code>withTransaction</code>: <code>createOrder</code> עם orderSource 'table' (אם נבחר שולחן) או 'internal', <code>isDelivery:false</code>, ו-customerName של הלקוח המזוהה או "לקוח קופה" (ללא שינוי). מחשב את הסכום ב-<code>priceOrder</code>. רושם <code>store_order_payments(order_id, method, amount)</code> (<code>STR-22</code>), ושומר ב-store_orders.created_by_user_id את המשתמש מהסשן (הקופאי), כדי שסגירת הקופה תחשב מזומן צפוי לפי קופאי (tobe-biz, "פתיחת/סגירת קופה"). רושם ב-<code>customer_ledger</code> charge עבור on_account ו-payment עבור פירעון חוב (<code>STR-23</code>, <code>ARC-15</code>). מנכה store_credit מהארנק (<code>STR-20</code>). קובע status='completed' ומפעיל <code>completeOrder()</code>. כשל: אין הזמנה, והקופה מציגה שגיאה.</li>
 <li>פריט metadata ושדה notes עם JSON (payments, vat, is_debt_recovery, promoDiscount, manualDiscount, tip, tableNumber) נשמרים לתאימות לאחור, אבל מקור האמת הוא הטבלאות וה-breakdown.</li>
 <li>ללא שינוי: הדפסת קבלה <code>printPOSReceipt</code>, קונפטי, איפוס העגלה וההנחות. שולחן עובר ל"ממתין לתשלום" (<code>setTableAwaitingPayment</code>).</li>
 </ol></div>
@@ -636,7 +636,7 @@
 <li><code>ARC-21</code>: (מכסה את STR-24) שיעור המע"מ מהשרת. ההגדרה המקומית מוסרת.</li>
 <li><code>STR-19</code>: ניכוי מלאי במכירה.</li>
 <li><code>STR-50</code>: תיעוד: ברקוד בקופה מסומן עתידי.</li>
-</ul></div>
+<li><code>E2E-09</code> — pos/sale שומר created_by_user_id מהסשן, שסגירת הקופה צורכת לחישוב מזומן לפי קופאי.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="deliveries courier tab shipped delivering completed polling waze whatsapp"><h3>טאב שליחויות (Deliveries)</h3>

@@ -1,0 +1,800 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · שגרות · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · שגרות</h1><span class="meta">25 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="cur">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="">יעד · מסעדה</a><a href="tobe-sport.html" class="">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>מפרט TO-BE — מודול "שגרות" (BIZ: מסעדנות ותחזוקה/תיקונים) ונהלי SOP (RTN).</b> המסמך מכסה את כל <b>25 התהליכים</b> שב-<code>rules-routines.html</code>. לא הושמט אף תהליך ולא בוצעו מיזוגים. מה שעובד היום הועתק כפי שהוא, ושונה רק מה שההחלטות המאושרות מחייבות, בכפוף לכלל העל: כל יכולת ופעולה שהמשתמש מקבל היום נשמרות.</p>
+<p><b>החלטות שהוחלו:</b> 42 פריטי RTN, אין ביניהם כפולים (אין <code>dup_of</code>). החלוקה: FIX 16, HARDEN 8, CONSISTENCY 2, BEHAVIOR 14, SCOPE 2. החלטות ארכיטקטורה מוזכרות לפי מזהה בלבד: אימות וסשן (<code>ARC-01</code>/<code>ARC-02</code>/<code>ARC-05</code>), groupId מהסשן (<code>ARC-04</code>), תפקידים בשרת (<code>ARC-06</code>), טרנזקציות (<code>ARC-11</code>), מיגרציות (<code>ARC-12</code>/<code>ARC-13</code>), לקוח אחד (<code>ARC-14</code>), התראות (<code>ARC-16</code>), זכאות וקטלוג מודולים (<code>ARC-17</code>/<code>ARC-18</code>), worker ו-cron (<code>ARC-23</code>), אזור זמן (<code>ARC-25</code>), העלאות (<code>ARC-26</code>), XSS ו-CSP (<code>ARC-27</code>/<code>ARC-28</code>), שגיאות (<code>ARC-33</code>), ולידציה (<code>ARC-34</code>), נתיבים בלי קורא (<code>ARC-35</code>), מדריכים (<code>ARC-42</code>), CI (<code>ARC-43</code>).</p>
+<p><b>מושגי הרשאה שבהם משתמש המסמך</b> (מוגדרים בתהליך "גידור המודול"): <b>R-ACC</b> — גישה לטאב שגרות. <b>R-MGR</b> — ניהול שגרות. <b>R-EXEC</b> — ביצוע מופע. <b>R-APPR</b> — הכרעת סבב פנימי.</p>
+<p><b>פריטים שעודכנו (10).</b> בכל אחד: מזהה, למה שונה, והכלל הסופי.</p>
+<ul>
+<li><code>RTN-04</code>. <b>למה:</b> ההצעה הגבילה ניהול לתפקידים קבועים וחסמה אישור עצמי. כך היו נפגעים עסקים שבהם ה-ADMIN העניק היום לעובד MEMBER את טאב השגרות כדי לנהל אותו, ועסקים קטנים עם מנהל יחיד שמבצע ומאשר בעצמו. <b>כלל סופי:</b> שרשרת שרת authenticate → requireType('biz') → verifyRoutinesBizType → requireModule('routines') → guard פעולה. R-ACC = ADMIN, או משתמש ש-<code>permissions.tabs</code> שלו כולל 'routines' (נקרא בשרת, <code>ARC-06</code>). R-MGR = ADMIN; MANAGER או employee_role_type ∈ {branch_manager, shift_manager} שיש להם R-ACC; או משתמש ש-ADMIN העניק לו <code>routines:manage</code>. R-EXEC = האחראי על המופע (גם בלי טאב, דרך המשימה המקושרת), R-MGR, או כל בעל R-ACC (כיסוי עמית שנרשם ביומן). R-APPR = R-MGR, או רק <code>internal_approver_user_id</code> אם הוגדר. אישור עצמי נחסם ב-403 "לא ניתן לאשר ביצוע של עצמך" רק כשיש בעסק מאשר זכאי פעיל אחר. אחרת הוא מותר, מסומן <code>self_approved=true</code> ומוצג בשרשרת האישורים ובתיק הביקורת.</li>
+<li><code>RTN-05</code>. <b>למה:</b> אכיפה בשרת בלי הסבה הייתה עלולה לעצור שגרות קיימות של עסקים שהמודול פתוח להם היום דרך החבילה. <b>כלל סופי:</b> <code>requireModule('routines')</code> (<code>ARC-17</code>) על כל נתיבי המודול, עם 403 "גישה למודול זה אינה כלולה בחבילה שלך". מיגרציה חד-פעמית יוצרת זכאות לכל עסק restaurant/maintenance_repair שהמודול פתוח לו היום (desc של חבילה שכולל routines, תוסף או managed_modules), וגם לכל עסק שיש לו כבר שגרה. ה-cron מדלג על עסק בלי זכאות פעילה, בלי למחוק נתונים. הקישורים <code>/c/rt</code> ו-<code>/c/rt-doc</code> נשארים ציבוריים. המחיר (19 ₪) והחבילות לא משתנים.</li>
+<li><code>RTN-08</code>. <b>למה:</b> חסימה קשיחה של <code>/complete</code> כשחסרה ראיה הייתה מבטלת את היכולת הקיימת לסגור מופע בשטח בלחיצה אחת, למשל כשאין מצלמה או שהמסמך עוד לא התקבל. <b>כלל סופי:</b> נתיב ראיות מלא (note, numeric_value, checklist, photo, document). "סמן כבוצע" בלי כל הראיות הנדרשות נדחה ב-400 "חסרות ראיות: …". "בוצע עם חריגה" עם הערה מותר גם בלי ראיות: המופע נסגר כ-completed_with_exception, ולחריגה נוסף "ראיה חסרה: …" (exception_status=open לפי <code>RTN-17</code>). ערכי evidence_requirements של שגרות קיימות לא משתנים.</li>
+<li><code>RTN-09</code>. <b>למה:</b> אותו שיקול כמו ב-<code>RTN-08</code>: שדה מספרי חובה בלי חלופה היה חוסם סגירה. <b>כלל סופי:</b> בשגרה עם numeric_value מוצג שדה מספר עם value_unit, והוא חובה ב"סמן כבוצע". ערך מחוץ ל-[value_range_min, value_range_max] מסמן is_out_of_range=true וסוגר את המופע אוטומטית כ-completed_with_exception. סגירה בלי ערך אפשרית רק במסלול החריגה של <code>RTN-08</code>. את value_range אפשר לערוך בטופס.</li>
+<li><code>RTN-11</code>. <b>למה:</b> מחיקה ויצירה מחדש של כל המופעים המתוכננים הייתה מוחקת בשקט הזזות שמנהל אישר והחלפות אחראי חד-פעמיות. <b>כלל סופי:</b> שינוי תדירות או ימים מוחק מופעי planned עתידיים ומייצר מחדש מיד, חוץ ממופעים שעברו שינוי ידני (move_approved_by או assignee_changed_single). אלה נשמרים, ומשבצת הסדרה שלהם לא נוצרת מחדש. שינוי שעה או חלון חסד מעדכן scheduled_time ו-grace_deadline של מופעי planned. שינוי אחראי מעדכן את מופעי planned שאין להם החלפה חד-פעמית. כל שינוי נרשם ב-event.</li>
+<li><code>RTN-12</code>. <b>למה:</b> ביטול מופע in_progress עם סבב ממתין היה מוחק עבודה שכבר בוצעה והוגשה, ואת היכולת לאשר אותה. <b>כלל סופי:</b> השבתה מבטלת מופעי planned, open, overdue ו-move_requested, ואת המשימות והאירועים המקושרים הפתוחים שלהם. פקודת עבודה שלא התחילה מבוטלת. פקודת עבודה שהתחילה נשארת עם הערה. מופע in_progress עם סבב ממתין נשאר עד להכרעה: אישור סוגר אותו כרגיל, ודחייה מבטלת אותו (cancelled) כי השגרה מושבתת.</li>
+<li><code>RTN-13</code>. <b>למה:</b> דילוג גורף על תבנית שכבר קיימת חוסם יכולת קיימת: להחיל במכוון אותה תבנית פעמיים, למשל רישום טמפרטורות לשני מקררים. <b>כלל סופי:</b> תבנית שכבר יש לה שגרה פעילה עם אותם template_source, site_id ו-facility_id מוחזרת ב-skippedKeys ("כבר קיימת"). הלקוח מציע "להוסיף בכל זאת", ששולח <code>force=true</code>. כל ההחלה רצה בטרנזקציה אחת (<code>ARC-11</code>). מפתח שלא קיים בקטלוג מוחזר ב-invalidKeys.</li>
+<li><code>RTN-16</code>. <b>למה:</b> שדה אתר חובה בתחזוקה היה חוסם יצירת שגרה פנימית ("שגרות ללא מתקן", חידוש חוזה), שאפשרית היום. <b>כלל סופי:</b> בטופס ובהחלת תבניות יש בחירת אתר. ברירת המחדל בשני הענפים היא "העסק עצמו", אתר is_internal שנוצר אוטומטית פעם אחת לכל עסק. בתחזוקה השדה מוצג ראשון ומסומן "מומלץ לבחור אתר לקוח", אבל לא חוסם. שגרות קיימות בלי אתר נשארות תקפות ומוצגות תחת "ללא אתר". אפשר לבחור גם מתקן, פריט וחוזה (אופציונלי). בתיק אתר: הוספה, עריכה ומחיקה רכה של מתקנים ופריטים. לאתר: עריכה וארכוב (archived_at).</li>
+<li><code>RTN-26</code>. <b>למה:</b> הפעלת תפוגה עם ברירת המחדל proceed הייתה משנה בדיעבד את ההתנהגות של כל השגרות הקיימות: במקום להמתין ללקוח, המופע היה נסגר כמאושר אחרי 48 שעות, והקישור שנשלח היה מפסיק לעבוד. <b>כלל סופי:</b> דחיית לקוח מחזירה את המופע ל-open, עם event והתראה למנהל, ודורשת הערה בשרת (400). הגשה חוזרת פותחת סבב N+1 עם טוקן חדש. כש-customer_status נשאר pending יותר מ-customer_approval_wait_hours: ב-proceed הסטטוס הופך ל-expired והמופע נסגר כ-completed עם event "אושר אוטומטית — לא התקבלה תגובת לקוח". ב-stop_and_alert המופע נשאר in_progress, נשלחת התראה למנהל, והקישור ממשיך לעבוד עד שהמנהל מחליט ("סגירה ללא אישור לקוח" או "שליחה מחדש"). מיגרציה מגדירה stop_and_alert לכל שגרה קיימת שדורשת אישור לקוח, כדי לשמור על ההמתנה הקיימת. בשגרה חדשה המדיניות נבחרת בטופס, וברירת המחדל היא proceed.</li>
+<li><code>RTN-33</code>. <b>למה:</b> ספירה של שגרות contract_visit בלבד הייתה מאפסת את "ביקורים שבוצעו" בכל חוזה שאין בו שגרה כזו, ובכך מגדירה מחדש את המדד הקיים. <b>כלל סופי:</b> אם לחוזה יש שגרות ביקור (template_source='contract_visit' או is_contract_visit=true), נספרות רק הן. אחרת נספרות כל שגרות החוזה, כמו היום. הכרטיס מציין את שיטת הספירה. החלון הוא שנת החוזה הנוכחית (מיום השנה האחרון של start_date), ובחוזה בלי start_date נשארת שנה מתגלגלת. visitsRemaining = max(0, visits_included_per_year − visitsDone).</li>
+</ul>
+<p><b>התאמות ל-ARC</b> (לא נחשבות עדכון לפי כלל העל): ב-<code>RTN-25</code> customer_id מקבל FK לישות <code>customers</code> של <code>ARC-14</code>, ולא ל-store_customers. ב-<code>RTN-19</code> וב-<code>RTN-18</code> ייחודיות הסדרה נשענת על עמודת <code>series_date</code> (התאריך המקורי של המשבצת), כדי שהזזת מופע לא תיצור מחדש את המשבצת המקורית. ייחודיות התאריך בפועל נאכפת באינדקס חלקי נפרד. ב-<code>RTN-41</code> שגרות שנוצרות מנוהל מסומנות source='sop' ופטורות מגידור המודול, כדי שהתזמון יעבוד לכל סוג עסק בלי לפתוח את טאב השגרות.</p>
+</div>
+
+<h2 class="grp">שגרות (BIZ) — מודל נתונים, גידור מודול וניווט</h2>
+
+<section class="proc" data-f="routines data model tables statuses schema routine_sites routine_facilities routine_items routine_service_contracts routine_occurrences routine_evidence routine_approval_rounds routine_event_log routine_documents task_set_templates cascade series_date exception_status migrations"><h3>מודל הנתונים המלא של מודול "שגרות"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודל נתונים משותף ל-restaurant ול-maintenance_repair, וגם לשגרות שנוצרות מנוהלי SOP (<code>RTN-41</code>). הטבלאות מוגדרות במיגרציות מגורסות שרצות ב-deploy (<code>ARC-12</code>), ולא בבלוק <code>ROUTINES MODULE</code> שרץ בעליית השרת (server.js:3577-3799). אין try/catch שבולע כשל: מיגרציה שנכשלת עוצרת את ה-deploy. כל עמודות הזמן הן TIMESTAMPTZ (<code>ARC-25</code>).</div>
+<div>הרשאות</div><div>אין גישה ישירה. כל קריאה וכתיבה עוברת דרך שכבת repository שמקבלת <code>ctx.groupId</code> מהסשן כפרמטר חובה (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>routine_sites</code>: כמו היום (group_id CASCADE, name NOT NULL, address, contact_name, contact_phone, access_notes, is_internal ברירת מחדל FALSE). <code>customer_id</code> מקבל FK ל-<code>customers</code> (<code>ARC-14</code>, <code>RTN-25</code>). חדש: <code>archived_at</code> (<code>RTN-16</code>). לכל עסק נוצר אתר is_internal=TRUE אחד בשם "העסק עצמו", באופן עצל, ביצירת השגרה הראשונה (<code>RTN-16</code>).</li>
+<li><code>routine_facilities</code> / <code>routine_items</code>: כמו היום, ונוסף להם <code>archived_at</code> למחיקה רכה (<code>RTN-16</code>).</li>
+<li><code>routine_service_contracts</code>: כמו היום (billing_model ∈ {subscription, per_visit}, coverage_scope ∈ {labor, labor_parts, full}, availability ∈ {business_hours, 24_7}, status ∈ {active, ended, cancelled}). customer_id מקבל FK ל-customers.</li>
+<li><code>routines</code>: כל העמודות הקיימות נשמרות, עם השינויים האלה. <code>business_type</code> CHECK מורחב ל-{restaurant, maintenance_repair, any}, כאשר any מותר רק עם source='sop' (<code>RTN-41</code>). <code>source ∈ {manual, template, sop}</code> חדש. <code>sop_template_id</code> חדש. <code>is_contract_visit BOOLEAN DEFAULT FALSE</code> חדש (<code>RTN-33</code>). <code>created_by</code> הופך ל-INT FK ל-users, ונוסף <code>created_by_name</code> כ-snapshot (<code>RTN-03</code>). <code>frequency_interval</code> מאומת מול {daily, weekly, weekly_days, biweekly, monthly, quarterly, semiannual, yearly} (<code>RTN-21</code>). הוסרו <code>skip_holiday_calendar_id</code> ו-<code>internal_approver_role</code> (<code>RTN-25</code>). <code>internal_approver_user_id</code> נשמר ומשמש כמאשר ייעודי. נשמרות ומופעלות העמודות escalation_user_id ו-escalation_after_hours (<code>RTN-24</code>), reminder_before_hours (<code>RTN-24</code>/<code>RTN-07</code>), value_range_min/max (<code>RTN-09</code>), customer_approval_wait_hours ו-customer_approval_default_policy (<code>RTN-26</code>), ו-internal_approval_mode (<code>RTN-28</code>).</li>
+<li><code>routine_occurrences</code>: כמו היום (9 ערכי status), ונוספו לו: <code>series_date DATE NOT NULL</code> (התאריך המקורי של המשבצת בסדרה) עם <code>UNIQUE(routine_id, series_date)</code>; אינדקס ייחודי חלקי <code>(routine_id, scheduled_date) WHERE status NOT IN ('cancelled','skipped')</code> (<code>RTN-19</code>); <code>status_before_move</code> (<code>RTN-29</code>); <code>exception_status ∈ {open, resolved}</code>, <code>exception_resolution_note</code>, <code>exception_resolved_by_user_id</code>, <code>exception_resolved_at</code> (<code>RTN-17</code>); <code>completed_by_user_id</code> לצד <code>completed_by_name</code>, שמחליף את completed_by (<code>RTN-03</code>); <code>manual_override BOOLEAN</code> (<code>RTN-11</code>). grace_deadline הופך ל-TIMESTAMPTZ (<code>RTN-20</code>). assignee_user_id מקבל FK ל-users.</li>
+<li><code>routine_evidence</code>: כמו היום (evidence_type ∈ {note, numeric_value, checklist, photo, document}). file_url נכתב בפועל (<code>RTN-08</code>, העלאה לפי <code>ARC-26</code>). נוסף <code>created_by_user_id</code>.</li>
+<li><code>routine_approval_rounds</code>: כמו היום. השדות submitted_by, internal_decided_by ו-customer_* נשארים. נוספו <code>submitted_by_user_id</code>, <code>internal_decided_by_user_id</code>, <code>self_approved BOOLEAN</code> (<code>RTN-04</code>), <code>internal_note</code> (<code>RTN-28</code>), <code>checklist_review JSONB</code> (<code>RTN-28</code>) ו-<code>customer_expires_at</code> (<code>RTN-26</code>). <code>customer_status</code> CHECK: {not_required, pending, approved, rejected, expired}. הערך replied הוסר (<code>RTN-25</code>). expired נכתב (<code>RTN-26</code>).</li>
+<li><code>routine_event_log</code>: כמו היום. נוספו <code>site_id</code> (<code>RTN-34</code>), <code>actor_user_id</code> (<code>RTN-03</code>) ו-<code>document_id</code>. ברירת המחדל של actor_type מאוחדת ל-'system', בטבלה ובפונקציה.</li>
+<li><code>routine_documents</code>: כמו היום. נוסף <code>UNIQUE(group_id, document_number)</code>, וגם מונה רץ לכל עסק (<code>RTN-34</code>). העמודה file_url הוסרה, כי לא מאוחסן PDF (<code>RTN-25</code>).</li>
+<li><code>tasks</code> (שייך לטבלת המשימות, ומושפע כאן): <code>source ∈ {manual, routine, sop}</code>, <code>routine_occurrence_id</code> FK ל-routine_occurrences ON DELETE SET NULL (<code>RTN-01</code>), <code>task_type ∈ {task, shift, sop}</code>, <code>sop_template_id</code>, <code>checklist JSONB</code>, <code>requires_photo BOOLEAN</code> (<code>RTN-42</code>). ערך status חדש: <code>cancelled</code> (<code>RTN-12</code>/<code>RTN-22</code>).</li>
+<li><code>task_set_templates</code>: כמו היום (id, group_id CASCADE, client_id, data JSONB). נוסף <code>UNIQUE(group_id, client_id)</code> לתמיכה ב-CRUD לכל נוהל (<code>RTN-40</code>).</li>
+<li>אינדקסים: כל האינדקסים הקיימים (server.js:3783-3796), ובנוסף האינדקסים הייחודיים שתוארו למעלה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>מיגרציה מבנית: יצירה או הרחבה של הטבלאות, בטרנזקציה אחת לכל מיגרציה.</li><li>מיגרציית נתונים: <code>series_date = scheduled_date</code> לכל מופע קיים. חיבור completed_by לפי שם, כשאפשר (אחרת NULL). מופעי completed_with_exception קיימים מקבלים exception_status='open', כדי שלא ייעלמו מ"חריגות פתוחות". שגרות שדורשות אישור לקוח מקבלות policy=stop_and_alert (<code>RTN-26</code>). מופעי overdue עם סבב pending חוזרים ל-in_progress (<code>RTN-23</code>). כותרות <code>SOP|</code> מומרות (<code>RTN-42</code>). כפילויות (routine_id, scheduled_date) קיימות לא נמחקות: המאוחר מביניהן מקבל series_date מתוקן או מסומן cancelled עם event, לפני יצירת האינדקס.</li></ol></div>
+<div>חישובים</div><div>ללא שינוי.</div>
+<div>מכונת מצבים</div><div>סטטוסי מופע ותוויות (<code>ROUTINE_STATUS_LABELS</code>) נשארים כמו היום: planned=מתוכנן, open=פתוח, in_progress=בביצוע, completed=הושלם, completed_with_exception=הושלם עם חריגה, overdue=בפיגור, move_requested=בקשת הזזה, skipped=מדולג, cancelled=בוטל. מצבים "פעילים" למופע הבא: planned/open/in_progress/overdue/move_requested. מצבים "סגורים" לניקוי: completed, completed_with_exception, skipped, cancelled. המעברים המותרים מפורטים בכל תהליך.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אין.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-25</code> — הוסרו עמודות וערכים שלא בשימוש (skip_holiday_calendar_id, internal_approver_role, routine_documents.file_url, customer_status replied). internal_approver_user_id הופך למאשר ייעודי. customer_id מקבל FK ל-customers (לפי ARC-14).</li>
+<li><code>RTN-03</code> — לצד כל עמודת שם נשמרת עמודת user_id. routines.created_by הופך ל-INT FK, ונוסף created_by_name.</li>
+<li><code>RTN-19</code> — ייחודיות מופע: UNIQUE(routine_id, series_date), ואינדקס ייחודי חלקי על (routine_id, scheduled_date).</li>
+<li><code>RTN-17</code>, <code>RTN-29</code>, <code>RTN-26</code>, <code>RTN-28</code>, <code>RTN-04</code>, <code>RTN-33</code>, <code>RTN-34</code>, <code>RTN-01</code>, <code>RTN-42</code>, <code>RTN-41</code> — עמודות חדשות לתמיכה בהחלטות, כמפורט למעלה.</li>
+<li><code>RTN-20</code> — grace_deadline הופך ל-TIMESTAMPTZ.</li>
+<li><code>ARC-12</code> — DDL רק במיגרציות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines gating business type restaurant maintenance_repair pricing catalog billing module unlock gnav team all_tabs permissions roles requiremodule entitlements rbac self approval"><h3>גידור המודול: סוג עסק, תמחור, ניווט והרשאות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>קובע מי רואה ומשתמש בטאב "שגרות 🔁" בסביבת BIZ. המודול נשאר <code>id:'routines'</code> בקבוצת הניווט team. מקור האמת לשיוך לסוג עסק ולקבוצת הניווט עובר לטבלאות <code>module_catalog</code>/<code>business_type_modules</code> (<code>ARC-18</code>), עם אותם ערכים שיש היום ב-<code>BUSINESS_TYPES</code> של restaurant (business-app.js:37527) ו-maintenance_repair (37531), ב-<code>ALL_TABS</code> (3890) וב-<code>GNAV_GROUPS.team</code> (5403).</div>
+<div>הרשאות</div><div><ul>
+<li><b>שרשרת שרת לכל נתיבי <code>/api/routines*</code>, <code>/api/routine-occurrences*</code>, <code>/api/routine-documents*</code></b>: <code>authenticate()</code> (<code>ARC-01</code>/<code>ARC-05</code>) → <code>requireType('biz')</code> → <code>verifyRoutinesBizType</code> (business_type ∈ ['restaurant','maintenance_repair'], אחרת 403 "מודול "שגרות" זמין רק לעסקי מסעדנות ותחזוקה/תיקונים") → <code>requireModule('routines')</code> (403 "גישה למודול זה אינה כלולה בחבילה שלך", <code>RTN-05</code>) → guard פעולה (<code>RTN-04</code>).</li>
+<li><b>R-ACC (גישה)</b>: ADMIN, או משתמש ש-<code>permissions.tabs</code> שלו כולל 'routines'. השרת קורא את ההרשאה (<code>ARC-06</code>), כמו שהלקוח אוכף היום (<code>ROLE_DEFAULTS</code> 3893, enforcePermissions 3904). מאפשר לקרוא את כל המסכים.</li>
+<li><b>R-MGR (ניהול)</b>: ADMIN; MANAGER או employee_role_type ∈ {branch_manager, shift_manager} שיש להם R-ACC; או משתמש ש-ADMIN העניק לו <code>routines:manage</code>. מאפשר: יצירה, עריכה, השבתה והפעלה מחדש של שגרה; החלת תבניות; אתרים, מתקנים ופריטים; חוזים; הכרעת בקשת הזזה; החלפת אחראי לסדרה; סימון חריגה כמטופלת; הפקת מסמכים.</li>
+<li><b>R-EXEC (ביצוע מופע: complete, skip, בקשת הזזה, החלפת אחראי למופע בודד)</b>: האחראי על המופע (גם בלי R-ACC, דרך המשימה המקושרת), R-MGR, או כל בעל R-ACC. כשהמבצע אינו האחראי נרשם ב-event "בוצע במקום &lt;שם&gt;".</li>
+<li><b>R-APPR (הכרעת סבב פנימי)</b>: R-MGR. אם הוגדר <code>internal_approver_user_id</code>, רק הוא (ו-ADMIN כגיבוי כשהמאשר הייעודי אינו פעיל). כש-decided_by = submitted_by: 403 "לא ניתן לאשר ביצוע של עצמך", אם יש בעסק מאשר זכאי פעיל אחר. אחרת מותר, עם <code>self_approved=true</code>.</li>
+<li>שתי הגבלות ענף נשארות: <code>verifyRoutinesSpecificBizType</code> (27224). חוזי שירות ודוח כיסוי רק ל-maintenance_repair. מצב ציות רק ל-restaurant. אחרת 403 "תכונה זו אינה זמינה לסוג העסק שלך".</li>
+<li>groupId נלקח מהסשן בלבד (<code>ARC-04</code>), גם ב-<code>GET /templates</code> (<code>RTN-06</code>). כל משאב שנשלף לפי <code>:id</code> מסונן ב-group_id, ואם לא נמצא מוחזר 404.</li>
+</ul></div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: <code>switchTab('routines')</code> חוזר בשקט כשסוג העסק אינו מותר (2865). כשהמודול לא בזכאות נפתח <code>openModuleUnlockModal('routines')</code>, לפי <code>GET /api/me/entitlements</code> (<code>ARC-17</code>) ולא לפי פירוק desc של חבילה. <code>renderRoutinesTab</code> מציג "מודול זה אינו זמין לסוג העסק שלך." (61082-61085).</li>
+<li><code>enforceRoutinesTabVisibility</code> (37896) ממשיך לרוץ בסוף <code>applyBusinessTypeFilter</code>. בסוג עסק לא מותר הוא מסתיר את <code>tab-routines</code> ואת <code>gdrop-routines</code>. בסוג מותר הוא מציג את הפריט גם בלי זכאות, והנעילה נתפסת ב-switchTab, כמו היום. ב-business.html:747 הפריט מוסתר כברירת מחדל.</li>
+<li>כפתור הקיצור "שגרות" במסך מכירות (<code>btn-sales-complex</code>, 934) מוצג רק ל-restaurant/maintenance_repair (25586-25590), ומוסתר בתצורת professional (2939). ללא שינוי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol><li>הפונקציה <code>patchPricingCatalogForRoutines</code> (server.js:3816), שרצה בעלייה, מוחלפת ב-seed אידמפוטנטי של <code>module_catalog</code> (<code>ARC-12</code>/<code>ARC-18</code>): <code>{id:'routines', name:'שגרות', price:19, free:false, gnav_group:'team'}</code>. routines נכלל ב-<code>bundle_restaurant</code> וב-<code>bundle_maintenance_repair</code> כרשומת bundle_ids מפורשת, ולא כטקסט ב-desc. menu_templates מתוך <code>MISSING_MODULE_FIXUPS</code> נכנס לאותו seed.</li><li>מיגרציית זכאות חד-פעמית (<code>RTN-05</code>): לכל עסק restaurant/maintenance_repair שהמודול פתוח לו היום, או שיש לו שגרה כלשהי, נכתבת זכאות פעילה ל-<code>tenant_entitlements</code>.</li><li>בכל בקשה: השרשרת שלמעלה. כשל בשלב כלשהו מחזיר 401/403 בפורמט <code>ARC-33</code>.</li></ol></div>
+<div>חישובים</div><div>מחיר מודול בודד: 19 ₪ לחודש, <code>free:false</code>, קבוצת team. כלול ב-<code>bundle_restaurant</code> (249 ₪, 18 מודולים) וב-<code>bundle_maintenance_repair</code> (119 ₪, 10 מודולים). ללא שינוי.</div>
+<div>מכונת מצבים</div><div>זכאות (לפי <code>ARC-17</code>): active, ואז expired או revoked. כשאין זכאות פעילה, ה-API מחזיר 403 וה-cron מדלג על העסק. כשהזכאות מתחדשת, העבודה ממשיכה מהיום ואילך.</div>
+<div>תופעות לוואי</div><div>בלי זכאות לא נוצרים ולא מופעלים מופעים לעסק. נתונים קיימים לא נמחקים.</div>
+<div>ממשק</div><div>8 תתי-טאבים, ללא שינוי (<code>switchRoutinesSubTab</code> 61107): רשימת שגרות, לוח היום, מה פוספס, בקשות הזזה, אישורי ביצוע, אתרים, חוזי שירות, מצב ציות. שני הענפים רואים את כל 8 הכפתורים. "חוזי שירות" במסעדה מציג "חוזי שירות רלוונטיים לעסקי תחזוקה ותיקונים.", ו"מצב ציות" בתחזוקה מציג "מסך "מצב ציות" רלוונטי לעסקי מסעדנות.". הכפתורים לפעולות ניהול (שגרה חדשה, תבניות, עריכה, השבתה, אתר חדש, הכרעות) מוצגים רק ל-R-MGR. השרת אוכף את אותו הדבר. רשימת הצוות נטענת מ-<code>GET /api/work-orders/users</code> עם שם מחושב (<code>RTN-02</code>). כל הטעינות בודקות שגיאה ומציגות "שגיאה בטעינה" עם כפתור "נסה שוב" (<code>RTN-02</code>). פרק "שגרות 🔁" נוסף למדריכי מסעדה ותחזוקה (<code>RTN-38</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-05</code> — requireModule('routines') בשרת, עם מיגרציית זכאות לעסקים קיימים (עודכן).</li>
+<li><code>RTN-04</code> — R-ACC, R-MGR, R-EXEC ו-R-APPR נאכפים בשרת. אישור עצמי מותנה (עודכן).</li>
+<li><code>RTN-06</code> — גם GET templates משתמש ב-groupId מהסשן.</li>
+<li><code>RTN-38</code> — פרק שגרות במדריכי מסעדה ותחזוקה.</li>
+<li><code>ARC-17</code>/<code>ARC-18</code> — קטלוג וזכאות בשרת, במקום patchPricingCatalogForRoutines ופירוק desc.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">הגדרת שגרות: תבניות, יצירה, עדכון והיררכיית אתרים</h2>
+
+<section class="proc" data-f="routines template catalog library apply restaurant maintenance_repair temp_log pest_control elevator contract_visit certificate_expiry skippedKeys force transaction"><h3>ספריית תבניות לפי ענף והחלתן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל ברשימת השגרות לוחץ "מתוך ספריית תבניות" (<code>openRoutineTemplatesModal</code> business-app.js:61496), והלקוח קורא ל-<code>GET /api/routines/templates</code> (היום <code>…/:groupId/templates</code>, server.js:27284). המנהל מסמן תבניות, ובוחר אתר ואופציונלית מתקן (<code>RTN-16</code>), ולוחץ "הוספת השגרות הנבחרות" (<code>submitApplyRoutineTemplates</code> 61534). הלקוח קורא ל-<code>POST /api/routines/templates/apply</code> (27292).</div>
+<div>הרשאות</div><div>GET: R-ACC. ‏apply: R-MGR. בשני המקרים groupId מהסשן (<code>RTN-06</code>, <code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: לפחות תבנית אחת, אחרת "יש לבחור לפחות שגרה אחת" (61536).</li>
+<li>שרת (סכמת קלט, <code>ARC-34</code>): <code>templateKeys</code> מערך לא ריק של מחרוזות (אחרת 400). <code>siteId</code> אופציונלי: אם לא נשלח, משתמשים באתר הפנימי "העסק עצמו", שנוצר אם אינו קיים. אם נשלח, חייב להיות אתר לא מאורכב של הקבוצה (אחרת 404 "אתר לא נמצא"). <code>facilityId</code> אופציונלי, וחייב להיות שייך לאתר. <code>force</code> בוליאני, ברירת מחדל false.</li>
+<li>מפתח שלא קיים ב-<code>ROUTINE_TEMPLATE_CATALOG[businessType]</code> מוחזר ב-<code>invalidKeys</code> ולא מדולג בשקט (<code>RTN-13</code>).</li>
+<li>כפילות: כש-<code>force=false</code>, מפתח שכבר יש לו שגרה פעילה עם אותם template_source, site_id ו-facility_id מוחזר ב-<code>skippedKeys</code> (<code>RTN-13</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שליפת business_type של הקבוצה מהסשן, ובחירת הקטלוג (27238).</li>
+<li><b>טרנזקציה אחת</b> (<code>withTransaction</code>, <code>ARC-11</code>): לכל מפתח תקין שאינו כפול (או כש-force=true) מבוצע INSERT ל-<code>routines</code>. השדות נשארים כמו היום: name; category (ברירת מחדל operational); obligation_source; target_level='site' (או 'facility' כשנבחר מתקן); site_id ו-facility_id לפי הבחירה; output_type (ברירת מחדל task, ו-contract_visit = work_order_template); frequency_type (ברירת מחדל fixed); frequency_interval (ברירת מחדל monthly); evidence_requirements; value_unit; retention_period_days (ברירת מחדל 365); <code>template_source=key</code>; <code>source='template'</code>. ב-contract_visit גם <code>is_contract_visit=true</code> (<code>RTN-33</code>). created_by=<code>req.principal.userId</code> ו-created_by_name הוא snapshot (<code>RTN-03</code>). נכתב event <code>routine_created</code> (actor user, "נוצר מתבנית: …"). אחרי המעבר לטבלה, האירוע נכתב באותה טרנזקציה.</li>
+<li>אחרי COMMIT: ייצור מיידי של מופעים לשגרות החדשות, עם אותה פונקציה שה-cron מריץ (ראו "כללי חזרה"), כדי שלא יהיה צורך להמתין עד 15 דקות. אם הייצור נכשל, ה-cron ישלים אותו.</li>
+<li>תשובה: <code>{createdIds, skippedKeys, invalidKeys}</code>. הלקוח מציג "נוספו N שגרות". אם יש skippedKeys הוא מציג "M כבר קיימות" עם כפתור "להוסיף בכל זאת" (שולח שוב עם force=true). אחר כך הרשימה מתרעננת.</li>
+</ol></div>
+<div>חישובים</div><div>הקטלוג לא משתנה. <b>מסעדה (19 תבניות, 27239-27261)</b> — "רגולציה ובטיחות": temp_log (regulatory/law, daily, numeric_value, °C, 365), closing_clean (daily, checklist), extinguisher_visual (safety, monthly, checklist+photo), pest_control (law, monthly, document, 730), hood_cleaning (insurer, quarterly, document+photo, 1095), grease_trap (monthly, document), fire_system_annual (safety/law, yearly, document, 1460), extinguisher_annual (law, yearly), electric_check (insurer, yearly), used_oil (operational, weekly, document), kashrut_renewal (certificate_expiry, document). "תחזוקת ציוד": coffee_filter (monthly, confirm), ice_machine_clean (weekly, checklist), ac_service (semiannual, document). "תפעול ובקרה": opening_checklist ו-closing_checklist (daily, checklist), cash_register_close (daily, numeric_value), inventory_count, foodcost_calc (weekly, confirm).<br><b>תחזוקה ותיקונים (17 תבניות, 27263-27280)</b> — "מעלית": elevator_periodic (law, semiannual, document, 1095), elevator_maintenance (monthly, checklist). "מתקן חשמל": electric_inspector (law, yearly), thermal_panel_scan (insurer, yearly, document+photo). "כיבוי אש": sprinkler_check, fire_detection_check, extinguisher_annual_mr, hydrant_check (safety/law, yearly, document). "גנרטור": generator_run (monthly, checklist), generator_load_test (law, yearly). "מאגר מים": water_tank_clean (law, yearly). "חוזים בלבד": ac_maintenance (semiannual), ac_filters, pump_maintenance (quarterly, confirm). "שגרות ללא מתקן": contract_visit (monthly, work_order_template), contract_renewal (yearly), tech_cert_renewal (certificate_expiry, document).<br>בתבניות certificate_expiry נשמר frequency_type='certificate_expiry', והן מתוזמנות לפי <code>RTN-07</code>. ברירת המחדל של reminder_before_hours בהן היא 1440 (60 יום).</div>
+<div>מכונת מצבים</div><div>אין (יצירה בלבד).</div>
+<div>תופעות לוואי</div><div>שגרות חדשות. מופעים מיידיים. events.</div>
+<div>ממשק</div><div>המודאל מקבץ את התבניות לפי <code>family</code> ומציג תדירות מתורגמת (<code>ROUTINE_FREQ_LABELS</code>). לתבנית certificate_expiry נוספה התווית "לפי תוקף תעודה" (<code>RTN-07</code>). הטקסט "התדירות היא המלצה, אפשר לשנות אחר כך" נשאר, ועכשיו הוא נכון: יש עריכה (<code>RTN-10</code>). חדש: בחירת אתר (ברירת מחדל "העסק עצמו") ומתקן אופציונלי בראש המודאל (<code>RTN-16</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-06</code> — GET templates משתמש ב-groupId מהסשן.</li>
+<li><code>RTN-13</code> — מניעת כפילות לפי (template_source, site, facility), עם "להוסיף בכל זאת" (force), טרנזקציה ו-invalidKeys (עודכן).</li>
+<li><code>RTN-16</code> — בחירת אתר ומתקן בהחלה. ברירת המחדל היא האתר הפנימי (עודכן).</li>
+<li><code>RTN-07</code> — תבניות certificate_expiry מייצרות מופעים, ויש להן תווית תדירות.</li>
+<li><code>RTN-03</code> — created_by מהסשן.</li>
+<li><code>RTN-33</code> — contract_visit מסומן is_contract_visit.</li>
+<li><code>RTN-04</code> — apply דורש R-MGR.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines create form new routine post fields defaults output assignee grace approval customer validation weekly_days start end skip weekends checklist value range evidence role external vendor site"><h3>יצירת שגרה ידנית (טופס BIZ)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שגרה חדשה" (<code>openCreateRoutineModal</code> business-app.js:61547) → "שמירה" (<code>submitCreateRoutine</code> 61597) → <code>POST /api/routines</code> (היום <code>/api/routines/:groupId</code>, server.js:27341). אותו טופס, ממולא מראש, משמש לעריכה (<code>RTN-10</code>).</div>
+<div>הרשאות</div><div>R-MGR. groupId ו-business_type נלקחים מהסשן ומהקבוצה, לא מהגוף.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם חובה, אחרת "יש להזין שם לשגרה" (61599).</li>
+<li>שרת (<code>RTN-14</code>, <code>ARC-34</code>), כל שגיאה מחזירה 400 עם הודעה בעברית: name חובה, 1–150 תווים. ‏category ∈ {regulatory, safety, preventive_maintenance, operational, logistics}. ‏output_type ∈ {task, task_calendar, work_order_template}. ‏frequency_type ∈ {fixed, certificate_expiry, condition_based}. ‏frequency_interval ∈ {daily, weekly, weekly_days, biweekly, monthly, quarterly, semiannual, yearly} (<code>RTN-21</code>). ‏assignee_mode ∈ {employee, role, external_vendor}. ‏internal_approval_mode ∈ {click, click_with_note, checklist_review}. ‏customer_approval_default_policy ∈ {proceed, stop_and_alert}.</li>
+<li><code>assigneeUserId</code>, אם נשלח, חייב להיות משתמש פעיל בקבוצה. כך גם internal_approver_user_id ו-escalation_user_id (<code>RTN-14</code>, <code>ARC-04</code>).</li>
+<li>siteId, facilityId, itemId ו-serviceContractId, אם נשלחו, חייבים להיות שייכים לקבוצה ולא מאורכבים (<code>RTN-16</code>). כשאין siteId משתמשים באתר הפנימי.</li>
+<li>frequencyWeekdays מותר רק עם interval='weekly_days', ואז הוא חובה (לפחות יום אחד). אחרת 400 (<code>RTN-18</code>).</li>
+<li>startDate ≥ היום (שעון ישראל), ברירת מחדל היום. endDate, אם נשלח, ≥ startDate. ‏max_occurrences שלם חיובי, אם נשלח (<code>RTN-15</code>/<code>RTN-18</code>).</li>
+<li>value_range_min ≤ value_range_max, כשנשלחו שניהם (<code>RTN-09</code>).</li>
+<li>gracePeriodMinutes שלם ≥ 0. הערך 0 נשמר כ-0 (<code>?? 60</code>, <code>RTN-21</code>).</li>
+<li>assignee_mode='role' מחייב assignee_role ∈ רשימת employee_role_type הסגורה (<code>ARC-06</code>). ‏external_vendor מחייב vendor_name ו-vendor_phone תקין (<code>RTN-15</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח שולח את כל השדות שהיום (name, description, category, outputType, frequencyInterval, scheduledTime (ברירת מחדל 09:00), assigneeUserId או null, gracePeriodMinutes, requiresInternalApproval, requiresCustomerApprovalEvents=['completion'] או []), ובנוסף את השדות החדשים מ-<code>RTN-15</code>/<code>RTN-16</code>/<code>RTN-26</code>/<code>RTN-28</code>. ‏frequencyType: 'fixed' כברירת מחדל, או 'certificate_expiry' כשנבחר "לפי תוקף תעודה". הלקוח <b>לא</b> שולח createdBy (<code>RTN-03</code>).</li>
+<li>INSERT לטבלת routines בטרנזקציה, יחד עם event <code>routine_created</code> ("שגרה נוצרה: …"). ברירות המחדל בשרת נשארות כמו היום: category operational, targetLevel site, outputType task, workOrderTemplate {}, frequencyType fixed, frequencyInterval weekly, grace <code>?? 60</code>, startDate היום (<code>todayIL()</code>, <code>RTN-20</code>), skipWeekends false, assigneeMode employee, evidenceRequirements ['confirm'], checklistItems [], retention <code>?? 365</code>, internalApprovalMode click, customer wait <code>?? 48</code>, policy proceed. ‏source='manual'. ‏description נשמר ב-description, וגם ב-instructions כשהמשתמש לא מילא הנחיות נפרדות (<code>RTN-15</code>).</li>
+<li>אחרי COMMIT: ייצור מיידי של מופעים (ראו "כללי חזרה"). ה-cron ממשיך להשלים.</li>
+</ol></div>
+<div>חישובים</div><div>ללא שינוי, חוץ מ-grace <code>??</code> במקום <code>||</code>.</div>
+<div>מכונת מצבים</div><div>שגרה נוצרת עם is_active=TRUE.</div>
+<div>תופעות לוואי</div><div>שגרה, מופעים ו-event.</div>
+<div>ממשק</div><div>שדות שנשארים כמו היום: שם; תיאור/הנחיות; קטגוריה (5 אפשרויות, ברירת מחדל תפעול); פלט ("משימה בלבד" / "משימה + אירוע ביומן" / "פקודת עבודה מלאה"); תדירות; שעה; אחראי (רשימת צוות או "ללא אחראי קבוע"); חלון חסד בדקות; "דורש אישור מנהל לפני סגירת מופע (מסלול מלא)"; "דורש גם אישור לקוח בסיום (קישור אישי ללא הרשמה)". <b>שדות חדשים</b>: תדירות "ימים בשבוע" (weekly_days) עם בחירת ימים, ו"לפי תוקף תעודה" (<code>RTN-07</code>); תאריך התחלה (ברירת מחדל היום); תאריך סיום אופציונלי; מספר מופעים מרבי אופציונלי; "דלג על שישי-שבת"; צ'קליסט (רשימת פריטים); דרישות ראיה (אישור / הערה / ערך מספרי / צ'קליסט / תמונה / מסמך); יחידה וטווח ערכים (כשנבחר ערך מספרי); אתר (ברירת מחדל "העסק עצמו"), מתקן, פריט וחוזה (חוזה רק בתחזוקה) (<code>RTN-16</code>); אופן שיוך: עובד / תפקיד / ספק חיצוני (שם וטלפון) (<code>RTN-15</code>); אופן אישור מנהל: לחיצה / לחיצה עם הערה / בדיקת צ'קליסט, ומאשר ייעודי אופציונלי (<code>RTN-28</code>/<code>RTN-25</code>); כשמסומן אישור לקוח: "אם הלקוח לא הגיב תוך [48] שעות: לסגור כמאושר / להשאיר ולהתריע" (<code>RTN-26</code>); "ביקור חוזה" (רק בתחזוקה, <code>RTN-33</code>); תזכורת לפני (שעות) ואסקלציה (משתמש ושעות) (<code>RTN-24</code>). פלט "פקודת עבודה מלאה" נשאר זמין לשני הענפים, כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-14</code> — ולידציה בשרת, עם 400 בעברית במקום 500.</li>
+<li><code>RTN-15</code> — שדות חסרים נוספו לטופס. מצבי role ו-external_vendor ממומשים.</li>
+<li><code>RTN-16</code> — בחירת אתר, מתקן, פריט וחוזה. ברירת המחדל היא האתר הפנימי (עודכן).</li>
+<li><code>RTN-18</code> — weekdays רק עם weekly_days. start_date לא בעבר.</li>
+<li><code>RTN-21</code> — interval מאומת. grace 0 נשמר.</li>
+<li><code>RTN-03</code> — created_by מהסשן.</li>
+<li><code>RTN-07</code>, <code>RTN-09</code>, <code>RTN-24</code>, <code>RTN-26</code>, <code>RTN-28</code>, <code>RTN-33</code> — שדות הגדרה תואמים בטופס.</li>
+<li><code>RTN-04</code> — R-MGR בלבד.</li>
+<li>ייצור מיידי אחרי יצירה, במקום המתנה של עד 15 דקות (תוצאה של <code>RTN-18</code>/<code>RTN-19</code>: הייצור אידמפוטנטי).</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines update put deactivate delete reactivate frequency_changed event log toggle active cancel occurrences history edit"><h3>עדכון שגרה, השבתה ויומן שינויים ברמת השגרה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><b>עריכה</b>: כפתור "עריכה" חדש בכרטיס שגרה פותח את טופס היצירה ממולא, ושולח <code>PUT /api/routines/:id</code> (server.js:27377) (<code>RTN-10</code>). <b>השבתה</b>: "השבת שגרה" (<code>toggleRoutineActive</code> 61485) → <code>DELETE /api/routines/:id</code> (27416). <b>הפעלה מחדש</b>: כפתור "הפעלה מחדש" בשגרה מושבתת, במקום "מושבתת" שלא עושה דבר. הוא שולח PUT עם <code>isActive=true</code> (<code>RTN-10</code>). <b>יומן</b>: "היסטוריית שינויים" בכרטיס שגרה → <code>GET /api/routines/:id/event-log</code> (28189) (<code>RTN-36</code>).</div>
+<div>הרשאות</div><div>PUT, DELETE והפעלה מחדש: R-MGR. ‏event-log: R-ACC. בעלות: id + group_id מהסשן, אחרת 404 "שגרה לא נמצאה".</div>
+<div>קלט ואימותים</div><div><ul>
+<li>PUT: אותה סכמה כמו ביצירה (<code>RTN-14</code>), כל השדות אופציונליים. ניתנים לשינוי כל השדות שבטופס, כולל site/facility/item/service_contract, output_type, frequency_type, start_date (רק לעתיד), value_range, retention ו-evidence_requirements. ‏business_type, template_source ו-source לא ניתנים לשינוי.</li>
+<li>לקוח: confirm להשבתה: "להשבית את השגרה? מופעים עתידיים שלא הופעלו יבוטלו." (הטקסט נשאר).</li>
+<li>DELETE בלי body. שם המבצע נלקח מהסשן (<code>RTN-03</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>PUT</b> (טרנזקציה אחת, <code>ARC-11</code>): עדכון השדות, לכל שדה <code>body.x ?? before.x</code>, כמו היום. אם frequencyInterval או frequencyWeekdays השתנו (<code>RTN-11</code>): מוחקים מופעי planned עם scheduled_date &gt; today שאין להם manual_override, נכתב event <code>frequency_changed</code> (value_before/after), ומיד אחרי COMMIT מתבצע ייצור מחדש מ-start_date לפי העוגן החדש (<code>RTN-18</code>). משבצות שיש להן מופע עם manual_override לא נוצרות שוב. אם scheduled_time או grace_period_minutes השתנו: מעדכנים scheduled_time ו-grace_deadline בכל מופעי planned, ונכתב event <code>schedule_changed</code>. אם assignee_user_id השתנה: מעדכנים assignee_user_id במופעי planned שאין להם החלפה חד-פעמית, ונכתב event <code>assignee_changed_series</code>. תמיד נכתב event <code>routine_updated</code>.</li>
+<li><b>הפעלה מחדש</b> (PUT isActive=true על שגרה מושבתת): is_active=TRUE, event <code>routine_reactivated</code>. הייצור מתחיל מ-max(today, start_date), והמשבצות הבאות נגזרות מ-start_date + k×interval. אין ייצור רטרואקטיבי (<code>RTN-10</code>/<code>RTN-18</code>).</li>
+<li><b>DELETE (השבתה רכה)</b> (טרנזקציה, <code>RTN-12</code>): is_active=FALSE. מופעי planned, open, overdue ו-move_requested עוברים ל-cancelled. מופע in_progress עם סבב pending נשאר עד להכרעה (ראו "סבב אישור פנימי"). משימות pending מקושרות ואירועי יומן מקושרים עוברים ל-status='cancelled'. פקודת עבודה מקושרת שלא התחילה (status ∈ {new, open, scheduled}, server.js:26637) עוברת ל-cancelled. פקודת עבודה שהתחילה נשארת, עם הערה "השגרה הושבתה". נכתב event <code>routine_deactivated</code>, ו-actor_name הוא שם המשתמש מהסשן.</li>
+<li><b>event-log</b>: אירועים ברמת השגרה (<code>occurrence_id IS NULL</code>), בסדר יורד.</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>is_active=TRUE</td><td>FALSE</td><td>R-MGR (DELETE) / סיום או ביטול חוזה (system)</td><td>בעלות</td><td>ביטול מופעים לא סגורים (חוץ מ-in_progress בהמתנה) ורשומות מקושרות; routine_deactivated</td></tr>
+<tr><td>FALSE</td><td>TRUE</td><td>R-MGR ("הפעלה מחדש")</td><td>בעלות; חוזה מקושר (אם יש) active</td><td>ייצור מהיום ואילך; routine_reactivated</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>ביטול משימות ואירועים מקושרים בהשבתה. ייצור מחדש בשינוי תדירות. כשמופע ממתין לאישור מסתיים אחרי השבתה, דחייה מבטלת אותו.</div>
+<div>ממשק</div><div>כרטיס שגרה: "עריכה" (R-MGR), "השבת שגרה" או "הפעלה מחדש", "היסטוריית שינויים" (מודאל עם תוויות routine_created=נוצרה, routine_updated=עודכנה, frequency_changed=שינוי תדירות, schedule_changed=שינוי שעה/חלון, routine_deactivated=הושבתה, routine_reactivated=הופעלה מחדש, service_contract_created=חוזה נוצר, contract_renewed=חוזה חודש) (<code>RTN-36</code>), ו"דוח תקופתי" (ראו "הפקת מסמכים", <code>RTN-36</code>). שגרה מושבתת מוצגת בשקיפות 50%, כמו היום. toast: "השגרה עודכנה" / "השגרה הושבתה" / "השגרה הופעלה מחדש".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-10</code> — עריכה והפעלה מחדש בממשק. הפעלה מחדש לא מייצרת רטרואקטיבית.</li>
+<li><code>RTN-11</code> — שינויים חלים על מופעים מתוכננים. מופעים עם שינוי ידני נשמרים (עודכן).</li>
+<li><code>RTN-12</code> — השבתה מבטלת את כל המופעים הלא סגורים ואת הרשומות המקושרות. in_progress בהמתנה נשאר עד להכרעה (עודכן).</li>
+<li><code>RTN-36</code> — היסטוריית שינויים מחווטת לממשק, עם תוויות.</li>
+<li><code>RTN-03</code> — actor מהסשן במקום body.userName.</li>
+<li><code>RTN-04</code> — R-MGR.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines sites facilities items hierarchy site file tiq atar internal customer contact archive edit exceptions resolve"><h3>היררכיית אתר → מתקן → פריט ו"תיק אתר"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תת-טאב "אתרים" (<code>_renderRoutinesSites</code> 61626): רשימה מ-<code>GET /api/routines/sites</code> (27428, ORDER BY name, בלי מאורכבים). "אתר חדש" (61646/61667) → <code>POST …/sites</code> (27436). לחיצה על אתר → <code>openRoutineSiteFile</code> (61684) → <code>GET /api/routines/sites/:id/file</code> (27640). <b>חדש (<code>RTN-16</code>)</b>: עריכת אתר (<code>PUT /api/routines/sites/:id</code>) וארכוב (<code>DELETE …/sites/:id</code>, שמציב archived_at). ניהול מתקנים ופריטים מתוך תיק האתר: הנתיבים הקיימים <code>GET/POST /api/routines/sites/:siteId/facilities</code> (27450/27459) ו-<code>GET/POST /api/routines/facilities/:facilityId/items</code> (27473/27485) מחווטים לממשק, ונוספו להם PUT ו-DELETE רך. <b>חדש (<code>RTN-17</code>)</b>: <code>POST /api/routine-occurrences/:id/exception/resolve</code>.</div>
+<div>הרשאות</div><div>קריאה: R-ACC. יצירה, עריכה, ארכוב וסימון "טופל": R-MGR. בעלות: אתר לפי group_id. מתקן ופריט דרך JOIN לאתר עם group_id, אחרת 404 "אתר לא נמצא" / "מתקן לא נמצא" / "פריט לא נמצא".</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח: שם אתר חובה, אחרת "יש להזין שם לאתר" (61669). שם מתקן חובה ("יש להזין שם למתקן"), שם פריט חובה ("יש להזין שם לפריט").</li>
+<li>שרת: name חובה, עד 150 תווים. ‏contact_phone בפורמט טלפון. ‏customer_id, אם נשלח, חייב להיות לקוח של הקבוצה (<code>ARC-14</code>).</li>
+<li>אתר is_internal "העסק עצמו" לא ניתן לארכוב (400 "לא ניתן לארכב את אתר העסק").</li>
+<li>ארכוב אתר שיש בו שגרות פעילות: 409 "באתר יש N שגרות פעילות — יש להשבית או להעביר אותן קודם". כך לא מתבצעת מחיקת שגרות בשרשור (היום CASCADE).</li>
+<li>resolve: המופע במצב completed_with_exception עם exception_status='open'. ‏resolution_note חובה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>POST site: INSERT (group_id, customer_id, name, address, contact_name, contact_phone, access_notes, is_internal), כמו היום.</li>
+<li>POST facility / item: INSERT, כמו היום. PUT מעדכן את השדות. DELETE מציב archived_at, והמתקן או הפריט מוסתר מהתיק ומהבחירה בטופס. שגרות שמקושרות אליו ממשיכות לפעול.</li>
+<li>תיק אתר: 5 שאילתות במקביל, כמו היום: מתקנים עם <code>json_agg</code> של פריטים (לא מאורכבים); שגרות פעילות באתר (מיון לפי category) עם המופע הבא (planned/open/in_progress/overdue); היסטוריה, 100 המופעים האחרונים בסדר יורד; מסמכי האתר; חריגות — מופעים עם <code>exception_status='open'</code> (<code>RTN-17</code>). שאילתה שישית: אירועי מסמך עם site_id (<code>RTN-34</code>).</li>
+<li>resolve: exception_status='resolved', resolution_note, resolved_by_user_id/at. נכתב event <code>exception_resolved</code>.</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>אתר / מתקן / פריט פעיל</td><td>archived</td><td>R-MGR</td><td>אתר: לא פנימי ובלי שגרות פעילות</td><td>מוסתר מרשימות ומבחירה; היסטוריה נשמרת</td></tr>
+<tr><td>exception open</td><td>resolved</td><td>R-MGR</td><td>הערת טיפול</td><td>exception_resolved; יוצא מ"חריגות פתוחות"</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>ללא.</div>
+<div>ממשק</div><div>מודאל "תיק אתר — שם", כמו היום: כתובת ואיש קשר (טלפון); מתקנים ופריטים (עם מספר סידורי); שגרות פעילות עם "הבא:"; "חריגות פתוחות" (ענבר, רק אם יש), כל אחת עם כפתור "טופל" שפותח שדה הערת טיפול (<code>RTN-17</code>); היסטוריה (גלילה בגובה 40, תווית סטטוס); כפתורים "📄 תיק ביקורת" (preset audit) ו-"📄 דוח ללקוח" (preset customer). חדש: כפתורי "עריכת אתר", "ארכוב", "+ מתקן", "+ פריט", ועריכה ומחיקה לכל מתקן ופריט (<code>RTN-16</code>). רשימת "מסמכים שהופקו" מציגה את <code>documents</code> שכבר מוחזר היום, עם מספר, סוג, מועד הפקה ו"נשלח ל-" (<code>RTN-34</code>). אתר פנימי מסומן "(פנימי)". שגרות ללא אתר (קיימות) מוצגות ברשימת השגרות עם "ללא אתר".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-16</code> — שיוך שגרה לאתר דרך הטופס והתבניות. CRUD עם מחיקה רכה למתקנים ולפריטים. עריכה וארכוב לאתר (עודכן).</li>
+<li><code>RTN-17</code> — "חריגות פתוחות" מציג רק exception_status='open', עם פעולת "טופל".</li>
+<li><code>RTN-34</code> — אירועי מסמך של האתר ורשימת המסמכים מוצגים בתיק.</li>
+<li><code>RTN-25</code> — customer_id מקבל FK ל-customers.</li>
+<li><code>RTN-04</code> — R-MGR לכתיבה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">מנוע התזמון (cron): כללי חזרה, הפעלה, פיגור וניקוי</h2>
+
+<section class="proc" data-f="routines recurrence rules generate occurrences horizon interval weekly_days skip_weekends max_occurrences end_date guard grace cron advisory lock series_date anchor certificate_expiry timezone"><h3>כללי חזרה וייצור מופעים (generateRoutineOccurrences)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משימת worker מתוזמנת <code>routines.cron</code> (<code>ARC-23</code>), כל 15 דקות בשעון Asia/Jerusalem, ובנוסף ריצה אחת כ-100 שניות אחרי עליית ה-worker, כמו היום (server.js:7035-7041). הסדר נשאר: generate → activate → markOverdue → certificate (<code>RTN-07</code>) → customerExpiry (<code>RTN-26</code>) → notifications (<code>RTN-24</code>). הריצה מתבצעת תחת <code>pg_try_advisory_lock(&lt;routines_cron&gt;)</code>: מופע שרת שלא קיבל את הנעילה מדלג (<code>RTN-19</code>). אותה פונקציית generate נקראת גם מיד אחרי יצירה, עריכה או הפעלה מחדש של שגרה, עבור השגרה הזו בלבד.</div>
+<div>הרשאות</div><div>system. אין נתיב HTTP.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>שגרות: <code>is_active=TRUE AND frequency_type='fixed'</code>, בקבוצות שבהן business_type ∈ {restaurant, maintenance_repair} <b>ויש להן זכאות פעילה ל-routines</b> (<code>RTN-05</code>). בנוסף, שגרות <code>source='sop'</code> בכל סוג עסק (<code>RTN-41</code>). שינוי סוג עסק בדיעבד עוצר את הייצור, כמו היום.</li>
+<li>עצירה: candidate &gt; horizonDate; ‏candidate &gt; end_date; ‏מספר המשבצות שנוצרו ≥ max_occurrences (נספר לפי k, האינדקס בסדרה, ולא לפי COUNT אחרי ניקוי); guard של 400 איטרציות לשגרה בריצה, כמו היום.</li>
+<li>יום תקף: ב-weekly_days נבדק <code>routineMatchesWeekday</code>, כלומר שם היום העברי (<code>ROUTINE_HEBREW_WEEKDAYS</code>, ראשון…שבת) כלול ב-CSV. ימים נבדקים רק ב-weekly_days (<code>RTN-18</code>). ‏skip_weekends: שישי ושבת לא תקפים. יום השבוע מחושב על התאריך הישראלי (<code>RTN-20</code>).</li>
+<li>כפילות: <code>INSERT … ON CONFLICT (routine_id, series_date) DO NOTHING</code> (<code>RTN-19</code>), במקום SELECT לפני INSERT.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>today = todayIL()</code> (מחרוזת YYYY-MM-DD, <code>ARC-25</code>/<code>RTN-20</code>). ‏<code>horizonDate = today + routineHorizonDays(interval)</code>.</li>
+<li><b>עוגן</b> (<code>RTN-18</code>): המשבצות הן <code>slot(k) = start_date + k×interval</code> (k=0,1,2…). ב-weekly_days המשבצות הן כל יום מ-start_date שעובר את בדיקת הימים. המשבצת הראשונה שנוצרת היא הראשונה שמקיימת slot ≥ max(start_date, today), כך שאין ייצור רטרואקטיבי. אחרי הזזת מופע, הוא שומר את series_date המקורי, ולכן המשבצת לא נוצרת שוב והמשך הסדרה לא זז.</li>
+<li>לולאה: לכל משבצת תקפה עד horizon: חישוב grace_deadline, ואז INSERT <code>routine_occurrences</code> (status planned, series_date=scheduled_date=slot, scheduled_time ו-assignee_user_id מהשגרה) עם ON CONFLICT DO NOTHING. רק כשנוצרה שורה נכתב event <code>occurrence_created</code> ("נוצר מופע ל-YYYY-MM-DD").</li>
+<li>שגיאה בשגרה אחת נרשמת בלוג מובנה עם routine_id (<code>ARC-33</code>), והריצה ממשיכה לשגרה הבאה.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li><code>routineAddInterval</code>: daily +1 יום; weekly +7; biweekly +14; monthly +1 חודש; quarterly +3 חודשים; semiannual +6; yearly +1 שנה. <b>בחודשים</b> החישוב נעשה מהעוגן (start_date + k חודשים) ונצמד ליום האחרון בחודש כשהיום אינו קיים: 31/1 → 28/2 או 29/2 → 31/3 (<code>RTN-21</code>). ערך interval לא מוכר נחסם ביצירה (400). לשגרות קיימות עם ערך לא מוכר נשארת ברירת המחדל +7 ימים, עם אזהרה בלוג.</li>
+<li><code>routineHorizonDays</code>: daily, weekly, weekly_days ו-biweekly → 60 יום. כל השאר → 365 יום. ללא שינוי.</li>
+<li><code>grace_deadline</code> = <code>(scheduled_date + COALESCE(scheduled_time,'23:59:59')) AT TIME ZONE 'Asia/Jerusalem' + (grace_period_minutes ?? 60) דקות</code>, כ-TIMESTAMPTZ (<code>RTN-20</code>/<code>RTN-21</code>). ערך 0 נשאר 0.</li>
+<li>certificate_expiry (<code>RTN-07</code>): מטופל בשלב certificate, ולא כאן (ראו "הפעלת מופע").</li>
+</ul></div>
+<div>מכונת מצבים</div><div>(none) → planned (system).</div>
+<div>תופעות לוואי</div><div>events מסוג occurrence_created.</div>
+<div>ממשק</div><div>אין. המופעים מוצגים בלוחות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-18</code> — עוגן start_date + k×interval במקום MAX. אין ייצור רטרואקטיבי. weekdays רק ב-weekly_days.</li>
+<li><code>RTN-19</code> — ייחודיות series_date עם ON CONFLICT, ונעילת advisory בין מופעי שרת.</li>
+<li><code>RTN-20</code> — חישוב תאריכים בשעון ישראל. grace_deadline כ-TIMESTAMPTZ.</li>
+<li><code>RTN-21</code> — הצמדה לסוף חודש. grace 0 נשמר.</li>
+<li><code>RTN-05</code> — דילוג על עסק בלי זכאות.</li>
+<li><code>RTN-41</code> — ייצור גם לשגרות SOP בכל סוג עסק.</li>
+<li><code>ARC-23</code> — ריצה ב-worker, במקום setInterval בתהליך ה-web.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines activate occurrences linked task calendar event work order store_orders work_order_assignees employee assignee output_type created_by source routine_occurrence_id role vendor certificate"><h3>הפעלת מופע ויצירת הרשומה המקושרת לעובד (activateDueRoutineOccurrences)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שלב 2 של ה-cron (server.js:6922). מופע מתוכנן שהגיע מועדו הופך לפריט עבודה בתשתיות הקיימות (משימה, יומן או פקודת עבודה). זה מנגנון השיוך בפועל לעובד, והוא נשמר. נוסף שלב certificate (<code>RTN-07</code>).</div>
+<div>הרשאות</div><div>system.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>מופעים <code>status='planned' AND scheduled_date ≤ todayIL()</code> (<code>RTN-20</code>), רק בקבוצות עם זכאות פעילה (<code>RTN-05</code>) או בשגרות SOP.</li>
+<li>כל מופע מופעל בטרנזקציה נפרדת (<code>ARC-11</code>): יצירת הרשומה המקושרת, עדכון המופע וה-event. כשל מבטל רק את המופע הזה, והוא נשאר planned וינוסה שוב בריצה הבאה, כמו היום. אחרי 5 כשלונות רצופים נשלחת התראת מערכת (<code>ARC-33</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>קביעת אחראי</b>: assignee_mode=employee לוקח את assignee_user_id, כמו היום. ‏role (<code>RTN-15</code>): העובד הפעיל הראשון בקבוצה (לפי id) עם employee_role_type = assignee_role. אם אין כזה, המופע נשאר בלי אחראי וגלוי לכל בעלי התפקיד בלוח היום. ‏external_vendor: אין אחראי פנימי (ראו שלב 5). שם העובד מחושב לפי הנוסחה ב-<code>RTN-02</code>.</li>
+<li><code>output_type ∈ {task, task_calendar}</code>: INSERT <code>tasks</code> עם title=שם השגרה (וב-SOP כותרת הנוהל עם task_type='sop' ו-checklist, <code>RTN-41</code>/<code>RTN-42</code>), reward 0, assigned_to=אחראי, deadline = תאריך + scheduled_time (או 23:59:59), status 'pending', is_recurring FALSE, priority 'medium', <b><code>created_by=NULL</code>, <code>source='routine'</code> (או 'sop'), <code>routine_occurrence_id</code>=המופע</b> (<code>RTN-01</code>).</li>
+<li><code>task_calendar</code>: כמו היום. אם יש site_id, הכותרת היא "שם — אתר" וה-notes הם כתובת האתר. INSERT <code>calendar_events</code> (status 'approved', start_time = scheduled_time או '09:00', attendees_user_ids = [אחראי] או []).</li>
+<li><code>work_order_template</code>: כמו היום. customer_name = contact_name או שם האתר. INSERT <code>store_orders</code> (status 'open', call_type='work_order', quote_title=שם השגרה, notes = work_order_template.notes או "נוצר אוטומטית משגרה: …", items '[]', total_amount 0). אם יש אחראי: INSERT <code>work_order_assignees</code> (assigned_by='שגרות', role_label מהתבנית, ON CONFLICT DO NOTHING).</li>
+<li><b>external_vendor</b> (<code>RTN-15</code>): בנוסף לרשומה המקושרת (בלי אחראי פנימי) נשלחת לספק הודעת WhatsApp עם שם השגרה, האתר והתאריך, וקישור ביצוע ציבורי <code>/c/rt-v/:occurrenceId/:token</code> (טוקן חד-פעמי). בקישור הספק מאשר "בוצע" ויכול להוסיף הערה או קובץ. האישור נרשם כמו <code>/complete</code>, עם actor_type='customer', שם הספק ב-actor_name ו-channel='vendor_link'. הנתיב נכלל ברשימת קישורי הטוקן הציבוריים <code>/c/*</code> (<code>ARC-02</code>). השליחה עוברת דרך <code>notifications</code> (<code>ARC-16</code>).</li>
+<li>UPDATE המופע ל-<code>open</code>, עם linked_task_id, linked_calendar_event_id ו-linked_work_order_id. נכתב event <code>occurrence_activated</code> עם המזהים.</li>
+<li>התראה לאחראי: "מופע חדש: &lt;שגרה&gt; להיום" (<code>RTN-24</code>).</li>
+<li><b>שלב certificate</b> (<code>RTN-07</code>): לכל שגרה פעילה עם frequency_type='certificate_expiry' שאין לה מופע לא סגור: מחפשים את ראיית ה-document עם expiry_date המאוחר ביותר. אם יש כזו, נוצר מופע (series_date=scheduled_date) בתאריך <code>expiry_date − reminder_before_hours</code> (ברירת מחדל 1440 שעות, כלומר 60 יום), ולא לפני היום. אם אין תעודה, נוצר מופע להיום. המופע מופעל באותה ריצה, לפי השלבים שלמעלה. סגירת מופע עם ראיית document חדשה גורמת לכך שבריצה הבאה ייווצר המופע לפי התוקף החדש. ‏condition_based: אין ייצור אוטומטי. מופעים נוצרים ידנית בכפתור "צור מופע עכשיו" בכרטיס השגרה (R-MGR), דרך <code>POST /api/routines/:id/occurrences</code>.</li>
+</ol></div>
+<div>חישובים</div><div>מועד המופע ב-certificate_expiry: <code>max(todayIL(), toILDate(expiry_date − reminder_before_hours שעות))</code>.</div>
+<div>מכונת מצבים</div><div>planned → open (system). הרשומות המקושרות מסונכרנות דו-כיוונית עם המופע (<code>RTN-22</code>, ראו "ביצוע מופע"): המופע הוא מקור האמת.</div>
+<div>תופעות לוואי</div><div>המשימה מופיעה לעובד בטאב משימות. האירוע מופיע ביומן העסק. פקודת העבודה מופיעה במסך "פקודות עבודה". נשלחות התראות לאחראי (in-app ו-WhatsApp לפי הגדרה, <code>RTN-24</code>), ולספק חיצוני (<code>RTN-15</code>).</div>
+<div>ממשק</div><div>משימה שנוצרה משגרה מסומנת בתג "🔁 שגרה" בטאב משימות (לפי source).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-01</code> — created_by=NULL עם source ו-routine_occurrence_id. מופעי task ו-task_calendar מופעלים בפועל.</li>
+<li><code>RTN-07</code> — certificate_expiry ממומש. condition_based ביצירה ידנית.</li>
+<li><code>RTN-15</code> — שיוך לפי תפקיד והודעה לספק חיצוני.</li>
+<li><code>RTN-22</code> — קישור מפורש (routine_occurrence_id) שמאפשר סנכרון.</li>
+<li><code>RTN-24</code> — התראה לאחראי בהפעלה.</li>
+<li><code>RTN-20</code> — today בשעון ישראל.</li>
+<li><code>RTN-05</code> — רק לעסקים עם זכאות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines overdue grace deadline mark cleanup retention delete cascade daily escalation reminder move_requested"><h3>סימון פיגור וניקוי לפי תקופת שמירה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>markOverdueRoutineOccurrences</code> (server.js:7005) רץ כשלב 3 של ה-cron, כל 15 דקות. ‏<code>cleanupExpiredRoutineRecords</code> (7022) הוא משימת worker יומית, בשעה 03:10 בשעון ישראל (<code>ARC-23</code>; 03:00 שמור לניקוי הסשנים), במקום setInterval של 24 שעות.</div>
+<div>הרשאות</div><div>system.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>פיגור (<code>RTN-23</code>): <code>status='open' AND grace_deadline IS NOT NULL AND grace_deadline &lt; NOW()</code>. מופע in_progress (סבב פתוח) לא עובר לפיגור.</li>
+<li>ניקוי: <code>status IN ('completed','completed_with_exception','skipped','cancelled') AND scheduled_date &lt; todayIL() − COALESCE(retention_period_days,365)</code>. ללא שינוי.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פיגור: לכל מופע, UPDATE ל-<code>overdue</code>, ונכתב event <code>occurrence_overdue</code> ("חלון החסד חלף"). התראה למנהלים (R-MGR) ולאחראי, עם dedup לפי (occurrence_id, 'overdue') (<code>RTN-24</code>).</li>
+<li>אסקלציה (<code>RTN-24</code>): מופע overdue שעברו בו escalation_after_hours מ-grace_deadline, ויש לשגרה escalation_user_id: התראה ל-escalation_user_id, עם dedup לפי (occurrence_id, 'escalation').</li>
+<li>תזכורת (<code>RTN-24</code>): מופע open שנותרו לו פחות מ-reminder_before_hours עד grace_deadline: התראה לאחראי, עם dedup לפי (occurrence_id, 'reminder').</li>
+<li>בקשת הזזה ממתינה (<code>RTN-23</code>): מופע move_requested לא עובר לפיגור ונשאר במצבו. אם הבקשה לא הוכרעה תוך 48 שעות, נשלחת תזכורת למנהלים (dedup לפי (occurrence_id, 'move_pending')).</li>
+<li>ניקוי: <code>DELETE … USING routines</code> בתוך טרנזקציה. CASCADE מוחק ראיות, סבבים ואירועים של המופע. ‏routine_documents.occurrence_id מתעדכן ל-NULL. משימות מקושרות: routine_occurrence_id מתעדכן ל-NULL (ON DELETE SET NULL), והן לא נמחקות. כך גם אירועים ופקודות עבודה. נכתב לוג "[ROUTINES] נוקו N מופעים…".</li>
+</ol></div>
+<div>חישובים</div><div>grace_deadline הוא TIMESTAMPTZ ומושווה ל-NOW() (<code>RTN-20</code>). אסקלציה: <code>NOW() &gt; grace_deadline + escalation_after_hours</code>. תזכורת: <code>NOW() &gt; grace_deadline − reminder_before_hours</code>, וזה חל רק על open.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>open</td><td>overdue</td><td>system</td><td>grace_deadline &lt; NOW()</td><td>event; התראה למנהל ולאחראי; אסקלציה לפי הגדרה</td></tr>
+<tr><td>סגור + עבר retention</td><td>(נמחק)</td><td>system</td><td>יומי</td><td>CASCADE לראיות, לסבבים ולאירועים</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>התראות (<code>RTN-24</code>).</div>
+<div>ממשק</div><div>מופעי overdue מוצגים ב"מה פוספס". שם מוצגים גם מופעי move_requested שהתאריך המקורי שלהם חלף, עם התג "בקשת הזזה ממתינה" (<code>RTN-23</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-23</code> — פיגור חל רק על open. move_requested שהתאריך שלו חלף מוצג ב"מה פוספס" ומקבל תזכורת למנהל.</li>
+<li><code>RTN-24</code> — התראות פיגור, אסקלציה ותזכורת.</li>
+<li><code>RTN-20</code> — TIMESTAMPTZ ושעון ישראל.</li>
+<li><code>ARC-23</code> — ניקוי כמשימת worker יומית.</li>
+<li><code>RECON-32</code> — שעת הניקוי 03:10, כמו בטבלת תהליכי הרקע ב-tobe-arch.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ביצוע מופעים, לוחות מעקב ואישורים</h2>
+
+<section class="proc" data-f="routines dashboard today missed occurrences board kpi regulatory first list pending calendar widget completion rate error retry"><h3>לוחות מעקב: לוח היום, "מה פוספס", טווח מופעים ורשימת שגרות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תת-טאב "לוח היום" (<code>_renderRoutinesToday</code> 61446 → <code>GET /api/routines/today</code>, 27913). "מה פוספס" (61457 → <code>/missed</code>, 27929). "רשימת שגרות" (61125 → <code>GET /api/routines</code>, 27327). <code>GET /api/routines/occurrences</code> (27890, פילטרים from, to, status, assigneeUserId) מחווט לתצוגת "לוח שנה" חדשה בתת-טאב "לוח היום" (<code>RTN-36</code>). חדש: ווידג'ט "שגרות היום" בדשבורד הראשי ובלוח התפקיד (<code>RTN-37</code>), דרך <code>GET /api/routines/summary</code>.</div>
+<div>הרשאות</div><div>R-ACC לכל המסכים. עובד בלי R-ACC רואה בלוח התפקיד שלו רק את המופעים שהוא אחראי עליהם (summary מסנן לפי <code>req.principal.userId</code>). אחוז הביצוע ל-30 יום מוחזר רק ל-ADMIN (<code>RTN-37</code>). groupId מהסשן.</div>
+<div>קלט ואימותים</div><div>today = <code>todayIL()</code> (<code>RTN-20</code>). ב-occurrences: from ≤ to, טווח של עד 366 יום, status מתוך הרשימה הסגורה (<code>ARC-34</code>).</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>today: כל מופעי הקבוצה שבהם scheduled_date=today (כל הסטטוסים), במיון scheduled_time NULLS LAST. כמו היום.</li>
+<li>missed: <code>status='overdue'</code>, ובנוסף move_requested שבהם series_date &lt; today (<code>RTN-23</code>). מיון: regulatory (0) → safety (1) → אחר (2), ואחר כך תאריך עולה. כמו היום.</li>
+<li>רשימה: כל השגרות (פעילות קודם, ואחר כך created_at בסדר יורד), עם site_name ו-next_occurrence_date (MIN של מופע פעיל). כמו היום. שגרות source='sop' לא מוצגות כאן (<code>RTN-41</code>).</li>
+<li>שם האחראי בכל השאילתות: <code>COALESCE(NULLIF(TRIM(u.first_name||' '||u.last_name),''), u.nickname) AS assignee_name</code>, במקום <code>u.name</code> (<code>RTN-02</code>).</li>
+<li>summary (<code>RTN-37</code>): ספירה להיום לפי planned/open, completed(+with_exception) ו-overdue. ל-ADMIN גם completionRate30.</li>
+<li>לקוח: כל טעינה בודקת <code>res.ok</code> ו-<code>data.success</code>. בשגיאה מוצג "שגיאה בטעינה" עם כפתור "נסה שוב", ולא הודעת "אין מופעים…" (<code>RTN-02</code>).</li>
+</ol></div>
+<div>חישובים</div><div><code>completionRate30 = count(status ∈ {completed, completed_with_exception}) / count(scheduled_date ∈ [today−30, today−1] AND status ∉ {skipped, cancelled})</code>, מעוגל לאחוז שלם. אם המכנה 0, מוצג "—" (<code>RTN-37</code>).</div>
+<div>מכונת מצבים</div><div>אין (קריאה בלבד).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כרטיס מופע (<code>_renderOccurrenceCards</code> 61159) נשאר: שם, תג סטטוס צבעוני (<code>ROUTINE_STATUS_COLORS</code>), תאריך ושעה, שם אחראי. במצבים open, in_progress ו-overdue מוצגים "סמן כבוצע", "בוצע עם חריגה", "בקשת הזזה", "דילוג", "החלפת אחראי". ב-in_progress עם סבב פתוח, "סמן כבוצע" מוחלף בתג "ממתין לאישור" (<code>RTN-23</code>), ו"בקשת הזזה" מוצג רק ב-planned, open ו-overdue (<code>RTN-29</code>). "מה קרה כאן" מוצג תמיד. "סמן כבוצע" פותח טופס ביצוע לפי evidence_requirements (<code>RTN-08</code>/<code>RTN-09</code>). כפתורי הביצוע מוצגים לבעלי R-EXEC בלבד. כרטיס שגרה: שם, קטגוריה, תדירות, סוג פלט, אתר (או "ללא אתר"), "הבא:", ובנוסף "עריכה", "השבתה" או "הפעלה מחדש", "היסטוריית שינויים" ו"דוח תקופתי". שגרה מושבתת מוצגת בשקיפות 50%. הודעות ריקות: "אין מופעים מתוכננים להיום." ו"אין מופעים בפיגור כרגע 🎉". חדש: מתג "רשימה / לוח שנה" בלוח היום, עם תצוגה חודשית של מופעים (<code>RTN-36</code>). ווידג'ט "שגרות היום" בדשבורד: מתוכנן / בוצע / בפיגור, ול-ADMIN גם "ביצוע 30 יום: X%". לחיצה פותחת את טאב השגרות. בלוח תפקיד מוצגים המופעים של העובד להיום (<code>RTN-37</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-02</code> — שם אחראי מחושב במקום u.name. בדיקת שגיאה בלקוח עם "נסה שוב".</li>
+<li><code>RTN-36</code> — תצוגת לוח שנה מבוססת טווח מופעים.</li>
+<li><code>RTN-37</code> — ווידג'ט ו-KPI בדשבורד ובלוח התפקיד.</li>
+<li><code>RTN-23</code> — "מה פוספס" כולל בקשות הזזה שהתאריך שלהן חלף.</li>
+<li><code>RTN-20</code> — today בשעון ישראל.</li>
+<li><code>RTN-04</code> — כפתורים לפי R-EXEC ו-R-MGR.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines complete occurrence fast path exception evidence note numeric completed_with_exception upload photo document checklist value range sync linked task"><h3>ביצוע מופע — מסלול מהיר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עובד או מנהל לוחץ "סמן כבוצע" או "בוצע עם חריגה" (<code>completeRoutineOccurrence</code> 61468) → <code>POST /api/routine-occurrences/:id/complete</code> (27979). <b>חדש</b>: ראיות נשמרות דרך <code>POST /api/routine-occurrences/:id/evidence</code> (<code>RTN-08</code>). <b>חדש</b>: השלמת המשימה או פקודת העבודה המקושרת מפעילה את אותו complete (<code>RTN-22</code>). מסלול מהיר פירושו שלשגרה אין <code>requires_internal_approval</code>, וגם <code>requires_customer_approval_events</code> לא כולל 'completion' (<code>_routineRequiresCustomerCompletionApproval</code>, 27948, ללא שינוי).</div>
+<div>הרשאות</div><div>R-EXEC (<code>RTN-04</code>). המופע שייך לקבוצה, אחרת 404 "מופע לא נמצא".</div>
+<div>קלט ואימותים</div><div><ul>
+<li>status ∈ {open, in_progress, overdue}, אחרת 400 "לא ניתן לסמן ביצוע למופע במצב הנוכחי". כמו היום.</li>
+<li>אם יש סבב שבו internal_status='pending' או customer_status='pending': 409 "קיים סבב אישור פתוח" (<code>RTN-23</code>).</li>
+<li><b>evidence</b> (<code>RTN-08</code>): evidence_type ∈ {note, numeric_value, checklist, photo, document}. ‏photo ו-document מועלים לאחסון אובייקטים לפי <code>ARC-26</code> (סוגים png, jpg, webp, pdf; גודל עד 8MB לתמונה ו-15MB ל-PDF), ונשמר file_url. ‏document מחייב document_issuer ו-expiry_date (license_number, issue_date ו-form_type אופציונליים). ‏checklist_state חייב להתאים ל-checklist_items של השגרה. ‏numeric_value הוא מספר.</li>
+<li><b>אכיפת דרישות</b> (<code>RTN-08</code>, עודכן): ב"סמן כבוצע" (hasException=false) חייבת להיות לפחות ראיה אחת מכל סוג שב-evidence_requirements. 'confirm' לא דורש ראיה. checklist דורש שכל הפריטים מסומנים. אחרת 400 "חסרות ראיות: &lt;רשימה&gt;". ב"בוצע עם חריגה" (hasException=true) נדרשת הערה (400 "יש לתאר את החריגה"), והסגירה מותרת גם כשחסרות ראיות.</li>
+<li>numeric_value (<code>RTN-09</code>): כש-numeric_value ב-evidence_requirements והמסלול הוא "סמן כבוצע", הערך חובה.</li>
+<li>לקוח: בחריגה נפתח שדה "מה החריגה שהתגלתה?" (היום <code>prompt</code>). ביטול סוגר את הטופס בלי פעולה.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>(לפני כן, אופציונלי) העלאת ראיות דרך <code>/evidence</code>. כל ראיה נשמרת עם created_by_user_id ושם snapshot (<code>RTN-03</code>).</li>
+<li><code>/complete</code>, בטרנזקציה אחת (<code>ARC-11</code>): אם נשלחו note או numericValue, מבוצע INSERT <code>routine_evidence</code>, כמו היום. evidence_type הוא numeric_value כשיש מספר, אחרת note.</li>
+<li>טווח (<code>RTN-09</code>): כש-numericValue מחוץ ל-[value_range_min, value_range_max], ‏is_out_of_range=true ו-hasException=true אוטומטית, ונוספת הערה "ערך X&lt;יחידה&gt; מחוץ לטווח". אחרת is_out_of_range=!!hasException, כמו היום.</li>
+<li>ראיות חסרות במסלול חריגה: לחריגה נוספת השורה "ראיה חסרה: …" (<code>RTN-08</code>).</li>
+<li>UPDATE המופע: status = completed_with_exception אם hasException, אחרת completed. ‏completed_at=NOW(). ‏completed_by_user_id=<code>req.principal.userId</code>, ו-completed_by_name הוא snapshot (<code>RTN-03</code>). ‏exception_flag. כשיש חריגה, exception_status='open' (<code>RTN-17</code>).</li>
+<li>event <code>occurrence_completed</code> או <code>occurrence_completed_with_exception</code> (actor user, השם מהסשן). כשהמבצע אינו האחראי מתווסף "בוצע במקום &lt;אחראי&gt;".</li>
+<li><b>סנכרון רשומות מקושרות</b> (<code>RTN-22</code>): משימה מקושרת שאינה done או approved עוברת ל-'approved'. פקודת עבודה מקושרת עוברת ל-'completed', אלא אם היא כבר במצב completed, pending_payment או cancelled. אירוע יומן נשאר (אירוע עבר).</li>
+<li>תשובה <code>{requiresApproval:false, status}</code>. toast "המופע סומן כבוצע", או "המופע נסגר עם חריגה (ערך מחוץ לטווח)". רענון התת-טאב.</li>
+<li><b>מהכיוון ההפוך</b> (<code>RTN-22</code>): בנתיב עדכון המשימות (server.js:12023-12078), כשמשימה עם routine_occurrence_id עוברת ל-done או approved, ובנתיב סטטוס פקודת עבודה (server.js:26636) כשהיא עוברת ל-completed או ל-pending_payment, מתבצע complete פנימי של המופע: מסלול מהיר או סבב, לפי השגרה, עם המשתמש שסגר. אם השגרה דורשת ראיות שחסרות, המופע לא נסגר. הוא נשאר open, ונשלחת לאחראי התראה "יש להשלים ראיות בטאב שגרות". סנכרון שנכשל לא מבטל את עדכון המשימה ונרשם בלוג.</li>
+</ol></div>
+<div>חישובים</div><div><code>outOfRange = (min != null &amp;&amp; v &lt; min) || (max != null &amp;&amp; v &gt; max)</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>open / in_progress (בלי סבב פתוח) / overdue</td><td>completed</td><td>R-EXEC, או סנכרון ממשימה</td><td>בלי חריגה, כל הראיות קיימות, בלי שערי אישור</td><td>event; משימה → approved; פקודת עבודה → completed</td></tr>
+<tr><td>open / in_progress (בלי סבב פתוח) / overdue</td><td>completed_with_exception</td><td>R-EXEC</td><td>hasException, או ערך מחוץ לטווח</td><td>ראיה עם is_out_of_range; exception_status=open; סנכרון</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>סגירת המשימה ופקודת העבודה המקושרות. בחריגה נשלחת התראה למנהלים: "דווחה חריגה: &lt;שגרה&gt;" (<code>RTN-24</code>).</div>
+<div>ממשק</div><div>"סמן כבוצע" פותח טופס ביצוע לפי הדרישות: שדה מספר עם יחידה וטווח ("טווח תקין: min–max °C"); צ'קליסט; העלאת תמונה; העלאת מסמך עם מנפיק, מספר רישיון ותאריכי הנפקה ותוקף; הערה. בשגרה עם 'confirm' בלבד, הלחיצה סוגרת מיד, כמו היום. "בוצע עם חריגה" פותח שדה תיאור חריגה, ואפשר לצרף בו ראיות.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-08</code> — נתיב ראיות. אכיפת דרישות ב"סמן כבוצע" ומסלול חריגה שעוקף אותן (עודכן).</li>
+<li><code>RTN-09</code> — הזנת ערך מספרי וחריגה אוטומטית מחוץ לטווח (עודכן).</li>
+<li><code>RTN-22</code> — סנכרון דו-כיווני עם המשימה ופקודת העבודה.</li>
+<li><code>RTN-23</code> — 409 כשיש סבב פתוח.</li>
+<li><code>RTN-03</code> — המבצע מהסשן.</li>
+<li><code>RTN-17</code> — exception_status=open לחריגה.</li>
+<li><code>RTN-04</code> — R-EXEC.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines approval round internal approval decide reject resubmit pending approvals queue manager self approval click_with_note checklist_review approver"><h3>מסלול מלא: סבב אישור פנימי (מנהל)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שגרה עם <code>requires_internal_approval=TRUE</code>, או עם אישור לקוח. הגשה: אותו <code>/complete</code> (27979). תור: תת-טאב "אישורי ביצוע" (<code>_renderRoutinesInternalApprovals</code> 61388 → <code>GET /api/routines/pending-approvals</code>, 28199). החלטה: <code>decideInternalApproval</code> (61413) → <code>POST /api/routine-occurrences/:id/approval-rounds/:roundId/decide</code> (28041). היסטוריית הסבבים (<code>GET …/approval-rounds</code>, 28160) מחווטת למודאל "מה קרה כאן" (<code>RTN-36</code>).</div>
+<div>הרשאות</div><div>הגשה: R-EXEC. תור: R-APPR, כשמאשר ייעודי רואה רק את השגרות שלו. החלטה: R-APPR. אישור עצמי חסום כשיש מאשר זכאי פעיל אחר, ואחרת מותר ומסומן self_approved (<code>RTN-04</code>, עודכן). אם הוגדר internal_approver_user_id, רק הוא מכריע, ו-ADMIN מכריע רק כשהמאשר הייעודי אינו פעיל (<code>RTN-25</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הגשה: אותם אימותים כמו במסלול המהיר, כולל ראיות (<code>RTN-08</code>/<code>RTN-09</code>) ו-409 כשיש סבב פתוח (<code>RTN-23</code>).</li>
+<li>decide: המופע שייך לקבוצה (אחרת 404 "מופע לא נמצא"). הסבב שייך למופע (אחרת 404 "סבב אישור לא נמצא"). ‏internal_status='pending', אחרת 400 "הסבב כבר הוכרע". דחייה בלי reason: 400 "יש לציין סיבת דחייה". בלקוח שדה "סיבת הדחייה:", וביטול יוצא בלי פעולה.</li>
+<li>internal_approval_mode (<code>RTN-28</code>): ב-click האישור בלחיצה, כמו היום. ב-click_with_note אישור בלי note מחזיר 400 "יש להוסיף הערת אישור". ב-checklist_review נדרש <code>checklistReview</code> עם החלטה לכל פריט ב-checklist_state של הראיה (אחרת 400 "יש לבדוק את כל פריטי הצ'קליסט"). פריט שסומן "לא תקין" הופך את האישור לדחייה, והסיבה היא רשימת הפריטים.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>הגשה</b> (טרנזקציה): ראיות (כמו במסלול המהיר). <code>roundNumber = COALESCE(MAX(round_number),0)+1</code>. ‏internal_status הוא pending אם נדרש אישור פנימי, אחרת skipped. ‏customer_status הוא not_required, ו-pending רק אם נדרש לקוח ואין אישור פנימי. INSERT <code>routine_approval_rounds</code> עם submitted_by_user_id ושם snapshot (<code>RTN-03</code>). המופע עובר ל-<code>in_progress</code> עם exception_flag. נכתב event <code>occurrence_submitted</code> ("סבב N"). כל זה כמו היום.</li>
+<li>כש-customer pending: <code>_ensureRoutineRoundCustomerToken</code> (27956). 24 בתים hex, טוקן חדש לכל סבב (<code>RTN-26</code>). ‏customer_expires_at = NOW() + customer_approval_wait_hours. ה-URL הוא <code>APP_URL + /c/rt/:occId/:token</code>, ונכתב event <code>customer_approval_requested</code>.</li>
+<li>התראה למאשרים: "ביצוע ממתין לאישורך: &lt;שגרה&gt;" (<code>RTN-24</code>).</li>
+<li><code>_maybeCloseRoutineRound</code> (27964) סוגר מיד כשאין שער פעיל. התשובה <code>{requiresApproval:true, roundId, roundNumber, customerApprovalUrl}</code>, ו-toast "הביצוע הוגש לאישור". כמו היום.</li>
+<li><b>אישור</b> (טרנזקציה): internal approved, עם internal_decided_by_user_id ושם snapshot, decided_at, internal_note ו-checklist_review. ‏self_approved=true כשהמכריע הוא המגיש (מותר רק כשאין מאשר אחר). נכתב event <code>internal_approved</code> (עם "אישור עצמי" כשרלוונטי). אם customer_status=not_required והשגרה דורשת 'completion': customer הופך ל-pending, נוצר טוקן, נכתב event <code>customer_approval_requested</code>, וה-URL מוחזר למודאל "נדרש אישור לקוח". ואז <code>_maybeClose</code>.</li>
+<li><b>דחייה</b>: internal rejected עם reason. המופע חוזר ל-<code>open</code>, או ל-<code>cancelled</code> אם השגרה הושבתה בינתיים (<code>RTN-12</code>). נכתב event <code>internal_rejected</code> ("סבב N: סיבה"), ונשלחת התראה למגיש (<code>RTN-24</code>). הגשה חוזרת פותחת סבב N+1, והסבב הקודם נשמר. כמו היום.</li>
+<li><code>_maybeCloseRoutineRound</code>: כש-internal ∈ {approved, skipped} ו-customer ∈ {not_required, approved, expired כש-policy=proceed}, המופע נסגר כ-completed או completed_with_exception לפי exception_flag. completed_by הוא המגיש של הסבב (user_id ושם). נכתב event (actor system, "סבב N אושר במלואו"), ומתבצע סנכרון רשומות מקושרות (<code>RTN-22</code>).</li>
+</ol></div>
+<div>חישובים</div><div>roundNumber כמו היום. ‏customer_expires_at = submitted/approved_at + customer_approval_wait_hours (ברירת מחדל 48).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>מופע open / overdue (בלי סבב פתוח)</td><td>in_progress</td><td>R-EXEC</td><td>שער פעיל; ראיות</td><td>סבב חדש pending; התראה למאשר</td></tr>
+<tr><td>round internal pending</td><td>approved</td><td>R-APPR</td><td>לפי mode; לא אישור עצמי כשיש מאשר אחר</td><td>פתיחת שער לקוח או סגירת המופע; self_approved</td></tr>
+<tr><td>round internal pending</td><td>rejected</td><td>R-APPR</td><td>reason</td><td>מופע → open (או cancelled אם השגרה מושבתת); התראה למגיש</td></tr>
+<tr><td>מופע in_progress</td><td>completed(_with_exception)</td><td>system</td><td>שני השערים עברו</td><td>completed_by = המגיש; סנכרון</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>התראות (<code>RTN-24</code>). סנכרון רשומות מקושרות (<code>RTN-22</code>).</div>
+<div>ממשק</div><div>כרטיס בתור, כמו היום: שם השגרה, תג "דווחה חריגה", "תאריך מופע · סבב N · הוגש ע"י …" (עכשיו עם שם אמיתי, <code>RTN-03</code>), כפתורי אישור ודחייה. ב-click_with_note נפתח שדה הערה חובה. ב-checklist_review מוצגת רשימת הפריטים עם תקין / לא תקין לכל פריט, וגם הראיות (תמונות ומסמכים) (<code>RTN-28</code>). למגיש עצמו, כשיש מאשר אחר, הכפתורים מושבתים עם הטקסט "ממתין לאישור מנהל אחר". toast "הביצוע אושר" או "הביצוע נדחה וחזר לעובד". מודאל קישור לקוח (<code>_showRoutineCustomerLinkModal</code> 61429): ה-URL וקישור <code>wa.me/?text=</code> עם "נא לאשר את ביצוע השירות: …". כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-04</code> — R-APPR נאכף בשרת. אישור עצמי חסום רק כשיש מאשר אחר, ואחרת מסומן self_approved (עודכן).</li>
+<li><code>RTN-28</code> — click_with_note ו-checklist_review ממומשים.</li>
+<li><code>RTN-25</code> — internal_approver_user_id הוא מאשר ייעודי.</li>
+<li><code>RTN-23</code> — סבב פתוח לא עובר לפיגור. 409 על הגשה כפולה.</li>
+<li><code>RTN-26</code> — טוקן חדש לכל סבב, עם customer_expires_at.</li>
+<li><code>RTN-36</code> — היסטוריית סבבים מוצגת.</li>
+<li><code>RTN-03</code>, <code>RTN-24</code>, <code>RTN-22</code>, <code>RTN-12</code> — זהות מהסשן, התראות, סנכרון, ודחייה אחרי השבתה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines customer approval public link token c/rt approve reject confirm page viewed expiry expired policy proceed stop_and_alert xss escape"><h3>אישור לקוח בקישור ציבורי (/c/rt/:occurrenceId/:token)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח הקצה (אתר או בעל נכס) פותח קישור שנשלח אליו ידנית (wa.me מהממשק). ‏GET (28087) מציג עמוד, ו-POST (28132) רושם החלטה. אין הרשמה או סיסמה, כמו היום. חדש: שלב customerExpiry ב-cron (<code>RTN-26</code>).</div>
+<div>הרשאות</div><div>ציבורי, לפי טוקן בלבד. הנתיב נמצא ברשימת <code>/c/*</code> המוצהרת (<code>ARC-02</code>). ‏rate limit לנתיבים ציבוריים כותבים (<code>ARC-29</code>). לא חל עליו requireModule (<code>RTN-05</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>JOIN של round, occurrence ו-routine עם <code>o.id=:occurrenceId AND ar.confirm_token=:token</code>. לא נמצא: 404 "קישור לא תקף או פג תוקפו" ב-GET, ו"קישור לא תקף" ב-POST. כמו היום.</li>
+<li>customer_status ≠ pending: ב-GET מוצג <code>confirmationPage</code> עם "כבר אישרת ביצוע זה. תודה!" / "כבר דחית ביצוע זה. ניצור איתך קשר." / "הבקשה כבר טופלה.". סטטוס expired מציג "הבקשה כבר טופלה.". ב-POST מוחזר "הבקשה כבר טופלה בעבר.".</li>
+<li>תוקף (<code>RTN-26</code>): ב-policy=proceed, אחרי customer_expires_at הסבב כבר expired, ולכן מוצג "הבקשה כבר טופלה.". ב-stop_and_alert הקישור ממשיך לעבוד כל עוד customer_status=pending.</li>
+<li>דחייה מחייבת הערה גם בשרת: 400 "נא לציין הערה לדחייה" (<code>RTN-26</code>). ‏decision שאינו approve או reject מחזיר 400 "תגובה לא תקינה". הערה עד 1000 תווים.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: בצפייה הראשונה <code>customer_viewed_at=NOW()</code>. העמוד מציג את שם העסק, האתר, "בוצע בתאריך … בשעה HH:MM", textarea להערה וכפתורי "✅ מאשר/ת" / "✖️ לא מאשר/ת", ושולח fetch POST לאותו path. כמו היום. <b>כל ערך דינמי עובר escapeHtml</b> (&amp; &lt; &gt; " '), והעמוד מוגש עם CSP בלי inline script. הסקריפט עובר לקובץ סטטי (<code>RTN-27</code>, <code>ARC-27</code>/<code>ARC-28</code>).</li>
+<li>POST approve: customer approved, decided_at, reply_text, <code>customer_channel='link'</code>. נכתב event <code>customer_approved</code> (actor customer, channel link), ומתבצע <code>_maybeCloseRoutineRound</code>. נשלחת התראה למנהלים: "הלקוח אישר: &lt;שגרה&gt;" (<code>RTN-24</code>). ההודעה ללקוח: "תודה על האישור!".</li>
+<li>POST reject (<code>RTN-26</code>): customer rejected עם rejection_reason. <b>המופע חוזר ל-open</b>. נכתב event <code>customer_rejected</code>, ונשלחת התראה למנהלים: "הלקוח דחה: &lt;שגרה&gt; — &lt;הערה&gt;" (<code>RTN-24</code>). הגשה חוזרת פותחת סבב N+1 עם טוקן חדש. ההודעה ללקוח: "התגובה נשלחה — ניצור איתך קשר בהקדם.".</li>
+<li><b>customerExpiry</b> (שלב cron, <code>RTN-26</code>): סבבים עם customer_status='pending' שעבר בהם customer_expires_at. ב-policy=proceed: customer_status='expired', ‏<code>_maybeClose</code> סוגר את המופע כ-completed (או with_exception לפי הדגל), ונכתב event <code>customer_approval_expired</code> ("אושר אוטומטית — לא התקבלה תגובת לקוח"). ב-stop_and_alert: הסטטוס לא משתנה, המופע נשאר in_progress, ונשלחת התראה למנהלים, פעם אחת (dedup לפי (round_id, 'customer_timeout')). בכרטיס בתור "אישורי ביצוע" מוצגות שתי פעולות R-MGR: "סגירה ללא אישור לקוח" (customer_status='expired', ואז סגירה, עם event ושם המנהל) ו"שליחה מחדש" (מאריך את customer_expires_at ופותח שוב את מודאל הקישור).</li>
+</ol></div>
+<div>חישובים</div><div>תפוגה: <code>NOW() &gt; customer_expires_at</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>customer not_required</td><td>pending</td><td>system</td><td>הגשה בלי אישור פנימי, או אחרי אישור פנימי</td><td>טוקן; customer_expires_at</td></tr>
+<tr><td>pending</td><td>approved</td><td>לקוח (קישור)</td><td>—</td><td>סגירה כש-internal תקין; התראה</td></tr>
+<tr><td>pending</td><td>rejected</td><td>לקוח (קישור)</td><td>הערה חובה</td><td>מופע → open; התראה; הגשה חוזרת = סבב חדש</td></tr>
+<tr><td>pending</td><td>expired</td><td>system (proceed) / R-MGR ("סגירה ללא אישור לקוח")</td><td>חלף זמן ההמתנה / החלטת מנהל</td><td>סגירת המופע; event</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>התראות לעסק על אישור, דחייה ותפוגה (<code>RTN-24</code>). היום יש רק event log.</div>
+<div>ממשק</div><div>עמוד ציבורי כמו היום, עם escaping. בכרטיס התור מופיע תג "ממתין ללקוח עד &lt;תאריך&gt;", ובתפוגה עם stop_and_alert "הלקוח לא הגיב".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-26</code> — דחייה מחזירה ל-open. הערה חובה בשרת. תפוגה לפי מדיניות: הקישור ממשיך לעבוד ב-stop_and_alert, ושגרות קיימות עוברות ל-stop_and_alert (עודכן).</li>
+<li><code>RTN-27</code> — escapeHtml לכל ערך, ו-CSP.</li>
+<li><code>RTN-24</code> — התראות על תגובת לקוח.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines occurrence timeline detail event log event types what happened here evidence rounds"><h3>ציר זמן מופע ("מה קרה כאן") וסוגי אירועים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"מה קרה כאן" בכרטיס מופע (<code>openRoutineOccurrenceTimeline</code> 61195) → <code>GET /api/routine-occurrences/:id/detail</code> (28170), שמחזיר occurrence, evidence, rounds ו-events, כל אחד בסדר עולה.</div>
+<div>הרשאות</div><div>R-ACC, או האחראי על המופע. בעלות לפי group_id, אחרת 404.</div>
+<div>קלט ואימותים</div><div>ללא.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>logRoutineEvent</code> (6822): INSERT ל-<code>routine_event_log</code>. ברירות המחדל actor_type 'system' ו-actor_name 'המערכת' נשארות. כשהפעולה היא של משתמש, actor_user_id ו-actor_name נגזרים מהסשן (<code>RTN-03</code>). אירוע של פעולה עסקית נכתב באותה טרנזקציה של הפעולה (<code>ARC-11</code>). כשל לא נבלע בשקט: הוא נרשם בלוג מובנה (<code>ARC-33</code>).</li>
+<li>השאילתה מחשבת את שם האחראי לפי <code>RTN-02</code>, במקום u.name.</li>
+<li>הלקוח ממיין לפי created_at ומציג תווית, תאריך בפורמט he-IL, actor_name (או "המערכת" ל-system) ו-note. <b>חדש</b> (<code>RTN-36</code>): טבלת סבבים (מספר, הוגש ע"י, החלטה פנימית ומי, החלטת לקוח וערוץ, אישור עצמי) וטבלת ראיות (סוג, ערך או קובץ, מחוץ לטווח, מנפיק ותוקף).</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div>סוגי האירועים שנכתבים (תוויות <code>ROUTINE_EVENT_LABELS</code>, 61185). כל הקיימים נשארים: occurrence_created, occurrence_activated, occurrence_overdue, occurrence_completed, occurrence_completed_with_exception, occurrence_submitted, internal_approved, internal_rejected, customer_approval_requested, customer_approved, customer_rejected, move_requested, move_approved, move_rejected, occurrence_skipped, assignee_changed_single, assignee_changed_series, document_generated, document_sent. חדשים, עם תווית: customer_approval_expired, exception_resolved, occurrence_cancelled, linked_record_synced. ברמת השגרה (מוצגים ב"היסטוריית שינויים", <code>RTN-36</code>): routine_created, routine_updated, frequency_changed, schedule_changed, routine_deactivated, routine_reactivated, service_contract_created, contract_renewed, contract_ended.</div>
+<div>תופעות לוואי</div><div>ללא.</div>
+<div>ממשק</div><div>המודאל כולל "📄 הפקת אישור ביצוע" (מסמך occurrence_report), כמו היום, ואת טבלאות הסבבים והראיות. "שגיאה בטעינה" מוצג רק בשגיאה אמיתית, עם "נסה שוב".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-02</code> — ‏/detail לא נכשל (שם מחושב).</li>
+<li><code>RTN-36</code> — סבבים וראיות מוצגים. לאירועי רמת השגרה יש תוויות.</li>
+<li><code>RTN-03</code> — actor מהסשן.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">תפעול מופע: דילוג, הזזה והחלפת אחראי</h2>
+
+<section class="proc" data-f="routines skip occurrence reason skipped rounds linked cancel"><h3>דילוג על מופע</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"דילוג" בכרטיס (<code>skipRoutineOccurrence</code> 61283), עם השאלה "סיבת הדילוג (חג, סגירה זמנית, ביטול לקוח וכו׳):" → <code>POST /api/routine-occurrences/:id/skip</code> (28216).</div>
+<div>הרשאות</div><div>R-EXEC: האחראי, מנהל, או בעל R-ACC (<code>RTN-30</code>/<code>RTN-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>המופע שייך לקבוצה. status ∈ {planned, open, in_progress, overdue}, אחרת 400 "לא ניתן לדלג על מופע במצב הנוכחי". כמו היום.</li>
+<li>reason חובה: "יש לציין סיבת דילוג" (בלקוח, ביטול יוצא בלי פעולה). כמו היום.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה: UPDATE status='skipped' ו-skip_reason. נכתב event <code>occurrence_skipped</code> (note = הסיבה), כמו היום.</li>
+<li>סבבים שבהם internal_status או customer_status הוא pending מסומנים skipped (customer: expired) (<code>RTN-30</code>).</li>
+<li>רשומות מקושרות פתוחות (<code>RTN-30</code>/<code>RTN-22</code>): משימה pending עוברת ל-cancelled. אירוע יומן עתידי עובר ל-cancelled. פקודת עבודה שלא התחילה (status ∈ {new, open, scheduled}) מבוטלת. פקודת עבודה שהתחילה נשארת, עם הערה "המופע דולג".</li>
+<li>toast "המופע סומן כמדולג".</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>planned / open / in_progress / overdue</td><td>skipped</td><td>R-EXEC</td><td>סיבה</td><td>סגירת סבבים פתוחים; ביטול רשומות מקושרות</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>skipped לא נספר כפיגור ונמחק בניקוי, כמו היום. ב-KPI הוא לא נספר במכנה (<code>RTN-37</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-30</code> — סבבים pending נסגרים, ורשומות מקושרות מבוטלות. ההרשאה היא R-EXEC.</li>
+<li><code>RTN-22</code> — סנכרון ביטול.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines move request decision approve reject reschedule move_requested queue status_before_move conflict 409 linked deadline"><h3>בקשת הזזת מופע והחלטת מנהל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בקשה: "בקשת הזזה" (<code>openMoveRoutineOccurrenceModal</code> 61294 / <code>submitMoveRoutineOccurrence</code> 61311) → <code>POST …/move-request</code> (28230). תור: תת-טאב "בקשות הזזה" (61355 → <code>GET /api/routines/move-requests</code>, 28304, מיון updated_at עולה). החלטה: <code>decideMoveRoutineOccurrence</code> (61379) → <code>POST …/move-decision</code> (28247).</div>
+<div>הרשאות</div><div>בקשה: R-EXEC. תור והחלטה: R-MGR (<code>RTN-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>בקשה: newDate חובה ("יש לציין תאריך מבוקש"), note חובה ("הזזה מחייבת הערה"). בלקוח: "יש להזין תאריך והערה". כמו היום. <b>חדש</b> (<code>RTN-29</code>): status ∈ {planned, open, overdue}, אחרת 400 "לא ניתן להזיז מופע במצב הנוכחי". ‏newDate ≥ todayIL(), אחרת 400 "יש לבחור תאריך מהיום והלאה". newDate ≠ scheduled_date.</li>
+<li>החלטה: status='move_requested', אחרת "אין בקשת הזזה ממתינה למופע זה". כמו היום. אישור לתאריך שכבר יש בו מופע לא מבוטל של אותה שגרה מחזיר 409 "כבר קיים מופע בתאריך זה" (<code>RTN-19</code>). דחייה: reason אופציונלי (הלקוח שולח את השדה "סיבת הדחייה", ואפשר להשאיר אותו ריק).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בקשה: <code>status_before_move</code> = המצב הנוכחי (<code>RTN-29</code>). ‏status='move_requested', ‏move_requested_date ו-move_requested_note. נכתב event <code>move_requested</code> (value_after = התאריך). התראה למנהלים (<code>RTN-24</code>).</li>
+<li>אישור (טרנזקציה): grace_deadline החדש מחושב לפי הנוסחה בשעון ישראל (<code>RTN-20</code>). ‏scheduled_date=newDate, ‏move_approved_by_user_id ושם, ‏manual_override=true (<code>RTN-11</code>). ‏series_date לא משתנה (<code>RTN-18</code>). <b>אם המופע כבר הופעל</b> (status_before_move ∈ {open, overdue}, ויש linked_*): המופע חוזר ל-<code>open</code>. ‏deadline של המשימה המקושרת, event_date של האירוע ו-target_datetime של פקודת העבודה (server.js:507) מתעדכנים במקום ליצור רשומות חדשות (<code>RTN-29</code>). אם הוא לא הופעל, המופע חוזר ל-<code>planned</code>, וה-cron יפעיל אותו בתאריך החדש. נכתב event <code>move_approved</code> (before/after), ונשלחת התראה למבקש.</li>
+<li>דחייה: <code>status = status_before_move</code> (<code>RTN-29</code>). move_requested_date ו-note מתנקים. נכתב event <code>move_rejected</code> (note = reason). התראה למבקש. אם בזמן ההמתנה חלף grace_deadline ומצב היעד הוא open, הריצה הבאה של markOverdue תעביר אותו ל-overdue.</li>
+</ol></div>
+<div>חישובים</div><div>grace_deadline = <code>(newDate + COALESCE(scheduled_time,'23:59:59')) AT TIME ZONE 'Asia/Jerusalem' + (grace_period_minutes ?? 60) דקות</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>planned / open / overdue</td><td>move_requested</td><td>R-EXEC</td><td>תאריך ≥ היום, הערה</td><td>status_before_move; event; התראה למנהל</td></tr>
+<tr><td>move_requested</td><td>planned</td><td>R-MGR</td><td>approve; לא הופעל; התאריך פנוי</td><td>תאריך ו-grace חדשים; manual_override</td></tr>
+<tr><td>move_requested</td><td>open</td><td>R-MGR</td><td>approve; כבר הופעל; התאריך פנוי</td><td>עדכון הרשומות המקושרות הקיימות</td></tr>
+<tr><td>move_requested</td><td>status_before_move</td><td>R-MGR</td><td>reject</td><td>ניקוי הבקשה; התראה</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>עדכון deadline ותאריך ברשומות המקושרות. התראות.</div>
+<div>ממשק</div><div>ללא שינוי, חוץ משלושה דברים: בבורר התאריך אין תאריכים בעבר. כפתור "בקשת הזזה" מוצג רק ב-planned, open ו-overdue. בדחייה נפתח שדה "סיבת הדחייה (אופציונלי)". הודעת ריק: "אין בקשות הזזה ממתינות.", ומוצגת רק כשאין שגיאה (<code>RTN-02</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-29</code> — הזזה רק מ-planned, open ו-overdue, לתאריך ≥ היום. דחייה מחזירה ל-status_before_move. אישור של מופע שהופעל מעדכן את הרשומה הקיימת.</li>
+<li><code>RTN-19</code> — 409 על תאריך תפוס.</li>
+<li><code>RTN-18</code> — series_date נשמר, והסדרה לא זזה.</li>
+<li><code>RTN-02</code> — התור לא נכשל ב-u.name.</li>
+<li><code>RTN-04</code>, <code>RTN-24</code>, <code>RTN-20</code> — הרשאות, התראות, אזור זמן.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines reassign assignee employee single series team members validate group sync linked"><h3>החלפת אחראי (שיוך עובד) — מופע בודד או סדרה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"החלפת אחראי" (<code>openReassignRoutineOccurrenceModal</code> 61323 / <code>submitReassignRoutineOccurrence</code> 61343) → <code>POST …/reassign</code> (28279). רשימת העובדים מגיעה מ-<code>/api/work-orders/users</code>.</div>
+<div>הרשאות</div><div>scope='single': R-EXEC. ‏scope='series': R-MGR (<code>RTN-04</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>המופע שייך לקבוצה. userId חובה: "יש לבחור עובד". כמו היום.</li>
+<li>userId חייב להיות משתמש פעיל בקבוצה, אחרת 404 "עובד לא נמצא" (<code>RTN-31</code>).</li>
+<li>מופע סגור (completed, completed_with_exception, skipped, cancelled) מחזיר 400 "לא ניתן לשייך מחדש מופע סגור" (<code>RTN-31</code>).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>scope='series'</code> (טרנזקציה, <code>RTN-31</code>): UPDATE routines.assignee_user_id. מעדכנים כל מופע לא סגור של השגרה (planned, open, overdue, move_requested, in_progress) עם scheduled_date ≥ scheduled_date של המופע הנוכחי. נכתב event <code>assignee_changed_series</code> (before/after).</li>
+<li>אחרת (single, ברירת המחדל): UPDATE של המופע בלבד, ‏manual_override=true (<code>RTN-11</code>). נכתב event <code>assignee_changed_single</code>.</li>
+<li>סנכרון (<code>RTN-22</code>/<code>RTN-31</code>): לכל מופע שעודכן ויש לו רשומות מקושרות פתוחות מעדכנים את tasks.assigned_to, את work_order_assignees (מחיקה של אחראי השגרה הקודם והוספה של החדש, עם assigned_by='שגרות') ואת calendar_events.attendees_user_ids. התראה לאחראי החדש (<code>RTN-24</code>).</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div>אין שינוי סטטוס.</div>
+<div>תופעות לוואי</div><div>סנכרון רשומות מקושרות. התראה.</div>
+<div>ממשק</div><div>select עם כל המשתמשים הפעילים בקבוצה (כולל ADMIN), כמו היום. רדיו "החלפה למופע הזה בלבד" (ברירת מחדל) / "החלפה קבועה לכל הסדרה מכאן והלאה", כשהאפשרות השנייה מוצגת רק ל-R-MGR. toast "האחראי עודכן".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-31</code> — אימות שהמשתמש שייך לקבוצה. חסימה של מופע סגור. "מכאן והלאה" לפי תאריך, כולל overdue ו-move_requested.</li>
+<li><code>RTN-22</code> — סנכרון assigned_to, assignees ו-attendees.</li>
+<li><code>RTN-04</code> — series רק ל-R-MGR.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">חוזי שירות (תחזוקה), מצב ציות (מסעדה) ומסמכים</h2>
+
+<section class="proc" data-f="routines service contracts maintenance_repair billing subscription per_visit coverage ended cancelled auto_renew renew cron ui"><h3>חוזי שירות (maintenance_repair בלבד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/routines/contracts</code> (27502), <code>POST</code> (27516), <code>PUT /api/routines/contracts/:id</code> (27537). כולם עם <code>verifyRoutinesSpecificBizType('maintenance_repair')</code>, כמו היום. <b>חדש</b> (<code>RTN-32</code>): הם מחווטים לתת-טאב "חוזי שירות", שמציג גם רשימה, "חוזה חדש" ועריכה, מעל דוח הכיסוי. חדש: משימת worker יומית <code>routines.contracts</code> לתפוגה ולחידוש.</div>
+<div>הרשאות</div><div>GET: R-ACC. ‏POST ו-PUT: R-MGR. groupId מהסשן. PUT בודק בעלות, אחרת 404 "חוזה לא נמצא".</div>
+<div>קלט ואימותים</div><div><ul>
+<li>סכמה (<code>ARC-34</code>): billing_model ∈ {subscription, per_visit}, coverage_scope ∈ {labor, labor_parts, full}, availability ∈ {business_hours, 24_7}, status ∈ {active, ended, cancelled}. ערך אחר מחזיר 400 בעברית, במקום 500. ‏start_date ≤ end_date. ‏subscription_amount ≥ 0 (NUMERIC(12,2)). ‏visits_included_per_year שלם ≥ 0. ‏after_hours_surcharge_pct בין 0 ל-100. ‏siteId ו-customerId שייכים לקבוצה.</li>
+<li>PUT: אפשר לערוך גם start_date, site_id, billing_model, subscription_amount, coverage_scope, response_time_standard_hours, response_time_emergency_hours, availability ו-after_hours_surcharge_pct, בנוסף לשדות של היום (end_date, auto_renew, status, visits_included_per_year).</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET: החוזים עם site_name ו-<code>routines_count</code> (כל השגרות המקושרות, כולל מושבתות). מיון status עולה, ואחר כך end_date עולה NULLS LAST. כמו היום.</li>
+<li>POST: INSERT עם status='active'. ברירות המחדל per_visit, labor ו-business_hours. נכתב event <code>service_contract_created</code>, כמו היום.</li>
+<li>PUT (טרנזקציה): עדכון השדות. <b>מעבר ל-ended או ל-cancelled</b> ממצב אחר (<code>RTN-32</code>, היום רק ended): לכל שגרה פעילה עם service_contract_id מתבצעת השבתה לפי הכללים של <code>RTN-12</code> (is_active=FALSE, ביטול מופעים לא סגורים ורשומות מקושרות), ונכתב event <code>routine_deactivated</code> ("חוזה #N הסתיים" או "חוזה #N בוטל"). מעבר חזרה ל-active לא מפעיל אוטומטית את השגרות. ההפעלה מחדש ידנית (<code>RTN-10</code>).</li>
+<li><b>cron יומי</b> (<code>RTN-32</code>), בשעה 02:00 בשעון ישראל: חוזה active עם end_date &lt; todayIL(). אם auto_renew=true: end_date += שנה (אם יש start_date, נקבע יום השנה), ונכתב event <code>contract_renewed</code>. אחרת: status='ended', עם אותן תופעות של PUT ל-ended, ונכתב event <code>contract_ended</code>. התראה למנהלים 30 יום לפני end_date ("חוזה עומד לפוג/להתחדש") (<code>RTN-24</code>).</li>
+</ol></div>
+<div>חישובים</div><div>חידוש: <code>new_end = end_date + 1 year</code>, עם הצמדה לסוף חודש לפי <code>RTN-21</code>. שדות התמחור וזמני התגובה מוצגים בלבד בגרסה זו (מתועד): אין חיוב אוטומטי ואין מדידת SLA.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>active</td><td>R-MGR</td><td>maintenance_repair</td><td>event</td></tr>
+<tr><td>active</td><td>active (end_date+1y)</td><td>system</td><td>end_date &lt; today, auto_renew</td><td>contract_renewed</td></tr>
+<tr><td>active / cancelled</td><td>ended</td><td>R-MGR (PUT) / system</td><td>ידני / end_date &lt; today בלי auto_renew</td><td>השבתת שגרות מקושרות (RTN-12)</td></tr>
+<tr><td>active / ended</td><td>cancelled</td><td>R-MGR (PUT)</td><td>—</td><td>השבתת שגרות מקושרות (RTN-12)</td></tr>
+<tr><td>ended / cancelled</td><td>active</td><td>R-MGR (PUT)</td><td>—</td><td>בלי הפעלה אוטומטית של שגרות</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>השבתת שגרות. התראות לפני תפוגה.</div>
+<div>ממשק</div><div>תת-טאב "חוזי שירות" (רק בתחזוקה): רשימת חוזים (אתר או "חוזה #id", סטטוס, תוקף, מודל חיוב, כמה שגרות) עם "חוזה חדש" ו"עריכה" (R-MGR). מתחת לרשימה דוח הכיסוי הקיים. בטופס השגרה יש בחירת חוזה (<code>RTN-16</code>). במסעדה נשאר הטקסט "חוזי שירות רלוונטיים לעסקי תחזוקה ותיקונים.".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-32</code> — ממשק לרשימה, ליצירה ולעריכה. ‏cancelled משבית שגרות כמו ended. ‏cron לתפוגה ולחידוש. תמחור ו-SLA לתצוגה בלבד.</li>
+<li><code>RTN-16</code> — קישור שגרה לחוזה מהטופס.</li>
+<li><code>RTN-25</code> — customer_id מקבל FK ל-customers.</li>
+<li><code>RTN-04</code> — R-MGR לכתיבה.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines contract coverage report visits included done remaining expiring documents renewal maintenance contract year contract_visit"><h3>דוח כיסוי חוזי (maintenance_repair)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תת-טאב "חוזי שירות" (<code>_renderRoutinesContracts</code> 61744) → <code>GET /api/routines/contract-coverage</code> (27600). המטרה, כמו היום: לשיחת חידוש, ביקורים שנמכרו מול ביקורים שבוצעו.</div>
+<div>הרשאות</div><div>R-ACC, ‏maintenance_repair בלבד. לקוח שאינו בתחזוקה מקבל הודעה ולא קורא לשרת, כמו היום.</div>
+<div>קלט ואימותים</div><div>רק חוזים <code>status='active'</code>.</div>
+<div>שלבי עיבוד</div><div><ol>
+<li>שאילתה אחת מקובצת לכל החוזים, במקום שאילתות סדרתיות. לכל חוזה: <b>visitsDone</b> (<code>RTN-33</code>, עודכן). אם לחוזה יש שגרות עם <code>is_contract_visit=true</code> או <code>template_source='contract_visit'</code>, נספרים רק מופעי completed ו-completed_with_exception שלהן. אחרת נספרים מופעי כל שגרות החוזה, כמו היום. בשני המקרים רק מופעים עם scheduled_date בחלון החוזה.</li>
+<li>expiringDocumentsCount: ראיות document של שגרות החוזה עם expiry_date &lt; todayIL()+30 (כולל כאלה שכבר פגו). עכשיו הספירה אמיתית, כי יש הזנת מסמכים (<code>RTN-08</code>).</li>
+<li>הביקור הבא: MIN(scheduled_date) של מופעי planned או open.</li>
+</ol></div>
+<div>חישובים</div><div><ul>
+<li>חלון (<code>RTN-33</code>): <code>windowStart</code> הוא יום השנה האחרון של start_date שאינו אחרי היום (start_date + n שנים ≤ today, n מקסימלי). בחוזה בלי start_date: today − 1 year, כמו היום. החלון נמשך עד היום.</li>
+<li><code>visitsRemaining = max(0, visits_included_per_year − visitsDone)</code>, או null כשלא הוגדר. כמו היום.</li>
+<li><code>countingMode ∈ {visits_only, all_routines}</code> מוחזר לכל חוזה.</li>
+</ul></div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כרטיס, כמו היום: שם אתר או "חוזה #id", "ביקורים: done/included (נותרו X)", "הבא:", "תוקף עד:", ואזהרה בענבר "N תעודות עומדות לפוג ב-30 הימים הקרובים". נוספו: "שנת חוזה מ-&lt;תאריך&gt;" ותג שיטת הספירה, "ביקורי חוזה בלבד" או "כל שגרות החוזה". הודעת ריק: "אין חוזי שירות פעילים.".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-33</code> — ספירת ביקורי חוזה כשהם מוגדרים, ואחרת כל השגרות, עם חלון לפי שנת החוזה (עודכן).</li>
+<li><code>RTN-08</code> — ספירת תעודות פגות מבוססת על ראיות אמיתיות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines compliance status restaurant license regulatory safety certificate expired expiring_soon valid none evidence document"><h3>מצב ציות לרישוי (restaurant בלבד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>תת-טאב "מצב ציות" (<code>_renderRoutinesCompliance</code> 61776) → <code>GET /api/routines/compliance-status</code> (27562), עם <code>verifyRoutinesSpecificBizType('restaurant')</code>. המטרה, כמו היום: חידוש רישיון עסק וביקורת פתע.</div>
+<div>הרשאות</div><div>R-ACC, ‏restaurant בלבד.</div>
+<div>קלט ואימותים</div><div>שגרות פעילות בקטגוריות regulatory או safety של הקבוצה, במיון לפי שם. כמו היום.</div>
+<div>שלבי עיבוד</div><div><ol><li>לכל שגרה: ראיית ה-document עם document_expiry_date הגבוה ביותר מכל המופעים שלה (שאילתה אחת עם DISTINCT ON). הראיות נוצרות עכשיו דרך <code>/evidence</code> (<code>RTN-08</code>).</li><li>חישוב סטטוס ומיון סופי: expired (0) → expiring_soon (1) → none (2) → valid (3). כמו היום.</li></ol></div>
+<div>חישובים</div><div><code>daysLeft = ceil((expiry − todayIL()) / 86,400,000)</code>, בתאריכים ישראליים (<code>RTN-20</code>). ‏&lt;0 → expired. ‏≤30 → expiring_soon. אחרת valid. אין מסמך → none. הספים לא משתנים.</div>
+<div>מכונת מצבים</div><div>none → valid / expiring_soon / expired, נגזר מהראיות.</div>
+<div>תופעות לוואי</div><div>שגרות certificate_expiry (כמו kashrut_renewal) מייצרות מופע חידוש לפני התפוגה (<code>RTN-07</code>).</div>
+<div>ממשק</div><div>תוויות <code>ROUTINE_COMPLIANCE_LABELS</code>: בתוקף / עומד לפוג / פג תוקף / אין עדיין תעודה, בירוק / ענבר / אדום / אפור. שורת פרטים: אתר, "תוקף עד", "מנפיק". כמו היום. נוסף: קישור "צפייה בתעודה" (file_url) כשיש קובץ. הודעת ריק: "אין עדיין שגרות רגולטוריות/בטיחות מוגדרות.".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-08</code> — אפשר להזין ראיית document, והמסך מציג מצב אמיתי.</li>
+<li><code>RTN-07</code> — תזמון חידוש לפי תוקף.</li>
+<li><code>RTN-20</code> — daysLeft לפי תאריך ישראלי.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines documents generate occurrence report period report site file audit customer preset exposure public view rt-doc print numbering escape images"><h3>הפקת מסמכים ועמוד צפייה ציבורי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(1) "📄 הפקת אישור ביצוע" במודאל ציר הזמן (<code>generateRoutineOccurrenceDocument</code> 61228) → <code>POST /api/routine-occurrences/:id/documents/occurrence-report</code> (27720). (2) דוח שגרה לתקופה, <code>POST /api/routines/:id/documents/period-report</code> (27738), מחווט לכפתור "דוח תקופתי" בכרטיס שגרה, עם בחירת טווח תאריכים (<code>RTN-36</code>). (3) "תיק ביקורת" או "דוח ללקוח" בתיק אתר (<code>generateRoutineSiteFileDocument</code> 61240) → <code>POST /api/routines/sites/:id/documents/site-file</code> (27757). צפייה: <code>GET /c/rt-doc/:id/:token</code> (27778), בלי אימות.</div>
+<div>הרשאות</div><div>הפקה: R-MGR, או R-EXEC על המופע שלו לאישור ביצוע. צפייה: ציבורית לפי view_token (<code>ARC-02</code>), בלי requireModule. בעלות על המופע, השגרה או האתר, אחרת 404 ("מופע לא נמצא" / "שגרה לא נמצאה" / "אתר לא נמצא").</div>
+<div>קלט ואימותים</div><div><ul>
+<li>occurrence-report: exposureLevel='internal' רק כשנשלח במפורש, אחרת 'customer'. כמו היום. בלקוח, במקום confirm "אישור = פנימי · ביטול = ללקוח", יש בחירה מפורשת בין "פנימי" ל"ללקוח", באותה ברירת מחדל.</li>
+<li>period-report: fromDate ≤ toDate, אופציונליים. בלי ערכים: "מההתחלה"–"היום".</li>
+<li>צפייה: id + view_token, אחרת 404 "קישור לא תקף". סוג לא מוכר: 400 "סוג מסמך לא נתמך".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טוקן של 24 בתים hex. <b>document_number</b> = <code>RT-&lt;groupId&gt;-&lt;seq&gt;</code>, כאשר seq הוא מונה רץ לכל עסק, נלקח בטרנזקציה, עם <code>UNIQUE(group_id, document_number)</code> (<code>RTN-34</code>). INSERT routine_documents, עם generated_by מהסשן (<code>RTN-03</code>). נכתב event <code>document_generated</code> עם routine_id ו-occurrence_id כשרלוונטי, ו-<b>site_id</b> במסמך אתר (<code>RTN-34</code>). התשובה <code>{documentId, url}</code> פותחת את מודאל השליחה.</li>
+<li>period-report: params <code>{fromDate, toDate, routineId}</code>. כמו היום.</li>
+<li>site-file: preset='customer' רק כשנשלח, אחרת 'audit'. ב-customer: exposure customer, ו-historyMonths = <code>body.historyMonths ?? 3</code>. ב-audit: exposure internal, 12 חודשים, regulatoryOnly=true, embedCertFiles=true. ‏includeImages נשמר. כמו היום.</li>
+<li>צפייה: בפתיחה הראשונה נכתב <code>viewed_at</code>. המיתוג מגיע מ-family_groups (name, phone, address, logo) דרך <code>_routineDocBranding</code>. בכותרת (<code>_routineDocHeader</code>) מספר המסמך, ו<b>"הופק:" = generated_at</b> (<code>RTN-34</code>). מעטפת A4 עם כפתור "🖨️ הדפס / שמור PDF" (<code>window.print</code>). <b>כל ערך דינמי עובר escapeHtml, ויש CSP</b> (<code>RTN-27</code>).</li>
+<li>occurrence_report: שם, אתר, תאריך, "בידי", תג הושלם או הושלם עם חריגה, טבלת ראיות. ב-internal גם "שרשרת אישורים" (סבבים, כולל סימון "אישור עצמי", <code>RTN-04</code>). <b>ב-customer, "בידי" מציג את שם העסק במקום שם העובד</b> (<code>RTN-34</code>). שם המבצע מגיע מחישוב לפי <code>RTN-02</code>, במקום u.name, ולכן העמוד לא נכשל.</li>
+<li>routine_period_report: מופעי השגרה בטווח, עם סטטוס ומבצע (ב-customer: שם העסק).</li>
+<li>site_file: כותרת "תיק ביקורת" או "דוח שירות ללקוח". מתקנים ופריטים (לא מאורכבים), שגרות פעילות (ב-audit רק regulatory ו-safety), היסטוריה של historyMonths חודשים, ובתיק ביקורת גם טבלת תעודות (מנפיק, תוקף). <b>כש-includeImages או embedCertFiles פעילים, מוטמעות תמונות הראיות וקישורי התעודות מ-file_url</b> (<code>RTN-34</code>, אחרי <code>RTN-08</code>).</li>
+</ol></div>
+<div>חישובים</div><div>seq = <code>MAX(seq)+1</code> לכל group_id בתוך טרנזקציה, עם נעילת שורה על מונה העסק (או sequence לכל עסק).</div>
+<div>מכונת מצבים</div><div>מסמך: generated → viewed (viewed_at בצפייה הראשונה) → sent (sent_at, ראו "שליחת מסמך").</div>
+<div>תופעות לוואי</div><div>events עם site_id מוצגים בתיק האתר.</div>
+<div>ממשק</div><div>ללא שינוי, חוץ מבחירת "פנימי / ללקוח", כפתור "דוח תקופתי" עם טווח תאריכים, ורשימת מסמכים בתיק האתר.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-34</code> — מספור רץ ייחודי. "הופק:" = generated_at. אין שם עובד במסמך ללקוח. ‏site_id באירועים. הטמעת קבצים.</li>
+<li><code>RTN-02</code> — עמוד occurrence_report לא נכשל.</li>
+<li><code>RTN-27</code> — escapeHtml ו-CSP.</li>
+<li><code>RTN-36</code> — דוח תקופתי מחווט לממשק.</li>
+<li><code>RTN-03</code>, <code>RTN-04</code> — generated_by מהסשן. הרשאות.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="routines document send whatsapp email view_link download ultramsg sent delivery status channel validation"><h3>שליחת מסמך (WhatsApp / מייל / קישור)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודאל "המסמך הופק" (<code>_openRoutineDocumentSendModal</code> 61251): שדה "טלפון (לוואטסאפ) או אימייל", וכפתורי וואטסאפ / מייל / "פתיחה / הורדה כ-PDF" → <code>sendRoutineDocument</code> (61270) → <code>POST /api/routine-documents/:id/send</code> (27864).</div>
+<div>הרשאות</div><div>R-MGR, או מי שהפיק את המסמך. המסמך שייך לקבוצה, אחרת 404 "מסמך לא נמצא".</div>
+<div>קלט ואימותים</div><div><ul>
+<li>channel ∈ {whatsapp, email, download, view_link}, אחרת 400 "ערוץ שליחה לא תקין" (<code>RTN-35</code>).</li>
+<li>whatsapp בלי to: 400 "נדרש מספר טלפון". ‏email בלי to: 400 "נדרש כתובת מייל". כמו היום. נוספה בדיקת פורמט טלפון ומייל. בלקוח: "נא להזין טלפון או אימייל".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>URL = <code>APP_URL + /c/rt-doc/:id/:view_token</code>.</li>
+<li>whatsapp: <code>sendWhatsApp(pool, groupId, to, bizName||'העסק', 'מסמך חדש זמין לצפייה:', url, 'customer', recipientName, 'routine_document')</code> (27876), דרך UltraMsg (services/whatsapp.js:49). השליחה נרשמת ב-whatsapp_log, כמו היום. התוצאה (sent, error, no_config או invalid_phone) נקראת (<code>RTN-35</code>).</li>
+<li>email: <code>sendSystemEmail(to, 'מסמך חדש', html)</code> (27879). התבנית עוברת escaping (<code>ARC-27</code>). שגיאה לא נבלעת: היא מוחזרת כ-delivery_status='error' (<code>RTN-35</code>).</li>
+<li>download ו-view_link: רק תיעוד, delivery_status='n/a'. כמו היום.</li>
+<li>UPDATE sent_channel, sent_to ו-sent_at, <b>רק כשה-delivery_status הוא sent או n/a</b>. נכתב event <code>document_sent</code> (channel, "מסמך #N נשלח ל-…", או "השליחה נכשלה: &lt;סטטוס&gt;"), עם routine_id, occurrence_id ו-site_id לפי המסמך (<code>RTN-34</code>). השדות sent_* נדרסים בכל שליחה מוצלחת, כמו היום. ההיסטוריה המלאה נשמרת ב-events.</li>
+<li>תשובה <code>{success:true, delivery_status}</code> (<code>RTN-35</code>).</li>
+</ol></div>
+<div>חישובים</div><div>ללא.</div>
+<div>מכונת מצבים</div><div>אין, מעבר ל-sent_at.</div>
+<div>תופעות לוואי</div><div>הודעת WhatsApp או מייל ללקוח הקצה.</div>
+<div>ממשק</div><div>הלקוח מציג "נשלח" רק כשה-delivery_status='sent'. אחרת מוצג "השליחה נכשלה — העתק קישור", עם כפתור העתקה (<code>RTN-35</code>).</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-35</code> — הערוץ מאומת. ‏delivery_status אמיתי, והלקוח מציג כשל.</li>
+<li><code>RTN-34</code> — ההקשר (routine, occurrence, site) נשמר באירוע.</li>
+<li><code>RTN-04</code> — הרשאה.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">נהלי עבודה (SOP) — תבניות סטי משימות</h2>
+
+<section class="proc" data-f="sop task set templates procedures save load delete crud task-set-templates routine schedule photo auth verifyBiz scheduling routines engine"><h3>ניהול תבניות נהלים (SOP Builder) ושמירתן בשרת</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל לוחץ "נהלים" בטאב משימות (<code>btn-manage-task-sets</code> business.html:2443) → <code>openTaskSetManagerModal</code> (30463) → <code>loadTaskSetTemplates</code> (30444) → <code>GET /api/task-set-templates</code> (13039). שמירה (<code>saveTaskSet</code> 30634) → <code>POST /api/task-set-templates</code> (נוהל חדש) או <code>PUT /api/task-set-templates/:clientId</code> (עדכון). מחיקה: <code>DELETE /api/task-set-templates/:clientId</code> (<code>RTN-40</code>). המסך לא מוגבל לסוג עסק, כמו היום.</div>
+<div>הרשאות</div><div>כל הנתיבים: <code>authenticate</code> + <code>requireType('biz')</code>. groupId מהסשן בלבד, ו-groupId זר בנתיב מחזיר 403 (<code>RTN-39</code>, <code>ARC-04</code>). ‏GET: כל משתמש biz בקבוצה. ‏POST, PUT ו-DELETE: ADMIN או MANAGER (<code>RTN-39</code>). הכפתור "נהלים" מוצג ל-ADMIN ול-MANAGER לפי ההרשאה מהשרת, במקום interval כל 1500ms שבודק ADMIN (30885).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>לקוח, כמו היום: שם חובה ("יש להזין שם לסט המשימות"); לפחות שורה לא ריקה ("יש להוסיף לפחות משימה אחת תקינה לסט"); ב-scheduleType 'routine' חובה לבחור יום ("ברוטינה, חובה לבחור לפחות יום אחד בשבוע."); ב-'specific' חובה לבחור תאריך ("יש לבחור תאריך ספציפי לסט").</li>
+<li>שרת (<code>ARC-34</code>): title חובה, עד 150 תווים. ‏tasks מערך לא ריק של מחרוזות. ‏scheduleType ∈ {manual, specific, routine}. ‏routineDays ⊆ [0..6]. ‏routineTime HH:MM. ‏specificDate ≥ היום כשרלוונטי. ‏requiresPhoto בוליאני. אם נשלחת החלפת אוסף (תאימות לאחור) ו-<code>templates</code> אינו מערך: 400, ולא מחיקה (<code>RTN-39</code>).</li>
+<li>DELETE: confirm בלקוח: "למחוק את הנוהל?".</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>אובייקט הנוהל לא משתנה: <code>{id: 'ts_'+Date.now() (או הקיים), title, tasks, requiresPhoto, scheduleType, routineDays, routineTime (ברירת מחדל '08:00'), specificDate}</code>.</li>
+<li>POST, PUT ו-DELETE לכל נוהל (<code>RTN-40</code>): INSERT, UPDATE או DELETE של שורה אחת לפי (group_id, client_id). החלפת אוסף, אם נשארת לתאימות, רצה ב-<code>withTransaction</code> על client ייעודי (<code>ARC-11</code>).</li>
+<li><b>תזמון</b> (<code>RTN-41</code>), בתוך אותה טרנזקציה של השמירה. ב-scheduleType='routine': נוצרת או מתעדכנת שגרה אחת <code>source='sop'</code>, <code>sop_template_id</code>=הנוהל, <code>business_type='any'</code>, name=title, <code>output_type='task'</code>, <code>checklist_items</code>=פריטי הנוהל, <code>evidence_requirements</code> = ['checklist'] (ועוד 'photo' כש-requiresPhoto), <code>frequency_interval='weekly_days'</code>, <code>frequency_weekdays</code>=שמות הימים לפי routineDays, ו-<code>scheduled_time</code>=routineTime. האחראי נבחר בשדה החדש "עובד/ת קבוע/ה לנוהל". אם לא נבחר, המשימה נוצרת בלי אחראי וגלויה למנהל לשיגור. ב-'specific': אותה שגרה עם start_date=specificDate ו-<code>max_occurrences=1</code>. ב-'manual' (או שינוי ל-manual, או מחיקת הנוהל): השגרה המקושרת מושבתת לפי <code>RTN-12</code>. שגרות SOP לא מוצגות בטאב שגרות ופטורות מ-verifyRoutinesBizType ומ-requireModule('routines'). הן מופעלות דרך מנוע השגרות בכל סוג עסק.</li>
+<li>GET מחזיר את <code>data</code> לפי id עולה. כמו היום.</li>
+<li>הלקוח מציג toast הצלחה <b>רק אחרי res.ok</b>, ובכשל "השמירה נכשלה" (<code>RTN-40</code>).</li>
+</ol></div>
+<div>חישובים</div><div>מיפוי routineDays ל-weekdays: 0=ראשון … 6=שבת (<code>ROUTINE_HEBREW_WEEKDAYS</code>).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>נוהל manual</td><td>routine / specific</td><td>ADMIN / MANAGER</td><td>ימים או תאריך</td><td>שגרת SOP פעילה</td></tr>
+<tr><td>routine / specific</td><td>manual / נמחק</td><td>ADMIN / MANAGER</td><td>—</td><td>שגרת SOP מושבתת</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>משימות SOP אוטומטיות בימים שנבחרו (<code>RTN-41</code>).</div>
+<div>ממשק</div><div>הרשימה, כמו היום: כותרת, "N שורות נוהל", תגים "רוטינה" / "ספציפי" / "מצולם", וכפתורי "שגר לעובד", עריכה ומחיקה. <b>כפתור המחיקה עובד</b> (<code>window.deleteTaskSet</code> מוגדר) (<code>RTN-40</code>). השדות המתקדמים (צילום QA, תזמון) עוברים לטופס עצמו, במקום הזרקה ל-DOM (<code>injectSOPAdvancedFields</code> 30501). נוסף להם השדה "עובד/ת קבוע/ה לנוהל" (<code>RTN-41</code>). תג "רוטינה" מציג גם "⏰ מתוזמן" ואת הימים.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-39</code> — נדרש אימות. ‏groupId מהסשן. כתיבה רק ל-ADMIN ול-MANAGER. מערך לא תקין מחזיר 400.</li>
+<li><code>RTN-40</code> — CRUD לכל נוהל, טרנזקציה אמיתית, מחיקה שעובדת ו-toast רק בהצלחה.</li>
+<li><code>RTN-41</code> — תזמון 'רוטינה' ו'ספציפי' ממומש דרך מנוע השגרות, לכל סוג עסק.</li>
+</ul></div>
+</div></section>
+
+<section class="proc" data-f="sop assign employee task checklist execution progress photo proof complete task_type checklist jsonb notes"><h3>שיגור נוהל לעובד וביצוע ה-checklist</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>"שגר לעובד" (<code>openAssignTaskSetModal</code> 30684 / <code>submitAssignTaskSet</code> 30712) → <code>POST /api/tasks</code>. העובד פותח את המשימה (<code>openSOPExecutionModal</code> 30763), מסמן שורות (<code>checkSOPProgress</code> 30806) ומסיים (<code>completeSOP</code> 30860). אותו מסך ביצוע משמש גם למשימות SOP שנוצרו מתזמון (<code>RTN-41</code>).</div>
+<div>הרשאות</div><div>שיגור: ADMIN או MANAGER (כמו מסך הנהלים). ביצוע: העובד שהמשימה מוקצית לו, או מנהל. נאכף בנתיבי המשימות לפי ARC-06.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>עובד חובה: "יש לבחור עובד/ת להקצאה". הרשימה מ-<code>membersCache</code>, בלי ADMIN. כמו היום.</li>
+<li>כפתור הסיום פעיל רק כש-checked = total &gt; 0. כמו היום.</li>
+<li>עדכון checklist: אינדקס פריט קיים בלבד.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>יצירת המשימה (<code>RTN-42</code>): <code>task_type='sop'</code>, <code>sop_template_id</code>=הנוהל, <code>title</code>=שם הנוהל, <code>checklist</code>=[{text, done:false, done_at:null}], ‏requires_photo לפי הנוהל. reward מהשדה (ברירת מחדל 0). days מהשדה (ב-specific: <code>ceil((specificDate − now)/יום)</code>, מינימום 1). status pending. כל זה כמו היום. במקום הקידומת <code>'SOP|'+JSON</code> בכותרת יש עמודות ייעודיות.</li>
+<li>בכל שינוי סימון, debounce של 1000ms ואז <code>POST /api/tasks/update</code> עם <code>checklist</code> המעודכן, ו-done_at לכל פריט שסומן. ההתקדמות מחושבת מ-checklist. <b>notes לא נדרסים</b> (<code>RTN-42</code>). המנהל רואה פס התקדמות ב-renderTasks (5008), כמו היום, מחושב מ-checklist.</li>
+<li>סיום, כמו היום: כש-requiresPhoto, נפתח <code>clickTaskProof</code> (מנגנון צילום ההוכחה של משימות). אחרת <code>/api/tasks/update</code> עם status 'done' והערה "הושלם (לא נדרש צילום הוכחה)" שמתווספת ל-notes, toast "הנוהל הושלם ונשלח לאישור מנהל!" וקונפטי.</li>
+<li>משימת SOP מתוזמנת (routine_occurrence_id קיים): כשהמשימה מגיעה ל-done או approved, המופע נסגר לפי <code>RTN-22</code>, עם checklist_state כראיה, ותמונת ההוכחה כראיית photo כש-requiresPhoto.</li>
+<li>מיגרציה (<code>RTN-42</code>): כותרות <code>SOP|{…}</code> קיימות מפורקות ל-title, task_type='sop' ו-checklist. ההתקדמות משוחזרת מ-<code>PROGRESS:x/y</code> (x הפריטים הראשונים מסומנים), וה-notes מתנקים מהשורה הזו. JSON שבור נשמר כ-title "נוהל שגוי" עם task_type='sop', כמו התצוגה היום.</li>
+</ol></div>
+<div>חישובים</div><div>pct = (מספר הפריטים המסומנים ב-checklist) / (מספר הפריטים) × 100.</div>
+<div>מכונת מצבים</div><div>משימה: pending → done (העובד) → approved (המנהל), כמו היום. במשימת SOP מתוזמנת המעבר מסנכרן את המופע (<code>RTN-22</code>).</div>
+<div>תופעות לוואי</div><div>סגירת מופע שגרת SOP כשרלוונטי.</div>
+<div>ממשק</div><div>משימות SOP מזוהות לפי <code>task_type='sop'</code>, במקום קידומת <code>SOP|</code> (4960, 5000, 6571). הכותרת המוצגת היא title, או "נוהל עבודה" כשהוא ריק. אין כפתור עריכה למשימת SOP. כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-42</code> — עמודות task_type, sop_template_id ו-checklist. notes לא נדרסים. מיגרציית כותרות.</li>
+<li><code>RTN-41</code>/<code>RTN-22</code> — משימת SOP מתוזמנת מסנכרנת מופע.</li>
+</ul></div>
+</div></section>
+
+<h2 class="grp">פערים רוחביים במודול השגרות (BIZ)</h2>
+
+<section class="proc" data-f="routines bugs gaps user name currentuser actor missing ui endpoints notifications guides cross cutting"><h3>פערים וחוסרים רוחביים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כללים רוחביים שסוגרים את הממצאים שחוצים כמה תהליכים במודול.</div>
+<div>הרשאות</div><div>לפי <code>RTN-04</code> (R-ACC, R-MGR, R-EXEC, R-APPR), נאכף בשרת.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><b>זהות מבצע</b> (<code>RTN-03</code>): השרת מתעלם מכל שדה שם שמגיע מהלקוח (userName, createdBy, changedBy). לכל פעולה נשמרים <code>&lt;action&gt;_by_user_id = req.principal.userId</code> ו-<code>&lt;action&gt;_by_name</code> כ-snapshot, לפי הנוסחה <code>COALESCE(NULLIF(TRIM(first_name||' '||last_name),''), nickname)</code> (<code>RTN-02</code>). ‏actor_name ביומן נגזר באותו אופן. הלקוח מפסיק לשלוח <code>currentUser?.name</code> (61287, 61474, 61612).</li>
+<li><b>שם בשאילתות</b> (<code>RTN-02</code>): אין <code>u.name</code>. כל 6 השאילתות (27789, 27900, 27918, 27933, 28173, 28308) משתמשות בנוסחה. בדיקת סכמה ב-CI (<code>ARC-13</code>/<code>ARC-43</code>) מוודאת שכל נתיבי השגרות מחזירים 200, גם על DB ריק וגם על DB עם מופעים.</li>
+<li><b>created_by במשימות</b> (<code>RTN-01</code>): NULL, עם source='routine' ו-routine_occurrence_id.</li>
+</ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>נתיבים בלי קורא</b> (<code>RTN-36</code>, בהתאם ל-<code>ARC-35</code>: נבנים רק נתיבים שיש להם קורא): כולם מחווטים, ואף אחד לא נמחק. PUT routine → עריכה והפעלה מחדש (<code>RTN-10</code>). event-log → היסטוריית שינויים. occurrences לפי טווח → לוח שנה. approval-rounds → מודאל "מה קרה כאן". facilities ו-items → תיק אתר (<code>RTN-16</code>). contracts → תת-טאב חוזים (<code>RTN-32</code>). period-report → "דוח תקופתי".</li>
+<li><b>התראות</b> (<code>RTN-24</code>), דרך מודל <code>notifications</code> ו-<code>notification_deliveries</code> (<code>ARC-16</code>): in-app תמיד, ו-WhatsApp לפי הגדרת העסק. נמענים ואירועים: לאחראי בהפעלת מופע, ‏reminder_before_hours לפני grace_deadline, החלפת אחראי, ודחיית סבב. למנהלים (R-MGR, או R-APPR לפי העניין): הגשה לאישור, בקשת הזזה (ותזכורת אחרי 48 שעות), תגובת לקוח, תפוגת אישור לקוח, חריגה ופיגור. ל-escalation_user_id: אחרי escalation_after_hours של פיגור. חוזים: 30 יום לפני תפוגה. dedup לפי (occurrence_id או round_id או contract_id, event). אין קריאות AI במודול, כמו היום.</li>
+<li><b>מדריכים</b> (<code>RTN-38</code>, כלל 6 ב-CLAUDE.md, <code>ARC-42</code>): פרק "שגרות 🔁" ב-<code>public/restaurant-guide.html</code> וב-<code>public/maintenance-guide.html</code>. הפרק מתאר: ניווט צוות → שגרות; 8 תתי-טאבים; ספריית תבניות (כולל בחירת אתר ו"להוסיף בכל זאת"); יצירה ועריכה; ביצוע עם ראיות וחריגה; הזזה, דילוג והחלפת אחראי; אישור מנהל ואישור לקוח בקישור; מסמכים ושליחה. חוזי שירות ודוח כיסוי רק במדריך תחזוקה, ומצב ציות רק במדריך מסעדה. תזמון נהלים (SOP) מתועד במדריכי ה-BIZ שמתעדים את טאב המשימות. כל שינוי בעתיד בפיצ'ר מחייב עדכון באותו קומיט.</li>
+<li><b>הבדל בין הענפים</b>: נשאר כמו היום. הקטלוג שונה, חוזים וכיסוי בתחזוקה, ציות במסעדה. פלט 'work_order_template' נשאר זמין גם למסעדה. שדה "ביקור חוזה" ובחירת חוזה מוצגים רק בתחזוקה.</li>
+</ol></div>
+<div>חישובים</div><div>נוסחת שם התצוגה, כמפורט למעלה.</div>
+<div>מכונת מצבים</div><div>אין (רוחבי).</div>
+<div>תופעות לוואי</div><div>התראות, כמפורט למעלה.</div>
+<div>ממשק</div><div>שמות אמיתיים בכל המקומות: כרטיסים, תור האישורים, ציר הזמן ומסמכים (פנימיים). מרכז ההתראות של BIZ מציג את התראות השגרות עם קישור עמוק למופע.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>RTN-03</code> — זהות מבצע מהסשן, עם snapshot של שם.</li>
+<li><code>RTN-02</code> — אין יותר u.name, ויש בדיקת CI.</li>
+<li><code>RTN-01</code> — משימות משגרה נוצרות בהצלחה.</li>
+<li><code>RTN-36</code> — כל הנתיבים בלי קורא מחווטים לממשק.</li>
+<li><code>RTN-24</code> — מערכת התראות למודול.</li>
+<li><code>RTN-38</code> — פרק שגרות במדריכי מסעדה ותחזוקה.</li>
+</ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

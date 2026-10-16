@@ -879,7 +879,7 @@
 <div>שלבי עיבוד</div><div><ol>
 <li>בחירת המנוי: לפי <code>membershipId</code> מאומת, או המנוי האחרון האפקטיבי-active לטלפון (<code>ORDER BY created_at DESC</code>).</li>
 <li>ספירת הרישומים הלא מבוטלים.</li>
-<li>יש מנוי: יש מקום ⇒ INSERT רישום, <code>status:'registered'</code>. מלא ⇒ INSERT להמתנה ב-position הבא, <code>status:'waitlisted', waitlistPosition</code>.</li>
+<li>יש מנוי: יש מקום ⇒ INSERT רישום, <code>status:'registered'</code>. מלא ⇒ INSERT לרשימת ההמתנה ב-position הבא עם status='waiting' (מכונת המצבים של "רשימת המתנה: הוספה, הסרה, אישור ותפוגה"), והתשובה ללקוח נשארת <code>status:'waitlisted', waitlistPosition</code> (ערך תשובה בלבד, לא ערך DB).</li>
 <li>אין מנוי: יצירת ליד <code>source='drop-in'</code> אם אין ליד לטלפון, ו-<code>upsertStoreCustomer</code>. יש מקום ⇒ רישום עם <code>membership_id=NULL, member_phone, lead_id</code> ו-<code>warning:'no_active_membership'</code>. מלא ⇒ 409 <code>status:'full'</code>, "השיעור מלא ואין לך מנוי פעיל".</li>
 </ol></div>
 <div>חישובים</div><div><code>classDateTime = classStartsAt(class_date, start_time)</code> ב-Asia/Jerusalem. ייחודיות על <code>(class_id, COALESCE(membership_id::text, member_phone))</code>.</div>
@@ -890,7 +890,7 @@
 <li><code>SPT-17</code> — חובת הצהרה ברישום.</li>
 <li><code>SPT-40</code> — (מתוקן) רישום drop-in עם member_phone ו-lead_id, ייחודיות, ו-drop-in נחסם רק כש-trial_enabled===false.</li>
 <li><code>SPT-07</code> — טוקן לקוח, ובחירת מנוי לפי membershipId מאומת.</li>
-</ul></div>
+<li><code>E2E-17</code> — שורת ההמתנה נוצרת ב-status='waiting' לפי מכונת המצבים של רשימת ההמתנה; 'waitlisted' נשאר רק כערך בתשובה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="public cancel class registration phone policy token"><h3>ביטול רישום ציבורי</h3>

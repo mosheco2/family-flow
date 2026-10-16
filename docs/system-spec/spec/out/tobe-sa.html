@@ -1,0 +1,1114 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · Super Admin · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · Super Admin</h1><span class="meta">64 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="">יעד · מסעדה</a><a href="tobe-sport.html" class="">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="cur">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>מפרט TO-BE — Super Admin ותפעול פלטפורמה (SA).</b> המסמך מכסה את כל <b>64 התהליכים</b> שב-rules-sa.html, באותו סדר ובאותן 13 קבוצות. אף תהליך לא הושמט ולא מוזג. הוחלו <b>58 פריטי SA שאינם כפולים</b>: FIX 17, HARDEN 22, CONSISTENCY 10, BEHAVIOR 8, SCOPE 1 (ראו קובץ המפה). שלושה פריטים כפולים הוחלו דרך הפריט הקנוני: SA-01→<code>ARC-10</code>, SA-02→<code>ARC-07</code>, SA-30→<code>ARC-11</code>. פריט אחד (<code>SA-52</code>) לא שובץ בתהליך של התחום, כי אין בתחום SA תהליך שיוצר התראות פנימיות. הוא קנוני לתחומים אחרים (STR-27→SA-52, BTY-14), והכלל הסופי שלו מוגדר כאן בכללים החוצים.</p>
+<p><b>החלטות ARC שמוחלות לפי מזהה בלבד:</b> <code>ARC-01</code> (טבלת sessions אחת, authenticate()), <code>ARC-02</code> (default-deny), <code>ARC-04</code> (groupId מהסשן), <code>ARC-05</code> (חסימת frozen/archived ב-middleware), <code>ARC-07</code> (RBAC של SA, Master כשורה ב-sa_users), <code>ARC-09</code> (ביטול סשנים, 12 שעות ל-SA), <code>ARC-10</code> (אין DDL/דיבאג בייצור), <code>ARC-11</code> (withTransaction), <code>ARC-12</code> (מיגרציות), <code>ARC-13</code> (אין catch ריק סביב SQL), <code>ARC-15</code> (ledger), <code>ARC-16</code> (notifications/conversations), <code>ARC-17</code>/<code>ARC-18</code> (זכאות וקטלוג מודולים), <code>ARC-19</code> (audit_log אחד), <code>ARC-20</code> (account_kind), <code>ARC-22</code> (חיוב ידני), <code>ARC-23</code> (worker ו-cron בשעון ישראל), <code>ARC-24</code> (מצב משותף), <code>ARC-25</code> (Asia/Jerusalem), <code>ARC-26</code> (העלאות), <code>ARC-27</code> (escaping), <code>ARC-29</code> (rate limit ו-OTP), <code>ARC-30</code> (aiGateway), <code>ARC-31</code> (bcrypt), <code>ARC-32</code> (PII), <code>ARC-33</code> (asyncHandler), <code>ARC-37</code> (סוג עסק), <code>ARC-39</code> (מיתוג WEFLOWZ), <code>ARC-42</code> (מסמך מחייב).</p>
+<p><b>כללים חוצים בכל התהליכים:</b></p>
+<ul>
+<li><b>אימות SA.</b> כל נתיב <code>/api/sa/*</code> ו-<code>/api/superadmin/*</code> עובר <code>verifySA</code> (רישום גלובלי <code>app.use</code> עם allow-list ציבורי ריק, <code>SA-03</code>). הסשן נשמר בטבלת sessions עם <code>principal_type='sa'</code> ו-<code>principal_id=sa_user_id</code>. ה-middleware טוען בכל בקשה <code>req.saUser={id,name,email,permissions}</code> מה-DB ובודק <code>sa_users.status='active'</code> (<code>ARC-07</code>, <code>SA-06</code>). Master הוא שורה ב-sa_users עם <code>permissions=['all']</code>.</li>
+<li><b>מפת הרשאות אחת SA_TAB_PERMS</b> (<code>SA-09</code>), שמשמשת את הלקוח (הצגה וגישה) ואת השרת (<code>requireSAPermission</code>):
+open: pulse, dashboard, clients, templates, sysmap, partners, pricing, feed, shuka, games, marketing, kol-haam, livegames, auditlog, archive, whatsapp, ai-builder · support: support · devops: devops · stats: stats, finance, insights · comm: comm · biz: biz · content: content, adslots, legal · users: hr · marketing: inbox · all: masterconfig ואישורי SA רגישים (sa_*, smtp_*, sms_debug_code, sms_test_phones, cloudinary_api_secret) · impersonate: כפתור "כניסה לסביבה". זו הטבלה של tobe-arch (סעיף הרשאות SA, <code>RECON-07</code>).
+המפה נגזרת מ-checkTabAccess (sa-app.js:126), שהוא השער שבפועל פותח לשונית היום (switchSATab, חיפוש, ?tab=): לשונית שאינה ב-req שלו פתוחה לכל איש צוות, ו-partners ו-pricing פתוחות במפורש. applyUserPermissions רק מסתיר כפתורי קבוצה, ולכן אינו מצמצם גישה. לשונית לא ממופה ממופה ל-'open' (<code>ARC-07</code> מתוקן). Master יכול לצמצם לשונית בעתיד דרך SA_TAB_PERMS. זו אותה מפה כמו ב-tobe-arch וב-tobe-auth.</li>
+<li><b>פעולות בתוך לשונית פתוחה</b> (clients/סביבות) מותרות לכל סשן SA, כמו היום. החריגים מוגדרים במפורש: התחזות (ההרשאה impersonate, שהמיגרציה מעניקה לכל צוות קיים, או all, <code>ARC-07</code>), שינוי business_type (biz, ARC-37), ועדכון פרטי Master ואישורים רגישים (all).</li>
+<li><b>ביקורת.</b> כל פעולת כתיבה של SA נרשמת ב-audit_log המאוחד (<code>ARC-19</code>, actor_type='sa') עם <code>actor_id</code>, <code>actor_name</code> ו-<code>ip</code> (<code>SA-07</code>). כשל ברישום נכתב ללוג השרת ולא נבלע.</li>
+<li><b>שגיאות.</b> כל handler עטוף ב-asyncHandler. ולידציה מחזירה 400, לא נמצא 404, התנגשות 409, ספק חיצוני 502, וחריגת מכסה 429. אין יותר <code>success:false</code> עם HTTP 200 (<code>SA-58</code>, <code>ARC-33</code>). הלקוח ממשיך לקרוא את <code>error</code> מגוף התגובה בכל סטטוס, ולכן ההודעות למשתמש לא משתנות.</li>
+<li><b>התראות פנימיות (<code>SA-52</code>, כלל סופי).</b> פונקציה אחת <code>notify(groupId, type, title, message, refKey)</code> כותבת לטבלת notifications המאוחדת (<code>ARC-16</code>) עם dedup לפי (type, refKey, recipient). כל מקור IN-01..IN-09 והתראת השימור של יופי עוברים דרכה. catch שבולע בלי לוג אסור.</li>
+<li><b>מדריכים.</b> כל שינוי ממשק שמתואר כאן ונוגע ל-BIZ מחייב עדכון המדריך המקביל (כלל 6, <code>ARC-42</code>).</li>
+</ul>
+<p><b>יישוב סתירות בין פריטים מאושרים:</b></p>
+<ul>
+<li>OTP של Master: <code>SA-05</code> מגדיר 5 דקות ו-3 ניסיונות. חלים המספרים של <code>ARC-29</code>/<code>ARC-07</code>, כמו ב-tobe-auth: 6 ספרות, 10 דקות, 5 ניסיונות לקוד, 3 שליחות לשעה ו-10 ליום. כניסה בסיסמה: 5 כישלונות ב-15 דקות לכל (code, IP).</li>
+<li>תוקף סשן SA: 12 שעות מתגלגלות (<code>ARC-09</code>), ובנוסף תקרה מוחלטת של 7 ימים (<code>SA-06</code>). אין סתירה.</li>
+<li>סיסמת Master: <code>SA-04</code> השאיר את sa_password ב-system_settings, ו-<code>ARC-07</code> מעביר את Master לשורה ב-sa_users. נבחר <code>ARC-07</code>. משתנה ה-bootstrap נקרא <code>SA_INITIAL_PASSWORD</code>, כמו ב-tobe-auth, ומחייב החלפה בכניסה הראשונה (<code>SA-04</code>).</li>
+<li>SDK של Gemini: <code>SA-15</code> מציע להסיר את <code>@google/genai</code>, ו-<code>ARC-30</code> קובע אותו כ-SDK היחיד. נבחר <code>ARC-30</code>.</li>
+<li>טבלת התראות: <code>SA-52</code> כותב ל-alert_notifications, ו-<code>ARC-16</code> קובע טבלת notifications מאוחדת. נבחר <code>ARC-16</code>. alert_notifications ממוגרת אליה.</li>
+</ul>
+<p><b>פריטים שתוקנו לפי כלל השימור (REVISED) — 17. מזהה → למה תוקן → כלל סופי:</b></p>
+<ul>
+<li><code>SA-08</code> → ההצעה מחזירה 409 כשאין ADMIN, וכך SA מאבד את האפשרות להיכנס לעסק בלי משתמשים (היום זה עובד עם מזהה מזויף) → אין מזהה מזויף. בתגובת 409 <code>NO_ADMIN</code> הלקוח מציע "צור מנהל והיכנס": נפתח מודאל עריכת הסביבה בשדה טלפון המנהל, שכבר יוצר ADMIN כשאין כזה, ואחרי השמירה ההתחזות מתבצעת אוטומטית.</li>
+<li><code>SA-10</code> → ההצעה מגבילה כתיבת רישיונות ל-SA ולאשף, אבל היום ADMIN של העסק מדליק ומכבה בעצמו ממשקי תפקיד ופעולות שירות-עצמי (ss_*) במודאל הגדרות העסק (business-app.js:42122-42164) → POST licenses פתוח ל-ADMIN של העסק על הקבוצה שלו (verifyBizAdminOnly, groupId מהסשן), ל-SA על כל קבוצה, ולסשן התחזות של SA (מודאל saManageLicenses). המחיר של מפתח בתשלום נקבע בשרת מ-EMPLOYEE_ROLE_TYPES ולא מהלקוח. כל כתיבה מסנכרנת את licensed_features באותה טרנזקציה ונרשמת ב-audit. הנתיב הלא-מאומת נסגר. הכלל הזה מחליף את הנוסח "SA בלבד" שבתהליך הרישוי במסמך tobe-biz.</li>
+<li><code>SA-13</code> → לפי ההצעה כל נתיב AI דורש verifyFamilyOrBiz, אבל מחולל העסקים של SA קורא ל-<code>/api/store/catalog/generate-image</code> עם <code>groupId:0</code> → נתיבי AI מקבלים גם סשן SA (principal 'sa'): בלי מכסת קבוצה, ועם רישום ב-ai_usage_log עם <code>actor_type='sa'</code>. סשן family/biz לוקח groupId מהסשן ומכסה דרך handleAITokens.</li>
+<li><code>SA-15</code> → סתירה עם <code>ARC-30</code> → aiGateway אחד על <code>@google/genai</code>. ההגדרה הכפולה של callGeminiDirect והקוד הישיר הישן נמחקים.</li>
+<li><code>SA-19</code> → תמחור מודולי MANAGE_OPTIONS במחיר קטלוג משנה את מה שעסקים קיימים קיבלו → הכלל החדש חל רק על השלמות אשף מעתה. עסקים קיימים שומרים את ה-billing_config ואת הזכאות שלהם (מיגרציה 1:1, בלי חיוב רטרואקטיבי), והסיכום באשף מציג כל מחיר לפני האישור.</li>
+<li><code>SA-23</code> → מחיקה אוטומטית לצמיתות אחרי 30 יום מבטלת יכולת קיימת, כי היום SA משחזר סביבה מחוקה בכל זמן → אין מחיקה אוטומטית. נוסח האישור משתנה ל"ניתן לשחזר עד מחיקה לצמיתות". בלשונית הארכיון מוצג מספר הימים מאז המחיקה, עם תג "מעל 30 יום" שמזמין מחיקה ידנית. שאר ההצעה נשמר: is_deleted חוסם כניסה, והשחזור מחזיר את store_alias.</li>
+<li><code>SA-27</code> → ה-enum המוצע {active, invited, blocked} לא כולל <code>pending</code>, שהוא סטטוס של משתמש שממתין לאישור (server.js:2481) → status ∈ {active, invited, pending, blocked}.</li>
+<li><code>SA-29</code> → הכלל wizard_completed===true בלבד היה שולח לאשף עסקים פעילים שסומנו היום אוטומטית → מיגרציה חד-פעמית מגדירה wizard_completed=TRUE לכל עסק קיים שהכלל הישן מחשיב כמושלם. הכלל החדש חל על הרשמות מעתה.</li>
+<li><code>SA-32</code> → שמירת סיסמת הדמו רק כ-bcrypt מבטלת את היכולת של SA לראות שוב את פרטי הדמו ולשתף אותם (המודאל מציג אותם בכל פתיחה, sa-app.js:4805) → פרטי הדמו נשמרים מוצפנים (הצפנה הפיכה ברמת עמודה, <code>ARC-32</code>) ובנוסף כ-bcrypt לכניסה. הם מוצגים במודאל ל-SA בלבד, וכל צפייה נרשמת ב-audit. בשאר המקרים חל הכלל: אין שליחת סיסמה, וחשבון שנוצר על ידי מערכת מקבל קישור הפעלה (72 שעות).</li>
+<li><code>SA-33</code> → billing_config לפי חבילה בלבד מצמצם את מה שעסקים שנוצרו ב-AI מקבלים היום (כל המודולים). בנוסף, טלפון NULL מונע מסירה מיידית → עסק חדש מהמחולל נוצר עם חבילת סוג העסק ומודולי ברירת המחדל שלו, ו-SA יכול להוסיף מודולים במסך ההצלחה. עסקים קיימים עם billing_config=NULL ממוגרים כך שכל הגישה שלהם נשמרת (<code>ARC-17</code>). בלי טלפון תקין, ה-ADMIN נוצר עם phone=NULL, SA נכנס מיד דרך התחזות, וקישור ההפעלה נשלח אחרי שמזינים טלפון.</li>
+<li><code>SA-45</code> → הסתרת הנמענים employee/customer מבורר סוגי ההתראה הדינמיים מסירה אפשרות שקיימת היום → הבורר נשאר עם שלוש האפשרויות, ולצד employee/customer מוצגת התווית "כרגע נשלח לבעלים". סוגים קיימים ממשיכים כמו היום, וניתוב אמיתי נשאר backlog. order-notify לא נמחק: הוא מחובר למעבר הזמנה ל-ready, בכפוף להגדרה האפקטיבית customer_ready.</li>
+<li><code>SA-47</code> → ביטול כתובת ההתראות הקשיחה בלי מיגרציה היה מפסיק את מיילי ה-SA → מיגרציה חד-פעמית כותבת ל-system_settings.admin_notification_email את הערך שבשימוש היום, אם אין שורה. רק אחרי זה נמחקת הברירה הקשיחה מהקוד.</li>
+<li><code>SA-49</code> → ביטול מלא של קוד הדיבאג בייצור (גם לפי <code>ARC-31</code>) מסיר מבודקי SA את היכולת לבדוק זרימות SMS בייצור → בייצור הקוד הקבוע חל רק על טלפונים שברשימה המפורשת <code>sms_test_phones</code>. כל טלפון אחר מקבל קוד אקראי (crypto.randomInt). מחוץ לייצור ההתנהגות נשארת כמו היום.</li>
+<li><code>SA-52</code> → סתירה עם <code>ARC-16</code> → notify() כותבת לטבלת notifications המאוחדת.</li>
+<li><code>SA-54</code> → allow-list שמוציא את <code>cloudinary_api_secret</code> מ-/api/sa/settings היה מבטל את שדה הסוד במסך Cloudinary (sa-app.js:10271) → השדה נשמר. הוא נכתב בנתיב ייעודי עם הרשאת 'all', מוצפן, ולעולם לא מוחזר ב-GET (מוצג "מוגדר ✓"). משתנה סביבה, אם קיים, גובר.</li>
+<li><code>SA-56</code> → ראו <code>SA-32</code>: פרטי הדמו נשארים זמינים לצפייה ל-SA. disable חוסם בפועל את הכניסה.</li>
+<li><code>SA-09</code> → deny-by-default ללשונית לא ממופה היה עלול לחסום לשוניות שגלויות היום → המפה נגזרת מהגישה האפקטיבית של היום (ראו הכללים החוצים), כך שאף לשונית שגלויה ונגישה לחבר צוות לא נחסמת.</li>
+</ul>
+</div>
+
+<h2 class="grp">אימות, ניווט וצוות Super Admin</h2>
+
+<section class="proc" data-f="sa login otp session verifysa master password sa_sessions"><h3>התחברות מנהל-על (סיסמה / OTP) ואימות בקשות SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מסך הכניסה של <code>sa.html</code>, עם שני מסלולים כמו היום: (א) קוד וסיסמה — <code>handleSALogin</code> (sa-app.js:382) → <code>POST /api/superadmin/login</code>; (ב) SMS OTP ל-Master — <code>sendMasterOTP</code>/<code>verifyMasterOTP</code> (sa-app.js:7822, 7898) → <code>POST /api/superadmin/send-otp</code> ו-<code>/verify-otp</code>. כל נתיב SA אחר מוגן על ידי <code>verifySA</code>. חדש: <code>POST /api/superadmin/logout</code> ו-<code>GET /api/superadmin/me</code>.</div>
+<div>הרשאות</div><div>login, send-otp ו-verify-otp הם ציבוריים מוצהרים (<code>ARC-02</code>) עם rate limit. logout ו-me זמינים לכל סשן SA. שאר הנתיבים עוברים verifySA ואחריו requireSAPermission לפי SA_TAB_PERMS.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>login: חיפוש ב-<code>sa_users</code> לפי <code>email=code</code> או <code>username=code</code>, עם JOIN לצוות. שם המשתמש והמייל של Master נשמרים בשורת ה-Master. הסיסמה נבדקת ב-bcrypt בלבד, בלי השוואת טקסט גלוי (<code>SA-04</code>). אם <code>status!='active'</code> מוחזר 403 "החשבון שלך נחסם. פנה למנהל המערכת." (ללא שינוי). פרטים שגויים מחזירים 401 "פרטי גישה שגויים לניהול מערכת" (ללא שינוי).</li>
+<li>אין ברירת מחדל admin/123456. מיגרציה מעבירה את sa_username, sa_email ו-sa_password משורות system_settings לשורת Master, והסיסמה מגובבת. סיסמה ריקה או '123456' לא ממוגרת. במצב כזה כניסת Master בסיסמה חסומה, אבל כניסה ב-OTP ל-SUPERADMIN_PHONE זמינה, ו-<code>SA_INITIAL_PASSWORD</code> מה-env מאפשר כניסה ראשונה עם החלפת סיסמה חובה. סיסמת Master חדשה: לפחות 10 תווים (<code>SA-04</code>).</li>
+<li>rate limit: 5 כישלונות ב-15 דקות לכל (code, IP) מחזירים 429 עם נעילה של 15 דקות (<code>SA-05</code>, <code>ARC-29</code>).</li>
+<li>send-otp: הטלפון, אחרי נרמול, חייב להיות שווה ל-<code>process.env.SUPERADMIN_PHONE</code>. אחרת "מספר הטלפון שהוזן אינו מורשה..." (ללא שינוי). מוגבל ל-3 שליחות לשעה ו-10 ליום. כש-sms_login_enabled=false מוחזר 403.</li>
+<li>verify-otp: הקוד נשמר בטבלת ה-OTP ב-DB (purpose='sa_login', hash) ולא ב-Map בזיכרון (<code>SA-05</code>, <code>SA-51</code>, <code>ARC-24</code>). תוקף 10 דקות, ואחרי 5 ניסיונות שגויים הקוד נפסל. הודעות השגיאה נשארות כמו היום: "לא נמצאה בקשת התחברות פעילה למספר זה", "פג תוקפו של הקוד...", "הקוד שהוקלד אינו תקין".</li>
+<li>verifySA: הטוקן מגיע מ-cookie, מ-<code>Authorization</code> (עם או בלי <code>Bearer </code>) או מ-<code>x-sa-token</code>. הסשן תקף אם יש שורה עם hash תואם, <code>expires_at &gt; NOW()</code> ו-<code>revoked_at IS NULL</code>, והמשתמש active. אחרת 403 <code>Forbidden</code> (ללא שינוי). חוסר הרשאה מחזיר 403 "אין הרשאה לפעולה זו".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בהצלחה: טוקן <code>crypto.randomBytes(32)</code>. ב-DB נשמר רק ה-hash, בטבלת sessions עם principal_type='sa' ו-principal_id=sa_user_id (<code>ARC-01</code>, <code>ARC-07</code>).</li>
+<li>מבנה התגובה ללא שינוי: עובד צוות מקבל <code>{id,name,email,team,permissions}</code>, ו-Master (בסיסמה או ב-OTP) מקבל <code>{id, name, role:'master', permissions:['all']}</code>.</li>
+<li>הלקוח שומר את הטוקן ואת <code>ofl_sa_user</code> כמו היום (מפתחות wfz_ לפי <code>ARC-39</code>), אבל ההרשאות לתצוגה נטענות מ-<code>GET /api/superadmin/me</code> ולא מ-localStorage שניתן לעריכה (<code>SA-09</code>). אחר כך <code>applyUserPermissions</code>, <code>loadSAData</code>, <code>switchSATab('pulse')</code>, ו-polling של <code>loadSAPendingRequests</code> ושל <code>/superadmin/online-count</code> כל 60 שניות (ללא שינוי).</li>
+<li>logout: <code>logoutSA</code> קורא ל-<code>POST /api/superadmin/logout</code>, שמסמן revoked_at, ואז מוחק את הטוקן המקומי (<code>SA-06</code>).</li></ol></div>
+<div>חישובים</div><div>OTP: <code>crypto.randomInt(100000, 1000000)</code>. טקסט SMS: "קוד הגישה שלך למערכת WEFLOWZ הוא: X. הקוד בתוקף ל-10 דקות." תוקף סשן: 12 שעות מתגלגלות לפי last_seen, עם תקרה מוחלטת של 7 ימים מיצירת הסשן (<code>SA-06</code>, <code>ARC-09</code>).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>active</td><td>login/verify-otp</td><td>אימות הצליח</td><td>שורת סשן, audit SA_LOGIN</td></tr>
+<tr><td>active</td><td>revoked</td><td>SA / מערכת</td><td>logout, חסימה, שינוי סיסמה או צוות, מחיקת המשתמש</td><td>audit SA_LOGOUT</td></tr>
+<tr><td>active</td><td>expired</td><td>מערכת</td><td>12 שעות בלי פעילות, או 7 ימים מהיצירה</td><td>ניקוי יומי</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>SMS (Twilio) במסלול OTP. נרשמים ב-audit: SA_LOGIN, SA_LOGIN_FAILED (עם ip) ו-SA_LOGOUT (<code>SA-07</code>).</div>
+<div>ממשק</div><div>בטעינה מחדש עם טוקן שמור, <code>window.onload</code> מדלג על מסך הכניסה ומאפשר פתיחה ישירה של <code>?ticket=</code> ו-<code>?tab=&amp;sub=</code>, כמו היום, בכפוף ל-SA_TAB_PERMS. כל 403 מ-<code>/superadmin/data</code> או מ-<code>/sa/dashboard</code> גורם ל-logout (ללא שינוי). מסך "החלפת סיסמה חובה" מוצג אחרי כניסה עם SA_INITIAL_PASSWORD.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SA-04</code> — bcrypt בלבד, בלי ברירת מחדל admin/123456, bootstrap מ-env עם החלפה חובה, וסיסמת Master של 10 תווים לפחות.</li>
+<li><code>SA-05</code> — rate limit לכניסה, ו-OTP ב-DB עם crypto.randomInt (מספרי ARC-29).</li>
+<li><code>SA-06</code> — logout בשרת, 12 שעות מתגלגלות ותקרה של 7 ימים, ובדיקת status בכל בקשה.</li>
+<li><code>ARC-07</code> (SA-02) — sa_user_id בסשן, req.saUser מה-DB ו-requireSAPermission. השימושים ב-req.saUser (server.js:4985, 5115, 18718) מקבלים זהות אמיתית.</li>
+<li><code>SA-03</code> — verifySA גלובלי על /api/sa ועל /api/superadmin.</li>
+<li><code>SA-07</code> — audit לכניסה, ליציאה ולכישלון.</li>
+<li><code>SA-51</code> — otpCache בזיכרון מוחלף בטבלה.</li>
+<li><code>SA-61</code> — המפרט הזה מחליף את SA_ENV_SPEC בנושא תוקף הסשן והאימות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sa_groups nav permissions checktabaccess applyuserpermissions rbac tabs sa_tab_perms"><h3>ניווט SA (SA_GROUPS) והרשאות לפי צוות (צד לקוח בלבד)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(שם התהליך נשמר כמו ב-as-built. ביעד האכיפה מתבצעת גם בשרת.) הצגה והסתרה של קבוצות ניווט ולשוניות לפי ההרשאות של המשתמש המחובר, כפי שהשרת מחזיר אותן. רץ בכניסה ובכל <code>switchSATab</code> (sa-app.js:429) ו-<code>switchSAGroup</code> (sa-app.js:673).</div>
+<div>הרשאות</div><div>השרת אוכף את אותה מפה (SA_TAB_PERMS) על כל נתיבי הלשונית. הלקוח רק מציג. ההרשאות נטענות מ-<code>GET /api/superadmin/me</code>.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>SA_GROUPS</code> (sa-app.js:533-548) ללא שינוי: <code>home</code>[pulse, insights, stats], <code>customers</code>[comm, biz, clients, feed], <code>shukagrp</code>[shuka], <code>finance</code>[finance], <code>supportdev</code>[support, devops], <code>contentmkt</code>[content, inbox, legal, adslots, games, marketing, kol-haam], <code>livegamesgrp</code>[livegames], <code>partners</code>[partners], <code>system</code>[hr, sysmap, auditlog, archive], <code>templates</code>, <code>whatsapp</code>, <code>pricing</code>, <code>aibuilder</code>[ai-builder], <code>masterconfig</code>.</li>
+<li>מפה יחידה <code>SA_TAB_PERMS</code> (בקובץ משותף לשרת וללקוח) מחליפה את שתי המפות הסותרות ב-<code>applyUserPermissions</code> (sa-app.js:91) וב-<code>checkTabAccess</code> (sa-app.js:126). התוכן שלה מופיע בכללים החוצים. לשונית שלא נמצאת במפה פתוחה ('open'), כמו ב-checkTabAccess היום (<code>ARC-07</code> מתוקן).</li>
+<li>הרשאות אפשריות לצוות, ללא שינוי: support, devops, marketing, stats, biz, comm, users, content, ובנוסף all (<code>translatePermission</code> sa-app.js:7336).</li>
+<li>כפתור קבוצה מוצג אם לפחות לשונית אחת בה נגישה (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>switchSATab</code> בודק את SA_TAB_PERMS. בלי הרשאה מוצג הטוסט "אין לך הרשאה לגשת למודול זה." (ללא שינוי). אחרת נטענים נתוני הלשונית כמו היום: pulse טוען את הדשבורד ואת מרכז הממתינים, stats טוען <code>loadSAData</code>, ו-clients מאפס את החיפוש ופותח את תת-הלשונית environments.</li><li><code>_updateSubNavBar</code> (sa-app.js:652) מציג סרגל תתי-לשוניות רק לקבוצה עם יותר מלשונית אחת (ללא שינוי).</li><li>חיפוש מסכים <code>saNavSearch</code> (sa-app.js:609) מחזיר עד 10 תוצאות, מסונן לפי אותה מפה. גם <code>?tab=</code> מסונן לפיה.</li></ol></div>
+<div>חישובים</div><div>לשונית נגישה ⇔ <code>perms.includes('all') || SA_TAB_PERMS[tab]==='open' || perms.includes(SA_TAB_PERMS[tab])</code>.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>סרגל צד <code>btn-sa-group-*</code>, סרגל עליון עם breadcrumb (<code>_updateTopbarCrumb</code>), ובמובייל <code>toggleSASidebar</code> — ללא שינוי. שבב fam_joins בדופק מנווט ללשונית <code>comm</code> במקום ל-'families', שאינה קיימת.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SA-09</code> — מפה אחת שמשמשת להצגה, לגישה ולשרת. הגישה האפקטיבית של היום נשמרת, וההרשאות נטענות מהשרת. שבב fam_joins מנווט ל-comm.</li>
+<li><code>ARC-07</code> (SA-02) — אכיפה בשרת לפי אותה מפה.</li>
+<li><code>SA-61</code> — מפת הלשוניות וההרשאות מתועדת כאן. SA_ENV_SPEC מסומן היסטורי.</li><li><code>RECON-07</code> — SA_TAB_PERMS זהה לטבלה ב-tobe-arch: נגזר מ-checkTabAccess, לשונית לא ממופה פתוחה, ו-partners, pricing, whatsapp, ai-builder, feed, games, kol-haam, livegames, auditlog, archive, shuka ו-marketing פתוחות לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sa teams staff hr rbac sa_users sa_teams"><h3>ניהול צוותים ונציגי SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית hr (קבוצת system): <code>loadSAHRData</code> (sa-app.js:7293), <code>saveSATeam</code> (7388), <code>saveSAStaff</code> (7483), <code>toggleStaffStatus</code> (7520).</div>
+<div>הרשאות</div><div>verifySA ו-requireSAPermission('users').</div>
+<div>קלט ואימותים</div><div><ul>
+<li>POST <code>/api/sa/teams</code>: <code>name</code> חובה — "שם צוות נדרש". permissions נשמר כ-JSONB, מערך מתוך {support, devops, marketing, stats, biz, comm, users, content, all}. ברירת המחדל <code>[]</code>.</li>
+<li>POST <code>/api/sa/staff</code>: name, email ו-password חובה. סיסמה של 6 תווים לפחות, נשמרת ב-bcrypt(12). מייל כפול (23505) מחזיר 400 "כתובת המייל הזו כבר קיימת במערכת".</li>
+<li>PUT <code>/api/sa/staff/:id</code>: אם <code>password</code> לא ריק, ה-hash מתעדכן. name, email, team_id ו-status מתעדכנים כמו היום. status ∈ {active, blocked}, אחרת 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>GET <code>/api/sa/teams</code> ממוין לפי שם. GET <code>/api/sa/staff</code> עם JOIN לצוות (ללא שינוי).</li><li>DELETE לצוות או לנציג — מחיקה פיזית (ללא שינוי). צוות שיש בו נציגים: הנציגים נשארים, עם team_id=NULL.</li><li>שינוי status, סיסמה או צוות, או מחיקת נציג, מבטלים את כל הסשנים שלו (revoked_at) באותה טרנזקציה (<code>SA-06</code>).</li><li>שינוי הרשאות של צוות נכנס לתוקף בבקשה הבאה של חבריו, כי verifySA טוען את ההרשאות מה-DB.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>active</td><td>blocked</td><td>SA (users)</td><td>PUT staff status</td><td>כל הסשנים מבוטלים, כניסה חוזרת נחסמת ב-403, audit STAFF_UPDATE</td></tr><tr><td>blocked</td><td>active</td><td>SA (users)</td><td>PUT staff</td><td>הכניסה מותרת, audit</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>audit: STAFF_CREATE, STAFF_UPDATE, STAFF_DELETE, TEAM_CREATE, TEAM_UPDATE, TEAM_DELETE (<code>SA-07</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>SA-06</code> — חסימה, שינוי או מחיקה מבטלים את הסשנים.</li>
+<li><code>SA-07</code> — audit לכל שינוי צוות ונציג.</li>
+<li><code>ARC-07</code> (SA-02) — requireSAPermission('users') בשרת.</li>
+<li><code>SA-04</code> — אין השוואת טקסט גלוי ל-sa_users. מיגרציה חד-פעמית מגבבת hash שאינו מתחיל ב-$2.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sa internal chat whispers rooms sa_internal_chat"><h3>צ'אט פנימי לצוות SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ווידג'ט צ'אט ב-SA (<code>toggleInternalChat</code> sa-app.js:7537), עם חדר general וחדר <code>team_{id}</code> לכל צוות (<code>renderChatSidebar</code>). גם המערכת כותבת לחדר general דרך <code>postToInternalChat</code> (server.js:5103).</div>
+<div>הרשאות</div><div>כל סשן SA. חדר <code>team_{id}</code> מוצג לחברי הצוות ול-'all', כמו בסרגל היום.</div>
+<div>קלט ואימותים</div><div><ul><li>POST <code>/api/sa/chat</code>: הודעה ריקה מחזירה 400 'Empty message'. ברירת המחדל של room היא general.</li><li><code>sender_name</code> ו-<code>sender_id</code> נלקחים מ-<code>req.saUser</code> ולא מהגוף (<code>SA-40</code>). הודעות מערכת נכתבות עם sender_name 'מערכת'.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>sa_internal_chat(room,sender_name,sender_id,message)</code>. במודל המאוחד זו שיחה מסוג <code>sa_internal</code> (<code>ARC-16</code>).</li><li>GET <code>/api/sa/chat/:room?before=&lt;id&gt;</code> שולף את 50 ההודעות האחרונות: <code>ORDER BY created_at DESC LIMIT 50</code>, בהיפוך לתצוגה. גלילה למעלה טוענת הודעות ישנות יותר לפי before (<code>SA-40</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>הודעות מערכת נכתבות אוטומטית כמו היום: בפתיחת קריאה יזומה, ובשינוי סטטוס של משימת פיתוח שמקושרת לקריאה.</div>
+<div>ממשק</div><div>polling אחד בלבד: כל 10 שניות כשהווידג'ט פתוח. ה-setInterval הגלובלי הכפול (sa-app.js:7750) נמחק (<code>SA-40</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-40</code> — 50 האחרונות במקום 50 הישנות, טעינה לאחור בגלילה, זהות שולח מהסשן ו-polling אחד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="master credentials sa_username sa_password sa_email update"><h3>עדכון פרטי מנהל-על ראשי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>updateSACredentials</code> (sa-app.js:1988) → <code>POST /api/superadmin/credentials</code>.</div>
+<div>הרשאות</div><div>verifySA ו-requireSAPermission('all').</div>
+<div>קלט ואימותים</div><div><ul><li>בלקוח: newUsername ו-newPassword חובה, עם אישור (ללא שינוי).</li><li>בשרת: לפחות שדה אחד, אחרת "יש לספק לפחות שדה אחד לעדכון". סיסמה חדשה של 10 תווים לפחות (<code>SA-04</code>). המייל מנורמל ל-lower ו-trim.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE לשורת Master ב-sa_users: username, email, ו-password_hash ב-bcrypt(12). שדה שלא נשלח לא משתנה (במקום כתיבת sa_email ריק).</li><li>אם הסיסמה שונתה, כל סשני ה-Master האחרים מבוטלים והסשן הנוכחי נשאר.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit UPDATE_SA_CREDENTIALS, בלי הסיסמה (<code>SA-07</code>). המייל של Master ממשיך לשמש לפטור ממגבלת 2 הסביבות במייל ב-<code>POST /api/groups</code> (server.js:10090-10100). המקור הוא שורת ה-Master במקום system_settings.sa_email.</div>
+<div>ממשק</div><div>ללא שינוי, עם הודעת אורך מינימלי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-04</code> — bcrypt, אורך מינימלי ושמירה בשורת Master (<code>ARC-07</code>).</li><li><code>SA-07</code> — audit.</li><li><code>SA-54</code> — מפתחות sa_* לא נכתבים יותר דרך /api/sa/settings הגנרי.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מחזור חיים של סביבות (Groups / Businesses)</h2>
+
+<section class="proc" data-f="superadmin data groups list environments loadsadata ai tokens reset"><h3>טעינת כל הסביבות והמשתמשים (רשימת "סביבות")</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadSAData</code> (sa-app.js:2000) רץ בכל כניסה, בלשונית stats ואחרי כל פעולה על סביבה, וקורא ל-<code>GET /api/superadmin/data</code>. התוצאה מוצגת ב-<code>renderSAGroups</code> (sa-app.js:2464).</div>
+<div>הרשאות</div><div>כל סשן SA (clients ו-stats הן open או stats). השדות של המשתמשים מוחזרים ברשימה מפורשת, בלי password_hash (<code>ARC-32</code>).</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>אין יותר כתיבה בקריאה.</b> ה-UPDATE ל-ai_tokens=10 נמחק (<code>SA-11</code>).</li>
+<li>שליפה כמו היום: כל הקבוצות שאינן <code>is_deleted</code>, יחד עם <code>whatsapp_settings.enabled AS wa_enabled</code>, כל המשתמשים, 50 העסקאות האחרונות והגדרות מערכת לא רגישות.</li>
+<li>בניית <code>activity</code> מאוחד, כמו היום: עסקאות, ושורה "🎉 פתח/ה סביבה חדשה" לכל קבוצה ללא פעילות.</li>
+<li>stats ללא שינוי: families (FAMILY שאינו member), members, businesses, familyUsers, businessUsers, activeConnections, communities active ו-onlineNow.</li>
+<li>לכל קבוצה מוחזר גם <code>billing_monthly_total</code>, שמחושב בשרת (<code>SA-18</code>), ו-<code>trial_active</code>.</li></ol></div>
+<div>חישובים</div><div>מחוברים עכשיו = <code>users.last_seen &gt; NOW()-3 minutes</code> (ללא שינוי). תג ₪ = <code>billing_config.monthly_total</code> מהשרת, כולל חבילה והנחה. בתקופת הטבה התג מציג "הטבה" (<code>SA-21</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אין, כי GET לא כותב.</div>
+<div>ממשק</div><div><code>renderSAGroups</code> ללא שינוי: עימוד של 25, סינון all/FAMILY/BUSINESS, חיפוש לפי שם, קוד, כינוי, שם מלא או טלפון של משתמש. התגים נשארים: plan, סטטוס חשבון (pending_activation, ‏frozen עם ימים לארכוב, ‏archived), טסט, ₪ חודשי, הטבת trial ובקשות מודול. כל הכפתורים נשארים: כניסה לסביבה, שדרג למשפחה, הקפאה וביטול הקפאה, שלח פרטי כניסה (שולח עכשיו קישור הפעלה, <code>SA-32</code>), טסט, קישור דמו, ערוך, plan, גיבויים, מזג כפילות, מחיקה ו-WA.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-11</code> — פתיחת הפאנל לא מאפסת יותר טוקני AI.</li><li><code>SA-18</code> — תג ה-₪ מציג את monthly_total הקנוני.</li><li><code>SA-21</code> — תג "הטבה" בזמן trial.</li><li><code>SA-32</code> — "שלח פרטי כניסה" שולח קישור הפעלה במקום סיסמה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="account_status freeze unfreeze archive cron frozen archived pending_activation"><h3>מצב חשבון: הקפאה, הפשרה וארכוב אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA: <code>saFreezeGroup</code> (sa-app.js:2788) → <code>POST /api/sa/groups/:id/freeze</code>. <code>saUnfreezeGroup</code> (2821) → <code>/unfreeze</code>. מיזוג משפחות מקפיא גם הוא. Job ארכוב כל 6 שעות ב-worker, וגם בעליית המערכת (<code>ARC-23</code>).</div>
+<div>הרשאות</div><div>freeze ו-unfreeze זמינים לכל סשן SA (לשונית clients), כמו היום. unfreeze מסטטוס archived — SA בלבד, עם audit (<code>SA-22</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>freeze: סיבה אופציונלית (ביטול ה-prompt מבטל את הפעולה) ואישור "היא לא תהיה נגישה ולא תופיע במרקטפלייס" (ללא שינוי). הכפתור מוצג רק כשהחשבון אינו frozen או archived.</li><li>קבוצה לא קיימת מחזירה 404 "קבוצה לא נמצאה" (<code>SA-22</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>freeze: <code>account_status='frozen', frozen_at=NOW(), frozen_reason=$reason||''</code>, ביטול כל הסשנים הפעילים של הקבוצה, ו-audit FREEZE_GROUP.</li>
+<li>unfreeze: <code>account_status='active', frozen_at=NULL, merged_into_group_id=NULL</code>, ו-audit UNFREEZE_GROUP (מ-archived: UNARCHIVE_GROUP).</li>
+<li>job: <code>UPDATE ... SET account_status='archived' WHERE account_status='frozen' AND frozen_at &lt; NOW()-30 days RETURNING id</code>, ולכל שורה audit ARCHIVE_GROUP עם actor='system' (<code>SA-22</code>).</li>
+<li>רשימה לפי סטטוס: <code>GET /api/sa/groups/by-status/:status</code>, עם <code>days_left = GREATEST(0, 30 - days_since_frozen)</code> (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>ימים לארכוב: <code>max(0, 30 - floor((now-frozen_at)/86400000))</code> (ללא שינוי).</div>
+<div>מכונת מצבים</div><div><code>account_status</code> ∈ {active, pending_activation, frozen, archived}.
+<div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending_activation</td><td>active</td><td>המשתמש</td><td><code>POST /api/solo/activate</code> (קישור הפעלה, <code>SA-32</code>)</td><td><code>member_business_links</code> מ-pending ל-active</td></tr>
+<tr><td>active/pending</td><td>frozen</td><td>SA / מיזוג</td><td>—</td><td>frozen_at=NOW, ביטול סשנים, audit FREEZE_GROUP או MERGE_GROUPS</td></tr>
+<tr><td>frozen</td><td>active</td><td>SA</td><td>—</td><td>ניקוי frozen_at ו-merged_into</td></tr>
+<tr><td>frozen</td><td>archived</td><td>job</td><td>frozen_at ישן מ-30 יום</td><td>audit ARCHIVE_GROUP (system)</td></tr>
+<tr><td>archived</td><td>active</td><td>SA</td><td>unfreeze מפורש</td><td>audit UNARCHIVE_GROUP</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>אכיפה אחידה (<code>SA-22</code>, <code>ARC-05</code>): frozen ו-archived חסומים בכל כניסה — משפחה (סיסמה ו-OTP), עסק (<code>/api/biz/login</code> ו-OTP עסקי), דמו ו-storefront — וגם במרקטפלייס ובקמפיינים. נוסח ההודעה לפי frozen_reason: אחרי מיזוג (merged_into_group_id לא NULL) מוצג הנוסח הקיים "חשבון זה הוקפא לאחר איחוד משפחות." עם days_left. בהקפאה ידנית: "החשבון הוקפא. פנה לתמיכה." ב-archived: "חשבון זה הועבר לארכיב. אנא פנה לתמיכה." (ללא שינוי). סשנים קיימים נחסמים ב-403 "החשבון מוקפא" דרך ה-middleware.</div>
+<div>ממשק</div><div>תג ❄️ עם הסיבה ב-tooltip, תג 📦 לארכיב ותג ⏳ לממתין לאישור (ללא שינוי). בשורת archived מוצג הכפתור "החזר מארכיב".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-22</code> — חסימה גם בכניסת עסק, בדמו וב-storefront (גם archived), הודעה לפי סיבה, 404 לקבוצה לא קיימת, job בעלייה, audit לארכוב והחזרה מארכיב עם audit.</li><li><code>ARC-05</code> — סשנים קיימים נחסמים ב-middleware.</li><li><code>ARC-23</code> — ה-job רץ ב-worker במקום ב-setInterval.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="merge duplicate family groups phone flw wallet"><h3>מיזוג חשבון משפחה כפול לחשבון ראשי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הכפתור "מזג כפילות" בשורת FAMILY → <code>openMergeDuplicateModal</code>/<code>confirmMergeDuplicate</code> (sa-app.js:2877, 2958) → <code>POST /api/sa/groups/merge-duplicate</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul><li><code>primaryId</code> ו-<code>duplicateId</code> חובה ושונים — "נדרשים שני חשבונות שונים".</li><li>שניהם קיימים, אחרת 404 "חשבון לא נמצא". שניהם <code>type='FAMILY'</code>, אחרת 400 "ניתן למזג רק חשבונות משפחה (לא עסקים)".</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה אחת (<code>ARC-11</code>):<ol>
+<li><b>ארנקי ילדים לפני העברת המשתמשים</b> (<code>SA-24</code>): לכל <code>flw_kid_wallets</code> של הכפול מתבצע UPDATE לארנק הילד המתאים בראשי, אם יש (<code>WHERE id=(SELECT id ... LIMIT 1)</code> ולא <code>UPDATE ... LIMIT 1</code>). אחרת הארנק מועבר כמו שהוא. ארנק הכפול שאוחד נמחק.</li>
+<li><b>ארנק FLOW משפחתי</b> (<code>SA-24</code>): היתרה וה-lifetime של <code>flow_wallets(entity_type='family')</code> של הכפול מתווספים לראשי, נרשמות שתי שורות <code>flow_transactions</code> מסוג 'merge' (חובה בכפול וזכות בראשי, <code>ARC-15</code>), וארנק הכפול נמחק.</li>
+<li>מחיקת משתמשי הכפול שהטלפון שלהם קיים בראשי, והעברת שאר המשתמשים (ללא שינוי).</li>
+<li>עדכון בעלות ב-21 הטבלאות הפשוטות (ללא שינוי ברשימה).</li>
+<li>טבלאות עם UNIQUE (budget_allocations, member_business_links, family_business_visits, family_preferred_areas): מחיקת כפילויות ואז העברה. author_profiles: אם לראשי יש פרופיל, הכפול נמחק (ללא שינוי).</li>
+<li>הקפאת הכפול: <code>frozen, frozen_at=NOW, merged_into_group_id=primary, frozen_reason='מוזג ידנית על ידי מאסטר — חשבון כפול לאותו טלפון'</code> (ללא שינוי).</li>
+<li>COMMIT ואז audit <code>MERGE_GROUPS</code> עם actor.</li></ol></div>
+<div>חישובים</div><div>balance_flw ו-lifetime_flw בראשי = סכום שני הצדדים. יתרת FLOW בראשי = סכום שני הצדדים.</div>
+<div>מכונת מצבים</div><div>הכפול: active → frozen, ואחרי 30 יום → archived על ידי ה-job.</div>
+<div>תופעות לוואי</div><div>הכלי <code>POST /api/sa/resync-activity-links</code> נשאר נפרד, כמו היום.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-24</code> — תיקון ה-UPDATE עם LIMIT (גם בזרימת link-request, server.js:2621), חישוב ארנקי הילדים לפני העברת המשתמשים, והעברת ארנק FLOW עם תנועות merge.</li><li><code>ARC-11</code> (SA-30) — טרנזקציה על client אחד.</li><li><code>SA-07</code> — actor ב-audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="merge users duplicate user fk dynamic"><h3>מיזוג משתמש כפול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openMergeUserModal</code>/<code>confirmMergeUser</code> (sa-app.js:2982, 3069) → <code>POST /api/sa/users/merge</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients).</div>
+<div>קלט ואימותים</div><div><ul><li>שני מזהים שונים — "נדרשים שני משתמשים שונים". שניהם קיימים, אחרת 404 "משתמש לא נמצא". אין דרישה שיהיו באותה קבוצה (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה:<ol>
+<li><code>flw_kid_wallets</code>: אם לראשי יש ארנק, היתרות מתווספות והכפול נמחק. אחרת child_user_id מועבר (ללא שינוי).</li>
+<li><code>flw_kid_config</code>: אם לראשי יש, הכפול נמחק. אחרת מועבר (ללא שינוי).</li>
+<li>גילוי דינמי של כל FK ל-<code>users(id)</code>, עם SAVEPOINT לכל עמודה (ללא שינוי).</li>
+<li><b>בנוסף</b> (<code>SA-24</code>): רשימה מפורשת <code>USER_REF_COLUMNS</code> של עמודות שמצביעות על משתמש בלי FK (למשל <code>tasks.assigned_to</code>, <code>created_by</code>, ושדות user_id בטבלאות בלי אילוץ) מתעדכנת באותה שיטת SAVEPOINT.</li>
+<li>מחיקת המשתמש הכפול, COMMIT, ו-audit <code>MERGE_USERS</code> עם movedTables ו-actor.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>כל הסשנים של המשתמש הכפול מבוטלים (<code>ARC-09</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-24</code> — העברה גם של עמודות user-ref בלי FK.</li><li><code>ARC-09</code> — ביטול הסשנים של המשתמש שנמחק.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="test env is_test_env analytics exclude mark-test"><h3>סימון סביבת טסט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>saToggleTestEnv</code> (sa-app.js:2804) → <code>POST /api/sa/groups/:id/mark-test</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients).</div>
+<div>קלט ואימותים</div><div>קבוצה לא קיימת מחזירה 404.</div>
+<div>שלבי עיבוד</div><div><ol><li><code>UPDATE family_groups SET is_test_env=!!isTest</code>, ו-audit <code>MARK_TEST_ENV</code> או <code>UNMARK_TEST_ENV</code> (ללא שינוי, עם actor).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>is_test_env: false ⇄ true (SA).</div>
+<div>תופעות לוואי</div><div>ללא שינוי: התובנות המאוחדות, kpi-detail ו-top lists מחריגים <code>is_test_env IS NOT TRUE</code>. מרכז הממתינים מציג אותן עם דגל <code>is_test</code>. FLOW AI מחריג אותן ב-providers. שידור Inbox מחריג אותן כברירת מחדל, וכולל אותן רק בסימון "כלול טסט" (<code>SA-53</code>).</div>
+<div>ממשק</div><div>תג 🧪 כתום, וכפתור "קישור דמו ללקוחות" (ללא שינוי).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-53</code> — סביבות טסט מוחרגות משידור Inbox, אלא אם מסמנים "כלול טסט".</li><li><code>SA-58</code> — 404 לקבוצה לא קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="delete soft archive restore permanent deleted is_deleted"><h3>מחיקה רכה, ארכיון מחוקים, שחזור ומחיקה לצמיתות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>saDeleteGroup</code> (sa-app.js:2864) → <code>DELETE /api/superadmin/groups/:id</code>. לשונית archive: <code>loadArchive</code> → <code>GET /api/sa/groups/archived</code>. <code>restoreArchivedGroup</code> → <code>POST /api/sa/groups/:id/restore</code>. <code>permanentDeleteGroup</code> → <code>DELETE /api/sa/groups/:id/permanent</code>.</div>
+<div>הרשאות</div><div>מחיקה רכה: כל סשן SA (clients), כמו היום. לשונית הארכיון, שחזור ומחיקה לצמיתות: כל סשן SA (archive=open ב-SA_TAB_PERMS, כי הלשונית נגישה היום לכל איש צוות דרך קבוצת system ו-checkTabAccess). המחיקה לצמיתות נשארת מוגנת בהקלדת השם המדויק ונרשמת ב-audit. Master יכול לצמצם בעתיד.</div>
+<div>קלט ואימותים</div><div><ul><li>מחיקה רכה: 404 'not found' אם אין קבוצה (ללא שינוי).</li><li>מחיקה לצמיתות: הלקוח דורש הקלדה של השם המדויק, והשרת דורש <code>confirm_name === name</code>, אחרת 400 "שם לא תואם — מחיקה בוטלה" (ללא שינוי).</li><li>רשימת הארכיון: חיפוש ILIKE, ‏LIMIT 200 (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>מחיקה רכה: <code>takeGroupSnapshot(id,'pre_delete')</code>, ואז בטרנזקציה: שמירת הכינוי הנוכחי ב-<code>store_settings.deleted_alias</code>, ‏<code>store_alias=NULL</code> (שחרור הכינוי), <code>is_deleted=true, deleted_at=NOW()</code>, וביטול כל הסשנים של משתמשי הקבוצה. audit DELETE_GROUP.</li>
+<li>שחזור: <code>is_deleted=false, deleted_at=NULL</code>. הכינוי מוחזר מ-deleted_alias (או מה-snapshot pre_delete) אם הוא עדיין פנוי. אם לא, הוא נשאר NULL וה-SA מקבל הודעה "הכינוי X תפוס — יש להגדיר כינוי חדש" (<code>SA-23</code>). audit RESTORE_GROUP.</li>
+<li>מחיקה לצמיתות (טרנזקציה, ללא שינוי בתוכן): ניתוק <code>inbox_messages.customer_group_id</code> ו-<code>calendar_events.customer_group_id</code>, ‏<code>store_alias=NULL</code>, ו-DELETE (שאר הטבלאות ב-CASCADE). audit PERMANENT_DELETE.</li>
+<li><b>אין מחיקה אוטומטית</b> אחרי 30 יום (<code>SA-23</code>, מתוקן).</li></ol></div>
+<div>חישובים</div><div>ימים מאז מחיקה = <code>floor((now − deleted_at)/86400000)</code>. תג "מעל 30 יום" מוצג כשהערך גדול מ-30.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>is_deleted=false</td><td>true</td><td>SA</td><td>—</td><td>snapshot pre_delete, שחרור כינוי, ביטול סשנים, חסימת כניסה</td></tr>
+<tr><td>true</td><td>false</td><td>SA (לשונית archive, open)</td><td>—</td><td>החזרת הכינוי אם הוא פנוי</td></tr>
+<tr><td>true</td><td>נמחק פיזית</td><td>SA (לשונית archive, open)</td><td>confirm_name תואם</td><td>audit PERMANENT_DELETE</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>is_deleted=true חוסם כניסה בכל המסלולים (משפחה, עסק, OTP, דמו ו-storefront) עם ההודעה "החשבון אינו פעיל. פנה לתמיכה" (<code>SA-23</code>, <code>ARC-05</code>).</div>
+<div>ממשק</div><div>נוסח האישור: "הסביבה תועבר לארכיון המחוקים. ניתן לשחזר אותה עד מחיקה לצמיתות." (במקום "תוך 30 יום"). בלשונית הארכיון מוצגים עמודת "ימים מאז מחיקה" ותג "מעל 30 יום".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-23</code> (מתוקן) — חסימת כניסה, החזרת הכינוי בשחזור ונוסח מדויק. אין מחיקה אוטומטית, ויכולת השחזור הבלתי מוגבלת בזמן נשמרת.</li><li><code>ARC-07</code> — הרשאת 'all' לשחזור ולמחיקה לצמיתות (הוחלף ב-RECON-07: archive=open).</li><li><code>RECON-07</code> — הארכיון פתוח לכל איש צוות כמו היום (ולא Master בלבד), לפי SA_TAB_PERMS של tobe-arch.</li><li><code>E2E-23</code> — מכונת המצבים יושרה להרשאות (archive=open לפי RECON-07). נשארה בה הרשאת 'all' ישנה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="snapshot backup restore group_snapshots daily midnight pre_delete pre_restore"><h3>גיבויי סביבה (Snapshots) ושחזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אוטומטי: job יומי ב-00:30 שעון ישראל (<code>runDailySnapshots</code>, ‏<code>ARC-23</code>). ידני: <code>takeManualSnapshot</code> (sa-app.js:3280) → <code>POST /api/sa/groups/:id/snapshot</code>. לפני מחיקה. שחזור: <code>confirmRestoreSnapshot</code> → <code>POST /api/sa/snapshots/:id/restore</code>. רשימה ותצוגה מקדימה, כמו היום.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul><li>יומי: מדלג על קבוצה שיש לה snapshot מסוג 'auto' ב-20 השעות האחרונות, עם השהייה של 3 שניות בין קבוצות (ללא שינוי).</li><li>ידני: 404 אם הקבוצה לא קיימת.</li><li>שחזור: 404 אם ה-snapshot לא קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>takeGroupSnapshot</code>: JSON v1 עם אותו תוכן כמו היום (group, users בשדות נבחרים, store_settings, catalog, הזמנות 30 יום, calendar_*, ו-beauty_* כמו היום).</li>
+<li>ניקוי: שמירת 30 ה-'auto' האחרונים לכל קבוצה. ה-job היומי מוחק גם <code>expires_at &lt; NOW()</code> (ללא שינוי).</li>
+<li>שחזור: <b>קודם</b> <code>takeGroupSnapshot(...,'pre_restore')</code> לפני BEGIN (<code>SA-25</code>). אחר כך בטרנזקציה, אותו upsert לפי id כמו היום: family_groups (name, admin_email, city, street_address, business_type, contact_name, ‏<code>is_deleted=false</code>), users, store_settings, store_catalog, beauty_practitioners, beauty_client_records ו-beauty_inventory. COMMIT ואז audit RESTORE_SNAPSHOT, עם target_type לפי <code>family_groups.type</code>.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>snapshot_type ∈ {auto, manual, pre_delete, pre_restore} (ללא שינוי).</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>מודאל הגיבויים ללא שינוי. בתצוגה המקדימה ובאישור השחזור מוצג: "שחזור הגדרות וקטלוג: פרטי סביבה, משתמשים, הגדרות חנות, קטלוג ונתוני יופי. הזמנות, תורים ויומן לא משוחזרים. שורות שנוספו אחרי הגיבוי נשארות." (<code>SA-25</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-25</code> — pre_restore נלקח לפני השחזור, היקף השחזור מוצג במפורש, ו-audit מסווג לפי type.</li><li><code>ARC-23</code>/<code>ARC-25</code> — job ב-worker בשעון ישראל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="edit group put sa groups business_type admin phone billing features"><h3>עריכת פרטי סביבה ע"י SA (כולל שיוך סוג עסק)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openSAEditGroupModal</code>/<code>saveSAEditGroup</code> (sa-app.js:3434, 3763) → <code>PUT /api/sa/groups/:id</code>. לעסק נשלח אחר כך גם <code>POST /api/sa/groups/:id/billing</code>, ולחבר <code>PATCH /api/sa/groups/:id/modules</code>. זה אחד משני המקומות היחידים לבחירת סוג עסק (כלל 5, <code>ARC-37</code>).</div>
+<div>הרשאות</div><div>כל סשן SA (clients) לשדות הכלליים. שינוי <code>business_type</code> דורש requireSAPermission('biz') (<code>ARC-37</code>). בלי ההרשאה, הבורר מוצג לקריאה בלבד.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>בלקוח: שם ומייל חובה — "שם ומייל לא יכולים להיות ריקים". טלפון ריק לא נשלח (ללא שינוי).</li>
+<li>בשרת: <code>business_type</code> מתעדכן רק אם נשלח, וחייב להיות מתוך ה-enum הקנוני BUSINESS_TYPES: restaurant, retail, services, professional, maintenance_repair, beauty, sport, logistics, construction, healthcare, education, events, food_production, store_only, other (כל 15 הערכים של BUSINESS_TYPES ב-business-app.js:37526, כולל services ו-store_only שעסקים קיימים משתמשים בהם). אחרת 400 "סוג עסק לא תקין" (<code>SA-20</code>). <code>admin_email</code> מנורמל ל-lower ו-trim. ‏404 "קבוצה לא נמצאה".</li>
+<li>טלפון מנהל: מתעדכן רק אם נשלח ערך או <code>clearAdminPhone===true</code>. נרמול <code>+972/972 → 0</code> והסרת רווחים ומקפים (ללא שינוי).</li>
+<li><code>features</code>: אובייקט {key:bool}, ממוזג עם <code>jsonb ||</code> (<code>SA-26</code>). features הוא kill-switch בלבד, שמכבה ולא מדליק זכאות בתשלום (<code>ARC-17</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה אחת:<ol>
+<li>UPDATE family_groups: name, admin_email, ואופציונלית features (מיזוג), city, street_address, last_name, family_nickname, business_type, contact_name.</li>
+<li>billing_config לא נכתב יותר בנתיב הזה. הוא נשמר רק ב-<code>/billing</code>, שמחשב את managed_modules (<code>SA-18</code>).</li>
+<li><code>UPDATE users SET phone</code> לכל ADMIN בקבוצה. אם אין ADMIN ויש טלפון, נוצר משתמש ADMIN חדש (nickname = שם העסק, status active) (ללא שינוי). קישור הפעלה נשלח לטלפון שלו (<code>SA-32</code>).</li>
+<li><code>adminFirstName</code> נכתב ל-<code>users.first_name</code> של ה-ADMIN (ללא שינוי).</li>
+<li>ניקוי cache הזכאויות של הקבוצה (<code>ARC-24</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit EDIT_GROUP עם diff של השדות. שינוי business_type נרשם כ-CHANGE_BUSINESS_TYPE {from,to} (<code>SA-07</code>, <code>ARC-37</code>).</div>
+<div>ממשק</div><div>ללא שינוי בפריסה: שדות משפחה ל-FAMILY שאינו member, שדות עסק (סוג ואיש קשר) ל-BUSINESS, רשת <code>SA_MODULE_LIST</code> לחבר, ודגלי features ומקטע חיוב לעסק. התיקון: <code>saveSAEditGroup</code> שולח <code>features</code> מכל תיבות <code>flag-*</code>, כך שהדגלים נשמרים (<code>SA-26</code>). בורר סוג העסק מציג את 13 ערכי ה-enum (sa.html:4165, ללא שינוי ברשימה).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-26</code> — דגלי features נשמרים במיזוג.</li><li><code>SA-20</code> — enum קנוני ודחייה של ערך אחר.</li><li><code>SA-18</code> — managed_modules נגזר רק בנתיב החיוב, כולל החבילה.</li><li><code>ARC-37</code> — שינוי סוג עסק דורש 'biz' ונרשם ב-audit.</li><li><code>SA-07</code> — audit EDIT_GROUP.</li><li><code>SA-08</code> — יצירת ADMIN כאן היא גם המסלול להתחזות לעסק בלי מנהל.</li><li><code>RECON-14</code> — ה-enum הקנוני כולל גם services ו-store_only. בלעדיהם, שמירת עסק קיים מסוגים אלה ומסלול הוויזארד store_only היו נדחים ב-400.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="edit user delete user patch superadmin users password"><h3>עריכה/מחיקה של משתמש ע"י SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openSAEditUserModal</code>/<code>saveSAEditUser</code> (sa-app.js:3886, 3909), ו-<code>saDeleteUser</code> (2857).</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>role</code> ∈ {ADMIN, MEMBER, CHILD, MANAGER, SENIOR}, ובהתאם לסוג הקבוצה (FAMILY: ADMIN, MEMBER, CHILD. ‏BUSINESS: ADMIN, MANAGER, SENIOR, MEMBER, לפי <code>ARC-06</code>). אחרת 400 "תפקיד לא תקין" (<code>SA-27</code>).</li>
+<li><code>status</code> ∈ {active, invited, pending, blocked}, אחרת 400 "סטטוס לא תקין" (<code>SA-27</code>, מתוקן).</li>
+<li>מחיקה או הורדת תפקיד של ה-ADMIN האחרון בקבוצה, או של <code>owner_user_id</code>, מחזירות 409 "יש להגדיר מנהל אחר קודם" (<code>SA-27</code>).</li>
+<li>טלפון מנורמל. טלפון שכבר קיים באותה קבוצה מחזיר 409.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>PUT /api/sa/users/:id</code>: nickname וסיסמה אופציונלית (bcrypt 12). ‏404 "משתמש לא נמצא" (ללא שינוי).</li>
+<li><code>PATCH /api/superadmin/users/:id</code>: עדכון דינמי של nickname, first_name, last_name, phone, birth_year, id_number (מוצפן, <code>ARC-32</code>), email, role, status ו-new_password. בלי שדות: 400 'no fields to update' (ללא שינוי).</li>
+<li><code>DELETE /api/superadmin/users/:id</code>: מחיקה פיזית ו-audit DELETE_USER (email, role) (ללא שינוי).</li>
+<li>שינוי סיסמה, הורדת תפקיד, חסימה או מחיקה מבטלים את כל הסשנים של המשתמש (<code>ARC-09</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>users.status: active ⇄ blocked, ‏invited → active, ‏pending → active (SA).</div>
+<div>תופעות לוואי</div><div>audit: EDIT_USER עם diff, בלי סיסמה, ו-DELETE_USER (<code>SA-07</code>).</div>
+<div>ממשק</div><div>ללא שינוי. role ו-status מוצגים כבוררים עם הערכים המותרים בלבד.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-27</code> (מתוקן) — ולידציה של role ו-status (כולל pending) והגנה על ADMIN אחרון ועל owner.</li><li><code>ARC-09</code> — ביטול סשנים.</li><li><code>SA-07</code> — audit לעריכה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="plan premium enterprise standard solo member ai tokens change-plan"><h3>שינוי תוכנית (plan) ומכסת AI</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>בורר plan בשורת הסביבה — <code>saPlanChange</code> (sa-app.js:3416) → <code>POST /api/superadmin/groups/:id/plan</code>. הנתיב הישן <code>/premium</code> ממופה ל-plan (<code>SA-28</code>).</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul><li>plan ∈ {solo, member, standard, premium, enterprise}, אחרת 400 "תוכנית לא תקינה" (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שאילתה אחת: <code>plan=$1, is_premium=(plan==='enterprise')</code>. כש-<code>plan='member'</code> מתעדכן באותה שאילתה גם <code>member_type='member'</code> (account_kind, <code>ARC-20</code>). plan אחר לא משנה member_type (<code>SA-28</code>). audit CHANGE_PLAN {from,to}.</li><li><code>/premium</code>: enable ממופה ל-enterprise, אחרת ל-standard, דרך אותה פונקציה ועם audit (<code>SA-28</code>).</li></ol></div>
+<div>חישובים</div><div>מכסת AI יומית (<code>handleAITokens</code>, היחיד שמאפס, <code>SA-11</code>): enterprise ללא הגבלה, premium 50, standard, solo ו-member 10. הערכים נשמרים ב-system_settings (<code>ai_daily_quota_standard</code>, <code>ai_daily_quota_premium</code>) עם ברירות המחדל האלה. האיפוס lazy: כש-<code>last_token_reset</code> קטן מהיום בשעון ישראל, ai_tokens נקבע לפי המכסה של התוכנית (<code>ARC-25</code>, <code>ARC-30</code>). ההפחתה אטומית: <code>UPDATE ... SET ai_tokens=ai_tokens-1 WHERE ai_tokens&gt;0 RETURNING</code>. חיוב: יחידה אחת לכל בקשת משתמש שהסתיימה בתשובת מודל מוצלחת. fallback או שגיאת ספק לא מחויבים, וסבב NEED_DATA נספר כבקשה אחת (<code>SA-14</code>). חריגה מחזירה תמיד HTTP 429 <code>{error:'BATTERY_EMPTY'}</code>. הלקוחות מטפלים ב-429 באותה הודעת "הסוללה ריקה" שמוצגת היום.</div>
+<div>מכונת מצבים</div><div>plan: כל ערך → כל ערך (SA).</div>
+<div>תופעות לוואי</div><div>audit CHANGE_PLAN. אחרי שינוי plan, המכסה החדשה חלה מהאיפוס הבא. בשדרוג באמצע היום, ai_tokens מועלה מיד להפרש בין המכסות.</div>
+<div>ממשק</div><div>הבורר ללא שינוי. אחרי רענון, member_type תואם לבחירה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-28</code> — member_type מסונכרן בשרת, ו-/premium ממופה עם audit.</li><li><code>SA-11</code> — איפוס רק ב-handleAITokens לפי plan, ו-premium מקבל 50 בפועל.</li><li><code>SA-13 — כל נתיבי ה-AI של לקוח מאומתים, עם groupId מהסשן. סוללה נצרכת רק בפיצ'רים שצורכים אותה היום (<code>ARC-30</code> מתוקן, <code>RECON-24</code>). השאר מקבלים rate limit ולוג.</li><li><code>SA-14</code> — חיוב רק על הצלחה, 429 אחיד ו-feature_key ייחודי בלוג.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="impersonate login as group biz-impersonate-token family_sessions"><h3>כניסה לסביבת לקוח (התחזות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הכפתור "כניסה לסביבה" — <code>impersonateGroup</code> (sa-app.js:5891) → <code>POST /api/sa/biz-impersonate-token</code>.</div>
+<div>הרשאות</div><div>verifySA ו-requireSAPermission('impersonate') או 'all' (SA-08, <code>ARC-07</code> מתוקן). ההרשאה impersonate מתווספת במיגרציה לכל צוות קיים, כי הכפתור זמין היום לכל איש צוות (sa-app.js:2571). Master יכול להסיר אותה מצוות. לחבר צוות בלי ההרשאה הכפתור מוסתר.</div>
+<div>קלט ואימותים</div><div><ul><li>groupId חובה, 404 "קבוצה לא נמצאה" (ללא שינוי).</li><li>userId מהבקשה נבחר רק אם הוא שייך לקבוצה. אחרת נבחר ה-ADMIN הראשון.</li><li>אם אין ADMIN: 409 <code>{code:'NO_ADMIN', error:'אין משתמש מנהל לסביבה'}</code>. אין מזהה מזויף (<code>SA-08</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירת סשן בטבלת sessions לפי סוג הקבוצה (family או biz), עם תוקף קבוע של שעה ו-<code>impersonated_by_sa_user_id=req.saUser.id</code> (<code>SA-08</code>).</li><li>audit IMPERSONATE עם actor, ‏group_id ו-user_id. כל פעולה שמתבצעת בסשן הזה נרשמת ביומני הביקורת של הסביבה עם impersonated_by.</li><li>בלקוח, כמו ב-tobe-auth: נפתח טאב חדש (<code>/business.html</code> או <code>/</code>), והטוקן עובר לטאב הזה בלבד (sessionStorage). הטוקן של ה-SA בטאב המקורי לא נדרס.</li><li>בתגובת NO_ADMIN הלקוח מציג "לסביבה אין משתמש מנהל. ליצור מנהל ולהיכנס?". באישור נפתח מודאל עריכת הסביבה עם פוקוס על טלפון המנהל, ואחרי שמירה מוצלחת ההתחזות נשלחת שוב אוטומטית (<code>SA-08</code>, מתוקן).</li></ol></div>
+<div>חישובים</div><div>תוקף: שעה קבועה, בלי הארכה.</div>
+<div>מכונת מצבים</div><div>סשן התחזות: active → expired (אחרי שעה) או revoked (התנתקות מהבאנר).</div>
+<div>תופעות לוואי</div><div>audit IMPERSONATE.</div>
+<div>ממשק</div><div>בסביבה מוצג פס אדום "מצב התחזות — {שם נציג SA}" עם רענון, מזעור והתנתקות, כמו היום, ובתוספת שם הנציג.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-08</code> (מתוקן) — הרשאה, audit, impersonated_by, ‏409 במקום מזהה מזויף, ומסלול "צור מנהל והיכנס" ששומר את היכולת להיכנס לעסק בלי מנהל.</li><li><code>ARC-07</code> — support או all, ותוקף של שעה.</li><li><code>RECON-09</code> — ההרשאה היא impersonate (ממוגרת לכל הצוותים) ולא support, כמו ב-tobe-arch.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="diagnose phone resync activity wizard incomplete mark wizard completed tools"><h3>כלי אבחון: טלפון, סנכרון פעילות, עסקים תקועים באשף</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>saDiagnosePhone</code> (sa-app.js:3113) → <code>GET /api/sa/diagnose-phone/:phone</code>. <code>saResyncActivityLinks</code> → <code>POST /api/sa/resync-activity-links</code>. <code>saWizardIncompleteBusinesses</code> → wizard-incomplete. <code>saMarkWizardCompleted</code> → mark-wizard-completed.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום. diagnose מחזיר PII, ולכן הגישה נרשמת ב-audit (<code>ARC-32</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>mark-wizard-completed: groupId לא תקין מחזיר 400 "groupId לא תקין", ועסק לא קיים 404 "עסק לא נמצא" (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>diagnose (קריאה בלבד, ללא שינוי בתוכן): ניקוי לספרות בלבד, ושליפה מ-storefront_customers, ‏store_customers, ‏20 ה-store_orders האחרונות, ‏member_business_links ו-users עם הטלפון.</li>
+<li>wizard-incomplete: עסקים עם <code>wizard_completed=false</code>, יחד עם הטלפון והכינוי של ה-ADMIN הראשון (ללא שינוי). מאחר שהכניסה כבר לא מסמנת אוטומטית, הרשימה משקפת עכשיו את המצב האמיתי (<code>SA-29</code>).</li>
+<li>mark-wizard-completed: <code>wizard_completed=true WHERE type='BUSINESS'</code> (ללא שינוי), ו-audit MARK_WIZARD_COMPLETED.</li>
+<li>resync: <code>backfillMemberBusinessLinks</code> (ללא שינוי), ו-audit.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>wizard_completed: false → true (SA mark).</div>
+<div>תופעות לוואי</div><div>audit לפעולות הכתיבה ולצפייה ב-PII.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-29</code> — הסימון הידני הוא המסלול היחיד שמסמן עסק כמושלם בלי אשף.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<h2 class="grp">הקמה ושיוך סוג עסק</h2>
+
+<section class="proc" data-f="biz register otp verified_token business onboarding signup"><h3>הרשמת עסק חדש (OTP + יצירת חשבון)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>biz-onboarding.html</code>: <code>regSendOtp</code> (1264) → <code>POST /api/biz/send-otp</code> (purpose=register). <code>verifyOtp</code> (1313) → <code>/api/biz/verify-otp</code>, ואז <code>/api/biz/register</code>.</div>
+<div>הרשאות</div><div>ציבורי מוצהר, עם rate limit (<code>ARC-02</code>, <code>ARC-29</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>purpose ∈ {register, reset_password, login_disambiguate, login}, אחרת "פרמטרים חסרים או לא תקינים" (ללא שינוי).</li>
+<li>rate limit לפי <code>ARC-29</code>: 3 שליחות לשעה ו-10 ליום לכל טלפון, ספורות מלוג שליחות שלא נמחק. חריגה מחזירה 429 "שלחת יותר מדי בקשות. נסה שוב בעוד שעה."</li>
+<li>אימות: תוקף 10 דקות ו-5 ניסיונות לקוד (<code>ARC-29</code>). אחרי הניסיון האחרון: "קוד שגוי 5 פעמים. בקש קוד חדש." לפני כן: "קוד שגוי. נותרו N ניסיונות."</li>
+<li>register: phone, verified_token, password ו-business_name חובה. סיסמה של 6 תווים לפחות — "סיסמה חייבת להכיל לפחות 6 תווים". verified_token נצרך אטומית (ללא שינוי). טלפון שכבר קיים מחזיר "מספר טלפון זה כבר רשום במערכת...". החריג לטלפון dev ‏<code>0526626619</code> פעיל רק מחוץ לייצור (<code>ARC-31</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>send-otp: מחיקת OTP קודם, יצירת קוד של 6 ספרות (crypto.randomInt), שמירת hash ב-<code>business_otp</code>, ו-SMS ב-E.164 (ללא שינוי).</li>
+<li>verify (register): מחיקת ה-OTP ויצירת verified_token, ‏purpose='verified', לתוקף 15 דקות (ללא שינוי).</li>
+<li>register, בטרנזקציה אחת (<code>ARC-11</code>): INSERT ל-family_groups <code>(type='BUSINESS', account_kind ריק, business_type='other', wizard_completed=FALSE, is_onboarded=FALSE, group_code='B'+7 hex, managed_modules)</code> ו-INSERT ל-users של ADMIN עם nickname זמני 'בעל/ת העסק'. COMMIT, ואחריו <code>createSession(...,'biz')</code>. ‏member_type='biz' לא נכתב (<code>ARC-20</code>). ‏is_onboarded=FALSE (<code>SA-29</code>).</li>
+<li>אחרי התגובה: מייל ל-<code>adminNotificationEmail</code> "WEFLOWZ | עסק חדש נרשם למערכת!" דרך sendSystemEmail (ללא שינוי בתוכן).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><code>wizard_completed</code>: FALSE בהרשמה → TRUE רק ב-wizard/complete או בסימון ידני של SA (<code>SA-29</code>).</div>
+<div>תופעות לוואי</div><div>SMS ומייל ל-SA.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-11</code> (SA-30) — הרשמה טרנזקציונית, בלי קבוצה יתומה.</li><li><code>SA-29</code> — is_onboarded=FALSE בהרשמה.</li><li><code>ARC-29</code> — מגבלות OTP אחידות (10 דקות, 5 ניסיונות, 3 לשעה ו-10 ליום).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="wizard complete business_type modules bundle pricing trial biz-onboarding"><h3>אשף הקמת עסק — בחירת סוג עסק, מודולים ותמחור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>אחרי הרשמה, או עם <code>?wizard=1</code>, ב-<code>biz-onboarding.html</code>. סיום: <code>completeWizard</code> (2378) → <code>PATCH /api/biz/wizard/complete</code>. זה אחד משני המקומות היחידים לבחירת סוג עסק, יחד עם עריכת SA (כלל 5).</div>
+<div>הרשאות</div><div>סשן biz, ‏ADMIN בלבד, groupId מהסשן, ורק כש-<code>wizard_completed=false</code>. אחרת 409 "האשף כבר הושלם" (<code>ARC-37</code>, <code>SA-10</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>בלקוח: חובה לבחור סוג עסק — "יש לבחור סוג עסק". הגריד מציג 7 סוגים: restaurant, retail, professional, maintenance_repair, beauty, sport, logistics (ללא שינוי).</li>
+<li>פרטי חשבון: מייל, שם פרטי, שם משפחה, עיר ושנת לידה חובה. אישור התקנון חובה. שנה בין 1940 ל-2010 (ללא שינוי).</li>
+<li>בשרת: business_type, ‏managed_modules (מערך) ו-staff_roles (מערך) — אחרת "פרמטרים חסרים". business_type חייב להיות מתוך ה-enum הקנוני, אחרת 400 "סוג עסק לא תקין" (<code>SA-20</code>). <code>terms_accepted===true</code> — "יש לאשר את התקנון". פרטי חשבון — "פרטי חשבון חסרים". שנה — "שנת לידה לא תקינה (1940–2010)" (ללא שינוי).</li>
+<li>כל מזהה מודול נבדק מול module_catalog, ומזהה לא מוכר מחזיר 400 (<code>ARC-18</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>הלקוח מרכיב את <code>managed_modules</code> כמו היום: bundle_id, מודולי MANAGE_OPTIONS, תתי-מודולים ושכבת AI. מיפוי סוג העסק לחבילה נקרא מהשרת (<code>BUSINESS_TYPES[].bundle_id</code> / <code>business_type_modules</code>) ולא מהקבוע BIZ_BUNDLE_MAP (<code>SA-19</code>, <code>ARC-18</code>).</li>
+<li>בשרת, טרנזקציה אחת (<code>ARC-11</code>): UPDATE family_groups עם business_type, managed_modules, staff_roles, ‏wizard_completed=TRUE, ‏is_onboarded=TRUE, admin_email, city, terms_accepted_at, street_address, opening_hours, lat ו-lng.</li>
+<li>UPDATE ל-users של ה-ADMIN: first_name, last_name, birth_year, ו-nickname="פרטי משפחה" (ללא שינוי).</li>
+<li><code>group_licenses</code>: upsert לכל מודול עם המחיר מהנוסחה, וסנכרון <code>licensed_features</code> באותה טרנזקציה (<code>SA-10</code>).</li>
+<li><code>billing_config</code> בסכמה הקנונית (<code>SA-18</code>): <code>{bundle_id:&lt;מזהה מודול&gt;, modules:[{id,open:true,billing:price&gt;0,custom_price:price}], extra_users, discount_type:null, discount_value:0, monthly_total, updated_at}</code>. monthly_total מחושב בשרת.</li>
+<li>זכאויות: tenant_entitlements נגזרות מ-billing_config (source bundle/addon) ונכתבות באותה טרנזקציה, עם ביטול cache הזכאויות (<code>ARC-24</code>). בתקופת ההטבה גם source='trial', עם valid_to=trial_until (<code>ARC-17</code>). זה מה ש-requireModule ו-GET /api/me/entitlements קוראים מיד בכניסה הראשונה ל-business.html. managed_modules נכתב רק בתקופת המעבר, כשדה תאימות לקריאה בלבד, ומפסיק להיכתב בשחרור (tobe-arch, "זכאות למודולים").</li>
+<li><code>trial_until = NOW() + getFreeMonths()</code> חודשים, אם הערך גדול מ-0 (<code>SA-21</code>).</li>
+<li>כשל ברישוי, בחיוב או ב-trial מכשיל את כל הבקשה (500) ומחזיר הכל לאחור (ROLLBACK). שום כשל לא נבלע (<code>ARC-11</code>).</li>
+<li>אחרי COMMIT, ללא שינוי בתוכן: מייל ברוכים הבאים ללקוח, בלי סיסמה (<code>SA-32</code>), ומייל ל-SA "עסק חדש הצטרף: X".</li>
+<li>בלקוח: עדכון הסשן המקומי ומעבר ל-<code>business.html</code> (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div><ul>
+<li>מחיר מודול (<code>SA-19</code>, מתוקן): אם <code>modId===bundle_id</code>, המחיר הוא מחיר החבילה מהקטלוג. אם המודול כלול בחבילה שנבחרה (<code>bundle_included_modules</code> של אותה חבילה), המחיר 0. אחרת מחיר הקטלוג (<code>module_pricing_catalog</code>). מודולי MANAGE_OPTIONS בלי חבילה מחויבים במחיר הקטלוג.</li>
+<li><code>monthly_total</code> = הנוסחה הקנונית של <code>SA-18</code> (חבילה, מודולים בחיוב, ‏9 × extra_users, פחות הנחה, ולא פחות מ-0).</li>
+<li>עלות משתמשים בלקוח: <code>max(0, Σcount − 1) × user_extra(9)</code> (ללא שינוי). השרת שומר את הכמות ב-<code>extra_users</code>.</li>
+<li>סכום מוצג בסיכום (<code>calcTotalMonthly</code>): חבילה, תתי-מודולים, AI בתשלום, MANAGE_OPTIONS שאינם בחבילה ומשתמשים. כל שורה מוצגת עם המחיר שלה לפני האישור. ההטבה מוצגת כ"N חודשים ראשונים — ₪0" (ללא שינוי).</li>
+<li>חודשי ניסיון: <code>getFreeMonths()</code> — שלם בין 0 ל-12. אין שורה: 3. ערך לא תקין: 0 (<code>SA-21</code>).</li>
+<li>חבילות לפי סוג (מחירים מהקטלוג החי, ללא שינוי בערכים): restaurant 249, retail 169, ‏professional→<code>bundle_professional</code> 219 (תיקון המיפוי מ-bundle_services), construction 149, maintenance_repair 119, healthcare 139, education 129, sport 169, events 149, food_production 199, beauty→beauty_all 89, logistics→logistics_all 109. bundle_services נשאר בקטלוג כחבילה זמינה.</li></ul></div>
+<div>מכונת מצבים</div><div>wizard_completed: false → true (פעם אחת בלבד).</div>
+<div>תופעות לוואי</div><div>שני מיילים, רישיונות, זכאויות ו-trial. ‏audit של הקבוצה: WIZARD_COMPLETE עם business_type.</div>
+<div>ממשק</div><div>אותם מסכים ואותו סדר: sec-welcome, בחירת סוג, מסלול (ניהול מלא או חנות בלבד), sec-manage, sec-paid-modules, sec-store, sec-account-details, sec-summary ו-sec-finishing. השינוי היחיד: בסיכום ובכרטיסי MANAGE_OPTIONS מוצג המחיר האמיתי של מודולים שאינם בחבילה. מדריך ההקמה (<code>biz-setup-guide.html</code>) והמדריכים לפי סוג עסק מתעדכנים לגבי המחירים (כלל 6).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-19</code> (מתוקן) — תמחור לפי חבילה וקטלוג, מיפוי professional→bundle_professional, טבלת מיפוי בשרת, וללא שינוי רטרואקטיבי לעסקים קיימים.</li><li><code>SA-20</code> — enum קנוני. מיגרציה: health→healthcare ו-consulting→professional.</li><li><code>SA-18</code> — billing_config קנוני ו-monthly_total מחושב בשרת.</li><li><code>SA-21</code> — getFreeMonths() אחיד.</li><li><code>SA-10</code> — סנכרון licensed_features, ו-ADMIN רק כשהאשף לא הושלם.</li><li><code>ARC-11</code> (SA-30) — טרנזקציה, בלי כשלים נבלעים.</li><li><code>ARC-37</code> — business_type נכתב כאן רק פעם אחת.</li><li><code>RECON-14</code> — "ה-enum הקנוני" הוא רשימת 15 הערכים שבתהליך עריכת הסביבה (כולל services ו-store_only), כך שמסלול הוויזארד store_only ממשיך לעבוד.</li><li><code>E2E-07</code> — האשף כותב tenant_entitlements (מקור האמת) באותה טרנזקציה ומבטל cache; managed_modules רק כשדה תאימות בתקופת המעבר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="biz login wizard_completed is_onboarded groups onboard"><h3>קביעת "האשף הושלם" בכניסה לעסק ואשף דשבורד קל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>POST /api/biz/login</code>, ו-<code>POST /api/groups/onboard</code> מאשף הדשבורד ב-business.html.</div>
+<div>הרשאות</div><div>login ציבורי מוצהר. onboard דורש סשן biz, ו-groupId מהסשן.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol><li><code>wizardDone = wizard_completed === true</code> בלבד. הכניסה לא כותבת יותר wizard_completed ברקע (<code>SA-29</code>).</li><li>כניסה עם <code>wizard_completed=false</code> מחזירה סשן תקף עם <code>wizard_completed:false</code>, והלקוח מפנה ל-<code>biz-onboarding.html?wizard=1</code>.</li><li>/groups/onboard: <code>is_onboarded=TRUE</code> לקבוצת הסשן (ללא שינוי). הדגל משמש לאשף הדשבורד הקל בלבד, ואינו מסמן את אשף ההקמה כמושלם.</li><li><b>מיגרציה חד-פעמית</b> (<code>SA-29</code>, מתוקן): <code>UPDATE family_groups SET wizard_completed=TRUE WHERE type='BUSINESS' AND (wizard_completed IS NOT FALSE OR is_onboarded=TRUE)</code>. כך כל עסק קיים שנחשב היום מושלם נשאר מושלם.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>wizard_completed: false → true (wizard/complete או SA mark בלבד).</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>biz-onboarding: אם קיים סשן עם <code>wizard_completed</code>, מתבצעת הפניה ל-business.html (ללא שינוי). business.html: סשן עם wizard_completed=false מפנה לאשף.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-29</code> (מתוקן) — אין סימון אוטומטי בכניסה, ומיגרציה שומרת את כל העסקים הקיימים כמושלמים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="family onboarding register otp groups create solo pre-invite"><h3>אשף הקמת משפחה (OTP, יצירת סביבה, הזמנת בני משפחה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>family-onboarding.html</code>: <code>wizSendOtp</code> → <code>/api/family/send-otp</code>. <code>wizVerifyOtp</code> → <code>/api/family/verify-otp</code>. <code>wizCreateFamily</code> → <code>POST /api/groups</code>. <code>wizStep3Next</code> → <code>/api/family/pre-invite</code>. <code>wizJoinCommunity</code> → <code>/api/community/join</code>.</div>
+<div>הרשאות</div><div>send-otp, verify-otp ו-POST /api/groups ציבוריים מוצהרים, עם verified_token ו-rate limit. pre-invite ו-community/join דורשים סשן משפחה (הטוקן שהתקבל ביצירה), וה-groupId נלקח מהסשן (<code>SA-31</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>OTP: מגבלות <code>ARC-29</code> (3 לשעה ו-10 ליום, 10 דקות, 5 ניסיונות), purpose family_register. ‏verified_token (purpose family_verified) תקף 15 דקות (ללא שינוי).</li>
+<li>בלקוח, ללא שינוי: שם קבוצה, שם פרטי, שם משפחה, עיר, שנה, מייל וסיסמה חובה. אישור התקנון, סיסמה של 4 תווים לפחות, עד 8 בני משפחה, וטלפון בן משפחה לפי <code>/^[0-9\-\+\s]{7,15}$/</code>.</li>
+<li><code>POST /api/groups</code>, ללא שינוי בכללים: verified_token תואם ולא פג ל-FAMILY. מגבלה של 2 סביבות לא מחוקות לאותו admin_email, למעט המייל של Master. lastName ו-city חובה. טלפון חובה מגיל 10: כשחסר מוחזר 400 "טלפון חובה" לפני כל נרמול, במקום TypeError (<code>SA-31</code>). טלפון ייחודי בין סביבות FAMILY (החריג לסיומת dev רק מחוץ לייצור).</li>
+<li>pre-invite: עד 8 מוזמנים לבקשה. מעבר לזה 400 (<code>SA-31</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה (<code>ARC-11</code>). כל החזרת שגיאה, כולל lastName ו-city, עוברת ROLLBACK ו-release:<ol>
+<li>קוד קבוצה <code>generateGroupCode()</code>, קהילה לפי <code>inviteCommunityCode</code>, ומפנה לפי <code>referralGroupCode</code> → <code>registration_source='referral:CODE'</code> (ללא שינוי).</li>
+<li>INSERT ל-family_groups: plan 'standard' לעסק ו-'solo' למשפחה, account_status 'active', referred_by_group_id (ללא שינוי).</li>
+<li>INSERT ל-users של ADMIN (nickname="פרטי משפחה", bcrypt), ‏<code>owner_user_id</code>, ועסקת פתיחה של ₪0 עם אותם טקסטים.</li>
+<li>COMMIT, מחיקת verified_token, ו-<code>awardFlow('family', referrer, 'referral_join')</code> בטרנזקציה משלה (<code>ARC-15</code>). כשקהילה מגיעה ל-30 משפחות, <code>communities.status='active'</code> (ללא שינוי).</li>
+<li>מיילים: ל-SA "WEFLOWZ | הצטרפות חדשה למערכת!" (ללא שינוי). למשתמש: קוד הסביבה, שם המשתמש וקישור כניסה, <b>בלי הסיסמה</b> (<code>SA-32</code>, <code>ARC-27</code>).</li>
+<li>FAMILY: <code>createSession</code>, והטוקן מוחזר בתשובה (ללא שינוי).</li>
+<li>pre-invite, עם groupId מהסשן: לכל חבר, role 'ילד' → CHILD ואחרת MEMBER. טלפון שכבר קיים בקבוצה מדולג. INSERT ל-users עם status 'invited' ו-hash placeholder (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>FLW למפנה לפי <code>flow_config.referral_join</code> (ברירת מחדל 20, ללא שינוי).</div>
+<div>מכונת מצבים</div><div>users מוזמנים: invited → active בהצטרפות.</div>
+<div>תופעות לוואי</div><div>מיילים, FLW למפנה והפעלת קהילה.</div>
+<div>ממשק</div><div>ללא שינוי: 6 נקודות התקדמות, בחירת "מה לנהל" לטיפים, והזמנות WhatsApp ב-wa.me עם קוד הסביבה. הלקוח שולח את הטוקן מהיצירה בכותרת Authorization של pre-invite ו-join.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-31</code> — pre-invite מאומת עם groupId מהסשן ותקרה של 8, ו-400 "טלפון חובה" במקום TypeError.</li><li><code>ARC-11</code> (SA-30) — ROLLBACK בכל החזרת שגיאה.</li><li><code>SA-32</code> — הסיסמה לא נשלחת במייל.</li><li><code>ARC-29</code> — מגבלות OTP.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מודולים, רישוי ותמחור</h2>
+
+<section class="proc" data-f="pricing catalog module_pricing_catalog free months promo wizard logo app_config bundles"><h3>מחירון מודולים, חבילות והטבת חודשי ניסיון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית pricing: <code>renderPricingCatalogView</code> (sa-app.js:14970), <code>updateModulePrice</code>, <code>savePricingCatalog</code>, <code>uploadWizardLogo</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (pricing=open ב-SA_TAB_PERMS, כמו ב-checkTabAccess היום), עם audit PRICING_UPDATE לכל שמירה. הקריאות הציבוריות <code>/api/public/pricing-catalog</code> ו-<code>/api/biz/app-config</code> נשארות ציבוריות. ‏<code>/api/biz/pricing-catalog</code> דורש סשן biz.</div>
+<div>קלט ואימותים</div><div><ul><li>POST <code>/api/sa/pricing-catalog</code>: catalog חייב להיות מערך — "catalog must be an array". כל מחיר הוא שלם ≥0. ‏free_months שלם בין 0 ל-12 (<code>SA-21</code>). promo_text נחתך ל-200 תווים (ללא שינוי).</li><li>מחיר מודול בלקוח: <code>max(0, parseInt)</code> (ללא שינוי).</li><li>upload-wizard-logo: העלאה לפי <code>ARC-26</code> — png, jpg, webp או gif, נבדק לפי magic bytes, עד 8MB. HEIC/HEIF מומר ל-JPEG, ו-SVG מומר לרסטר PNG (לעולם לא נשמר או מוגש כ-image/svg+xml), כך שלוגו SVG שעולה היום ממשיך לעלות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>GET מחזיר את הקטלוג השמור ולא כותב. תיקון routines/menu_templates (<code>patchPricingCatalogForRoutines</code>) רץ פעם אחת כמיגרציית נתונים (<code>SA-59</code>, <code>ARC-12</code>), עם אותה תוצאה בקטלוג.</li>
+<li>אם אין קטלוג שמור, הלקוח משתמש ב-<code>PRICING_CATALOG_DEFAULT</code> (ללא שינוי). מקור האמת בשרת הוא module_catalog (<code>ARC-18</code>), שמאותחל מאותם ערכים.</li>
+<li>שמירה, בטרנזקציה אחת: <code>module_pricing_catalog</code>, ‏<code>wizard_free_months</code> (toggle כבוי = 0, ברירת מחדל 3) ו-<code>wizard_promo_text</code>. אחר כך <code>wizard_logo_url</code> ממוזג לתוך <code>app_config</code> (ללא שינוי).</li>
+<li>לוגו: העלאה חתומה ל-Cloudinary (<code>ARC-26</code>). מוחזר URL.</li>
+<li>קריאות: <code>/api/public/pricing-catalog</code>, ‏<code>/api/biz/pricing-catalog</code> ו-<code>/api/biz/app-config</code>. כולן מחזירות free_months דרך getFreeMonths() (<code>SA-21</code>).</li></ol></div>
+<div>חישובים</div><div>קטלוג ברירת המחדל, ללא שינוי: core חינם (feed, settings). users: user_manager 0, user_extra 9. ‏AI: standard 0 (10 ליום), premium 29 (50 ליום), enterprise 79. ‏sales: sales 49, pos 29, customers 19, calendar 19, leads 19, cases 25, deliveries 19, reviews 15, menu_templates 19. ‏team: members 19, timeclock 15, shifts 15, tasks 15, routines 19, academy 25. ‏inventory: pantry 19, shop 15, equipment 15, foodcost 19. ‏finance: cashflow 25, bank 15, budget 15, timelog 19, forecast 25, reports 19. ‏comms: surveys 15, community 19, whatsapp_alerts 29, content 15, documents 15. חבילות: restaurant 249, retail 169, services 159, construction 149, maintenance_repair 119, healthcare 139, education 129, sport 169, events 149, food_production 199, professional 219, beauty_all 89 (ומודולי יופי 10–19), logistics_all 109. מזהה הקבוצה של חבילת התחזוקה מאוחד ל-<code>bundle_maintenance_repair</code> (<code>SA-18</code>). ‏getFreeMonths(): שלם 0–12, ‏3 כשאין שורה ו-0 כשהערך לא תקין.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit PRICING_UPDATE עם diff של המחירים (<code>SA-07</code>). שינוי מחיר לא משנה billing_config קיים שנשמר עם custom_price. מודול בלי custom_price מקבל את המחיר החדש בחישוב monthly_total הבא.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-21</code> — מקור יחיד ל-free_months.</li><li><code>SA-59</code> — GET לא כותב, ותיקון הקטלוג רץ כמיגרציה.</li><li><code>SA-07</code> — audit לשינוי תמחור.</li><li><code>SA-18</code> — איחוד מזהה החבילה של תחזוקה.</li><li><code>ARC-26</code> — העלאת לוגו מאובטחת.</li><li><code>RECON-06</code> — לוגו SVG או HEIC מומר ולא נדחה, לפי <code>ARC-26</code> המתוקן.</li><li><code>RECON-07</code> — לשונית המחירון פתוחה לכל איש צוות כמו היום (ולא all), לפי tobe-arch ו-tobe-auth.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="billing config managed_modules group billing bundle discount extra users monthly total"><h3>תצורת חיוב והרשאות מודולים לעסק (billing_config → managed_modules)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מקטע החיוב במודאל עריכת הסביבה: <code>initBillingSection</code> (sa-app.js:3529), <code>recalcBilling</code>, <code>getBillingConfig</code> → <code>POST /api/sa/groups/:id/billing</code>. צפייה: <code>openSABillingModal</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul><li>billing_config חובה — "billing_config missing". קבוצה לא קיימת מחזירה 404 'group not found' (ללא שינוי).</li><li>סכמה קנונית (<code>SA-18</code>): <code>bundle_id</code> הוא מזהה מודול מהקטלוג או null. <code>modules</code> הוא מערך של אובייקטים <code>{id,open,billing,custom_price?}</code>. <code>extra_users</code> שלם ≥0. <code>discount_type</code> ∈ {pct, fixed, null}. <code>discount_value</code> ≥0, ועם pct לכל היותר 100. כל מזהה נבדק מול הקטלוג, וערך לא תקין מחזיר 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בפתיחה, ללא שינוי בהתנהגות: אם אין billing_config, נבחרת אוטומטית החבילה של business_type מטבלת המיפוי בשרת. מודולי ברירת המחדל של הסוג (<code>business_type_modules</code>, שהחליף את BIZ_TYPE_MODULES, ‏<code>ARC-18</code>) מסומנים פתוחים ולחיוב. הבחירה האוטומטית של maintenance עובדת עכשיו בזכות איחוד המזהה. אם יש billing_config, מודול שאינו ברשימה מוצג סגור ולא מחויב.</li>
+<li>לכל מודול שאינו חינמי ואינו חבילה: תיבות "פתוח" ו-"₪", ושדה מחיר פרטני (ריק = מחיר הקטלוג). ללא שינוי.</li>
+<li>הלקוח שולח את הבחירות. השרת מחשב <code>monthly_total</code> בעצמו (<code>SA-18</code>) ושומר, בטרנזקציה אחת, את billing_config ואת <code>managed_modules = [bundle_id] ∪ מודולי החבילה ∪ {m.id | m.open!==false}</code>. גם tenant_entitlements נגזרות (<code>ARC-17</code>), וה-cache מנוקה (<code>ARC-24</code>).</li>
+<li>מיגרציה חד-פעמית: <code>extra_users_cost</code> מומר ל-<code>extra_users = extra_users_cost/9</code>. ‏<code>bundle_id</code> שהוא groupId (למשל bundle_services_group) מומר למזהה המודול. מחרוזות בתוך <code>modules</code> מומרות ל-<code>{id,open:true,billing:true}</code>. monthly_total מחושב מחדש. הזכאות של כל עסק נשמרת בדיוק.</li></ol></div>
+<div>חישובים</div><div><code>subtotal = מחיר החבילה + Σ(billing ? custom_price ?? catalogPrice : 0) + 9×extra_users</code>. הנחה: pct → <code>round(subtotal×v/100)</code>, קבוע → <code>min(v, subtotal)</code>. <code>monthly_total = max(0, subtotal − discount)</code>. בתקופת ההטבה (<code>trial_until</code> בעתיד) הסכום לגבייה הוא 0 (<code>SA-21</code>). הנוסחה זהה לחישוב בלקוח היום (sa-app.js:3740-3752), אבל מתבצעת בשרת.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div><code>managed_modules</code> ו-tenant_entitlements הם ה-allow-list ש-<code>requireModule()</code> בודק (ללא שינוי במשמעות). ‏audit BILLING_CONFIG_UPDATE עם diff (<code>SA-07</code>).</div>
+<div>ממשק</div><div>מודאל הצפייה <code>openSABillingModal</code> נפתח בלי ReferenceError, כי extraUsersCost מוגדר לפני השימוש. הוא מציג את monthly_total מהשרת, כולל חבילה והנחה. גם תג ה-₪ בשורת הסביבה ושורת הסיכום בעריכה מציגים את אותו ערך.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-18</code> — סכמה קנונית, monthly_total בשרת, החבילה נכנסת ל-managed_modules, תיקון המודאל, איחוד bundle_maintenance ומיגרציה.</li><li><code>ARC-17</code> — זכאויות נגזרות.</li><li><code>SA-07</code> — audit.</li><li><code>SA-21</code> — 0 לגבייה בזמן הטבה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="trial trial_until free months benefit manage"><h3>ניהול הטבת חינם (trial_until)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לחיצה על תג 🎁 בשורת עסק — <code>manageTrial</code> (sa-app.js:15210) → <code>GET/PATCH /api/sa/groups/:id/trial</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום.</div>
+<div>קלט ואימותים</div><div><ul><li>שמירה: תאריך חובה, בפורמט ISO תקין. ביטול הטבה: null (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בחירה בין שמירת תאריך, ביטול הטבה (null) וסגירה (ללא שינוי).</li><li>PATCH: <code>trial_until=$1||NULL</code>. העמודה נוצרת במיגרציה, ואין ALTER TABLE בזמן ריצה (<code>SA-21</code>, <code>ARC-12</code>).</li><li>trial_until נקבע אוטומטית בכל יצירת עסק: באשף, במחולל ה-AI וב-SA, דרך getFreeMonths() (<code>SA-21</code>).</li></ol></div>
+<div>חישובים</div><div>ימים נותרים: <code>max(0, round((trial_until − now)/86400000))</code> (ללא שינוי). כלל חיוב (<code>SA-21</code>): עד trial_until, ועד בכלל, הסכום החודשי לגבייה הוא 0, והתג מציג "הטבה". מהיום שאחרי, monthly_total נכנס לגבייה הידנית (<code>ARC-22</code>). הזכאות למודולים לא משתנה במעבר.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>ללא הטבה</td><td>בהטבה</td><td>יצירת עסק / SA</td><td>free_months&gt;0 או תאריך עתידי</td><td>גבייה 0</td></tr><tr><td>בהטבה</td><td>ללא הטבה</td><td>זמן / SA</td><td>trial_until עבר או בוטל</td><td>monthly_total לגבייה, ומופיע ברשימת החיוב בדשבורד</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>audit TRIAL_UPDATE.</div>
+<div>ממשק</div><div>ללא שינוי. תג הטבה בשורה עם ימים נותרים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-21</code> — trial_until משפיע על הסכום לגבייה ונקבע בכל יצירה, והעמודה נוצרת במיגרציה.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="module request biz approve deny module_requests features cancel"><h3>בקשות פתיחת מודול מעסקים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: <code>POST /api/biz/module-request</code>. ‏SA: תג 🔔 בשורת עסק, <code>saBizApproveModule</code>/<code>saBizDenyModule</code> (sa-app.js:2702, 2724) → <code>PATCH /api/sa/groups/:id/module-request</code>. גם FLOW AI (APPROVE/DENY_MODULE_REQUEST). רשימה: <code>GET /api/sa/module-requests</code>.</div>
+<div>הרשאות</div><div>בקשה: סשן biz ADMIN, ‏groupId מהסשן. אישור ודחייה: כל סשן SA (clients), כמו היום. ב-FLOW AI: אחרי אישור אנושי (<code>SA-16</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>biz: moduleId חובה ('missing fields'), ומזהה קיים בקטלוג או <code>CANCEL_&lt;id&gt;</code> של מודול שפתוח לעסק.</li><li>SA: moduleId ו-action ∈ {approve, deny} — 'missing fields'. בקשה שלא קיימת מחזירה 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>בקשה: מחליפה בקשה קיימת לאותו moduleId ב-<code>module_requests</code> (JSONB), עם <code>{moduleId, moduleName, note, requested_at, status:'pending'}</code> (ללא שינוי).</li>
+<li>אישור, דרך פונקציית שרת אחת <code>approveModuleRequest(groupId, moduleId, actor)</code> בטרנזקציה (<code>SA-17</code>): managed_modules מה-DB ∪ {moduleId}, ולא המערך מהלקוח. <code>{id, open:true, billing:true}</code> נוסף ל-billing_config.modules, ו-monthly_total מחושב מחדש. <code>features[MODULE_ID_TO_FEATURE_KEY[id]]=true</code> (אותה מפה: sales→store, shop→b2b, bank→finance, pantry→inventory, customers→crm וכו'). נוצרת זכאות sa_grant/addon (<code>ARC-17</code>), ה-cache מנוקה והבקשה מוסרת.</li>
+<li>אישור בקשת <code>CANCEL_&lt;id&gt;</code>: המודול מוסר מ-managed_modules ומ-billing_config.modules, הזכאות נסגרת (valid_to=NOW), monthly_total מחושב מחדש והבקשה מוסרת (<code>SA-17</code>).</li>
+<li>דחייה: הסרת הבקשה בלבד (ללא שינוי).</li>
+<li>המסלול הידני ו-FLOW AI קוראים לאותה פונקציה.</li></ol></div>
+<div>חישובים</div><div>monthly_total לפי הנוסחה של <code>SA-18</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>—</td><td>pending</td><td>ADMIN עסק</td><td>—</td><td>מונה בדשבורד ובמרכז הממתינים</td></tr><tr><td>pending</td><td>(נמחקת) אושרה</td><td>SA / FLOW AI אחרי אישור</td><td>—</td><td>פתיחה או סגירה (CANCEL_) של המודול, חיוב, features וזכאות</td></tr><tr><td>pending</td><td>(נמחקת) נדחתה</td><td>SA</td><td>—</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>המונה בדשבורד ובמרכז הממתינים (ללא שינוי). ‏audit MODULE_REQUEST_APPROVE או MODULE_REQUEST_DENY (<code>SA-07</code>).</div>
+<div>ממשק</div><div>בבקשת ביטול, הכפתור "אישרתי ביטול" מאשר את הביטול, והטוסט "המודול נסגר והוסר מהחיוב". לצידו נוסף הכפתור "דחה בקשת ביטול". שאר התצוגה ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-17</code> — פונקציה אחת עם נתונים מה-DB, פורמט billing אחיד, ניקוי cache, ביטול שמתבצע בפועל, ו-FLOW AI זהה למסלול הידני.</li><li><code>SA-16</code> — אישור מ-FLOW AI רק אחרי אישור אנושי.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="member unlocked_modules sa_module_list upgrade member family unlock"><h3>מודולים לחשבונות "חבר WEFLOWZ" ושדרוג למשפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שורת סביבה עם <code>member_type='member'</code>: רשת <code>SA_MODULE_LIST</code> עם 17 מודולים (ללא שינוי ברשימה). <code>saInlineSaveModules</code>, <code>saQuickUnlockModule</code> ו-<code>saUpgradeToFamily</code>.</div>
+<div>הרשאות</div><div><b>verifySA</b> על שלושת הנתיבים (<code>SA-03</code>), ומעליו כל סשן SA (clients).</div>
+<div>קלט ואימותים</div><div><ul><li>modules חובה, מערך מזהים מתוך SA_MODULE_LIST, אחרת 400.</li><li>memberType ∈ {family, member}, אחרת 'invalid' (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>PATCH /api/sa/groups/:id/modules</code>: <code>unlocked_modules=$1</code>, והסרת בקשות (<code>r-&gt;&gt;'key'</code>) שנפתחו (ללא שינוי).</li>
+<li><code>PATCH /unlock-module</code>: הוספה למערך אם חסר, והסרת הבקשה (ללא שינוי).</li>
+<li><code>PATCH /upgrade-member</code>: <code>member_type=$1</code> (account_kind, ‏<code>ARC-20</code>), ללא שינוי.</li>
+<li>הזכאויות של חשבון חבר נגזרות מ-unlocked_modules (source sa_grant, ‏<code>ARC-17</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>member_type: member ⇄ family (SA).</div>
+<div>תופעות לוואי</div><div>audit: MEMBER_MODULES_UPDATE, MEMBER_UNLOCK_MODULE ו-MEMBER_UPGRADE.</div>
+<div>ממשק</div><div>ללא שינוי: מודול עם בקשה ממתינה מסומן בכתום עם 🔔, והשמירה רק בלחיצה על "שמור".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-03</code> — verifySA על שלושת הנתיבים. גם quest-library visibility ופעולות biz-posts של קהילה (server.js:4114, 16733-16748) מקבלים verifySA.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="group_licenses licensed_features license feature price"><h3>רישיונות פיצ'רים (group_licenses)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET/POST /api/groups/:id/licenses</code>. נקרא מ-<code>toggleFeatureLicense</code> במודאל הגדרות העסק (business-app.js:42122-42164), מ-<code>saManageLicenses</code>/<code>saToggleLicense</code> (business-app.js:42307-42345) ומהאשף.</div>
+<div>הרשאות</div><div>(<code>SA-10</code>, מתוקן) GET: חבר בעסק עצמו או SA. POST: (א) ADMIN של העסק, על הקבוצה שלו בלבד (verifyBizAdminOnly, groupId מהסשן. ‏<code>:id</code> שונה מהסשן מחזיר 403). (ב) SA, על כל קבוצה, דרך <code>POST /api/sa/groups/:id/licenses</code>. (ג) סשן התחזות של SA. (ד) האשף, בתוך wizard/complete. בקשה בלי אימות מחזירה 401.</div>
+<div>קלט ואימותים</div><div><ul><li>feature_key חובה, מתוך מפתחות ידועים: מזהי EMPLOYEE_ROLE_TYPES (ממשקי תפקיד), <code>ss_*</code> (פעולות שירות-עצמי) ומודולי האשף. מפתח לא מוכר מחזיר 400.</li><li>is_active בוליאני, ברירת מחדל true.</li><li>price_monthly נקבע בשרת: לממשק תפקיד מ-EMPLOYEE_ROLE_TYPES (15–39 ₪, ללא שינוי בערכים), ל-ss_* ‏0, ובאשף לפי הנוסחה. מחיר שמגיע מהלקוח לא נקרא. ממשק תפקיד פעיל יוצר גם זכאות tenant_entitlements(source='addon') לחיוב, ומפתח ss_* נשמר ב-group_settings.self_service (<code>ARC-17</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה אחת:<ol><li>upsert ל-<code>(group_id, feature_key, is_active, price_monthly)</code> (ללא שינוי).</li><li>סנכרון <code>family_groups.licensed_features</code> = מפה feature_key→is_active. גם האשף מסנכרן (<code>SA-10</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>רישיון: active ⇄ inactive (ADMIN העסק או SA).</div>
+<div>תופעות לוואי</div><div>audit LICENSE_TOGGLE ביומן העסק, עם actor. הרישום ב-audit_log המאוחד, עם actor_type='sa' כשה-SA מבצע (<code>ARC-19</code>).</div>
+<div>ממשק</div><div>ללא שינוי: במודאל הגדרות העסק ה-ADMIN ממשיך להדליק ולכבות ממשקי תפקיד ופעולות שירות-עצמי, וה-SA ממשיך דרך המודאל שלו. הלקוח שולח Authorization.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-10</code> (מתוקן) — הנתיב נסגר לבקשות לא מאומתות. כתיבה מותרת ל-ADMIN על העסק שלו, ל-SA ולאשף. המחיר נקבע בשרת, licensed_features מסונכרן בטרנזקציה, ויכולת ה-ADMIN לנהל רישיונות במודאל נשמרת.</li><li><code>ARC-04</code> — groupId מהסשן.</li><li><code>RECON-11</code> — tobe-biz יושר לכלל הזה. ממשק תפקיד יוצר זכאות addon, ו-ss_* נשמר בהגדרות הקבוצה, כמו ב-<code>ARC-17</code>.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="biz template tree visibility biz_type_visibility hide elements tabs features"><h3>תבניות עסקים — הסתרת לשוניות/פיצ'רים לפי סוג עסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית templates: <code>loadBizTemplates</code> (sa-app.js:8990), <code>toggleVizElement</code> (9106). העץ <code>BIZ_TEMPLATE_TREE</code> מוגש מהשרת כ-JSON משותף, <code>GET /api/biz-template-tree</code> (<code>SA-57</code>).</div>
+<div>הרשאות</div><div>צפייה: כל סשן SA (templates פתוחה). toggle: כל סשן SA (templates=open ב-SA_TAB_PERMS, כמו היום), עם audit. קריאת המוסתרים בעסק: סשן biz, וסוג העסק נגזר מהקבוצה (<code>ARC-04</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>toggle: key חובה, וחייב להיות מפתח קיים בעץ של אותו סוג. אחרת 400.</li><li>סוג עסק מתוך ה-enum הקנוני.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טעינת המפתחות המוסתרים לכל סוג: <code>GET /api/sa/biz-visibility/:type</code> (ללא שינוי).</li><li>toggle: <code>POST /api/sa/biz-visibility/:type/toggle</code>. ‏hidden → INSERT ON CONFLICT DO NOTHING, ואחרת DELETE מ-<code>biz_type_visibility</code> (ללא שינוי).</li><li>business-app.js קורא <code>GET /api/biz-visibility</code> (סוג מהסשן). <b>אלמנט מוסתר אם הוא, או אחד מאבותיו בעץ, מוסתר</b> (<code>SA-57</code>).</li><li>עצים נוספים: events, construction, healthcare, education, food_production ו-retail מקבלים עץ שנגזר ממודולי ברירת המחדל שלהם (<code>business_type_modules</code>). ל-other מוצג "אין תבנית לסוג זה — הסתרה לא זמינה" (<code>SA-57</code>).</li></ol></div>
+<div>חישובים</div><div>סטטיסטיקה, ללא שינוי: סך כל האלמנטים (רקורסיבי), מוסתרים = גודל הסט, ופעילים = ההפרש. אלמנט שמוסתר בגלל אב נספר כמוסתר.</div>
+<div>מכונת מצבים</div><div>מפתח: גלוי ⇄ מוסתר (SA).</div>
+<div>תופעות לוואי</div><div>audit VISIBILITY_TOGGLE.</div>
+<div>ממשק</div><div>ילדים של אב מוסתר מוצגים בעץ כמוסתרים, בהתאם למה שקורה בפועל בעסק. ההסתרה תצוגתית בלבד ואינה מחליפה זכאות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-57</code> — הסתרה תורשתית, עץ משותף מהשרת, עצים לשאר הסוגים, וסימון ל-other.</li><li><code>ARC-04</code> — הקריאה בעסק מאומתת, והסוג נגזר מהסשן.</li><li><code>RECON-08</code> — ה-toggle פתוח לכל איש צוות של לשונית templates, כמו היום, ולא רק להרשאת biz.</li></ul></div>
+</div></section>
+
+<h2 class="grp">יצירת עסקים ב-AI ותבניות</h2>
+
+<section class="proc" data-f="ai builder generate business gemini catalog promotions coupons sport maintenance"><h3>מחולל עסקים AI — שלב יצירת תוכן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית ai-builder: <code>aiGenerateBusiness</code> (sa-app.js:15497) → <code>POST /api/sa/ai-build-business</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (ai-builder=open ב-SA_TAB_PERMS, כמו היום).</div>
+<div>קלט ואימותים</div><div><ul><li>בלקוח: שם עסק חובה — "יש להזין שם עסק". ברירות המחדל: שפות ['he'], ו-productCount ‏20 (ללא שינוי).</li><li>בשרת: businessType מתוך רשימת הנישות של הבורר. productCount שלם בין 1 ל-60.</li><li>שגיאות לפי <code>SA-58</code>: אין מפתח או ספק מוגדר → 503 'AI not configured'. JSON לא תקין מהמודל → 502 <code>{error:'parse_error', raw}</code>. הלקוח מציג את אותן הודעות שמוצגות היום.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בחירת פרומפט לפי businessType, ללא שינוי בתוכן: <code>maintenance_repair</code> (5–8 קטגוריות שירות, מחירי שירות ישראליים, delivery=0, ‏08:00–18:00), <code>sport</code> (4–6 membership_types, ‏3–5 class_types, מדיניות ביטול, הקפאה והצהרה, ומוצרים נלווים). לכל סוג אחר: קמעונאות או מזון (כ-productCount מוצרים, options_text, badge, original_price, ‏1–2 קופונים, 2–3 מבצעים, ושם אנגלי קנוני קודם).</li><li>הקריאה עוברת דרך <code>aiGateway.callModel({feature:'sa_ai_build_business', json:true})</code> (<code>SA-15</code>, <code>ARC-30</code>). המודל נקבע ב-system_settings (<code>ai_model_text</code>), רשימת המודלים נשמרת במטמון ל-24 שעות, timeout של 30 שניות, ו-retry רק על 429/503. כך נשמרת העדיפות הנוכחית flash-lite → flash כברירת מחדל.</li><li>הסרת גדרות ```json ו-JSON.parse (ללא שינוי).</li><li>בלקוח: שמירת טיוטה ב-localStorage (<code>aib_draft_data</code>, <code>aib_draft_images</code>) ותצוגה מקדימה לעריכה (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>קריאת AI שנרשמת ב-ai_usage_log עם <code>actor_type='sa'</code>, ‏feature_key, provider, model והצלחה או כשל (<code>SA-14</code>). בלי מכסת קבוצה.</div>
+<div>ממשק</div><div>ללא שינוי: 14 סוגים בבורר (restaurant, sushi, burger, cafe, market, flowers, spa, sport, events, maintenance_repair, clothing, shoes, toys, stock), ועורך קטגוריות, מוצרים, מבצעים וקופונים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-15</code> — aiGateway אחד, ומודל בתצורה שניתן לשנות בלי פריסה.</li><li><code>SA-14</code> — רישום שימוש עם actor_type='sa'.</li><li><code>SA-58</code> — קודי HTTP אמיתיים לשגיאות.</li><li><code>RECON-07</code> — ai-builder פתוח לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="ai create business niche business_type store alias admin password trial images pollinations"><h3>מחולל עסקים AI — יצירת העסק בפועל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>aiCreateBusiness</code> (sa-app.js:15964) → <code>POST /api/sa/ai-create-business</code>, ואחריו <code>POST /api/sa/ai-update-store-images</code> ואופציונלית <code>/api/sa/batch-update-product-images</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (ai-builder=open, <code>RECON-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>generatedData: profile חובה, ו-profile.name לא ריק. אחרת 400 "חסרים נתוני פרופיל".</li><li>business_type אחרי מיפוי הנישה חייב להיות מתוך ה-enum הקנוני, אחרת 400 (<code>SA-20</code>).</li><li>טלפון: profile.phone נבדק (9–15 ספרות). טלפון שכבר קיים במערכת לא משמש את ה-ADMIN.</li><li>batch images: groupId ו-updates לא ריק — "חסרים פרמטרים". העדכון רק <code>WHERE id AND group_id</code> (ללא שינוי).</li></ul></div>
+<div>שלבי עיבוד</div><div><b>טרנזקציה אחת לכל ההכנסות</b> (<code>SA-33</code>, <code>ARC-11</code>):<ol>
+<li>מיפוי נישה → business_type, ללא שינוי: sushi, burger ו-cafe → restaurant. market, flowers, clothing, shoes, toys ו-stock → retail. spa → beauty. השאר כפי שהם (events, sport, maintenance_repair, restaurant). הנישה נשמרת ב-<code>store_settings.store_type</code>.</li>
+<li>INSERT ל-family_groups <code>(name, name_en, type BUSINESS, business_type, is_onboarded=true, wizard_completed=true, group_code 'B'+7hex)</code> (ללא שינוי).</li>
+<li>alias: name_en או name באותיות לטיניות ומקפים (25 תווים) ואחריו <code>-{groupId}</code>. upsert ל-store_settings עם ברירות המחדל שבחישובים, ב-<code>??</code> (<code>SA-33</code>).</li>
+<li>INSERT ל-store_catalog לכל מוצר (product_type 'service' לתחזוקה, אחרת 'retail') (ללא שינוי).</li>
+<li>INSERT ל-users של ADMIN: הטלפון מ-profile.phone אם הוא תקין ופנוי, <b>אחרת phone=NULL</b> (אין טלפון סינתטי). nickname = owner_name או 'בעל/ת העסק'. אין סיסמה גלויה. נוצר טוקן הפעלה חד-פעמי (מגובב, 72 שעות) (<code>SA-32</code>, <code>SA-33</code>).</li>
+<li>store_promotions ו-store_coupons (valid_until = היום + valid_days ‏?? 90). לספורט: sport_membership_types, sport_class_types (booking_open_days 7, close_hours 2, max 20) ו-sport_settings. הכל באותה טרנזקציה, וכשל מכשיל את כולה (<code>SA-33</code>).</li>
+<li><code>billing_config</code> לפי החבילה של business_type ומודולי ברירת המחדל שלו, בסכמה הקנונית (<code>SA-18</code>), וזכאויות נגזרות. ‏trial_until = NOW() + getFreeMonths() (<code>SA-21</code>).</li>
+<li>COMMIT, ואז audit CREATE_GROUP (<code>SA-07</code>).</li>
+<li>בלקוח, ללא שינוי: אם אין לוגו או באנר מוכנים, נבנה URL ל-<code>image.pollinations.ai</code> (flux, ‏512×512 / 1200×400, ‏seed אקראי), שנשמר דרך ai-update-store-images.</li></ol></div>
+<div>חישובים</div><div>ברירות מחדל: delivery_fee 15, min_order 50, eta 35, שעות 09:00–23:00, free_delivery_above 150. כולן ב-<code>??</code>, כך שערך 0 שהמודל החזיר (למשל בתחזוקה) נשמר כ-0 (<code>SA-33</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>התגובה ל-SA כוללת <code>adminPhone</code> (או null) ו-<code>activationLink</code>, במקום adminPassword (<code>SA-32</code>). כשיש טלפון, קישור ההפעלה נשלח גם ב-SMS לבעלים.</div>
+<div>ממשק</div><div>מסך ההצלחה ללא שינוי במבנה: קישור storefront (<code>/storefront.html?store=alias</code>), קישור עסק, כפתור סנכרון תמונות מוצרים. במקום "שמור את הסיסמה" מוצגים קישור ההפעלה עם כפתור העתקה, וכפתור "כניסה לסביבה" (התחזות) שזמין מיד. בלי טלפון מוצג השדה "טלפון בעלים", שנשמר דרך עריכת הסביבה ושולח את קישור ההפעלה. כפתור "פתח מודולים נוספים" פותח את מקטע החיוב (<code>SA-33</code>, מתוקן).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-33</code> (מתוקן) — שימוש ב-?? לברירות מחדל, אין טלפון סינתטי (וההתחזות זמינה מיד), billing_config לפי חבילה עם אפשרות להוסיף מודולים, עסקים קיימים עם NULL ממוגרים בלי צמצום, טרנזקציה אחת וקודי HTTP.</li><li><code>SA-32</code> — קישור הפעלה במקום סיסמה גלויה.</li><li><code>SA-20</code> — enum.</li><li><code>SA-21</code> — getFreeMonths.</li><li><code>SA-07</code> — audit CREATE_GROUP.</li><li><code>RECON-07</code> — ai-builder פתוח לכל איש צוות כמו היום.</li><li><code>RECON-14</code> — ה-enum הקנוני כולל services ו-store_only.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="brand prompts logo banner product image generate ai flux"><h3>יצירת פרומפטים ותמונות מיתוג/מוצרים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>renderAIBBranding</code>/<code>aiGenBrandingImg</code> (sa-app.js:16145, 16226) → <code>POST /api/sa/ai-gen-brand-prompts</code>. ‏<code>aiGenProdImg</code> (15879) → <code>POST /api/store/catalog/generate-image</code>.</div>
+<div>הרשאות</div><div>brand-prompts: כל סשן SA (ai-builder=open, <code>RECON-07</code>). ‏generate-image: סשן biz עם groupId מהסשן ומכסה, <b>או</b> סשן SA בלי מכסת קבוצה (<code>SA-13</code>, מתוקן). בקשה בלי אימות מחזירה 401. ה-<code>groupId:0</code> שהלקוח שולח לא נקרא.</div>
+<div>קלט ואימותים</div><div><ul><li>brand prompts: שם וסוג עסק חובה.</li><li>תמונת מוצר: שם מוצר חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>brand prompts דרך aiGateway (<code>feature:'sa_brand_prompts'</code>): המודל מחזיר <code>{logo_prompt, banner_prompt}</code>. לוגו הוא אייקון שטוח ללא טקסט, עד 15 מילים, לפי מפת סמלים לסוג עסק. באנר ללא אנשים, עד 30 מילים (ללא שינוי).</li><li>תמונת מוצר, ללא שינוי בלוגיקה: מונה ניסיונות לכל מוצר לגיוון, חיפוש ידני שעוקף את name_en, ועד 2 ניסיונות חוזרים עם השהייה של 4 ו-8 שניות. ספק התמונות לפי <code>ARC-30</code> (HF ואז Pollinations).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>רישום ב-ai_usage_log: feature_key נפרד לכל אחד, actor_type 'sa' או 'biz', והצלחה או כשל. יחידת חיוב לעסק רק כשנוצרה תמונה בפועל. ללוגו שלא הפעיל מודל אין חיוב (<code>SA-14</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-13</code> (מתוקן) — generate-image מאומת, ומקבל גם סשן SA.</li><li><code>SA-14</code> — חיוב על הצלחה בלבד ורישום מלא.</li><li><code>SA-15</code> — aiGateway.</li><li><code>RECON-07</code> — brand-prompts פתוח לכל איש צוות של ai-builder כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="business templates save load delete ai builder drafts"><h3>תבניות עסק שמורות וטיוטות מחולל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>aiSaveTemplate</code>, <code>aiLoadTemplates</code>, <code>aiLoadTemplate</code> ו-<code>aiDeleteTemplate</code> (sa-app.js:16077-16122) → <code>/api/sa/business-templates</code>. טיוטות מקומיות: <code>_aibSaveDraftAs</code>, <code>_aibAutoSaveDraft</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (ai-builder=open, <code>RECON-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>שמירה: name חובה (prompt לשם), ו-json_data חייב להיות אובייקט. אחרת 400.</li><li>טעינה או מחיקה של מזהה לא קיים: 404.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שמירה: INSERT ל-<code>business_templates(name, category, business_type, json_data)</code> (ללא שינוי).</li><li>טעינה מסמנת <code>_aibTemplateMode=true</code>, שמונע שמירת טיוטה אוטומטית (ללא שינוי).</li><li>מחיקה פיזית (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit TEMPLATE_SAVE ו-TEMPLATE_DELETE.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-58</code> — שגיאות ב-4xx/5xx במקום 200 עם success:false.</li><li><code>RECON-07</code> — ai-builder פתוח לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="flow ai sa assistant need_data execute actions gemini confirm sensitive"><h3>FLOW AI — עוזרת מנהל-על (שליפה וביצוע פעולות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ווידג'ט צ'אט AI ב-SA: <code>sendSAAIMessage</code> (sa-app.js:8067) → <code>POST /api/sa/ai/chat</code>. אישור פעולה: <code>confirmSAAIAction</code> (7967) → <code>POST /api/sa/ai/confirm-action</code>. הנתיבים הישנים <code>/api/ai/chat</code> ו-<code>/api/sa/ai-generate</code> עוברים verifySA ו-aiGateway.</div>
+<div>הרשאות</div><div>chat: כל סשן SA. ה-providers מסוננים לפי הרשאות המשתמש (למשל billing רק עם stats, ו-tickets רק עם support). confirm-action: ההרשאה של הפעולה, לפי הטבלה במכונת המצבים (<code>SA-16</code>, <code>ARC-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>ספק AI חייב להיות מוגדר — "מפתח Gemini אינו מוגדר" (503).</li><li>confirm-action: הפעולה חייבת להיות pending_action שנוצר בסשן הזה (מזהה חד-פעמי עם תוקף של 10 דקות), ו-type מתוך רשימת הפעולות הנתמכות. אחרת 400 "פעולה לא נתמכת".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>פרומפט מערכת עם providers, סוגי פעולות, לשוניות ניווט וההקשר (currentTab) (ללא שינוי).</li>
+<li><code>[NEED_DATA:provider]</code> → <code>fetchSAAdditionalData</code> עם אותם providers ואותם limits, וקריאה שנייה. הסבב כולו נרשם כבקשה אחת (<code>SA-14</code>).</li>
+<li>פירוק <code>&lt;SUGGESTIONS&gt;</code> ופעולות ניווט <code>[ACTION:TAB|SUBTAB|LEDGER]</code>. הניווט נשאר מיידי (ללא שינוי).</li>
+<li><code>[ACTION:EXECUTE|type|p1|p2]</code>: <b>כל</b> פעולה שכותבת ל-DB מוחזרת כ-<code>pending_action</code> עם מזהה ותיאור, ומבוצעת רק אחרי confirm-action (<code>SA-16</code>). ‏executeSAAction קורא לאותן פונקציות שרת של המסלולים הידניים (למשל approveModuleRequest, ‏<code>SA-17</code>).</li>
+<li>אחרי האישור: ביצוע, ו-audit <code>SA_AI_&lt;type&gt;</code> עם ה-actor האמיתי, במקום 'סופר אדמין' קבוע (<code>SA-07</code>).</li></ol></div>
+<div>חישובים</div><div>APPROVE_PROMO: קוד <code>'PROMO'</code> ואחריו 5 תווים מ-crypto.randomInt (ללא שינוי במבנה).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>פעולה</th><th>מעבר</th><th>הרשאה לאישור</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>CLOSE_TICKET</td><td>support_tickets → closed</td><td>support</td><td>—</td><td>status_updated_at</td></tr>
+<tr><td>MARK_BILLING_PAID</td><td>payment_status → paid</td><td>stats</td><td>issued / pending_confirm</td><td>paid_at, audit BILLING_MARK_PAID</td></tr>
+<tr><td>APPROVE_ZM / REJECT_ZM</td><td>zone_managers → active / DELETE (רק pending)</td><td>comm</td><td>—</td><td>—</td></tr>
+<tr><td>APPROVE/REJECT_BIZ_COMMUNITY</td><td>{pending, zm_pending, pending_cm_review, comm_mgr_pending, biz_invited} → approved/rejected</td><td>comm</td><td>—</td><td>awardFlow('business','biz_join_approved')</td></tr>
+<tr><td>APPROVE/REJECT_COMMUNITY_JOIN</td><td>→ approved / DELETE</td><td>comm</td><td>—</td><td>—</td></tr>
+<tr><td>APPROVE/REJECT_PROMO</td><td>→ approved + promo_code / rejected</td><td>comm</td><td>—</td><td>awardFlow('business','biz_promo_approved')</td></tr>
+<tr><td>APPROVE/DENY_MODULE_REQUEST</td><td>לפי <code>SA-17</code></td><td>כל סשן SA</td><td>בקשה קיימת</td><td>חיוב, features וזכאות</td></tr>
+<tr><td>REMOVE_BIZ_FROM_COMMUNITY / DECLINE_REMOVAL_REQUEST</td><td>→ removed / ביטול הבקשה</td><td>comm</td><td>removal_requested</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>FLW לפי הטבלה (ללא שינוי בסכומים). AI דרך aiGateway, עם רישום ב-ai_usage_log (actor_type 'sa').</div>
+<div>ממשק</div><div>כרטיס האישור הקיים לפעולות רגישות (כפתורי "אשר" ו"בטל") מוצג עכשיו לכל פעולת כתיבה, עם תיאור הפעולה והיעד. ההרגשה של עוזרת שמבצעת נשמרת: לחיצה אחת מבצעת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-16</code> — כל פעולת כתיבה דורשת אישור אנושי עם הרשאה מתאימה. הניווט נשאר מיידי.</li><li><code>SA-17</code> — אישור מודול דרך הפונקציה המשותפת.</li><li><code>SA-07</code> — actor אמיתי.</li><li><code>SA-14</code>/<code>SA-15</code> — aiGateway ורישום שימוש.</li><li><code>RECON-15</code> — מצב המקור של MARK_BILLING_PAID נקרא issued (לשעבר unpaid).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="ai usage log tokens monitor businesses"><h3>ניטור שימוש AI לפי עסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/sa/ai-usage?days=&amp;actor_type=&amp;feature=</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('stats').</div>
+<div>קלט ואימותים</div><div>days שלם בין 1 ל-365, ברירת מחדל 30 (ללא שינוי). ‏actor_type ∈ {all, family, biz, sa, zm, kh}, ברירת מחדל all.</div>
+<div>שלבי עיבוד</div><div><ol><li>שליפה מ-ai_usage_log לפי הסינון. ברירת המחדל מציגה <b>את כל סוגי הסביבות</b> ולא רק BUSINESS (<code>SA-14</code>).</li></ol></div>
+<div>חישובים</div><div>לכל ישות: סך הקריאות ב-N ימים, הקריאה האחרונה, פילוח לפי feature_key (<code>json_object_agg</code>, ללא שינוי), ובנוסף שיעור כשל ופילוח לפי provider ו-model. נכלל גם שימוש בעוזר המדריך הציבורי (<code>/api/guide/chat</code>, actor anonymous) (<code>SA-12</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>הדוח הקיים, עם בורר סוג סביבה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-14</code> — כל סוגי הסביבות, feature_key ייחודי, provider, model והצלחה.</li><li><code>SA-12</code> — עוזר המדריך עובר דרך השרת ונרשם. ‏/api/guide-config נמחק, והמפתח מוחלף.</li><li><code>SA-13</code> — כל נתיבי ה-AI מאומתים ונרשמים.</li></ul></div>
+</div></section>
+
+<h2 class="grp">חיוב, גבייה ותשלומים</h2>
+
+<section class="proc" data-f="billing records payment confirmations ledger unpaid paid pending_confirm signature"><h3>רשומות חיוב, אישור תשלום בחתימה דיגיטלית וכרטסת לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>רשומות נוצרות כשמאשרים הזמנת באנר עם יתרת מזומן. העסק מאשר תשלום: <code>POST /api/biz/billing/:id/confirm</code>. ‏SA: <code>loadBillingOverview</code> → <code>GET /api/sa/billing</code>, <code>markBillingPaid</code> → <code>PUT /api/sa/billing/:id/paid</code>, ו-<code>openClientLedger</code> → <code>GET /api/sa/clients/:bizId/ledger</code>.</div>
+<div>הרשאות</div><div>confirm: verifyBiz ו-verifyBizAdminOnly (ללא שינוי), groupId מהסשן. ‏SA: requireSAPermission('stats') (לשונית finance).</div>
+<div>קלט ואימותים</div><div><ul><li>confirm, ללא שינוי: <code>signature_data</code> חובה — "חתימה דיגיטלית חסרה". הרשומה שייכת לעסק, אחרת 404 "רשומה לא נמצאה". כבר שולמה — "כבר מסומן כשולם". יש אישור קודם — "אישור כבר קיים".</li><li>paid: הרשומה במצב issued (הערך unpaid של היום) או pending_confirm, אחרת 409. אסמכתה ותאריך תשלום חובה (<code>ARC-22</code>). void: SA, סיבה חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה, ללא שינוי: <code>billing_records(business_id, banner_order_id, description 'פרסום באנר — N ימים', amount_ils, coins_used, cash_amount, payment_method, payment_status 'issued', due_date=היום+7)</code>.</li><li>confirm, בטרנזקציה: INSERT ל-<code>payment_confirmations(..., signature_data, ip_address, user_agent)</code>, ואחריו <code>payment_status='pending_confirm'</code>. ה-IP נלקח מ-req.ip עם trust proxy (<code>ARC-28</code>).</li><li>SA paid: payment_status='paid', paid_at=NOW(), אסמכתה ותאריך תשלום (חובה, <code>ARC-22</code>) ו-sa_note, ו-audit BILLING_MARK_PAID (<code>SA-07</code>).</li><li>כרטסת: כל הרשומות של העסק, slot, האישור והחתימה, ויתרת ה-flow_wallets של העסק (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>(<code>SA-36</code>) פונקציות שרת משותפות לכל המסכים: <b>חוב פתוח</b> = <code>Σcash_amount WHERE payment_status IN ('issued','pending_confirm')</code>. <b>נגבה החודש</b> = <code>Σcash_amount WHERE paid</code>, כשהחודש של paid_at בשעון ישראל הוא החודש הנוכחי. ‏/sa/billing, הדופק, הדשבורד המקיף והתובנות משתמשים באותן פונקציות. אין שאילתות על <code>record_type</code> או <code>reference_id</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>—</td><td>issued</td><td>מערכת</td><td>אישור באנר עם cash_amount&gt;0</td><td>due אחרי 7 ימים</td></tr><tr><td>issued</td><td>pending_confirm</td><td>ADMIN עסק</td><td>חתימה, ואין אישור קודם</td><td>שורת payment_confirmations</td></tr><tr><td>issued / pending_confirm</td><td>paid</td><td>SA (stats), או FLOW AI אחרי אישור</td><td>—</td><td>paid_at, sa_note, audit</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>audit BILLING_MARK_PAID.</div>
+<div>ממשק</div><div>ללא שינוי. המספרים בכרטיסי "חוב פתוח" ו"נגבה החודש" זהים עכשיו בכל המסכים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-36</code> — הגדרות אחידות לחוב ולגבייה, pending_confirm בחוב, Σcash_amount, ובלי עמודות חסרות.</li><li><code>SA-07</code> — audit לסימון תשלום.</li><li><code>SA-16</code> — סימון דרך FLOW AI רק אחרי אישור.</li><li><code>RECON-15</code> — שמות המצבים של רשומת חיוב לפי tobe-arch: unpaid נקרא issued, ו-cancelled נקרא void (מיגרציה ממפה את הערכים הקיימים). התוויות בממשק לא משתנות ("לא שולם", "ממתין לאימות", "שולם"). סימון paid מחייב אסמכתה ותאריך.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="platform commission cashback rates dues collections community wallets finance"><h3>עמלות פלטפורמה, קאשבק לקהילה וגבייה מעסקים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טריגר: <code>triggerCashbackForOrder</code>, כשהזמנה עוברת ל-delivered או completed. לשונית finance ב-SA: <code>loadSAFinanceData</code>, <code>savePlatformRates</code> → <code>GET/PUT /api/sa/settings/rates</code>, <code>saveBusinessCollection</code> → <code>POST /api/sa/business-collections</code>, ו-<code>GET</code> של finance-summary, business-dues, business-collections/:id ו-community-wallets.</div>
+<div>הרשאות</div><div>requireSAPermission('stats').</div>
+<div>קלט ואימותים</div><div><ul><li>קאשבק, ללא שינוי: רק אם המשפחה המזמינה והעסק באותה קהילה (approved) וההזמנה delivered או completed. אידמפוטנטי לפי <code>business_platform_dues.order_id</code> (UNIQUE).</li><li>גבייה: business_id ו-amount חובה — "חסרים שדות חובה". ‏amount גדול מ-0 (<code>ARC-34</code>).</li><li>rates: כל אחוז בין 0 ל-100.</li></ul></div>
+<div>שלבי עיבוד</div><div>טרנזקציה אחת לכל הזמנה (<code>ARC-11</code>):<ol><li>INSERT ל-<code>business_platform_dues(..., status 'pending')</code> (ללא שינוי).</li><li>אם הקאשבק גדול מ-0: זיכוי לארנק הקהילה דרך ה-ledger (<code>ARC-15</code>), עם אותם סכומים. ‏community_wallet_transactions מסוג 'cashback'.</li><li>עמלת מנהל אזור: אם לקהילה יש zone פעיל, INSERT ל-<code>zone_manager_commissions</code> (ללא שינוי).</li><li>גבייה: INSERT ל-<code>business_platform_collections(business_id, amount, collected_at||היום, notes, created_by=req.saUser.name)</code>. עד היום created_by היה 'SA' קבוע. הסכום מוקצה לשורות dues לא-paid של העסק לפי FIFO (created_at ASC) בטבלת dues_allocations, באותה טרנזקציה, ויתרה לא מוקצית נשמרת כזיכוי לעסק (<code>COM-20</code>).</li></ol></div>
+<div>חישובים</div><div>ללא שינוי: <code>commission = round2(total_amount × platform_commission_pct/100)</code> (ברירת מחדל 3%). <code>cashback = round2(commission × community_cashback_pct/100)</code> (ברירת מחדל 30%). <code>zm = round2(commission × zm.commission_pct ?? zone_manager_commission_pct ?? 5 /100)</code>. ‏GET rates מחזיר <code>rates.x ?? 3</code> ו-<code>?? 30</code>, כך ש-0 שנשמר מוצג כ-0 (<code>SA-36</code>). מקורות המדדים (<code>SA-36</code>): "עמלות פלטפורמה" נלקחות מ-business_platform_dues בלבד, ו"עמלות מנהלי אזור" מ-zone_manager_commissions. כל הדשבורדים משתמשים באותן פונקציות.</div>
+<div>מכונת מצבים</div><div>business_platform_dues.status לפי tobe-community ("קאשבק קהילתי ועמלות בעת השלמת הזמנה", <code>COM-20</code>): pending → invoiced (SA מפיק חשבונית/דרישת תשלום) → paid (הקצאת גבייה מכסה את מלוא commission_amount); pending/invoiced → written_off (SA, סיבה חובה, audit). הערך הישן collected ממופה ל-paid במיגרציה.</div>
+<div>תופעות לוואי</div><div>audit: RATES_UPDATE ו-COLLECTION_CREATE.</div>
+<div>ממשק</div><div>ללא שינוי, כולל הדוגמה על ₪1000.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-36</code> — ?? ב-rates, מקור אחד לעמלות, ופונקציות משותפות.</li><li><code>SA-07</code> — audit ו-created_by אמיתי.</li><li><code>ARC-11</code>/<code>ARC-15</code> — טרנזקציה ו-ledger.</li><li><code>E2E-03</code> — מכונת המצבים של business_platform_dues יושרה ל-tobe-community (pending→invoiced→paid|written_off, הקצאת FIFO); collected ממופה ל-paid.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מטבעות FLW (Flow) — תצורה והענקות</h2>
+
+<section class="proc" data-f="flow config flw flow_config awardflow labels personal community amounts"><h3>תצורת FLW (flow_config) ופונקציית הענקה awardFlow</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openFlowConfigPanel</code>/<code>saveFlowConfig</code> (sa-app.js:9830, 9942) → <code>GET/PUT /api/sa/flow/config</code>. ‏<code>awardFlow</code> נקרא מכל מקום שמעניק FLW.</div>
+<div>הרשאות</div><div>requireSAPermission('comm'), כי הכפתור נמצא בלשונית comm.</div>
+<div>קלט ואימותים</div><div><ul><li>PUT: items חייב להיות מערך — "items חייב להיות מערך". מתבצע רק UPDATE למפתחות קיימים (ללא שינוי). ערך שאינו מספר שלם ≥0 מחזיר 400, במקום המרה שקטה ל-0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>awardFlow(entityType, entityId, actionKey, communityId, referenceId)</code> קורא personal_amount ו-community_amount (ללא שינוי). <b>בטרנזקציה אחת</b> (<code>ARC-11</code>, ‏<code>ARC-15</code>): אם personal גדול מ-0, זיכוי לארנק (entityType, entityId) ותנועה. אם community גדול מ-0 ויש communityId, זיכוי לארנק 'community' ותנועה. ‏idempotency_key = actionKey:entity:referenceId, כך שאותו אירוע לא מזכה פעמיים. שגיאה נרשמת ללוג ולא נבלעת בשקט (<code>ARC-13</code>).</li></ol></div>
+<div>חישובים</div><div>ערכי הזרע ללא שינוי (personal/community): join_community 15/5, referral 20/10, promo_redemption 3/2, profile_complete 12/3, review_business 7/3, bundle_purchase 18/7, daily_login 1/0, ambassador_approved 35/15, promo_community 0/5, bundle_community 0/20, flow_to_ils_rate 100 (100 Flw = ₪10), biz_join_approved 20/10, biz_promo_approved 10/5, biz_promo_redeemed 5/5, biz_bundle_sold 10/20, biz_review_received 8/2, biz_lead_received 5/2, flow_min_redeem 100, flow_redeem_quarter 0, referral_join 20/0. אין יתרה שלילית (<code>ARC-15</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit FLOW_CONFIG_UPDATE עם diff.</div>
+<div>ממשק</div><div><code>FLOW_CONFIG_LABELS</code> בקבוצות משפחה, עסק וכללי (ללא שינוי). נוספה תווית ל-<code>referral_join</code>: "הצטרפות דרך הפניה (למפנה)" (<code>SA-35</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-35</code> — תווית ל-referral_join.</li><li><code>ARC-11</code> (SA-30) — awardFlow טרנזקציוני ואידמפוטנטי.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="flow grant manual sa deduct stats leaderboard transactions redemptions fix descriptions"><h3>הענקה/ניכוי ידני של FLW ולוח בקרה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>submitFlowGrant</code> (sa-app.js:10214) → <code>POST /api/sa/flow/grant</code>. דשבורד: <code>openFlowStatsPanel</code>/<code>refreshFlowDashboard</code> → stats, transactions, leaderboard, redemptions, ‏<code>/api/sa/groups</code>, ותיקון התיאורים <code>/fix-descriptions</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('comm').</div>
+<div>קלט ואימותים</div><div><ul><li>grant: entityType, entityId, amount ו-reason חובה — "חסרים שדות חובה". ‏entityType ∈ {family, business, community}, אחרת "סוג ישות לא חוקי". ‏amount שלם ושונה מ-0. ערך שלילי הוא ניכוי (ללא שינוי ביכולת).</li><li>ניכוי: <code>UPDATE ... WHERE balance &gt;= |amount|</code>. אם היתרה לא מספיקה מוחזר 400 "היתרה (X) נמוכה מהניכוי" במקום 500 (<code>SA-35</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בטרנזקציה אחת (<code>SA-35</code>, <code>ARC-11</code>): עדכון היתרה עם FOR UPDATE, ו-INSERT ל-<code>flow_transactions(action_key 'sa_manual', description 'SA: '+reason)</code> (התיאור ללא שינוי). audit FLOW_GRANT עם actor, ישות, סכום וסיבה (<code>SA-07</code>).</li><li>fix-descriptions, ללא שינוי: לטרנזקציות redeem/store_redeem עם תיאור גנרי מאתר מימוש בחלון של ±10 דקות ומחליף ל"מימוש הנחה ב{שם עסק}". נרשם ב-audit.</li></ol></div>
+<div>חישובים</div><div>(<code>SA-35</code>) <b>issued</b> = Σ סכומים חיוביים. <b>redeemed</b> = Σ|סכומים שליליים| ממימוש (redeem, store_redeem). <b>adjustments</b> = Σ ניכויי SA (sa_manual שליליים), שמוצגים בנפרד. "מטבעות במחזור" = issued − redeemed − adjustments. גרף של 30 יום ו-top 10 לכל סוג (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit FLOW_GRANT.</div>
+<div>ממשק</div><div>נוסף כרטיס "ניכויי SA". "הונפקו" מציג רק זיכויים. בשגיאת יתרה מוצגת הודעת השרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-35</code> — 400 ידידותי על ניכוי מעבר ליתרה, טרנזקציה, ומדדים מופרדים.</li><li><code>SA-07</code> — audit.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="flow redeem discount code validate deduct use family business earn"><h3>מימוש FLW להנחה (נוסחאות שנשלטות מהתצורה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה: <code>POST /api/flow/redeem</code>, ‏<code>/api/flow/deduct</code>. קוד: <code>/api/flow/redeem/validate</code>. עסק: <code>/api/flow/redemptions/:code/use</code>. כניסה יומית: <code>/api/flow/daily-login</code>.</div>
+<div>הרשאות</div><div>redeem, deduct ו-daily-login: סשן משפחה, ו-familyGroupId מהסשן (<code>ARC-04</code>). ‏validate: סשן של המשפחה או של העסק של הקוד, או סשן storefront של לקוח שמקושר למשפחה. ‏use: סשן biz של העסק של הקוד.</div>
+<div>קלט ואימותים</div><div><ul><li>redeem, ללא שינוי: כמות גדולה מ-0. מימוש ראשון דורש לפחות flow_min_redeem — "מינימום N Flw למימוש ראשון". ניכוי אטומי <code>WHERE balance&gt;=fa</code>, אחרת "אין מספיק Flw (יש לך X Flw)".</li><li>validate (<code>SA-34</code>): קוד ב-<code>status='active'</code> שלא פג תוקפו, והקורא הוא המשפחה או העסק של הקוד. אחרת "קוד לא תקף".</li><li>daily-login: פעם ביום, לפי היום בשעון ישראל (<code>ARC-25</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>redeem, בטרנזקציה אחת (<code>ARC-11</code>): ניכוי, תנועת 'redeem' שלילית, INSERT ל-<code>flow_redemptions(..., status='active', discount_code 'FL'+6, expires_at)</code>, וזיכוי העסק.</li><li>deduct, בטרנזקציה אחת: ניכוי, 'store_redeem', וזיכוי העסק אם יש businessGroupId.</li><li>use (<code>SA-34</code>): <code>UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE code=$1 AND status='active' AND expires_at&gt;NOW()</code>. אם לא עודכנה שורה מוחזר 409 "הקוד כבר מומש או פג".</li><li>job יומי: <code>status='expired'</code> לקודים active שפג תוקפם.</li><li>מיגרציה: status NULL או 'pending' → 'active'.</li></ol></div>
+<div>חישובים</div><div>ללא שינוי: <code>discountIls = floor(fa / flow_to_ils_rate) × 10</code>. זיכוי העסק <code>floor(fa/3)</code> ('customer_redeem'). התוקף לפי רבעון 1–4: סוף הרבעון (31/3, 30/6, 30/9, 31/12 בשעה 23:59:59 שעון ישראל), ואם הרבעון עבר — אותו רבעון בשנה הבאה.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>—</td><td>active</td><td>משפחה (redeem)</td><td>יתרה מספיקה</td><td>ניכוי וזיכוי עסק</td></tr><tr><td>active</td><td>used</td><td>עסק (use) או קופון storefront</td><td>לא פג תוקף</td><td>used_at</td></tr><tr><td>active</td><td>expired</td><td>job</td><td>expires_at עבר</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>שדה הקופון ב-storefront מקבל עכשיו קוד FL תקף (<code>SA-34</code>). שאר הממשק ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-34</code> — סטטוסים קנוניים active/used/expired, ‏validate מקבל active, ‏use אטומי ומיגרציה.</li><li><code>ARC-11</code> — redeem ו-deduct בטרנזקציה אחת.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מנוע WhatsApp</h2>
+
+<section class="proc" data-f="whatsapp global defaults overrides ov_ tpl_ templates wa_type_meta enable"><h3>הגדרות WhatsApp: הפעלה לעסק, ברירות מחדל גלובליות, עקיפות ותבניות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית whatsapp: <code>loadSAWhatsAppHub</code> (sa-app.js:13122). מודאל לעסק: <code>openSAWhatsAppModal</code>. שמירות: <code>saveGlobalWADefaults</code> → <code>PUT /api/sa/whatsapp-global-defaults</code>, <code>saveGlobalWATemplates</code> → <code>PATCH /whatsapp-global-templates</code>, <code>saveSAWhatsAppOverrides</code> → <code>PUT /whatsapp-overrides/:gid</code>, ו-<code>saveSAWhatsAppTemplates</code> ו-<code>toggleSAWhatsApp</code> → <code>PATCH /whatsapp-settings/:gid</code>. חדש: עריכת חתימה (<code>SA-46</code>).</div>
+<div>הרשאות</div><div>כל סשן SA (whatsapp=open ב-SA_TAB_PERMS, כמו ב-checkTabAccess היום). כפתור ה-WA בשורת העסק בלשונית clients פותח את אותו מודאל באותה הרשאה. כל שמירה נרשמת ב-audit. הגדרות העסק עצמו (<code>PUT /api/biz/whatsapp-settings</code>): ADMIN של העסק.</div>
+<div>קלט ואימותים</div><div><ul><li>12 המפתחות של <code>WA_TYPE_KEYS</code> ללא שינוי: owner_checkin, owner_order, owner_task_due, owner_inventory, owner_plan, employee_shift, employee_task, employee_pay, customer_order, customer_ready, customer_promo, customer_review.</li><li>7 תבניות ומשתנים ללא שינוי. הלקוח שומר NULL אם התבנית ריקה או זהה לברירת המחדל.</li><li>PATCH whatsapp-settings חלקי (<code>SA-41</code>): <code>enabled</code> מתעדכן רק אם נשלח במפורש (<code>typeof === 'boolean'</code>), ו-tpl_* מתעדכנים רק אם נשלחו.</li><li>חתימה: מחרוזת עד 120 תווים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>global defaults: UPDATE לכל 12 הבוליאנים (<code>!!value</code>) (ללא שינוי).</li><li>overrides: upsert של <code>ov_{key}</code>. ‏null = ירושה, true = כפה פתוח, false = כפה חסום (ללא שינוי).</li><li><b>סכמה אחת</b> (<code>SA-42</code>): <code>whatsapp_settings(group_id, enabled, &lt;12 עמודות WA_TYPE_KEYS&gt;, ov_&lt;key&gt;, tpl_&lt;key&gt;)</code>. מיגרציה מעתיקה את notify_owner_* ואת notify_* לעמודות owner_* המקבילות, ומוחקת את הגדרת ה-CREATE הכפולה. ה-BIZ PUT כותב לאותן עמודות.</li><li>הגדרה אפקטיבית לכל סוג, זהה ב-cron, במסך העסק וב-biz-effective (<code>SA-42</code>): <code>ov_&lt;key&gt; ?? whatsapp_settings.&lt;key&gt; ?? global.&lt;key&gt; ?? true</code>. שליחה מתבצעת רק כש-<code>enabled=true</code>.</li><li>customized: עסקים שיש להם override כלשהו שאינו NULL (ללא שינוי).</li><li>חתימה: <code>system_settings.wa_signature</code>, ברירת מחדל <code>'_נשלח דרך WEFLOWZ_'</code> (<code>SA-46</code>).</li></ol></div>
+<div>חישובים</div><div>אפקטיבי = <code>ov ?? biz ?? global ?? true</code>.</div>
+<div>מכונת מצבים</div><div>whatsapp_settings.enabled: false ⇄ true (toggle של SA או PUT של העסק). שמירת תבניות לא משנה את enabled.</div>
+<div>תופעות לוואי</div><div>audit: WA_GLOBAL_UPDATE, WA_OVERRIDE_UPDATE, WA_TOGGLE ו-WA_SIGNATURE_UPDATE.</div>
+<div>ממשק</div><div>כפתור ה-WA בשורת העסק ירוק כשהוא פעיל (ללא שינוי). ברירות המחדל והעקיפות משפיעות עכשיו בפועל על השליחה, והמסך מציג ליד כל סוג את הערך האפקטיבי. בלשונית נוסף שדה "חתימת הודעה".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-41</code> — שמירת תבניות לא מכבה את WhatsApp.</li><li><code>SA-42</code> — סכמה אחת וכלל אפקטיבי שחל גם על השליחה.</li><li><code>SA-46</code> — חתימה ניתנת לעריכה, ממותגת WEFLOWZ.</li><li><code>SA-07</code> — audit.</li><li><code>RECON-07</code> — לשונית whatsapp פתוחה לכל איש צוות כמו היום (ולא all).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="runwhatsappcron cron whatsapp minute checkin order task inventory plan ultramsg dedup"><h3>Cron התראות WhatsApp (runWhatsAppCron)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>Job ב-worker שרץ כל 60 שניות, עם singleton או advisory lock, כך שרק ריצה אחת מתבצעת במערכת (<code>ARC-23</code>). זה מחליף את <code>_waRunning</code> בזיכרון.</div>
+<div>הרשאות</div><div>מערכת.</div>
+<div>קלט ואימותים</div><div><ul><li>רק עסקים עם <code>whatsapp_settings.enabled=true</code>, מסוג BUSINESS, שאינם frozen, archived או is_deleted (<code>SA-22</code>).</li><li>טלפון בעלים: owner_user_id, ואם אין — ה-ADMIN הראשון עם טלפון (ללא שינוי).</li><li>כל סוג נשלח רק אם ההגדרה האפקטיבית שלו (<code>SA-42</code>) היא true.</li><li>שליחה (services/whatsapp.js), ללא שינוי: בלי <code>ULTRAMSG_INSTANCE_ID/TOKEN</code> הסטטוס no_config. טלפון לא תקין → invalid_phone.</li></ul></div>
+<div>שלבי עיבוד</div><div>כל השעות מחושבות בשעון ישראל (<code>SA-45</code>, <code>ARC-25</code>):<ol>
+<li>08:00–08:04, אם owner_checkin אפקטיבי: עובדים עם משימת <code>SHIFT|yyyy-mm-dd|%</code> פעילה ובלי <code>time_clock</code> היום. השאילתה לפי הסכמה (<code>SA-43</code>): השם הוא <code>COALESCE(NULLIF(TRIM(first_name||' '||last_name),''), nickname)</code>, והשיוך הוא <code>tasks.assigned_to</code>. הודעה לעובד ('missing_checkin', ‏dedup של 20 שעות) וסיכום לבעלים ('checkin_summary', ‏dedup של 20 שעות). ללא שינוי בתוכן.</li>
+<li>כל דקה, אם owner_order אפקטיבי: הזמנות <code>new/pending_approval</code> מ-2 הדקות האחרונות → לבעלים ('new_order_owner_{id}', ‏dedup של שעה). <b>באופן עצמאי</b>, אם customer_order אפקטיבי ויש טלפון → ללקוח ('new_order_cust_{id}') (<code>SA-45</code>).</li>
+<li>כל דקה, אם owner_task_due אפקטיבי: משימות שה-<code>deadline</code> שלהן עבר ב-2 הדקות האחרונות, עם השיוך <code>assigned_to</code> ('task_due_{id}', ‏dedup של 23 שעות) (<code>SA-43</code>).</li>
+<li>09:00–09:01, אם owner_inventory אפקטיבי: פריטי pantry שבהם <code>available = max(0, qty − reserved − qty×buffer%)</code> ≤ <code>qty×warning%</code>, רק כש-warning% גדול מ-0 ('low_inventory', ‏dedup של 20 שעות) (ללא שינוי).</li>
+<li>19:00–19:01, אם owner_plan אפקטיבי: ספירת המשמרות של מחר. נשלח <b>רק אם יש לפחות משמרת אחת</b> ('plan_tomorrow', ‏dedup של 20 שעות) (<code>SA-45</code>).</li>
+<li>סוגים דינמיים (ראו התהליך הבא).</li>
+<li>כל שגיאה בשאילתה או בשליחה נכתבת ל-<code>console.error</code> עם group_id וסוג ההודעה. אין catch ריק (<code>SA-43</code>, <code>ARC-13</code>).</li></ol></div>
+<div>חישובים</div><div>תבנית: <code>s.tpl_X || global.tpl_X || WA_DEFAULTS.X</code>, והחלפת <code>{key}</code> גלובלית (ללא שינוי). הודעה סופית: <code>*שם עסק*\n\nתוכן[\n\n🔗 קישור]\n\n—\n{wa_signature}</code>, עם ברירת מחדל <code>_נשלח דרך WEFLOWZ_</code> במקום Oneflow Life (<code>SA-46</code>, <code>ARC-39</code>).</div>
+<div>מכונת מצבים</div><div>whatsapp_log.status ∈ {sent, error, no_config, invalid_phone} (ללא שינוי).</div>
+<div>תופעות לוואי</div><div>שליחה ל-UltraMsg ורישום ל-<code>whatsapp_log</code> (ללא שינוי בשדות). ‏dedup (<code>SA-44</code>): <code>checkAlreadySent</code> מנרמל את הטלפון באותה <code>formatPhone</code> לפני ההשוואה, ובודק רק שורות עם <code>status='sent'</code>. אינדקס <code>(group_id, message_type, phone, created_at)</code>. כל הזמנה מייצרת הודעה אחת בדיוק לבעלים.</div>
+<div>ממשק</div><div>—</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-42</code> — ה-cron קורא את ההגדרה האפקטיבית (ov, עסק, גלובלי), ו-notify_* ממוגר.</li><li><code>SA-43</code> — שאילתות לפי הסכמה, כך ש-WA-01, WA-02, WA-05 ו-WA-08 נשלחים, ובלי catch ריק.</li><li><code>SA-44</code> — dedup עובד.</li><li><code>SA-45</code> — שעון ישראל, plan_tomorrow רק כשיש משמרות, ו-customer_order עצמאי.</li><li><code>SA-46</code> — חתימה WEFLOWZ.</li><li><code>ARC-23</code> — worker יחיד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="whatsapp dynamic notification types trigger_hook daily every_minute recipient dedup_hours"><h3>סוגי התראות WhatsApp דינמיים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openWATypeModal</code>, <code>saveWAType</code>, <code>toggleWAType</code> ו-<code>deleteWAType</code> (sa-app.js:13591-13697) → <code>/api/sa/whatsapp-types</code>. ההרצה בסוף כל ריצת cron.</div>
+<div>הרשאות</div><div>כל סשן SA (whatsapp=open, <code>RECON-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>יצירה: name, trigger_hook ו-message_template חובה — "שדות חובה חסרים". ברירות המחדל: recipient owner, ‏dedup_hours ‏23 (ללא שינוי).</li><li>trigger_hook מתוך <code>WA_HOOKS</code>: every_minute, ו-daily בשעות 07:00, 08:00, 09:00, 10:00, 12:00, 14:00, 17:00, 19:00, 21:00. אחרת 400.</li><li>recipient_type ∈ {owner, employee, customer} — כל שלושת הערכים נשמרים (<code>SA-45</code>, מתוקן).</li><li>dedup_hours שלם, לפחות 1.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל עסק עם WA פעיל, ולכל סוג פעיל: every_minute, או <code>daily_HH:MM</code> ששווה לשעה הנוכחית <b>בשעון ישראל</b> (<code>SA-45</code>).</li><li>נמען: הבעלים, כמו היום, לכל recipient_type. ניתוב אמיתי לעובד או ללקוח נשאר backlog.</li><li>dedup לפי <code>custom_{id}</code> ו-dedup_hours, עם ההשוואה המתוקנת (<code>SA-44</code>). ‏{שם_עסק}, {שם_עובד}, {שם_לקוח} ו-{מנהל} מוחלפים. השם נלקח מ-COALESCE של first_name, last_name ו-nickname (<code>SA-43</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>סוג: active ⇄ inactive (toggle).</div>
+<div>תופעות לוואי</div><div>audit: WA_TYPE_CREATE, WA_TYPE_UPDATE ו-WA_TYPE_DELETE.</div>
+<div>ממשק</div><div>בורר הנמען ממשיך להציע בעלים, עובד ולקוח. ליד עובד ולקוח מוצגת התווית "כרגע נשלח לבעלים" (<code>SA-45</code>, מתוקן).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-43</code> — השם נלקח מהעמודות הקיימות, ולא מופיע יותר "מנהל" קבוע.</li><li><code>SA-44</code> — every_minute לא נשלח כל דקה.</li><li><code>SA-45</code> (מתוקן) — שעון ישראל, ושלוש אפשרויות הנמען נשמרות עם תווית מבהירה.</li><li><code>RECON-07</code> — לשונית whatsapp פתוחה לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="whatsapp stats log per business sa"><h3>סטטיסטיקות ויומן WhatsApp</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>GET /api/sa/whatsapp-stats</code>, ‏<code>/whatsapp-log</code> (limit עד 500, סינון לפי groupId, msgType ו-status), ו-<code>/whatsapp-stats/:groupId</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (whatsapp=open, <code>RECON-07</code>).</div>
+<div>קלט ואימותים</div><div>limit שלם בין 1 ל-500 (ללא שינוי).</div>
+<div>שלבי עיבוד</div><div><ol><li>שליפה מ-whatsapp_log (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>30 יום אחורה, בשעון ישראל: סך הכל, לפי סוג, לפי סטטוס, ומספר העסקים עם WA פעיל (ללא שינוי). מאחר שה-dedup תוקן, הסכומים כבר לא כוללים כפילויות (<code>SA-44</code>).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-44</code> — הנתונים משקפים שליחה אחת לכל אירוע.</li><li><code>RECON-07</code> — לשונית whatsapp פתוחה לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מייל, הגדרות מערכת ותוכן</h2>
+
+<section class="proc" data-f="email config getemailconfig smtp sendsystememail admin notification test email"><h3>תצורת מייל ושליחת מיילים מערכתיים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>getEmailConfig</code> ו-<code>sendSystemEmail</code> הם המסלול <b>היחיד</b> לשליחת מייל (<code>SA-47</code>). הגדרה: <code>saveEmailSettings</code> → נתיב ייעודי <code>PUT /api/sa/email-settings</code>. בדיקה: <code>sendTestEmail</code> → <code>POST /api/sa/test-email</code>.</div>
+<div>הרשאות</div><div>email-settings: requireSAPermission('all') (<code>SA-54</code>). ‏test-email: requireSAPermission('devops') או 'all', כמו ב-tobe-arch. ‏<code>GET /api/test-email</code> הלא-מאומת נמחק מהייצור (<code>ARC-10</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>שליחה דורשת <code>SMTP_USER</code> ו-<code>SMTP_PASS</code> מה-env (<code>ARC-31</code>). אם הם חסרים, השליחה נכשלת ונרשמת ב-email_log עם status 'no_config'.</li><li>test-email, ללא שינוי: to חובה — "נא להזין כתובת מייל יעד". ‏type ∈ {family_signup, family_join, business_signup, business_join, family_reset, business_reset} — "סוג בדיקה לא מוכר".</li><li>email-settings: smtp_from_email ו-admin_notification_email חייבים להיות כתובות תקינות. smtp_from_name עד 80 תווים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>תצורה: <code>fromEmail = smtp_from_email || SMTP_USER</code>, <code>fromName = smtp_from_name || 'WEFLOWZ System'</code> (ללא שינוי). <code>adminNotificationEmail = admin_notification_email</code>, <b>בלי ברירת מחדל קשיחה</b>. מיגרציה חד-פעמית כותבת את הערך שבשימוש היום אם אין שורה (<code>SA-47</code>, מתוקן). אם הערך ריק, מיילי ה-SA לא נשלחים ומוצגת אזהרה "כתובת התראות SA לא מוגדרת" בדופק המערכת.</li><li>Gmail SMTP ב-smtp.gmail.com:465 secure (ללא שינוי). הטרנספורטים הישירים (test-email הישן, pantry/bulk-update, b2b/orders) עוברים דרך sendSystemEmail.</li><li>תבניות: מודול <code>emailTemplates</code> אחד עם <code>render(type, data)</code>, מנוע עם auto-escape (<code>ARC-27</code>, <code>SA-48</code>). מיילי המערכת וגם test-email משתמשים באותן פונקציות, וה-test עם נתוני דוגמה. ההעתק הידני (server.js:6529-6648) נמחק.</li><li>test: שליחה ל-to עם הקידומת 🧪, ועותק ל-adminNotificationEmail. כשל כולל מחזיר 502 "שליחת המייל נכשלה - בדוק SMTP_USER/SMTP_PASS ב-Render" (ללא שינוי בנוסח).</li><li>כל שליחה נרשמת ב-<code>email_log(to, subject, type, status, error, created_at)</code> (<code>SA-47</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>email_log.status ∈ {sent, error, no_config}.</div>
+<div>תופעות לוואי</div><div>מיילי SA נשלחים כמו היום: בהרשמת עסק, בהשלמת אשף, ביצירת סביבה ובפתיחת קריאת תמיכה. כללי תוכן (<code>SA-48</code>): שדות פנימיים (<code>notes</code>, <code>internal_*</code>) לעולם לא נכללים בתבנית שנשלחת לנמען חיצוני (למשל מסמך מקצועי EM-21). כל משתנה עובר escapeHtml, כולל ה-message של sendAlertEmail, למעט בלוקים שהשרת בונה במפורש כ-HTML בטוח. סיסמה לא נשלחת במייל לעולם (<code>SA-32</code>).</div>
+<div>ממשק</div><div>שדות המייל במסך ההגדרות ללא שינוי (שם שולח, כתובת שולח, כתובת התראות SA), ונשמרים בנתיב הייעודי. נוספה טבלה "יומן מיילים" עם 100 השליחות האחרונות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-47</code> (מתוקן) — שליחה רק דרך sendSystemEmail, בלי כתובת קשיחה (עם מיגרציה של הערך הנוכחי), תבניות אחידות ו-email_log.</li><li><code>SA-48</code> — escaping, ובלי שדות פנימיים במיילים חיצוניים.</li><li><code>ARC-10</code> (SA-01) — GET /api/test-email נמחק.</li><li><code>SA-54</code> — הגדרות המייל בנתיב ייעודי עם הרשאת 'all'.</li><li><code>RECON-34</code> — test-email פתוח גם להרשאת devops, כמו ב-tobe-arch.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="system settings welcome sms login debug code banners ads login slides member content pwa cloudinary preloader tour"><h3>הגדרות מערכת כלליות (system_settings)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשוניות content ו-settings: <code>saveWelcomeMsg</code>, ‏<code>toggleSmsLogin</code>/<code>saveSmsDebugCode</code> → <code>POST /api/superadmin/settings</code>. ‏<code>saveAllBanners</code> → <code>POST /api/superadmin/banners</code>. שטחי פרסום: <code>saveAdSlot</code> → <code>POST /api/sa/ads</code>. Cloudinary ו-preloader → <code>POST /api/sa/settings</code>.</div>
+<div>הרשאות</div><div>banners, ads, welcome, member content ו-preloader: requireSAPermission('content'). ‏sms_login_enabled, sms_debug_code, sms_test_phones, Cloudinary ו-tour: 'all' (<code>SA-54</code>). ‏<code>PUT /api/settings/tour</code> עובר ל-verifySA במקום השוואת Bearer מול sa_password (<code>SA-04</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>sms_debug_code: בדיוק 6 ספרות, כמו כל קודי ה-SMS (<code>ARC-29</code>). ערך קיים קצר יותר מרופד מימין באפסים במיגרציה ומוצג למנהל-העל. ‏sms_test_phones: רשימת טלפונים מנורמלים, עד 10 (<code>SA-49</code>).</li><li>ads: slot מתוך <code>AD_SLOT_KEYS</code> (16 המפתחות, ללא שינוי) — "שטח לא תקין". תמונה לפי <code>ARC-26</code>.</li><li>/sa/settings מקבל רק מפתחות מ-allow-list: preloader_text, cloudinary_cloud_name, cloudinary_upload_preset. מפתח אחר מחזיר 400 "מפתח לא מורשה" (<code>SA-54</code>). מפתחות רגישים — sa_*, smtp_*, sms_debug_code, sms_test_phones, admin_notification_email ו-cloudinary_api_secret — נכתבים רק בנתיבים ייעודיים עם 'all'.</li><li><code>cloudinary_api_secret</code>: נתיב ייעודי <code>PUT /api/sa/secrets/cloudinary</code>. הערך נשמר מוצפן ולעולם לא מוחזר (GET מחזיר <code>configured:true/false</code>). משתנה סביבה גובר אם הוא קיים (<code>SA-54</code>, מתוקן).</li><li>קריאה ציבורית, ללא שינוי: רק preloader_text, cloudinary_cloud_name ו-cloudinary_upload_preset.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>banners, בטרנזקציה אמיתית על client אחד (<code>ARC-11</code>): upsert <b>רק של מפתחות שנשלחו</b>. ‏undefined = ללא שינוי, '' = ניקוי (<code>SA-54</code>). המפתחות ללא שינוי: 12 מפתחות באנר של משפחה ועסק (top/bottom × text/link/img), global_ai_logo, login_slides (JSON), member_welcome_*, member_module_settings ו-pwa_install_prompt_enabled. ‏smtp_from_* ו-admin_notification_email עברו לנתיב המייל.</li><li>ads: <code>ad_slot_{slot}_img/_link/_active</code> ('0'/'1') (ללא שינוי).</li><li>קוד דיבאג (<code>SA-49</code>, מתוקן): בייצור, הזמנת שולחן ציבורית ובקשת תור שולחות את הקוד הקבוע רק אם הטלפון ב-<code>sms_test_phones</code>. כל טלפון אחר מקבל קוד אקראי (crypto.randomInt, ‏6 ספרות). מחוץ לייצור ההתנהגות כמו היום.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>sms_login_enabled: true ⇄ false (ברירת מחדל true, ללא שינוי).</div>
+<div>תופעות לוואי</div><div>קריאות ציבוריות ללא שינוי: <code>/api/banners</code>, <code>/api/ads</code>, <code>/api/settings/welcome</code>, <code>/member-content</code>, <code>/pwa-prompt</code>, <code>/login-mode</code>, <code>/api/system/public-config</code> ו-<code>/api/public/system-banner</code>. ‏audit SETTINGS_UPDATE לכל שמירה, עם רשימת המפתחות ובלי ערכים סודיים.</div>
+<div>ממשק</div><div>ללא שינוי בשדות. ליד קוד הדיבאג מופיעה התווית "סביבת בדיקות — חל בייצור רק על טלפוני הבדיקה", ונוסף שדה "טלפוני בדיקה". שדה ה-API Secret של Cloudinary מציג "מוגדר ✓" ומאפשר החלפה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-54</code> (מתוקן) — allow-list, מפתחות רגישים בנתיבים ייעודיים, banners מעדכן רק מה שנשלח, וסוד Cloudinary כ-write-only מוצפן.</li><li><code>SA-49</code> (מתוקן) — קוד דיבאג בייצור רק לטלפוני בדיקה.</li><li><code>SA-04</code> — tour דרך verifySA.</li><li><code>ARC-11</code> (SA-30) — טרנזקציה אמיתית בשמירת banners.</li><li><code>RECON-05</code> — קוד הדיבאג באורך 6 ספרות (במקום עד 4), כי שדות הקוד בדפי הזמנת שולחן ותור מקבלים 6 ספרות (<code>ARC-29</code>).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="legal documents tos privacy accessibility editor"><h3>מסמכים משפטיים (תקנונים, פרטיות, נגישות)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית legal: <code>loadLegalDocs</code>/<code>saveLegalDoc</code> → <code>GET /api/sa/legal</code>, ‏<code>PUT /api/sa/legal/:key</code>. ציבורי: <code>/api/public/legal/:key</code>. חדש: <code>GET /api/sa/legal/:key/versions</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('content'). הקריאה הציבורית נשארת ציבורית.</div>
+<div>קלט ואימותים</div><div><ul><li>key ∈ {legal_tos_family, legal_tos_business, legal_privacy, legal_accessibility}. ב-PUT: "Invalid key". בציבורי: 404 (ללא שינוי).</li><li>content חייב להיות מחרוזת — "Missing content" (ללא שינוי). עד 200KB.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>סניטציה בשרת בשמירה (<code>SA-55</code>), עם allow-list של תגיות: p, h1–h4, ul, ol, li, b, strong, i, em, u, a (href רק ב-http, https או mailto), br, table, thead, tbody, tr, th, td. כל השאר מוסר.</li><li>upsert ל-system_settings. אם אין ערך, הקריאה נופלת ל-<code>LEGAL_DEFAULTS</code> (ללא שינוי).</li><li>INSERT ל-<code>legal_versions(key, content, edited_by, edited_at)</code> (<code>SA-55</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit LEGAL_UPDATE.</div>
+<div>ממשק</div><div>העורך ללא שינוי (contentEditable, ‏<code>legalFmt</code>, <code>legalFmtBlock</code>, ‏<code>LEGAL_DOC_LABELS</code>). כל התגיות שהעורך מייצר נמצאות ב-allow-list, ולכן מסמכים קיימים נשמרים בלי אובדן עיצוב. בצד הצפייה, התוכן עובר DOMPurify לפני ההצגה. נוסף כפתור "היסטוריית גרסאות" עם תאריך ועורך.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-55</code> — סניטציה בשרת ובלקוח, וגרסאות עם זהות העורך.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="page images biz landing slots upload toggle"><h3>תמונות עמוד (דף נחיתה לעסקים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>sa.html: <code>loadBizLandingImages</code>, <code>bizImgSave</code>, <code>bizImgToggle</code>, <code>bizImgDelete</code> (sa.html:5193-5258) → <code>/api/page-images/:page[/:slot]</code>. הצרכן: <code>biz-landing.html</code>.</div>
+<div>הרשאות</div><div>GET ציבורי (הצרכן הוא דף נחיתה). POST, PATCH ו-DELETE: verifySA ו-requireSAPermission('content') (<code>ARC-02</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>POST: image_url חובה, URL בפרוטוקול https מאחסון מאושר (<code>ARC-26</code>). ‏page ו-slot מתוך רשימה מוגדרת של דפים ומשבצות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: upsert ל-<code>page_images(page, slot)</code> עם <code>enabled=TRUE</code> (ללא שינוי).</li><li>PATCH toggle ו-DELETE (ללא שינוי).</li><li>GET: מפה slot→{url, enabled} (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>משבצת: enabled ⇄ disabled (SA).</div>
+<div>תופעות לוואי</div><div>audit PAGE_IMAGE_UPDATE.</div>
+<div>ממשק</div><div>ללא שינוי. הלקוח שולח את טוקן ה-SA.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-02</code> / <code>SA-03</code> — נתיבי הכתיבה מאומתים. אף אחד מחוץ ל-SA לא יכול להחליף תמונות בדף הנחיתה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="inbox broadcast message businesses families premium internal messages release notes"><h3>שידור הודעות Inbox לסביבות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>sendSABroadcastMessage</code> (sa-app.js:3858) ו-<code>broadcastReleaseNotes</code> → <code>POST /api/sa/inbox/broadcast</code>. המערכת הנפרדת <code>/api/messages/broadcast</code> ל-internal_messages נשארת.</div>
+<div>הרשאות</div><div>requireSAPermission('marketing') (לשונית inbox).</div>
+<div>קלט ואימותים</div><div><ul><li>subject ו-content חובה — "חובה למלא נושא ותוכן". אם אין נמענים: 404 "לא נמצאו נמענים מתאימים לסינון" (ללא שינוי).</li><li>targetType: all, pro, free, all_families, pro_families, free_families ו-specific (targetValue) (ללא שינוי). ‏includeTest בוליאני, ברירת מחדל false (<code>SA-53</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>בחירת נמענים (<code>SA-53</code>): <code>is_deleted=false AND account_status IN ('active','pending_activation')</code>, וגם <code>is_test_env IS NOT TRUE</code> אלא אם includeTest. ‏pro = <code>plan IN ('premium','enterprise')</code>, ו-free = כל השאר (במקום is_premium). ‏specific נשלח ליעד שצוין גם אם הוא טסט.</li><li>בטרנזקציה אמיתית (<code>ARC-11</code>): INSERT ל-<code>inbox_messages(group_id, sender_type 'superadmin', sender_name 'מערכת', sender_contact, subject, content)</code> לכל נמען. ‏sender_contact נלקח מ-system_settings.support_contact_email, ברירת מחדל 'admin@weflowz.co.il' (אותו ערך כמו היום).</li></ol></div>
+<div>חישובים</div><div>מספר נמענים = גודל הסט אחרי הסינון.</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit BROADCAST עם targetType ומספר הנמענים (<code>SA-53</code>).</div>
+<div>ממשק</div><div>נוספה תיבת סימון "כלול סביבות טסט". אחרי השליחה מוצג מספר הנמענים. שאר הממשק ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-53</code> — בלי סביבות מחוקות, מוקפאות או בארכיון, טסט רק בסימון, pro/free לפי plan, ו-audit.</li><li><code>ARC-11</code> (SA-30) — טרנזקציה אמיתית.</li></ul></div>
+</div></section>
+
+<h2 class="grp">קריאות שירות (Support Tickets)</h2>
+
+<section class="proc" data-f="support ticket create client open log email"><h3>פתיחת קריאת שירות ע"י לקוח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>יצירה: <code>POST /api/support/ticket</code> הוא ה-handler היחיד. ‏<code>POST /api/tickets</code> נשאר alias שמפנה לאותו handler, עד שכל הלקוחות עוברים (<code>SA-37</code>). צפייה: <code>/api/support/tickets/my</code> ו-<code>/api/tickets</code>, בלי :groupId (מהסשן). תגובת לקוח: <code>/api/support/tickets/:id/reply</code>.</div>
+<div>הרשאות</div><div>verifyFamilyOrBiz, ו-groupId ו-userId מהסשן (<code>SA-37</code>, <code>ARC-04</code>). ‏reply וצפייה רק בקריאה של הקבוצה. קריאה של קבוצה אחרת מחזירה 404.</div>
+<div>קלט ואימותים</div><div><ul><li>ה-handler המאוחד מקבל את שני מבני הגוף: description, או subject ו-content. אם אין subject, הוא נגזר מתחילת התיאור. תיאור של 5 תווים לפחות — "תיאור קצר מדי.". בלי תוכן: "חסרים נתונים ליצירת קריאה" (שתי ההודעות נשמרות).</li><li>rate limit: 10 קריאות חדשות לשעה לכל קבוצה (<code>ARC-29</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>support_tickets(group_id, user_id, subject, description, status 'open', log=[{date, sender, isStaff:false, message}])</code> (ללא שינוי).</li><li>מייל ל-SA "קריאה #N: נושא", עכשיו בשני מסלולי היצירה (<code>SA-37</code>).</li><li>reply של לקוח: הוספה ל-log. הסטטוס עובר ל-'open' אם הוא resolved, ואחרת לא משתנה (ללא שינוי). התגובה של הצוות נמצאת בתהליך הבא.</li><li><b>סינון בכל תגובה ללקוח</b> (<code>SA-37</code>): רשומות log עם <code>isInternal=true</code> או שמתחילות ב-<code>[SYSTEM_AUDIT]</code> מוסרות. ‏<code>admin_reply</code> הוא רשומת הצוות האחרונה <b>שאינה פנימית</b>.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—/open (יצירה), resolved → open (לקוח מגיב). ראו את הטבלה המלאה בתהליך הבא.</div>
+<div>תופעות לוואי</div><div>מייל ל-SA. בדשבורד, המונה open_cnt.</div>
+<div>ממשק</div><div>ללא שינוי. הלקוחות שולחים Authorization, ו-groupId לא נשלח יותר ב-URL.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-37</code> — אימות עם groupId מהסשן, סינון הערות פנימיות, handler יצירה אחד (וה-alias נשמר), ומייל ל-SA בשני המסלולים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sa tickets manage reply status classify sla matrix ai triage feedback loop delete initiated"><h3>ניהול קריאות שירות ב-SA (סיווג, מענה, SLA, AI, סגירת מעגל)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית support: <code>loadSATickets</code> → <code>GET /api/superadmin/tickets</code>. מודאל: <code>openSATicketModal</code>. ‏<code>updateTicketClassification</code> → <code>/assign_and_classify</code>. ‏<code>submitSATicketReply</code> → <code>/reply</code>. ‏<code>runFamilAITriage</code> → <code>/ai-triage</code>. ‏<code>submitNewTicket</code> → <code>POST /api/superadmin/tickets</code>. ‏<code>deleteTicket</code> → DELETE. ‏SLA: <code>saveSlaMatrix</code> → <code>/api/sa/sla-matrix</code>. ‏<code>executeFeedbackLoop</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('support'). מחיקת קריאה: support. ‏sla-matrix: support.</div>
+<div>קלט ואימותים</div><div><ul><li>מענה בלקוח, ללא שינוי: חייב טקסט או סטטוס — "יש להזין תגובה ללקוח או לבחור שינוי סטטוס". בחירת resolved בלי טקסט פותחת את מודאל סגירת המעגל.</li><li>assign_and_classify: 404 'Ticket not found'. ברירות המחדל: priority ‏normal, ‏ticket_type ‏general (ללא שינוי). ‏priority ∈ {low, normal, high, critical}, ו-ticket_type ∈ {general, technical, billing}.</li><li>status ∈ {open, in_progress, resolved, closed}.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>קריאה יזומה, ללא שינוי: log עם הודעת צוות. אם הקריאה משויכת ללקוח: הודעת מערכת ללקוח, רשומת <code>[SYSTEM_AUDIT]</code> פנימית והודעה בצ'אט הפנימי. השולח הוא <code>req.saUser.name</code>.</li>
+<li>classify, בטרנזקציה: עדכון assigned_team, priority ו-ticket_type, ו-audit פנימי אם יש auditNote (ללא שינוי).</li>
+<li>reply: הוספת הודעה (isInternal לפי checkbox). אם הסטטוס השתנה: audit "סטטוס הקריאה עודכן: {תווית}". ‏auditNote אופציונלי. ‏<code>status_updated_at=NOW()</code> תמיד (ללא שינוי).</li>
+<li>AI triage דרך aiGateway (<code>feature:'sa_ticket_triage'</code>): המודל מחזיר {sentiment, priority low|normal|high|critical, ticketType, reason}. מתעדכנים priority ו-ticket_type, ונרשמת רשומת audit פנימית "FamilAI סיווג..." (ללא שינוי).</li>
+<li>feedback loop: reply עם status 'resolved' והודעה ללקוח. הנתיב <code>/api/sa/tickets/:id/feedback-loop</code> מוסיף "🎉 צוות הפיתוח עדכן שהמשימה ... הושלמה" וסוגר ל-resolved (ללא שינוי).</li>
+<li>שינוי סטטוס פשוט: <code>PUT /api/superadmin/tickets/:id/status</code> (ללא שינוי).</li>
+<li>SLA מחושב בשרת (<code>SA-38</code>): כל תגובה של רשימה או קריאה כוללת <code>sla_max_hours</code> ו-<code>sla_breached</code>.</li></ol></div>
+<div>חישובים</div><div>SLA (<code>SA-38</code>, אותה לוגיקה שהייתה בלקוח, עכשיו בשרת): התאמה לפי (type, priority), אחר כך (type, '*'), אחר כך ('*', priority), ואחר כך ('*', '*'), עם ברירת מחדל של 24 שעות. חריגה = שעות מאז <code>status_updated_at||created_at</code> ≥ המקסימום, <b>רק בסטטוס open או in_progress</b>. resolved ו-closed לא נחשבים חורגים. מדדי דשבורד: <code>open_cnt</code>, <code>urgent = priority IN ('high','critical')</code>, ו-<code>closed_24h</code> לפי <code>status_updated_at</code>, במקום updated_at שלא קיים (<code>SA-38</code>).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>open</td><td>לקוח / SA</td><td>יצירה</td><td>מייל ל-SA</td></tr>
+<tr><td>open</td><td>in_progress</td><td>צוות (reply בלי סטטוס) / בחירת SA</td><td>—</td><td>audit פנימי</td></tr>
+<tr><td>any</td><td>resolved</td><td>SA / feedback loop</td><td>—</td><td>הודעה ללקוח</td></tr>
+<tr><td>resolved</td><td>open</td><td>לקוח</td><td>מגיב בלי newStatus</td><td>—</td></tr>
+<tr><td>any</td><td>closed</td><td>SA / FLOW AI אחרי אישור</td><td>CLOSE_TICKET</td><td>status_updated_at</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>בדשבורד: open_cnt, urgent ו-closed_24h, עם ערכים אמיתיים. אופציונלי: כשקריאה עוברת לחריגה נשלחת התראה מסוג <code>sla_breach</code> לצוות דרך notify() (<code>SA-38</code>, <code>SA-52</code>). ‏audit TICKET_DELETE למחיקה.</div>
+<div>ממשק</div><div>KPIs ללא שינוי (פתוחות, בטיפול, חריגות SLA, נסגרו), ועכשיו מחושבים מהשרת. הסינון לפי חיפוש, סטטוס, עדיפות ותקופה (1m, 3m, 6m, custom) ללא שינוי. תג "דחוף" כולל גם critical.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-38</code> — status_updated_at במקום updated_at, urgent כולל critical, SLA בשרת, ו-closed לא חורג.</li><li><code>SA-07</code> — שם הנציג האמיתי ברשומות.</li><li><code>SA-15</code> — triage דרך aiGateway.</li></ul></div>
+</div></section>
+
+<h2 class="grp">ALM — פיתוח, גרסאות ו-QA</h2>
+
+<section class="proc" data-f="dev tasks kanban alm backlog in_progress qa done subtasks ticket convert product book"><h3>משימות פיתוח (Kanban/ALM) ותתי-משימות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית devops: <code>loadDevTasks</code>/<code>renderKanbanBoard</code>, <code>dropKanbanTask</code>, <code>saveKanbanTaskData</code>, <code>convertTicketToDevTask</code>. ב-qa-book.html: <code>completeDevTask</code>, <code>closeTaskDone</code>, <code>passQATest</code>. בשרת: <code>/api/sa/dev/tasks</code> ו-subtasks. חדש: <code>POST /api/sa/dev/tasks/:id/complete</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('devops'). ההמרה מקריאה: support או devops.</div>
+<div>קלט ואימותים</div><div><ul><li>(<code>SA-39</code>) המעבר ל-done מתבצע <b>רק</b> דרך <code>/complete</code>, רק מסטטוס qa, ועם הרשאת devops. שליחת <code>status:'done'</code> ב-PUT או ב-PATCH מחזירה 403, עם אותה הודעה של היום: "חסימת מערכת: לא ניתן להעביר משימה לסטטוס "בוצע" ידנית...". דגל <code>systemOverride</code> מהלקוח לא נקרא.</li><li>עדכון משימה: <code>PATCH /dev/tasks/:id</code> חלקי. שדה שלא נשלח לא משתנה. ‏PUT ממופה ל-PATCH (<code>SA-39</code>).</li><li>status ∈ {backlog, in_progress, qa, done}. ‏type ו-priority מתוך רשימות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>יצירה, ללא שינוי: אם יש <code>original_ticket_id</code>, נשלף ה-group_id של הקריאה. ‏INSERT עם ברירות המחדל type ‏feature, priority ‏normal, status ‏backlog. נרשם audit לקריאה "הקריאה הומרה למשימת טיפול...".</li>
+<li>שינוי סטטוס (backlog, in_progress, qa): UPDATE. אם המשימה מקושרת לקריאה: audit בקריאה עם תווית ("🔧 הקריאה נכנסה לפיתוח פעיל" / "🔬 ...QA") והודעה בצ'אט הפנימי (ללא שינוי).</li>
+<li>complete (מ-qa): בטרנזקציה, status='done', upsert ל-<code>sa_product_book</code> עם id ‏<code>DEV-{id}</code>, ו-category = module_name, environment או 'general' (ללא שינוי). audit בקריאה "✅ הפיתוח הושלם — שוחרר לאוויר", והודעה בצ'אט.</li>
+<li>subtasks: INSERT, toggle של <code>is_done</code>, ו-DELETE (ללא שינוי).</li>
+<li>בלוקי הנתיבים הכפולים והמוצללים (server.js:23766, 24337-24384), עם הסכמה הסותרת, נמחקים. לכל נתיב יש רישום אחד (<code>SA-39</code>, <code>ARC-35</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>backlog</td><td>in_progress</td><td>SA devops (גרירה)</td><td>—</td><td>audit וצ'אט אם מקושרת</td></tr>
+<tr><td>in_progress</td><td>qa</td><td>qa-book completeDevTask / גרירה</td><td>—</td><td>audit וצ'אט</td></tr>
+<tr><td>qa</td><td>done</td><td>qa-book (passQATest / closeTaskDone), דרך /complete</td><td>הרשאת devops</td><td>ספר מוצר DEV-id, ובלקוח SA מודאל feedback loop</td></tr>
+<tr><td>כל סטטוס</td><td>backlog/in_progress/qa</td><td>SA devops</td><td>—</td><td>audit</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>בדיקת כפילויות AI: <code>POST /api/sa/dev/check-duplicates</code> דרך aiGateway, שמחזיר {isDuplicate, matchedTaskId, confidence, explanation} (ללא שינוי).</div>
+<div>ממשק</div><div>גרירה ל-done שהשרת דוחה (למשל מ-backlog) מחזירה את הכרטיס למקומו, עם טוסט בהודעת השרת. הלקוח בודק את התגובה לפני עדכון מקומי (<code>SA-39</code>). ב-qa-book, כפתורי "בדיקה עברה — סגור" ו-"QA עבר" מוצגים כמו היום רק במצב inqa, ושולחים ל-/complete.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-39</code> — done רק מ-qa דרך /complete עם devops, בלי דגל מהלקוח, PATCH חלקי, החזרת הכרטיס בדחייה, ומחיקת הנתיבים הכפולים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="versions qa book product book test results runs playwright assignments qa-book"><h3>גרסאות, ספר המוצר ותוצאות QA (qa-book.html)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>qa-book.html: טעינת בדיקות, seed → <code>/api/sa/qa/tests/bulk</code>. תוצאות → <code>/api/sa/qa/results/bulk</code> (debounced). ריצה → <code>/api/sa/qa/runs</code>. שיוכי משימות → <code>/api/qa/assignments</code>. ‏auto-refresh כל 30 שניות. Playwright: <code>POST /api/qa/update</code>. גרסאות: <code>/api/sa/versions</code>.</div>
+<div>הרשאות</div><div>/api/sa/qa/* ו-versions: requireSAPermission('devops'). ‏<code>/api/qa/assignments</code>: verifySA ו-devops. qa-book שולח את טוקן ה-SA שכבר נמצא בשימוש בשאר הקריאות (<code>SA-39</code>). ‏<code>/api/qa/update</code>: מפתח שירות בכותרת <code>X-QA-Key</code> שתואם ל-<code>QA_API_KEY</code> מה-env (<code>SA-39</code>). Playwright ב-CI מקבל את המפתח כ-secret.</div>
+<div>קלט ואימותים</div><div><ul><li>bulk tests: מערך לא ריק — 'לא נשלחו נתונים'. כפילות (23505) מדולגת (ללא שינוי).</li><li>results: רשומה בלי testId או env מדולגת (ללא שינוי).</li><li>qa/update: testId חובה (ללא שינוי). מפתח שגוי מחזיר 401.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>tests POST: upsert ל-<code>sa_product_book(id, category, name, description, priority 'medium')</code> (ללא שינוי).</li><li>results: upsert ל-<code>sa_qa_test_results(test_id, env)</code> עם status ו-note. ה-DELETE שמאפס הכל נשמר, עם אישור כפול בלקוח ו-audit.</li><li>runs: INSERT ל-<code>sa_qa_runs(version_id, tester_name=req.saUser.name, results JSON {total, passed, failed, skipped, failedTests})</code>.</li><li>qa/update: note אוטומטי "🤖 Playwright: ✅ עבר/❌ נכשל — תאריך" (ללא שינוי).</li><li>מחיקת גרסה: ניתוק sa_qa_runs ו-sa_dev_tasks, ואז DELETE (ללא שינוי).</li><li>מחיקת בדיקות (<code>DELETE /api/sa/qa/tests</code> ו-<code>/:id</code>): רישום יחיד לפי הסכמה בפועל (category/name). הבלוק הכפול נמחק (<code>SA-39</code>).</li></ol></div>
+<div>חישובים</div><div>ב-matrix, ללא שינוי: פריט ספר הוא passed אם יש לו ok כלשהו, אחרת failed אם יש fail, ואחרת untested.</div>
+<div>מכונת מצבים</div><div>status של תוצאה ∈ {ok, fail, warn, skip, dismissed} (env מיוחדים: qa-note, qa-steps, dismissed) (ללא שינוי).</div>
+<div>תופעות לוואי</div><div>audit לאיפוס תוצאות ולמחיקת גרסה.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-39</code> — assignments מאומת, qa/update עם מפתח שירות, ורישום יחיד לנתיבי המחיקה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="product matrix scenarios environment status tested"><h3>מטריצת מוצר (תרחישי בדיקה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadProductMatrix</code>, <code>changeTestStatus</code>, <code>addMatrixItemPrompt</code>, <code>deleteMatrixItem</code> (sa-app.js:5954-6115) → <code>/api/sa/matrix</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('devops').</div>
+<div>קלט ואימותים</div><div>status מתוך ערכי התוצאה. פריט לא קיים מחזיר 404.</div>
+<div>שלבי עיבוד</div><div><ol><li>GET מאחד את <code>sa_product_matrix</code> עם ספר המוצר (environment='book') (ללא שינוי).</li><li>PUT status מעדכן גם <code>last_tested_at</code> (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>ראו גרסאות ו-QA.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי: עימוד של 15, וכפתור "פתח באג" (<code>openDevBugModal</code>) שיוצר משימת פיתוח.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-07</code> — הרשאת devops בשרת.</li><li><code>SA-58</code> — קודי שגיאה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="release notes ai newsletter generate familai"><h3>מחולל הודעות גרסה (Release Notes)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>generateReleaseNotesAI</code> (sa-app.js:7058) → <code>POST /api/sa/ai-generate</code>. ‏<code>generateManualRelease</code>, <code>exportToPDF</code>, ‏<code>broadcastReleaseNotes</code> (שידור Inbox).</div>
+<div>הרשאות</div><div>יצירה: devops או marketing. שידור: marketing (כמו בשידור Inbox).</div>
+<div>קלט ואימותים</div><div>לפחות נקודה אחת (ללא שינוי).</div>
+<div>שלבי עיבוד</div><div><ol><li>אורך: standard ‏50 מילים, אחרת 120. הקריאה עוברת דרך aiGateway (<code>feature:'sa_release_notes'</code>, ‏<code>SA-15</code>), והמודל מחזיר טקסט. אחר כך, ללא שינוי: הסרת פתיח ("בטח/הנה..."), המרת **bold** ושורות ל-HTML, ועטיפה בתבנית ניוזלטר בצבעי ערכה (purple, blue, emerald, orange, slate). כל טקסט מהמודל עובר escape לפני שמכניסים אותו לתבנית (<code>ARC-27</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>רישום ב-ai_usage_log עם actor_type 'sa' (<code>SA-14</code>). השידור עובר את כללי <code>SA-53</code>.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-15</code>/<code>SA-14</code> — aiGateway ורישום.</li><li><code>SA-53</code> — סינון נמענים בשידור.</li></ul></div>
+</div></section>
+
+<h2 class="grp">דשבורדים, תובנות ולוג ביקורת</h2>
+
+<section class="proc" data-f="dashboard pulse bigscreen kpi pending growth debtors activity feed online"><h3>דופק מערכת, דשבורד מקיף ומסך גדול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית pulse: <code>updateSADashboard</code>, <code>loadSADashboard</code> → <code>GET /api/sa/dashboard</code>. מסך מלא: <code>togglePulseFullscreen</code> → <code>/api/sa/bigscreen-stats</code> ו-<code>/api/sa/activity-feed?since=</code>. וגם <code>/api/superadmin/pulse</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (pulse פתוחה). כרטיסי כספים מוצגים רק עם stats. ‏activity-feed מחזיר שדות מצומצמים (<code>ARC-32</code>).</div>
+<div>קלט ואימותים</div><div>since: חותמת זמן תקינה. ברירת המחדל 60 שניות אחורה (ללא שינוי).</div>
+<div>שלבי עיבוד</div><div><ol><li>כל המדדים מחושבים בפונקציות שרת משותפות, ש-unified-stats ו-/sa/billing משתמשים בהן גם (<code>SA-36</code>).</li></ol></div>
+<div>חישובים</div><div><ul><li>dashboard, ללא שינוי בהגדרות: families (FAMILY שאינו member או shopper), businesses, communities active, online_now (3 דקות), total_users, connections, fam_24h ו-biz_24h. ממתינים: biz_joins, fam_joins, באנרים pending_approval, ZM pending, promos, communities pending, billing unpaid, module_requests. FLW issued ו-redeemed, top 5 AI ב-30 יום, גידול ב-7 ימים, 5 חייבים ו-6 ארנקי קהילה.</li><li>כספים (<code>SA-36</code>): חוב פתוח ונגבה החודש לפי ההגדרות הקנוניות (Σcash_amount, ‏issued+pending_confirm, חודש בשעון ישראל). "עמלות" נלקחות מ-business_platform_dues.</li><li>FLW (<code>SA-35</code>): issued = זיכויים בלבד, redeemed = מימושים, adjustments בנפרד. "מטבעות במחזור" = <code>max(0, issued − redeemed − adjustments)</code>.</li><li>קריאות (<code>SA-38</code>): open_cnt, urgent (high+critical) ו-closed_24h לפי status_updated_at, עם ערכים אמיתיים במקום 0.</li><li>activity-feed: 30 אירועים (הזמנות, משתמשים, קריאות, באנרים, flow חיובי) (ללא שינוי).</li><li>pulse: openTickets = open או in_progress (ערכים קנוניים בלבד). pendingTasks = backlog. ‏qaPercentage = resolved/total×100 (ברירת מחדל 100) (ללא שינוי).</li></ul></div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>אזהרה "כתובת התראות SA לא מוגדרת" כשהשדה ריק (<code>SA-47</code>).</div>
+<div>ממשק</div><div>ללא שינוי: שבבי "פעולות נדרשות" עם קפיצה ללשונית, וגרפים (גידול, חייבים, AI, ארנקים). שבב fam_joins מנווט ל-<code>comm</code> (<code>SA-09</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-38</code> — מדדי קריאות אמיתיים.</li><li><code>SA-36</code> — כספים ממקור אחד.</li><li><code>SA-35</code> — מדדי FLW מופרדים.</li><li><code>SA-09</code> — ניווט fam_joins.</li><li><code>SA-47</code> — אזהרת תצורת מייל.</li><li><code>RECON-15</code> — חוב פתוח מחושב על issued+pending_confirm (issued הוא unpaid של היום).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="insights unified stats kpi detail top lists range today month test env"><h3>תובנות מאוחדות (KPIs רוחביים, פירוט ו-Top 5)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית insights: <code>loadSAInsights</code> → <code>/api/sa/unified-stats</code> ו-<code>/api/sa/insights-top-lists</code>. טווח: <code>setSAInsightsRange</code> (all, today, month). פירוט: <code>openSAKpiDetail</code> → <code>/api/sa/kpi-detail?kpi=&amp;range=&amp;page=</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('stats').</div>
+<div>קלט ואימותים</div><div>range ∈ {all, today, month}. ‏kpi לא מוכר מחזיר 400 'unknown kpi' (ללא שינוי). ‏page שלם ≥1.</div>
+<div>שלבי עיבוד</div><div><ol><li>שאילתות דרך פונקציות המדדים המשותפות (<code>SA-36</code>).</li></ol></div>
+<div>חישובים</div><div><ul><li>RANGE, ללא שינוי: all_count, today_count (מתחילת היום בשעון ישראל), month_count (30 יום מתגלגלים).</li><li>26 KPIs באותן קטגוריות (business, families, communities, finance, coins, entities), כולם מחריגים is_test_env. הזמנות בלי cancelled ו-rejected. ‏active_* סטטיים (ללא שינוי).</li><li><code>zm_commissions</code> = Σ <code>zone_manager_commissions</code> בטווח, במקום billing_records.record_type שלא קיים (<code>SA-36</code>). ‏platform_commissions מ-business_platform_dues. כספי חוב וגבייה לפי ההגדרות הקנוניות. ‏coins לפי <code>SA-35</code>.</li><li>kpi-detail: 30 לעמוד (ללא שינוי).</li></ul></div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-36</code> — zm_commissions ועמלות ממקור נכון. אין יותר KPI שתמיד 0.</li><li><code>SA-35</code> — מדדי מטבעות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pending actions center wait hours categories badges health"><h3>מרכז פעולות ממתינות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadSAPendingCenter</code> → <code>GET /api/sa/pending-actions-center</code>, בכל כניסה ל-pulse.</div>
+<div>הרשאות</div><div>כל סשן SA. קטגוריה שהמשתמש לא מורשה לפעול בה (למשל חובות בלי stats) מוצגת כספירה בלבד, בלי פריטים.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol><li>9 קטגוריות, ללא שינוי: הצטרפות משפחה לקהילה, חיבור עסק לקהילה, מנהלי אזור, פניות תמיכה (high ו-critical קודם, <code>SA-38</code>), חובות (issued ו-pending_confirm, ‏<code>SA-36</code>), שילוט, הסרות, מבצעים ובקשות מודול (מתוך JSON, כולל CANCEL_ שמסומנות "בקשת ביטול", כי עכשיו יש להן פעולה בפועל, <code>SA-17</code>).</li><li>לכל קטגוריה: count, oldest_wait_hours, ו-8 פריטים ראשונים עם wait_hours ו-is_test (ללא שינוי).</li><li>מיון: קטגוריות לא ריקות לפי ההמתנה הוותיקה ביותר (יורד), וריקות לפי א-ב (ללא שינוי).</li><li>שגיאות SQL נאספות ל-<code>sql_errors</code>, ומוצגות כבאנר אזהרה וכ-pill "שגיאת שרת ב-N קטגוריות" (ללא שינוי), ובנוסף נרשמות ללוג (<code>ARC-13</code>).</li></ol></div>
+<div>חישובים</div><div><code>wait_hours = round((now − created_at)/3600000)</code>. ‏total_pending = Σcount (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי: תגי ספירה בסרגל הצד (<code>_saUpdateSidebarBadges</code>), וחומרה לפי שעות (<code>_saWaitSeverity</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-17</code> — בקשות ביטול מוצגות, כי יש להן פעולה.</li><li><code>SA-36</code>/<code>SA-38</code> — הגדרות חוב ודחיפות אחידות.</li><li><code>RECON-15</code> — קטגוריית החובות לפי issued ו-pending_confirm.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="audit log sa_audit_log labels action types logaudit"><h3>לוג ביקורת SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>logAudit</code> נקרא מכל פעולת SA. התצוגה בלשונית auditlog: <code>loadAuditLog</code> → <code>GET /api/sa/audit-log</code>.</div>
+<div>הרשאות</div><div>קריאה: כל סשן SA (auditlog=open ב-SA_TAB_PERMS, כמו היום). כתיבה: מערכת בלבד. אין נתיב למחיקה או לעריכה.</div>
+<div>קלט ואימותים</div><div>סינון לפי action_type, target_type, actor_id, from ו-to (כולל היום), limit 200 (ללא שינוי, בתוספת actor_id).</div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-audit_log המאוחד (<code>ARC-19</code>, תצוגת sa_audit_log): <code>(action_type, target_type, target_id, target_name, details JSON, actor_id, actor_name, ip, created_at)</code> (<code>SA-07</code>). כשל נכתב ל-console.error ולא נבלע.</li><li>GET: סינון ו-stats לפי סוג (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>סוגים שנרשמים (<code>SA-07</code>): הקיימים FREEZE_GROUP, UNFREEZE_GROUP, MARK_TEST_ENV, UNMARK_TEST_ENV, MERGE_GROUPS, MERGE_USERS, DELETE_GROUP, DELETE_USER, CHANGE_PLAN, RESTORE_GROUP, PERMANENT_DELETE ו-RESTORE_SNAPSHOT. ובנוסף: SA_LOGIN, SA_LOGIN_FAILED, SA_LOGOUT, IMPERSONATE, UPDATE_SA_CREDENTIALS, STAFF_CREATE/UPDATE/DELETE, TEAM_*, FLOW_GRANT, FLOW_CONFIG_UPDATE, BILLING_MARK_PAID, PRICING_UPDATE, BILLING_CONFIG_UPDATE, TRIAL_UPDATE, MODULE_REQUEST_APPROVE/DENY, EDIT_GROUP, CHANGE_BUSINESS_TYPE, EDIT_USER, CREATE_GROUP (מחולל AI), ARCHIVE_GROUP, UNARCHIVE_GROUP, BROADCAST, SETTINGS_UPDATE, LEGAL_UPDATE, WA_*, DEMO_*, ו-SA_AI_&lt;type&gt;.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div><code>AUDIT_LABELS</code> מכסה כל סוג שנרשם, בתוויות בעברית. CHANGE_PLAN ממשיך להיות מוצג from→to (ללא שינוי). עמודת המבצע מציגה את actor_name, ו-'system' לפעולות של job, במקום 'super-admin' קבוע. נוסף סינון לפי מבצע.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-07</code> — זהות המבצע ו-ip, כיסוי מלא, תוויות לכל סוג, ובלי בליעה שקטה.</li><li><code>ARC-19</code> — audit_log מאוחד.</li><li><code>RECON-07</code> — יומן הביקורת נגיש לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<h2 class="grp">שיווק, לידים, דמו ושונות</h2>
+
+<section class="proc" data-f="marketing campaigns whatsapp templates slides gender sector share"><h3>תבניות קמפיינים שיווקיים (WhatsApp) ושקפים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית marketing (open ב-SA_TAB_PERMS): saMarketingInit, <code>saMarketingSave</code>, <code>saMarketingDuplicate</code>, <code>saMarketingDelete</code>, <code>saMarketingWaSend</code> (sa-app.js:12818-12995) → <code>/api/sa/marketing-campaigns</code>.</div>
+<div>הרשאות</div><div>requireSAPermission('marketing').</div>
+<div>קלט ואימותים</div><div><ul><li>title חובה — 'title required' (ללא שינוי). התמונות לפי <code>ARC-26</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שדות, ללא שינוי: title, subtitle, body_male, body_female, sector, images (JSON), slide_images (JSON של מפתח→תמונה).</li><li>שליחה, ללא שינוי: בניית הטקסט <code>*כותרת*\n_תת-כותרת_\n\nגוף</code> לפי המגדר הפעיל. עם תמונות ו-Web Share API נקרא <code>navigator.share</code>, ואחרת <code>wa.me/?text=</code>.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי. בראש המסך מופיע הטקסט "מחולל תוכן לשיתוף ידני — ההודעות נשלחות מהמכשיר שלך" (<code>SA-60</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-60</code> — המסך מוגדר ומתועד כמחולל תוכן לשיתוף ידני, כמו שהוא היום. אין שליחה המונית מהשרת. אם תידרש שליחה כזו בעתיד, היא תהיה רק לנמענים עם marketing_opt_in, דרך ספק מאושר ועם whatsapp_log (backlog).</li><li><code>RECON-07</code> — לשונית marketing פתוחה לכל איש צוות כמו היום (checkTabAccess לא מגביל אותה). ההרשאה marketing נשארת ללשונית inbox.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pilot waitlist nikdim leads yishuv status contacted joined declined"><h3>רשימת המתנה לפיילוט (לידים)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ציבורי: <code>nikdim-pilot.html</code> → <code>POST /api/pilot-waitlist</code>. ‏SA: <code>loadPilotLeads</code>, <code>updatePilotLeadStatus</code>, <code>updatePilotLeadNotes</code>, <code>deletePilotLead</code> (sa-app.js:5101-5193).</div>
+<div>הרשאות</div><div>POST ציבורי מוצהר, עם rate limit. נתיבי ה-SA: כל סשן SA (הרשימה נטענת בלשונית partners, loadSAPartners, שפתוחה לכל איש צוות, <code>RECON-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>name ו-phone חובה — "שם וטלפון הם שדות חובה". ‏yishuv — "נא לבחור יישוב". ‏source ברירת מחדל 'nikdim-pilot' (ללא שינוי).</li><li>rate limit: 5 בקשות לשעה לכל IP, ואז 429 (<code>SA-50</code>).</li><li>טלפון שכבר קיים (מנורמל) מעדכן את השורה הקיימת (name, yishuv, updated_at) במקום ליצור כפילות (<code>SA-50</code>).</li><li>PATCH: לפחות status או notes — "אין שדות לעדכון". ‏status ∈ {new, contacted, joined, declined}.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>upsert לפי טלפון.</li><li>עדכון, מחיקה ו-stats (ללא שינוי).</li></ol></div>
+<div>חישובים</div><div>stats: ספירה לפי status, מסונן לפי yishuv (ללא שינוי).</div>
+<div>מכונת מצבים</div><div>status: new (ברירת מחדל) → contacted / joined / declined, וכל מעבר מותר בין הערכים האלה.</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>ללא שינוי. ההודעה לנרשם שכבר נרשם זהה להודעת ההצלחה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-50</code> — rate limit ומניעת כפילות טלפון.</li><li><code>RECON-07</code> — הלידים מוצגים בלשונית partners, שפתוחה לכל איש צוות כמו היום.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="demo business public login snapshot reset cron credentials"><h3>עסקי דמו לכניסה ציבורית ואיפוס אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openSADemoModal</code>, <code>enableSADemoBusiness</code>, <code>saUpdateDemoCredentials</code>, <code>disableSADemoBusiness</code>, <code>captureSADemoSnapshot</code> (sa-app.js:4747-4852) → <code>/api/sa/businesses/:gid/demo*</code>. איפוס: job כל 6 שעות ב-worker (<code>runDemoBusinessesResetCron</code>, ‏<code>ARC-23</code>).</div>
+<div>הרשאות</div><div>כל סשן SA (clients ו-biz, כמו הכפתורים היום). צפייה בפרטי הדמו נרשמת ב-audit.</div>
+<div>קלט ואימותים</div><div><ul><li>credentials: העסק חייב להיות דמו — "יש להפוך את העסק לעסק דמו קודם". ‏phone ו-password חובה (ללא שינוי). סיסמה של 6 תווים לפחות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>enable, ללא שינוי בלוגיקה: אם אין demo_phone, נוצרים <code>DEMO{groupId}</code> וסיסמה אקראית של 8 תווים. נוצר או מתעדכן משתמש ADMIN 'לקוח דמו' עם status active, ו-<code>is_demo_business=TRUE</code>. <b>אחסון</b> (<code>SA-32</code>, <code>SA-56</code>, מתוקן): הסיסמה נשמרת ב-bcrypt על המשתמש לצורך הכניסה, ובנוסף מוצפנת (הצפנה הפיכה ברמת עמודה, <code>demo_password_enc</code>) כדי שה-SA יוכל לראות אותה שוב. ‏<code>demo_password_plain</code> מוסר במיגרציה. אם אין snapshot, נלקח אחד אוטומטית (<code>SA-56</code>).</li><li>snapshot: שמירת store_orders, store_order_items, store_customers, transactions, tasks ו-pantry ל-<code>demo_snapshots</code> (upsert, ללא שינוי).</li><li>job ושחזור, בטרנזקציה (ללא שינוי): מחיקת הטבלאות של העסק, הכנסה מחדש מה-snapshot, ואיפוס ה-sequence של כל טבלה ל-MAX(id). מאחר ש-enable מבטיח snapshot, כל עסק דמו מאופס.</li><li>disable (<code>SA-56</code>): <code>is_demo_business=FALSE</code>, ‏status='blocked' למשתמש 'לקוח דמו', וביטול כל הסשנים שלו. כניסה עם פרטי הדמו נכשלת. ‏enable מחדש מחזיר אותו ל-active.</li><li>קישור ציבורי, ללא שינוי: <code>/demo-login.html?gid=</code>, שמתחבר דרך <code>/api/biz/login</code>. הכניסה בודקת bcrypt, וגם שהעסק עדיין דמו או שהמשתמש active.</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr><tr><td>לא דמו</td><td>דמו</td><td>SA</td><td>—</td><td>משתמש 'לקוח דמו' active, snapshot מובטח</td></tr><tr><td>דמו</td><td>לא דמו</td><td>SA</td><td>—</td><td>המשתמש blocked והסשנים מבוטלים</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>audit: DEMO_ENABLE, DEMO_DISABLE, DEMO_CREDENTIALS_UPDATE ו-DEMO_CREDENTIALS_VIEW.</div>
+<div>ממשק</div><div>המודאל ללא שינוי: מציג טלפון וסיסמה (מפוענחים בשרת עבור SA בלבד), קישור ציבורי וכפתורי עדכון וכיבוי. דף <code>demo-login.html</code> ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-56</code> (מתוקן) — disable חוסם כניסה בפועל, ו-enable מבטיח snapshot. הצפייה בפרטים נשמרת.</li><li><code>SA-32</code> (מתוקן) — אין טקסט גלוי ב-DB: הסיסמה ב-bcrypt לכניסה ומוצפנת לצפייה של SA, עם audit.</li><li><code>SA-22</code> — כניסת דמו כפופה גם לחסימת frozen ו-archived.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="storefront customers sc-customers reset pin sms"><h3>לקוחות storefront רשומים (איפוס PIN)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadSCCustomers</code>, <code>scSAResetPin</code> (sa-app.js:1114, 1162) → <code>GET /api/sa/sc-customers</code>, ו-<code>POST /:id/reset-pin</code>.</div>
+<div>הרשאות</div><div>כל סשן SA (clients), כמו היום. רשימת PII: שדות מפורשים בלבד (<code>ARC-32</code>).</div>
+<div>קלט ואימותים</div><div>limit בין 1 ל-200, ‏offset ≥0. לקוח לא קיים מחזיר 404. ‏rate limit לאיפוס: 3 ל-10 דקות לכל לקוח (<code>SA-50</code>).</div>
+<div>שלבי עיבוד</div><div><ol><li>רשימה: חיפוש ILIKE בטלפון, בשם או במייל, עימוד limit/offset, ודגל has_pin (ללא שינוי).</li><li>reset: קוד של 6 ספרות (crypto.randomInt), bcrypt (cost ≥10, ‏<code>ARC-31</code>), INSERT ל-storefront_otp(purpose 'pin_reset', expires 10 דק', <code>ARC-29</code>), ו-SMS "המנהל איפס את ה-PIN שלך. קוד לאיפוס: X (בתוקף 10 דקות)" (הנוסח זהה, חוץ מהתוקף).</li><li>שני ה-handlers עטופים ב-asyncHandler. שגיאת DB מחזירה 500 מסודר (<code>SA-58</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>storefront_otp: נשלח → נוצל / פג.</div>
+<div>תופעות לוואי</div><div>SMS, ו-audit SC_PIN_RESET. גם <code>POST /api/sc-auth/forgot-pin</code> הציבורי מקבל rate limit: 3 ל-10 דקות לכל טלפון ו-20 לשעה לכל IP (<code>SA-50</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-58</code> — טיפול שגיאות.</li><li><code>SA-50</code> — rate limit לאיפוס ול-forgot-pin. קוד ה-smsService המת נמחק.</li><li><code>SA-07</code> — audit.</li><li><code>RECON-03</code> — תוקף קוד האיפוס שה-SA שולח הוא 10 דקות (ולא 30), כמו ב-tobe-auth ולפי <code>ARC-29</code> לכל קודי ה-SMS.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="docs refresh sysmap spec generation meta"><h3>מסמכי מערכת (מפת מערכת) — רענון אוטומטי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לשונית sysmap: <code>GET /api/sa/docs/meta</code>, ‏<code>POST /api/sa/docs/refresh/:doc</code>, ו-<code>GET /api/sa/docs/:doc</code>.</div>
+<div>הרשאות</div><div>צפייה: כל סשן SA (sysmap פתוחה). רענון: devops.</div>
+<div>קלט ואימותים</div><div>doc מתוך <code>DOCS_CONFIG</code>, אחרת 404.</div>
+<div>שלבי עיבוד</div><div><ol><li>meta: <code>generated_at</code> לכל מסמך מטבלת <code>system_docs</code> (<code>SA-59</code>).</li><li>refresh: אותה סריקה ואותו מחולל Markdown כמו היום (api-complete, db-schema, missing-modules, spec-*), עם אותם קבצי מקור. התוצאה נשמרת ב-<code>system_docs(key, content, generated_at, generated_by)</code> ולא בדיסק השרת (<code>SA-59</code>).</li><li>הצגה: מ-system_docs. אם אין שורה, הקריאה נופלת לקובץ docs/ שבריפו (מתעדכן ב-CI).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>audit DOCS_REFRESH. מסמכי spec-* ו-SA_ENV_SPEC מסומנים במסך כ"היסטורי — לא מחייב" (<code>SA-61</code>, <code>ARC-42</code>).</div>
+<div>ממשק</div><div>ללא שינוי. "עודכן לאחרונה" מוצג מ-generated_at.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-59</code> — שמירה ב-DB במקום בדיסק. העדכון לא נמחק בפריסה ועקבי בין מופעים.</li><li><code>SA-61</code> — המפרט החדש הוא מקור האמת, והמסמכים הישנים מסומנים כהיסטוריים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="setup-db force-upgrade dangerous unauthenticated endpoints drop tables"><h3>נקודות קצה תחזוקה מסוכנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>היום: <code>GET /setup-db</code>, <code>GET /api/force-upgrade</code>, <code>GET /api/test-email</code>, נתיבי <code>/api/debug/*</code> ו-<code>/api/guide-config</code>. ביעד: אין אף נתיב HTTP כזה בייצור (<code>ARC-10</code>).</div>
+<div>הרשאות</div><div>בייצור: הנתיבים לא רשומים, ובקשה אליהם מחזירה 404. מחוץ לייצור: נתיבי debug ו-test-email דורשים verifySA ו-devops.</div>
+<div>קלט ואימותים</div><div>—</div>
+<div>שלבי עיבוד</div><div><ol><li>setup-db ו-force-upgrade נמחקים מהקוד. היכולת עוברת לסקריפטי CLI: <code>npm run migrate</code> (מיגרציות מגורסות, שרצות בשלב ה-deploy) ו-<code>npm run db:reset</code> / <code>db:seed</code>, שרצים רק כש-NODE_ENV!='production' (<code>ARC-10</code>, <code>ARC-12</code>). השינויים ש-force-upgrade עשה (הסרת אילוצי admin_email, ALTER/CREATE) נכנסים למיגרציה ראשונה.</li><li>/api/debug/* ו-/api/test-email: נרשמים רק מחוץ לייצור. בדיקת מייל ב-SA עוברת דרך <code>POST /api/sa/test-email</code> המאומת.</li><li><code>/api/guide-config</code> נמחק, ו-GEMINI_API_KEY מוחלף מיד (rotation). עוזר המדריך עובר דרך <code>POST /api/guide/chat</code> בשרת: ל-IP אנונימי עד 20 שאלות לשעה, ולמחובר — מכסת ה-AI של הקבוצה (<code>SA-12</code>, <code>ARC-30</code>). ‏biz-setup-guide.html קורא לנתיב השרת במקום ל-Gemini ישירות, ותשובות העוזר נשארות זהות מבחינת המשתמש.</li><li>בדיקת CI: בקשה אנונימית לכל אחד מהנתיבים האלה בייצור מחזירה 404, ואין נתיב שמריץ DDL (<code>ARC-43</code>).</li></ol></div>
+<div>חישובים</div><div>—</div>
+<div>מכונת מצבים</div><div>—</div>
+<div>תופעות לוואי</div><div>—</div>
+<div>ממשק</div><div>אין ממשק משתמש. עוזר המדריך ממשיך לעבוד, עכשיו דרך השרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-10</code> (SA-01) — אין נתיבי DDL או debug בייצור. איפוס וזריעה ב-CLI בלבד, ומיגרציות ב-deploy.</li><li><code>SA-12</code> — guide-config נמחק, המפתח מוחלף, ועוזר המדריך עובר דרך השרת עם rate limit ומכסה.</li><li><code>SA-47</code> — test-email הישיר נמחק.</li></ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>

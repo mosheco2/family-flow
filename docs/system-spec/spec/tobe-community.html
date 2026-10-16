@@ -358,7 +358,7 @@
 <section class="proc" data-f="community banner request promotion headline position ai approved-banners legacy"><h3>בקשת באנר קהילתי (מערכת לגאסי, על בסיס מבצע)</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>עסק עם מבצע מאושר מבקש באנר: <code>business-app.js:requestBannerForPromo</code> (17759) → <code>POST /api/biz/community/promotions/:id/banner-request</code>.</div>
-<div>הרשאות</div><div>בקשה: סשן BIZ, והמבצע של העסק. אישור ו-AI: SA עם הרשאת marketing. תצוגה: חבר approved בקהילה.</div>
+<div>הרשאות</div><div>בקשה: סשן BIZ, והמבצע של העסק. אישור ו-AI: SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27). תצוגה: חבר approved בקהילה.</div>
 <div>קלט ואימותים</div><div><ul><li>המבצע של העסק ובמצב approved (404 "מבצע לא נמצא או לא מאושר"). אין בקשה קיימת שאינה rejected (409 "בקשת באנר כבר קיימת למבצע זה").</li>
 <li>אישור SA: status ∈ {approved, rejected}. approved דורש startDate ו-endDate ("נדרש תאריך התחלה וסיום"), ו-endDate ≥ startDate.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>banner_orders</code> עם <code>source='promo_request'</code>, promotion_id, business_id, community_ids=[community_id של המבצע], total_price_ils=0, coins_used=0, cash_amount=0 ו-status='pending_approval'. slot_id הוא השטח community_top אם קיים.</li>
@@ -479,7 +479,7 @@
 <section class="proc" data-f="community wallet cashback-info sa community-wallets balance"><h3>ארנק קהילה (₪ קאשבק) — צפייה</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>חבר או מנהל קהילה: <code>GET /api/community/cashback-info</code>. מנהל: manager-data. SA: <code>GET /api/sa/community-wallets</code>. בנוסף, יש תהליך חדש של בקשת שימוש ביתרה.</div>
-<div>הרשאות</div><div>צפייה: חבר approved, ו-CM רואה גם תנועות. בקשת שימוש: CM approved, לא CHILD. אישור: SA עם הרשאת finance (<code>ARC-07</code>).</div>
+<div>הרשאות</div><div>צפייה: חבר approved, ו-CM רואה גם תנועות. בקשת שימוש: CM approved, לא CHILD. אישור: SA עם הרשאת stats (לשונית finance ב-SA_TAB_PERMS) (<code>ARC-07</code>).</div>
 <div>קלט ואימותים</div><div><ul><li>בקשת שימוש: amount &gt; 0 ו-≤ היתרה הנוכחית (400 "הסכום חורג מהיתרה"), purpose חובה עד 500 תווים.</li><li>אישור: הבקשה pending, והיתרה ≥ amount בזמן האישור (FOR UPDATE).</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>צפייה: family_communities (approved) ⋈ communities ⟕ community_wallets, ומחזיר balance, total_earned (COALESCE 0) ו-is_community_manager.</li><li>SA: כל הקהילות, ממוינות לפי total_earned DESC, כולל family_count (approved).</li>
 <li>בקשת שימוש: INSERT ל-<code>community_wallet_requests(community_id, requested_by_group_id, amount, purpose, status='pending')</code>, ו-badge ל-SA.</li>
@@ -492,13 +492,13 @@
 <tr><td>pending</td><td>cancelled</td><td>CM המבקש</td><td>—</td><td>—</td></tr></table></div></div>
 <div>תופעות לוואי</div><div>תנועות debit מופיעות ב-50 התנועות האחרונות שב-manager-data.</div>
 <div>ממשק</div><div>תג ₪ על כרטיס הקהילה (app.js:6981), בצבע ענבר כשהיתרה &gt; 0, וקריאה ב-<code>fetchCashbackInfo</code> (6828), כמו היום. חדש: בפאנל ה-CM, כפתור "בקשת שימוש ביתרה" (סכום ומטרה) ורשימת בקשות. ב-SA: תור בקשות שימוש במסך ארנקי הקהילות.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-19</code> — נוסף תהליך שימוש ביתרה: בקשת CM, אישור SA, ואז debit. הצפייה הקיימת לא השתנתה.</li><li><code>COM-24</code> — צפייה לחבר approved.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-19</code> — נוסף תהליך שימוש ביתרה: בקשת CM, אישור SA, ואז debit. הצפייה הקיימת לא השתנתה.</li><li><code>COM-24</code> — צפייה לחבר approved.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="flow engine awardflow flow_config flow_wallets community wallet fl coins"><h3>מנוע FLOW (awardFlow) וארנק FLOW קהילתי</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>פונקציה משותפת, <code>awardFlow(entityType, entityId, actionKey, communityId, referenceId)</code>, מזכה ארנק אישי ו/או קהילתי לפי <code>flow_config</code>.</div>
-<div>הרשאות</div><div>פנימית: נקראת רק מקוד השרת. ארנק FLOW קהילתי: משפחה approved, עסק approved בקהילה, ZM של האזור או SA. עריכת קונפיג ומענק ידני: SA עם הרשאת finance.</div>
+<div>הרשאות</div><div>פנימית: נקראת רק מקוד השרת. ארנק FLOW קהילתי: משפחה approved, עסק approved בקהילה, ZM של האזור או SA. עריכת קונפיג ומענק ידני: SA עם הרשאת comm (הכפתורים בלשונית comm, כמו ב-tobe-sa "תצורת FLW" ו"הענקה/ניכוי ידני של FLW").</div>
 <div>קלט ואימותים</div><div><ul><li>actionKey חייב להיות קיים ב-flow_config. בעליית השרת נבדקת רשימה סגורה של המפתחות שהקוד קורא להם, ומפתח חסר נרשם כשגיאה בלוג. בזמן ריצה, מפתח חסר מחזיר שגיאה פנימית שנרשמת, ולא no-op שקט.</li><li>מענק ידני: entityType ∈ family/business/community, reason חובה, amount ≠ 0, והיתרה לא יורדת מתחת ל-0.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>טעינת <code>personal_amount, community_amount, description</code> של actionKey.</li>
@@ -509,7 +509,7 @@
 <div>מכונת מצבים</div><div>קוד מימוש FLOW (flow_redemptions): active → used | expired | cancelled. validate מקבל רק active שלא פג. השימוש מעביר ל-used באופן אטומי (<code>UPDATE … WHERE status='active' RETURNING</code>). במיגרציה NULL/pending הופכים ל-active.</div>
 <div>תופעות לוואי</div><div>ארנק FLOW קהילתי: <code>GET /api/flow/community-wallet/:communityId</code> מחזיר balance ו-20 תנועות ("אין הרשאה לקהילה זו" למי שאינו מורשה). ZM רואה אותו ב-community-detail. SA עורך ערכים ב-<code>PUT /api/sa/flow/config</code>, ומזכה או מחייב ידנית ב-<code>POST /api/sa/flow/grant</code> (action_key 'sa_manual', reference_id ייחודי לכל מענק).</div>
 <div>ממשק</div><div>ללא שינוי במסכים.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — אידמפוטנטיות ב-awardFlow, ו-daily_login פעם ביום.</li><li><code>COM-15</code> — רשימת מפתחות סגורה. community_post ו-post_popular_bonus נוספו. promo_used הוסר. מפתח חסר נרשם כשגיאה.</li><li><code>COM-16</code>→<code>SA-34</code> — מחזור חיים אחיד לקוד מימוש, ו-validate עובד.</li><li><code>COM-27</code>→<code>ARC-11</code> — הארנק והתנועה נכתבים בטרנזקציה אחת, בלי שגיאות שנבלעות.</li><li><code>RECON-19</code> — awardFlow כותב דרך postEntry ל-wallets ו-wallet_entries (tobe-arch), עם אותו מפתח אידמפוטנטיות. flow_wallets ו-flow_transactions נשארים לקריאה.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — אידמפוטנטיות ב-awardFlow, ו-daily_login פעם ביום.</li><li><code>COM-15</code> — רשימת מפתחות סגורה. community_post ו-post_popular_bonus נוספו. promo_used הוסר. מפתח חסר נרשם כשגיאה.</li><li><code>COM-16</code>→<code>SA-34</code> — מחזור חיים אחיד לקוד מימוש, ו-validate עובד.</li><li><code>COM-27</code>→<code>ARC-11</code> — הארנק והתנועה נכתבים בטרנזקציה אחת, בלי שגיאות שנבלעות.</li><li><code>RECON-19</code> — awardFlow כותב דרך postEntry ל-wallets ו-wallet_entries (tobe-arch), עם אותו מפתח אידמפוטנטיות. flow_wallets ו-flow_transactions נשארים לקריאה.</li><li><code>E2E-22</code> — ההרשאה "finance", שאינה קיימת ב-SA_TAB_PERMS, הוחלפה ב-comm לעריכת קונפיג FLOW ולמענק ידני, כמו ב-tobe-sa.</li></ul></div>
 </div></section>
 
 <h2 class="grp">פיד קהילה, תחומי עניין והתראות</h2>
@@ -844,27 +844,27 @@
 <section class="proc" data-f="zone manager sa crud zones assign community transfer settings max zones commission"><h3>ניהול מנהלי אזור ואזורים ע"י SA</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div><code>sa-app.js:loadZoneManagers</code> (5255), <code>saveNewZoneManager</code> (5419), <code>saveEditZoneManager</code> (5469), <code>addZoneToManagerUI</code> (5628), <code>assignCommunityToZone</code> (5696), <code>transferCommunityToZone</code> (5768), <code>saveZoneSettings</code> (5373).</div>
-<div>הרשאות</div><div>SA עם הרשאת comm. הגדרות סף ואחוזים: הרשאת finance.</div>
+<div>הרשאות</div><div>SA בלשונית partners, open לכל איש צוות פעיל לפי SA_TAB_PERMS (tobe-arch), כפי שהמסך נגיש היום (sa-app.js:5035). הגדרות סף ואחוזים (saveZoneSettings, sa-app.js:5373) באותה לשונית ובאותה הרשאה. audit לכל שינוי.</div>
 <div>קלט ואימותים</div><div><ul><li>יצירה: name, email ו-password חובה. סיסמה ≥ 6. מייל ייחודי. commission_pct ∈ [0,100] (ברירת מחדל 5).</li><li>אזור חדש: <code>COUNT(manager_zones) ≥ zone_max_zones_per_manager</code> (ברירת מחדל 4) מחזיר 400 "מנהל יכול להחזיק עד N אזורים".</li><li>שיוך קהילה: zone_id קיים, או NULL.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>עדכון: עדכון חלקי דינמי. סיסמה חדשה נשמרת ב-bcrypt, וגורמת לביטול כל הסשנים של המנהל.</li><li>מחיקה: DELETE ל-zone_managers וביטול הסשנים.</li><li>שיוך קהילה: <code>communities.zone_id = zone_id || NULL</code> (העברה או הסרה).</li><li>הגדרות סף (ב-system_settings): zone_min_communities=5, zone_max_zones_per_manager=4, zone_manager_commission_pct=5, community_min_families=30, community_min_businesses=15.</li><li>רשימה: מנהלים שאינם pending, עם zone_count, community_count, total_commissions, total_paid ו-month_paid.</li></ol></div>
 <div>חישובים</div><div><code>community_min_families</code> משמש כיעד ההפעלה האוטומטית של קהילת יזמות, כשאין לקהילה min_families משלה (<code>COM-32</code>). zone_min_communities ו-community_min_businesses הם יעדי תצוגה בלבד, ובמסך ההגדרות הם מתויגים "יעד (לא נאכף)". zone_max_zones_per_manager נאכף.</div>
 <div>מכונת מצבים</div><div>ראו מחזור החיים של zone_managers.status בתהליך ההרשמה.</div>
 <div>תופעות לוואי</div><div>audit לכל שינוי (<code>ARC-19</code>).</div>
 <div>ממשק</div><div>ללא שינוי, מלבד התיוג "יעד (לא נאכף)" ליד שני ספי התצוגה ותיוג "משמש להפעלת קהילה" ליד community_min_families.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-32</code> — community_min_families נאכף כיעד ההפעלה. שאר הספים מתועדים כיעדי תצוגה.</li><li><code>COM-06</code> — bcrypt בלבד.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-32</code> — community_min_families נאכף כיעד ההפעלה. שאר הספים מתועדים כיעדי תצוגה.</li><li><code>COM-06</code> — bcrypt בלבד.</li><li><code>E2E-21</code> — ההרשאה יושרה ל-SA_TAB_PERMS: לשונית partners (open), במקום comm ו-finance (הרשאה שלא קיימת במפה).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="zone manager dashboard commissions payments finance debt"><h3>דשבורד מנהל אזור, עמלות ותשלומים</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div><code>zone-manager-app.js:loadDashboard</code> (263) → <code>GET /api/zone-manager/dashboard</code>. <code>loadCommissions</code> (1482) → <code>/commissions</code> (LIMIT 100). SA רושם תשלום ב-<code>POST /api/sa/zone-manager-payments</code>.</div>
-<div>הרשאות</div><div>ZM מהסשן. תשלום: SA עם הרשאת finance.</div>
+<div>הרשאות</div><div>ZM מהסשן. תשלום: SA עם הרשאת stats (לשונית finance ב-SA_TAB_PERMS).</div>
 <div>קלט ואימותים</div><div><ul><li>תשלום SA: manager_id ו-amount&gt;0 חובה. paid_at ברירת מחדל עכשיו. recorded_by מהסשן של ה-SA.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>dashboard: אזורים (community_count, family_count approved, business_count approved), קהילות (has_local_manager), סך העמלות והסכום החודשי, סך ששולם והסכום החודשי, settings, ו-<code>communities</code> לפי אזור (משמש גם לבחירת קהילה למאמר).</li><li>תשלום SA: INSERT.</li><li>סיכום SA: total/month earned מ-zone_manager_commissions, total/month paid, <code>total_debt = max(0, earned − paid)</code>, וכנ"ל לחודש (חודש לפי Asia/Jerusalem).</li></ol></div>
 <div>חישובים</div><div>בלקוח: <code>paid% = min(100, round(paid/earned·100))</code>, סה"כ ולחודש. עמלה נוצרת רק ב-<code>triggerCashbackForOrder</code>.</div>
 <div>מכונת מצבים</div><div>אין.</div>
 <div>תופעות לוואי</div><div>אין.</div>
 <div>ממשק</div><div>אם dashboard מחזיר 401, מופעל <code>zmLogout</code>. הטאבים (<code>zmSwitchTab</code> 294): zones, biz-requests, marketing, leads, inbox, commissions, content, kol-haam. פאנל הממתינים (עסקים, משפחות, הסרות, מוזמנים) מתרענן כל 60 שניות.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-44</code> — dashboard משמש מקור לרשימת הקהילות במסך התוכן.</li><li><code>COM-23</code> — family_count לפי approved.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-44</code> — dashboard משמש מקור לרשימת הקהילות במסך התוכן.</li><li><code>COM-23</code> — family_count לפי approved.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="zone manager community detail family detail flow"><h3>צפייה בקהילה ובמשפחה ע"י מנהל אזור</h3>
@@ -911,7 +911,7 @@
 <section class="proc" data-f="banner slots pricing communities location_key sa seed"><h3>הגדרת שטחי פרסום ומחירון</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>SA מנהל את שטחי הפרסום: <code>sa-app.js:loadBannerSlotsPanel</code> (10454), <code>saveBannerSlot</code> (10598).</div>
-<div>הרשאות</div><div>SA עם הרשאת marketing.</div>
+<div>הרשאות</div><div>SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27).</div>
 <div>קלט ואימותים</div><div><ul><li>יצירה: name ו-location_key חובה ("שם ומיקום חובה").</li><li>pricing: חייב להיות מערך ("pricing must be array"). כל שורה: duration_days &gt; 0, community_count ≥ 0, coins ≥ 0, price_ils ≥ 0.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>זריעה, כקובץ seed אידמפוטנטי (<code>ARC-12</code>) ולא בזמן ריצה: community_top (500 coins / ₪250), storefront_top (300 / ₪150), community_feed_card (400 / ₪200). לכל שטח מחירון עם community_count=0: 7 ימים 100 / ₪50, 14 ימים 180 / ₪90, 30 ימים 350 / ₪175, 60 ימים 600 / ₪300, 90 ימים 800 / ₪400.</li><li>עדכון שטח: עדכון חלקי. is_active = <code>!== false</code>.</li><li>שיוך קהילות, בטרנזקציה: DELETE ואז INSERT ל-banner_slot_communities. מערך ריק = כל הקהילות.</li><li>מחירון, בטרנזקציה: DELETE של כל המחירון לשטח, ואז INSERT לפי (duration_days, community_count), עם UNIQUE.</li></ol></div>
 <div>חישובים</div><div>מפתח המחיר: (slot, duration_days, community_count). <code>base_price_*</code> של השטח לא משמש בחישוב הזמנה.</div>
@@ -941,7 +941,7 @@
 <section class="proc" data-f="banner order approve sa deduct coins billing record conflict schedule active cancel expired cron"><h3>אישור הזמנת באנר, תזמון, חיוב ותפוגה</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>SA: <code>loadBannerOrders</code> (10650), <code>openBannerScheduleModal</code>/<code>confirmBannerSchedule</code> (10712/10778) → <code>PUT /api/sa/banner/orders/:id/approve</code>.</div>
-<div>הרשאות</div><div>SA עם הרשאת marketing. ביטול עם החזר: הרשאת finance או marketing.</div>
+<div>הרשאות</div><div>SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27). ביטול עם החזר: הרשאת stats (לשונית finance ב-SA_TAB_PERMS) או content.</div>
 <div>קלט ואימותים</div><div><ul><li>ההזמנה קיימת ("הזמנה לא נמצאה") ובמצב pending_approval ("הזמנה לא ממתינה לאישור").</li><li>אם coins_used&gt;0: היתרה ≥ coins (FOR UPDATE). אחרת ROLLBACK ו-400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li><li>התנגשות: הזמנה אחרת <b>active</b> באותו slot, עם חפיפת תאריכים (<code>start ≤ newEnd AND end ≥ newStart</code>, כולל הקצוות) <b>וגם</b> חפיפת קהילות. מערך ריק נחשב כל הקהילות, ולכן חופף לכל. התנגשות מחזירה 409 "תפוס ע"י: ...".</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>טרנזקציה על client ייעודי.</li><li>start = <code>body.start_date</code> או <code>todayIL()</code>. <code>end = start + duration_days − 1</code> (כולל).</li><li>בדיקת ההתנגשות, לפני הניכוי.</li><li>ניכוי: UPDATE ל-flow_wallets של העסק במינוס coins, ו-INSERT ל-flow_transactions עם action_key 'banner_purchase', "רכישת שטח פרסום", reference_id=order.</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT ל-billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'issued', due_date = היום + 7).</li><li>COMMIT. מוחזר billing_id.</li>
 <li><b>ביטול</b> (<code>PUT .../cancel</code>), בטרנזקציה: מ-pending_approval, status='cancelled' בלי חיוב ובלי ניכוי. מ-active: <code>unusedDays = max(0, end_date − max(todayIL(), start_date) + 1)</code>, ו-<code>refundCoins = floor(coins_used × unusedDays / duration_days)</code> מוחזרים לארנק העסק (flow_transactions 'banner_refund'). ה-billing_record הקשור: אם הוא issued, הוא עובר ל-void. אם הוא paid או pending_confirm, נוצר זיכוי יחסי (billing_record שלילי מסוג credit) על החלק במזומן. status='cancelled'.</li></ol></div>
@@ -956,13 +956,13 @@
 עריכת SA (community_ids, slot_id, notes) מותרת ב-pending_approval וב-active. ב-active היא עוברת בדיקת התנגשות מחדש.</div>
 <div>תופעות לוואי</div><div>תצוגה (approved-banners): active ו-<code>start ≤ today ≤ end</code>, כולל יום הסיום, ו-<code>community_ids @&gt; communityId</code> או מערך ריק. זמינות: <code>GET /api/sa/banner/slots/:id/availability</code> (כולל pending_approval). ציר זמן: <code>/api/sa/banner/timeline</code>.</div>
 <div>ממשק</div><div>מודל הביטול מציג את סכום ההחזר המחושב במטבעות ובמזומן לפני האישור. בשאר המסכים אין שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-21</code> — ביטול עם החזר יחסי וביטול או זיכוי של החיוב. end_date כולל (N ימים ולא N+1). התנגשות לפי חפיפת קהילות.</li><li><code>COM-36</code> — הזמנות promo_request חולקות את אותה מכונת מצבים, במחיר 0.</li><li><code>RECON-15</code> — רשומת חיוב נוצרת כ-issued, ובביטול עוברת ל-void (שמות המצבים של tobe-arch).</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-21</code> — ביטול עם החזר יחסי וביטול או זיכוי של החיוב. end_date כולל (N ימים ולא N+1). התנגשות לפי חפיפת קהילות.</li><li><code>COM-36</code> — הזמנות promo_request חולקות את אותה מכונת מצבים, במחיר 0.</li><li><code>RECON-15</code> — רשומת חיוב נוצרת כ-issued, ובביטול עוברת ל-void (שמות המצבים של tobe-arch).</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="billing records payment confirmation signature paid pending_confirm ledger"><h3>חיוב, אישור תשלום בחתימה דיגיטלית וסימון "שולם"</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>עסק: <code>_loadBizBilling</code> (58057) → <code>GET /api/biz/billing</code>. <code>openBizPaymentConfirm</code>/<code>confirmBizPayment</code> (58090/58098) → <code>POST /api/biz/billing/:id/confirm</code>. SA: <code>GET /api/sa/billing</code>, <code>PUT /api/sa/billing/:id/paid</code>, ויומן הלקוח <code>/api/sa/clients/:bizId/ledger</code>.</div>
-<div>הרשאות</div><div>עסק: ADMIN מהסשן, והרשומה שייכת לו. SA: הרשאת finance.</div>
+<div>הרשאות</div><div>עסק: ADMIN מהסשן, והרשומה שייכת לו. SA: הרשאת stats (לשונית finance ב-SA_TAB_PERMS).</div>
 <div>קלט ואימותים</div><div><ul><li>confirm: signature_data חובה ("חתימה דיגיטלית חסרה"), מאוחסן לפי <code>ARC-26</code>. הרשומה של העסק ("רשומה לא נמצאה"). לא paid ("כבר מסומן כשולם"). אין אישור קודם ("אישור כבר קיים"). הרשומה לא cancelled.</li><li>paid: אסמכתה ותאריך תשלום (<code>ARC-22</code>). sa_note אופציונלי.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>confirm, בטרנזקציה: INSERT ל-payment_confirmations (signature, ip לפי trust proxy, user_agent), ו-UPDATE ל-billing_records.payment_status='pending_confirm'.</li><li>SA paid: payment_status='paid', paid_at, אסמכתה ו-sa_note.</li></ol></div>
 <div>חישובים</div><div>סיכומי SA בשלוש קטגוריות: <code>total_unpaid = Σ cash_amount (issued)</code>, <code>total_pending_confirm = Σ cash_amount (pending_confirm)</code>, <code>paid_this_month = Σ cash_amount (paid בחודש הנוכחי, Asia/Jerusalem)</code>. <code>total_outstanding = total_unpaid + total_pending_confirm</code>.</div>
@@ -973,7 +973,7 @@
 <tr><td>issued</td><td>void</td><td>מערכת / SA</td><td>ביטול באנר</td><td>—</td></tr></table></div></div>
 <div>תופעות לוואי</div><div>יומן הלקוח כולל חיובים, זיכויים ותשלומים.</div>
 <div>ממשק</div><div>במסך החיוב של SA נוספה קטגוריה שלישית, "ממתין לאימות", ושורת "סה"כ פתוח".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-22</code> — pending_confirm מוצג כקטגוריה, ונוסף total_outstanding.</li><li><code>COM-21</code> — נוסף מצב cancelled, וזיכוי בביטול.</li><li><code>RECON-15</code> — מצבי רשומת החיוב לפי tobe-arch ו-tobe-sa: issued (לשעבר unpaid) ו-void (לשעבר cancelled). שם השדה total_unpaid בתגובה נשמר לתאימות, והתוויות בממשק לא משתנות.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-22</code> — pending_confirm מוצג כקטגוריה, ונוסף total_outstanding.</li><li><code>COM-21</code> — נוסף מצב cancelled, וזיכוי בביטול.</li><li><code>RECON-15</code> — מצבי רשומת החיוב לפי tobe-arch ו-tobe-sa: issued (לשעבר unpaid) ו-void (לשעבר cancelled). שם השדה total_unpaid בתגובה נשמר לתאימות, והתוויות בממשק לא משתנות.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="legacy system banners settings ad_banner top bottom business family public system-banner"><h3>באנרי מערכת סטטיים (הגדרות SA)</h3>

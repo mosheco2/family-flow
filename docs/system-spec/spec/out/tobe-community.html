@@ -1,0 +1,1144 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>אפיון יעד · קהילה ומנהלי אזור · מפרט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap"><link rel="stylesheet" href="spec.css"></head><body><div class="wrap">
+<header class="top"><a class="back" href="../index.html">→ למסמך הראשי</a><h1>אפיון יעד · קהילה ומנהלי אזור</h1><span class="meta">63 פריטים</span><input id="q" type="search" placeholder="סינון: נתיב, טבלה, שדה, טקסט…" aria-label="סינון"><span class="count" id="cnt"></span></header>
+<nav class="specnav"><a href="index.html" class="">סקירת המפרט</a><a href="tobe-index.html" class="">אפיון יעד · סקירה</a><a href="tobe-arch.html" class="">יעד · ארכיטקטורה</a><a href="tobe-auth.html" class="">יעד · אימות</a><a href="tobe-family.html" class="">יעד · משפחה</a><a href="tobe-biz.html" class="">יעד · עסק</a><a href="tobe-routines.html" class="">יעד · שגרות</a><a href="tobe-store.html" class="">יעד · חנות</a><a href="tobe-restaurant.html" class="">יעד · מסעדה</a><a href="tobe-sport.html" class="">יעד · ספורט</a><a href="tobe-beauty.html" class="">יעד · יופי</a><a href="tobe-logistics.html" class="">יעד · לוגיסטיקה</a><a href="tobe-services.html" class="">יעד · תחזוקה ומקצועי</a><a href="tobe-community.html" class="cur">יעד · קהילה</a><a href="tobe-kolhaam.html" class="">יעד · קול העם</a><a href="tobe-sa.html" class="">יעד · SA</a><a href="tobe-routes.html" class="">יעד · מפת נתיבים</a><a href="tobe-reconcile.html" class="">יעד · יישוב סתירות</a><a href="tobe-journeys.html" class="">יעד · מסעות משתמש</a><a href="s1-glossary.html" class="">מילון מונחים</a><a href="s1-rbac.html" class="">מטריצת הרשאות</a><a href="s1-bizmatrix.html" class="">מודולים × סוג עסק</a><a href="s1-erd.html" class="">מודל ישויות (ERD)</a><a href="s1-messages.html" class="">קטלוג הודעות</a><a href="s1-prompts.html" class="">קטלוג פרומפטים AI</a><a href="s1-seed.html" class="">נתוני ברירת מחדל</a><a href="s1-docsvscode.html" class="">מסמכים קיימים מול קוד</a><a href="api-sa.html" class="">Super Admin ותשתית</a><a href="api-kolhaam.html" class="">קול העם</a><a href="api-community.html" class="">קהילה, מנהל אזור ומשחקים</a><a href="api-store.html" class="">חנות, מסעדה ותפריטים</a><a href="api-verticals.html" class="">ורטיקלים: ספורט, יופי, לוגיסטיקה, תחזוקה, מקצועי</a><a href="api-biz.html" class="">ליבת עסק</a><a href="api-family.html" class="">משפחה, משתמשים וזהות</a><a href="ui-biz.html" class="">מסכים · עסק</a><a href="ui-family.html" class="">מסכים · משפחה</a><a href="ui-sa.html" class="">מסכים · SA</a><a href="ui-other.html" class="">מסכים · שאר</a><a href="rules-auth.html" class="">לוגיקה · אימות</a><a href="rules-family.html" class="">לוגיקה · משפחה</a><a href="rules-biz.html" class="">לוגיקה · עסק</a><a href="rules-store.html" class="">לוגיקה · חנות</a><a href="rules-restaurant.html" class="">לוגיקה · מסעדה</a><a href="rules-sport.html" class="">לוגיקה · ספורט</a><a href="rules-beauty.html" class="">לוגיקה · יופי</a><a href="rules-logistics.html" class="">לוגיקה · לוגיסטיקה</a><a href="rules-services.html" class="">לוגיקה · תחזוקה ומקצועי</a><a href="rules-community.html" class="">לוגיקה · קהילה</a><a href="rules-kolhaam.html" class="">לוגיקה · קול העם</a><a href="rules-routines.html" class="">לוגיקה · שגרות</a><a href="rules-sa.html" class="">לוגיקה · SA</a><a href="db.html" class="">מילון נתונים</a><a href="functions.html" class="">פונקציות עזר</a><a href="ops.html" class="">תפעול ותשתית</a></nav>
+<div class="intro">
+<p><b>מפרט TO-BE — קהילות, קשרי עסק-קהילה, FLOW, פיד, פולים, שוקה, מנהלי אזור, באנרים, משחקים ואפליקציית חבר (COM).</b> המסמך מכסה את כל <b>63 התהליכים</b> שב-<code>rules-community.html</code>, בלי השמטות ובלי מיזוגים. מה שעובד היום הועתק כמו שהוא, ושונה רק מה שההחלטות המאושרות מחייבות. כל שינוי כפוף לכלל העל: כל יכולת ופעולה שהמשתמש מקבל היום נשמרות.</p>
+<p><b>החלטות שהוחלו:</b> 49 פריטי COM שאינם כפולים: FIX 13, HARDEN 14, CONSISTENCY 4, BEHAVIOR 15, SCOPE 3. שישה פריטים כפולים הוחלו דרך הפריט הקנוני שלהם: <code>COM-01</code>→<code>AUTH-01</code>, <code>COM-02</code>→<code>ARC-08</code>, <code>COM-03</code>→<code>SA-03</code>, <code>COM-04</code>→<code>STR-04</code>, <code>COM-16</code>→<code>SA-34</code>, <code>COM-27</code>→<code>ARC-11</code>. החלטות ARC מוזכרות לפי מזהה בלבד, במקומות שבהם הן נוגעות לתחום: אימות וסשן מאוחד (<code>ARC-01</code>/<code>ARC-02</code>/<code>ARC-05</code>/<code>ARC-09</code>), groupId מהסשן (<code>ARC-04</code>), RBAC של SA (<code>ARC-07</code>), סשני ZM (<code>ARC-08</code>), טרנזקציות (<code>ARC-11</code>), מיגרציות ובדיקת סכמה (<code>ARC-12</code>/<code>ARC-13</code>), ledger (<code>ARC-15</code>), התראות והודעות (<code>ARC-16</code>), זכאות למודולים (<code>ARC-17</code>), איחודים (<code>ARC-19</code>), חיוב ידני (<code>ARC-22</code>), עבודות רקע (<code>ARC-23</code>), מצב משותף (<code>ARC-24</code>), אזור זמן (<code>ARC-25</code>), העלאות (<code>ARC-26</code>), XSS (<code>ARC-27</code>), Rate limit (<code>ARC-29</code>), AI (<code>ARC-30</code>), סיסמאות (<code>ARC-31</code>), PII (<code>ARC-32</code>), שגיאות (<code>ARC-33</code>), ולידציה (<code>ARC-34</code>), נתיבים כפולים וחסרים (<code>ARC-35</code>/<code>ARC-36</code>).</p>
+<p><b>פריטים שעודכנו (22).</b> לכל פריט: מזהה, למה שונה, והכלל הסופי.</p>
+<ul>
+<li><code>COM-05</code>. <b>למה:</b> בהזמנות שנרשמו בלי טלפון החבר מזוהה היום רק לפי שם. איסור גורף על התאמת שם היה מעלים לו הזמנות אמיתיות. <b>כלל סופי:</b> כל נתיבי <code>/api/member/*</code> מאומתים (create-for-business ב-verifyBiz, השאר ב-verifyFamily), והזהות נלקחת מהסשן. ההתאמה הראשית לפי family_group_id או טלפון החבר. התאמה לפי שם מלא מדויק נשארת רק להזמנה בלי טלפון, ורק אצל העסק המקושר בקישור active.</li>
+<li><code>COM-06</code>. <b>למה:</b> <code>manager_email</code> מוצג בכרטיס הקהילה ב-SA (sa-app.js:4409) ונערך במודל, כלומר הוא שדה איש קשר בשימוש. <b>כלל סופי:</b> <code>manager_password</code> מוסר מהטבלה, מהטופס ומה-API. <code>manager_email</code> נשאר כשדה "מייל איש קשר" אופציונלי, בלי ברירת המחדל <code>system@weflowz.co.il</code>. כל שאר הסיסמאות נשמרות ב-bcrypt בלבד (<code>ARC-31</code>).</li>
+<li><code>COM-08</code>. <b>למה:</b> בממשק ה-ZM יש אפשרות "כל הקהילות באזור" (zone-manager-app.js:2201), שנשמרת היום כ-community_id NULL ולכן מוצגת בכל המערכת. חסימה פשוטה הייתה מבטלת את האפשרות. <b>כלל סופי:</b> כל פעולת ZM נבדקת מול האזורים שלו. מאמר ZM בלי קהילה נשמר עם <code>zone_id</code> ומוצג לכל קהילות האזור. מאמר גלובלי (בלי קהילה ובלי אזור) מותר ל-SA בלבד.</li>
+<li><code>COM-09</code>. <b>למה:</b> <code>/api/community/search-business</code> נקרא גם מאפליקציית ה-ZM (zone-manager-app.js:451), ולא רק מהמשפחה. <b>כלל סופי:</b> נתיבים שמחזירים מידע שתלוי במשפחה דורשים verifyFamily. search-business מקבל סשן משפחה, ZM או SA. דף פוסט ציבורי נשאר ציבורי במצב gated, בלי רשימות חברים ומגיבים.</li>
+<li><code>COM-11</code>. <b>למה:</b> ארבע חזיתות storefront קוראות ל-validate בלי אימות (storefront.html:3256 ועוד). חסימה בלי התאמה בצד הלקוח הייתה שוברת את הזנת הקוד בקופה. <b>כלל סופי:</b> validate דורש סשן לקוח sc-auth שמקושר ל-family_group_id, או סשן משפחה, ובודק שהמשפחה approved בקהילה. החזיתות שולחות את הטוקן, ולקוח לא מחובר מתבקש להתחבר דרך <code>scAuth.requireLogin</code>, כמו בהזמנה. קופה עסקית מאמתת ב-verifyBiz.</li>
+<li><code>COM-13</code>. <b>למה:</b> UNIQUE(promo, family) היה מגביל גם שימוש בקוד בהזמנות חנות, וזה מותר היום בכל הזמנה. <b>כלל סופי:</b> סימון ידני "✅ מימשתי" נרשם פעם אחת למשפחה לכל מבצע, ו-FLOW ניתן רק ביצירת השורה. בהזמנת חנות עם קוד, כל הזמנה היא מימוש נפרד (UNIQUE לפי promo ו-order), ו-FLOW ניתן פעם אחת לכל הזמנה. ההטבה עצמה לא מוגבלת, אלא אם יוגדר <code>max_uses_per_family</code>.</li>
+<li><code>COM-14</code>. <b>למה:</b> לחבילה אין פריטים ואין מחיר, ולכן אי אפשר לייצר ממנה הזמנה אמיתית. ההצעה הייתה מבטלת בפועל את כפתור "🛒 רכישה" ואת הסטטוס inactive שה-SA משתמש בו (sa-app.js:9705). <b>כלל סופי:</b> "רכישה" נשארת פעולת מימוש של החבילה. היא נרשמת ב-<code>community_bundle_purchases</code> (UNIQUE לפי חבילה ומשפחה), מעניקה את התגמולים פעם אחת, ושולחת לכל עסק בחבילה ליד או הודעה כדי שיכבד את ההנחה. ביצירת חבילה כל העסקים חייבים להיות approved בקהילה. status ∈ {active, inactive}.</li>
+<li><code>COM-17</code>. <b>למה:</b> ה-SA מזין היום סכום בונוס לקהילה (ברירת מחדל 50). ביטול הבונוס היה מצמצם יכולת. <b>כלל סופי:</b> pending → approved | rejected (בדחייה חובה סיבה). אישור מותר רק מ-pending, ורק כשהעסק approved בקהילה, כפי שהמדריך מתאר ("עסק אושר"). התגמול: ambassador_approved (35+15 FLOW), ועוד הבונוס שה-SA הזין, שנזקף לארנק <b>FLOW</b> הקהילתי ולא לארנק ה-₪. כך המטבעות לא מתערבבים.</li>
+<li><code>COM-26</code>. <b>למה:</b> חסימת מחיקה של קהילה עם חברים, או החלפתה ב-soft-delete, מצמצמת יכולת SA קיימת. <b>כלל סופי:</b> בעריכה name/city/code חובה, הקוד חייב להיות ייחודי, והעדכון חלקי. המחיקה נשארת מחיקה קשה, בטרנזקציה, אחרי אישור כפול בלקוח שמציג את מספר המשפחות והעסקים (החלופה שבפריט).</li>
+<li><code>COM-30</code>. <b>למה:</b> היררכיית מאשר ראשון הייתה חוסמת ZM ו-SA מלאשר משפחה כשיש CM, והם יכולים לעשות זאת היום. <b>כלל סופי:</b> CM, ZM של האזור ו-SA ממשיכים לאשר במקביל (החלופה שבפריט). approve ו-reject מותרים רק מ-pending. הסרת חבר approved היא פעולה נפרדת, remove, עם סיבה (SA או ZM של האזור).</li>
+<li><code>COM-33</code>. <b>למה:</b> אם הזמנה של משפחה רגילה הייתה מנותבת ל-pending_cm_review, ה-CM היה מאבד את האפשרות לאשר אותה סופית, כפי שהוא עושה היום ב-comm_mgr_pending. <b>כלל סופי:</b> בהזמנה של CM או ZM, accept מעביר ל-approved ישירות. בהזמנה של משפחה רגילה, accept מעביר ל-comm_mgr_pending כמו היום, ו-CM או ZM מאשרים. כשאין בקהילה CM approved ואין ZM פעיל, ההזמנה עוברת ל-pending של SA. נשמרים invited_by_type ו-invited_by_id.</li>
+<li><code>COM-34</code>. <b>למה:</b> הנחה אוטומטית "בכל הזמנה" הייתה משנה ערוצים שבהם היא לא מוחלת היום (קופה, מלצר). היום ההנחה כבר מוחלת בחנות הקלאסית, בצד הלקוח, כשנכנסים בקישור <code>?communityId</code> (storefront.html:979). <b>כלל סופי:</b> discount_pct ∈ [0,100] בשרת. ההנחה מוחלת בשרת בדיוק בהקשר הקיים: הזמנת storefront עם communityId, עסק approved, discount_active לפי הנוסחה הקיימת, ולא על מוצר complex_builder. היא נשמרת בהזמנה, ובנוסף נדרש שהלקוח משויך למשפחה approved בקהילה.</li>
+<li><code>COM-35</code>. <b>למה:</b> אישור ודחייה "רק מ-pending" היו מבטלים את היכולת של SA להוריד מבצע שכבר אושר. הפאנל השני עושה זאת היום דרך נתיב ה-status. <b>כלל סופי:</b> handler אחד. approve מותר מ-pending (וגם מ-rejected), ויוצר promo_code אם אין, ומעניק FLOW פעם אחת. reject מותר מ-pending או מ-approved (הורדה). שני פאנלי ה-SA קוראים לאותו handler.</li>
+<li><code>COM-36</code>. <b>למה:</b> המיזוג ל-banner_orders לא יכול לאבד את היכולות של בקשת הבאנר: בקשה חינם ממבצע מאושר, כותרת, מיקום וכותרת AI. <b>כלל סופי:</b> מקור נתונים אחד, banner_orders, עם source='promo_request', מחיר 0, community_ids=[קהילת המבצע], ועמודות promotion_id, banner_headline ו-position. כל מסכי הבקשה והאישור (כולל AI) נשמרים. עד המיגרציה, הלגאסי מסונן לפי הקהילה.</li>
+<li><code>COM-39</code>. <b>למה:</b> הלקוח העסקי משתמש גם ב-<code>/api/biz/feed/stats</code> (business-app.js:58150). מחיקת הלגאסי בלי תחליף הייתה מעלימה את מוני הפוסטים. <b>כלל סופי:</b> מערכת אחת, <code>/api/biz/community/feed-posts</code>, עם GET/POST/DELETE ותת-נתיב <code>/stats</code>. הלקוח מתוקן לנתיבים ולשדות האלה, והלגאסי נמחק.</li>
+<li><code>COM-42</code>. <b>למה:</b> מסך ה-SA משתמש היום דווקא ב-<code>/api/sa/feed/*</code> (sa-app.js:11671–11817). ביטול שלו בלי העברה היה שובר את המסך. <b>כלל סופי:</b> רק <code>/api/sa/community/*</code> נשאר, וכולל את כל הפונקציות של <code>/api/sa/feed/*</code>: stats, posts?hidden, reported, toggle ו-groups. הלקוח עובר אליהן באותו שינוי.</li>
+<li><code>COM-43</code>. <b>למה:</b> <code>store_settings.city</code> לא קיים בסכמה. העיר נמצאת ב-<code>family_groups.city</code>. בנוסף, כדי לשמור על הציון שעסקים רואים היום, נשמרים משקלי העיר הקיימים. <b>כלל סופי:</b> ענף הגאו המת מוסר. ציון התאמה: עיר מלאה +35, עיר חלקית +20, עסקים עד 20, משפחות עד 30, תגית +10, ותקרה 100. עיר העסק נלקחת מ-<code>family_groups.city</code>.</li>
+<li><code>COM-45</code>. <b>למה:</b> אכיפת min_families בבחירת הצעה הייתה חוסמת יוזמת מלסגור עסקה, יכולת שקיימת היום. <b>כלל סופי:</b> השרת קובע initiatorType='family'. תוקף ברירת המחדל 7 ימים עד 23:59:59 בשעון Asia/Jerusalem. min_families הוא יעד: בחירת הצעה מתחת ליעד מותרת אחרי אזהרה ואישור בלקוח.</li>
+<li><code>COM-46</code>. <b>למה:</b> אילו closed היה סופי וה-CM היה מאבד את בחירת ההצעה, היו נחסמות שתי פעולות קיימות: חידוש פול שנסגר בלי זוכה, ובחירת הצעה על ידי מנהל קהילה. <b>כלל סופי:</b> select-bid מותר רק כשאין winner_bid_id, ממצבים open_r1, open_r2 או expired. closed עם זוכה הוא סופי (מותר רק archive). closed בלי זוכה ניתן ל-renew. restore רק כשאין זוכה. CM שומר את סגירה, בחירה וארכוב, והפעולה נרשמת עם actor.</li>
+<li><code>COM-47</code>. <b>למה:</b> ההצעה השאירה שתי אפשרויות, וחלופה (ב) מסירה יכולת שהמדריך מבטיח (flowpool-guide: "סיבוב 2 — עסקים חיצוניים (אורחים)"). <b>כלל סופי:</b> נבחרה חלופה (א). פולים ב-open_r2 מוצגים לעסקים שאינם חברים בקהילה, לפי עיר הקהילה או קטגוריית השירות, עם הגשה כאורח. ההודעות של פול שפג נשמרות, ונמחקות רק אחרי 90 יום.</li>
+<li><code>COM-48</code>. <b>למה:</b> שדה ה-recurrence מוצג בפרטי הקמפיין ב-SA (sa-app.js:16526). מחיקתו הייתה מסירה מידע מהמסך. <b>כלל סופי:</b> status ∈ {active, suspended} בכל המסלולים. ערך '' או null מנקה את השדה. בהזמנה, כשהזמן מחוץ ל-start_at/end_at, מוחזר 403 marketClosed עם reason 'period'. recurrence נשאר שדה תצוגה שאינו נאכף.</li>
+<li><code>COM-55</code>. <b>למה:</b> חסימת יצירת הצעה כשלפריט אין מחיר מצמצמת יכולת קיימת: היום אפשר להפיק הצעה ולהשלים את המחיר אחר כך. <b>כלל סופי:</b> Events Hub מוצג גם לעסק מסוג events. פריט בלי custom_price מתומחר לפי מחיר הקטלוג. אם גם הוא חסר, הפריט נכנס במחיר 0 עם אזהרה "לפריט X אין מחיר — יש לעדכן בהצעה", בלי חסימה.</li>
+</ul>
+<p><b>מוסכמות:</b> "בעלות" פירושה שהמזהה נלקח מהסשן (<code>ARC-04</code>), ופרמטר בנתיב או בגוף שלא תואם לו מחזיר 403. "חבר מאושר" פירושו helper יחיד, <code>assertApprovedMember(groupId, communityId)</code>, שבודק ש-family_communities.status='approved' (<code>COM-24</code>). "awardFlow אידמפוטנטי" פירושו מפתח (entity_type, entity_id, action_key, reference_id) עם UNIQUE חלקי (<code>COM-12</code>). כל פעולה שכותבת ליותר מטבלה אחת רצה ב-withTransaction (<code>ARC-11</code>).</p>
+</div>
+
+<h2 class="grp">קהילות — ישות, יצירה, חברות משפחות וניהול</h2>
+
+<section class="proc" data-f="community communities create sa super admin code city manager_email kol-haam seed"><h3>יצירת קהילה ע"י סופר-אדמין</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA יוצר קהילה רשמית מטאב הקהילות (<code>sa-app.js:createSACommunity</code> 4648), דרך <code>POST /api/sa/communities</code> (server.js:17490).</div>
+<div>הרשאות</div><div>סשן SA עם הרשאת comm (<code>requireSAPermission('comm')</code>, <code>ARC-07</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>name</code>, <code>code</code> ו-<code>city</code> חובה. אם חסר: 400 "שם, עיר וקוד קהילה הם שדות חובה".</li>
+<li><code>code</code> נשמר כ-<code>toUpperCase().trim()</code>. קוד כפול (23505) מחזיר 400 "קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר."</li>
+<li><code>managerEmail</code> אופציונלי: מייל איש קשר בפורמט תקין, עד 100 תווים. אין ברירת מחדל. <code>managerPassword</code> לא מתקבל.</li>
+<li><code>imageUrl</code>: URL מאחסון אובייקטים (<code>ARC-26</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה אחת (<code>ARC-11</code>): INSERT ל-<code>communities</code> (name, city, code, manager_email, image_url) עם <code>RETURNING id</code>. ערכי ברירת המחדל: status='active', created_by_group_id=NULL, min_families=NULL (כלומר נקרא מ-<code>community_min_families</code>, ראו <code>COM-32</code>).</li>
+<li>באותה טרנזקציה: <code>seedLocalCategories(newId)</code> לפי ה-id שהוחזר, ולא "הקהילה האחרונה". ה-hook <code>patchCommunityCreation</code> מוסר.</li>
+<li>COMMIT. כשל מחזיר 500 עם קוד שגיאה (<code>ARC-33</code>).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>active</td><td>SA</td><td>שדות חובה וקוד ייחודי</td><td>זריעת קטגוריות "קול העם"</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>קטגוריות מקומיות של קול העם נזרעות לקהילה החדשה.</div>
+<div>ממשק</div><div><code>sa-app.js:createSACommunity</code>, הטבלה <code>renderSACommunitiesTable</code> (4376) ומודל העריכה <code>openSACommunityModal</code> (4480). שדה הסיסמה מוסר מהטופס, ושדה המייל מתויג "מייל איש קשר (אופציונלי)".</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-06</code> — manager_password מוסר. manager_email נשאר כשדה איש קשר אופציונלי.</li>
+<li><code>COM-27</code>→<code>ARC-11</code> — היצירה והזריעה רצות בטרנזקציה אחת, לפי ה-id שהוחזר, בלי race.</li>
+<li><code>COM-32</code> — min_families לא מאופס ל-0 במיגרציה. NULL פירושו שהערך נקרא מההגדרה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community user-create initiative family pending min_families 30 my-initiatives"><h3>יזמות קהילתית — יצירת קהילה ע"י משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה פותחת קהילה חדשה מטאב הקהילה ("יזמות קהילתית"): <code>app.js:openCreateCommunityModal</code> (6851) → <code>submitNewInitiative</code> → <code>POST /api/community/user-create</code>.</div>
+<div>הרשאות</div><div>סשן משפחה. groupId נלקח מהסשן. משתמש CHILD נחסם (<code>ARC-06</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li><code>name</code> ו-<code>city</code> חובה (400 "חסרים שדות חובה"), ועד 100 תווים כל אחד (400 "טקסט ארוך מדי").</li>
+<li>בצד הלקוח: "יש למלא שם וערים לקהילה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>code = 'C-' + generateGroupCode()</code>, עם ניסיון חוזר אם הקוד כבר קיים.</li>
+<li>טרנזקציה: INSERT ל-<code>communities</code> עם status='pending', min_families=30 ו-created_by_group_id מהסשן. INSERT ל-<code>family_communities(group_id, community_id, status='approved')</code>, כך שהיוצר מצטרף אוטומטית. <code>seedLocalCategories(newId)</code>. COMMIT.</li>
+<li>אחרי COMMIT בודקים הפעלה אוטומטית (ראו חישובים).</li></ol></div>
+<div>חישובים</div><div>יעד הגיוס הוא <code>target = COALESCE(communities.min_families, system_settings.community_min_families, 30)</code>. הלקוח מקבל את היעד מהשרת ולא מקשיח 30.<br>
+מונה ההתקדמות: <code>famCount = COUNT(family_communities WHERE community_id AND status='approved')</code>, ו-<code>pct = min(100, famCount/target·100)</code>. התג "פעילה" מוצג כש-<code>status==='active'</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>משפחה</td><td>—</td><td>היוצר מצורף כחבר approved</td></tr>
+<tr><td>pending</td><td>active</td><td>מערכת</td><td>אחרי כל אישור משפחה: famCount ≥ target</td><td>התראה ליוצר "הקהילה הופעלה" (<code>ARC-16</code>)</td></tr>
+<tr><td>pending</td><td>active</td><td>SA</td><td><code>PUT /api/sa/communities/:id/approve</code>, ללא תנאי מונה</td><td>התראה ליוצר</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>זריעת קטגוריות קול העם. בהפעלה נשלחת התראה למשפחה היוזמת.</div>
+<div>ממשק</div><div><code>app.js:renderMyInitiatives</code> (6913) מציג פס התקדמות, כפתור WhatsApp עם הקישור <code>/?inviteCommunityCode=CODE</code> והטקסט "אם נגיע ל-{target} משפחות...". הנתונים מגיעים מ-<code>GET /api/community/my-initiatives</code> (בלי :groupId, <code>ARC-04</code>), שמחזיר את הקהילות שהמשפחה יצרה, כולל כאלה שהיא כבר לא חברה בהן.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-23</code> — המונה נספר מ-family_communities approved ולא מ-family_groups.community_id. כך גם <code>/api/biz/communities/my</code> ו-<code>/api/sa/business/:bizId/communities</code>.</li>
+<li><code>COM-32</code> — נוסף מעבר אוטומטי pending→active כשמגיעים ליעד. היעד נקרא מהשרת.</li>
+<li><code>COM-31</code> — התראה ליוצר בהפעלה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community sa edit approve delete details pending families"><h3>ניהול קהילה ע"י SA — עריכה, אישור, מחיקה, פרטים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA מנהל את הקהילות מטבלת הקהילות.</div>
+<div>הרשאות</div><div>סשן SA עם הרשאת comm (<code>ARC-07</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>עריכה (<code>PUT /api/sa/communities/:id</code>): כל שדה שנשלח עובר ולידציה. name, city ו-code לא יכולים להיות ריקים (400 "שם, עיר וקוד קהילה הם שדות חובה"). code עובר uppercase+trim, וקוד כפול מחזיר 400 "קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר.". קהילה לא קיימת מחזירה 404.</li>
+<li>מחיקה: הקהילה קיימת (404). בצד הלקוח מוצג אישור כפול עם מספר המשפחות והעסקים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>עריכה:</b> עדכון חלקי. רק השדות שנשלחו משתנים (name, city, code, manager_email, image_url).</li>
+<li><b>אישור</b> (<code>PUT .../approve</code>): <code>status='active'</code> כש-status='pending' (rowCount 0 מחזיר 409 "הקהילה כבר פעילה"). נשלחת התראה ליוצר.</li>
+<li><b>מחיקה</b> (<code>DELETE /api/sa/communities/:id</code>) בטרנזקציה אחת: DELETE ל-<code>community_businesses</code>, ואז DELETE ל-<code>communities</code>. ה-CASCADE מנקה את family_communities, community_promotions, banner requests ושאר הטבלאות. אין עוד עדכון של family_groups.community_id, כי העמודה מוסרת (<code>COM-23</code>).</li>
+<li><b>פרטים</b> (<code>GET .../:id/details</code>): משפחות, כולל users ו-is_community_manager כ-boolean, וסטטוס החברות. עסקים שאינם rejected או removed.</li>
+<li><b>רשימה</b> (<code>GET /api/sa/communities</code>): family_count (approved), users_count, business_count (approved).</li>
+<li><b>מפה</b> (<code>GET /api/sa/communities/map-data</code>): כולל pending_biz (pending, zm_pending, comm_mgr_pending, pending_cm_review) ו-total_credit, סכום של <code>community_wallet_transactions</code> מסוג credit.</li></ol></div>
+<div>חישובים</div><div>family_count נספר רק עם status='approved'.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>active</td><td>SA</td><td>approve</td><td>התראה ליוצר</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>SA</td><td>אישור כפול</td><td>CASCADE, הכול בטרנזקציה</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>מחיקה מוחקת את כל הישויות התלויות. כל פעולה נרשמת ב-audit_log (<code>ARC-19</code>).</div>
+<div>ממשק</div><div><code>sa-app.js:approveSACommunity</code> (4466), <code>deleteSACommunity</code> (4640), שמציג עכשיו מספרי משפחות ועסקים ומבקש אישור שני, ו-<code>openCommunitiesMap</code> (9370). מודל העריכה בלי שדה סיסמה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-26</code> — עריכה עם ולידציה ועדכון חלקי, בלי 500 כש-code חסר. מחיקה בטרנזקציה ואחרי אישור כפול. המחיקה הקשה נשמרת.</li>
+<li><code>COM-06</code> — manager_password מוסר מהעריכה.</li>
+<li><code>COM-23</code> — ספירות לפי family_communities approved. family_groups.community_id מוסר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community join family code referral pending approve family_communities max 5"><h3>הצטרפות משפחה לקהילה (קוד) ואישורה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה מזינה קוד קהילה, או לוחצת "הצטרף" במסך גילוי הקהילות: <code>app.js:joinCommunityDyn</code> (8114) / <code>joinCommunityByCode</code> (7925) → <code>POST /api/community/join</code>.</div>
+<div>הרשאות</div><div>join: סשן משפחה, groupId מהסשן. אישור: CM approved של הקהילה (משתמש שאינו CHILD), ZM שהקהילה באזור שלו, או SA עם הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הקהילה נמצאת לפי <code>code.toUpperCase().trim()</code> בסטטוס active או pending. אחרת: 404 "קוד קהילה שגוי או שהקהילה אינה קיימת."</li>
+<li>אם יש כבר שורה במצב pending: 200 <code>{success:false,pending:true,error:'הבקשה שלך ממתינה לאישור — נחזור אליך בקרוב!'}</code>. אחרת: "כבר מחובר לקהילה זו."</li>
+<li>מגבלה: <code>COUNT(*) WHERE status='approved' ≥ 5</code> מחזיר 400 "ניתן להצטרף לעד 5 קהילות מאושרות במקביל.". בקשות ממתינות לא נספרות.</li>
+<li><code>referralCode</code> אופציונלי. מחפשים <code>family_groups.referral_code</code> (FAMILY, id≠groupId). אם לא נמצא, מתעלמים בשקט.</li>
+<li>approve/reject: השורה חייבת להיות pending (<code>WHERE status='pending'</code>). rowCount 0 מחזיר 409 "הבקשה כבר טופלה".</li>
+<li>remove (חדש): השורה approved, וחובה reason (400 "יש לציין סיבה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>join: INSERT ל-<code>family_communities(group_id, community_id, status='pending', referred_by_group_id)</code>. התשובה: <code>{success, pending:true, community, referrerFound}</code>. נשלח badge למאשרים (<code>COM-31</code>).</li>
+<li>approve, בטרנזקציה: UPDATE status='approved' WHERE status='pending'. אם rowCount=1: <code>awardFlow(family, groupId, 'join_community', communityId, communityId)</code>, פעם אחת לכל זוג. אם יש referred_by_group_id: <code>awardFlow(family, referrer, 'referral_join', communityId, groupId)</code>. inbox_message למשפחה "בקשתך לקהילה X אושרה". בדיקת הפעלה אוטומטית של קהילה pending (<code>COM-32</code>).</li>
+<li>reject: DELETE לשורה WHERE status='pending'. inbox_message למשפחה "בקשתך לקהילה X לא אושרה".</li>
+<li>remove: DELETE לשורה approved, רישום audit עם הסיבה, והודעה למשפחה. אם המשפחה היא ה-CM היחיד, מחזירים 409 כמו בעזיבה.</li>
+<li>שיוך יזום של SA (<code>POST /api/sa/communities/:commId/assign-families</code>): UPSERT status='approved'. התגמולים וההתראות כמו ב-approve, במעבר הראשון בלבד.</li></ol></div>
+<div>חישובים</div><div>מגבלה של 5 קהילות approved. join_community: 15 FLOW למשפחה ו-5 לקהילה. referral_join: 20 למפנה. הערכים מ-flow_config.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>—</td><td>pending</td><td>משפחה</td><td>join</td><td>badge למאשרים</td></tr>
+<tr><td>pending</td><td>approved</td><td>CM</td><td><code>POST /api/community/manager/family/approve</code>. CM approved בקהילה, לא CHILD</td><td>join_community, referral_join, הודעה</td></tr>
+<tr><td>pending</td><td>approved</td><td>ZM</td><td><code>POST /api/zone-manager/community-family/approve</code>. הקהילה באזור שלו</td><td>כנ"ל</td></tr>
+<tr><td>pending</td><td>approved</td><td>SA</td><td><code>POST /api/sa/community-family/approve</code></td><td>כנ"ל</td></tr>
+<tr><td>pending</td><td>(נמחק)</td><td>CM / ZM / SA</td><td>reject</td><td>הודעה "לא אושרה"</td></tr>
+<tr><td>approved</td><td>(נמחק)</td><td>SA / ZM</td><td>remove עם סיבה</td><td>audit והודעה</td></tr>
+<tr><td>— / pending</td><td>approved</td><td>SA</td><td>assign-families</td><td>תגמולים במעבר ראשון</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>בכל מעבר: inbox_message למשפחה, עם reference_key ייחודי לפי משפחה, קהילה ומצב (<code>COM-31</code>, <code>ARC-16</code>). FLOW לפי join_community ו-referral_join (<code>COM-15</code>). ההפניה נספרת גם בסטטיסטיקה (<code>/api/community/my-referral-stats</code>).</div>
+<div>ממשק</div><div>אחרי join, <code>fetchCommunityData</code> (app.js:6799) מבצע polling כל 15 שניות כל עוד יש קהילה במצב pending. SA רואה בקשות בקהילות שאין בהן ZM פעיל (<code>/api/sa/communities/pending-families</code>), ZM רואה את בקשות האזור שלו, ו-CM רואה אותן ב-<code>/api/community/manager-data</code>. כפתור "הסר מהקהילה" חדש מופיע למשפחה approved ברשימת המשפחות אצל SA ו-ZM, עם שדה סיבה.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-30</code> — שלושת המאשרים נשארים במקביל. approve/reject רק מ-pending. SA כבר לא מוחק שורה approved דרך reject: יש לזה פעולת remove נפרדת עם סיבה.</li>
+<li><code>COM-15</code> — join_community ו-referral_join מוענקים באישור, פעם אחת.</li>
+<li><code>COM-12</code> — התגמול ניתן רק כש-rowCount=1, עם מפתח אידמפוטנטיות.</li>
+<li><code>COM-31</code> — הודעה למשפחה על אישור או דחייה, ו-badge למאשרים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community leave family manager last"><h3>עזיבת קהילה ע"י משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>app.js:leaveCommunity</code> (8228) → <code>DELETE /api/community/leave/:communityId</code>. ה-groupId נלקח מהסשן ולא מהנתיב.</div>
+<div>הרשאות</div><div>סשן משפחה, ADMIN או MEMBER (CHILD נחסם, <code>ARC-06</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>יש שורה למשפחה בקהילה (אחרת 404).</li><li>אם המשפחה <code>is_community_manager</code> ואין בקהילה מנהל approved נוסף: 409 "את/ה מנהל/ת הקהילה היחיד/ה — יש למנות מנהל/ת אחר/ת (דרך הסופר-אדמין/מנהל האזור) לפני העזיבה".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>DELETE לשורת <code>family_communities</code>.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending / approved</td><td>(נמחק)</td><td>משפחה</td><td>לא CM יחיד</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>אחרי העזיבה הקהילה לא מוחזרת יותר ב-<code>/api/community/info</code>, גם אם המשפחה יצרה אותה. היא עדיין מופיעה ב"היוזמות שלי".</div>
+<div>ממשק</div><div>כפתור "התנתק" בכרטיס הקהילה (<code>renderFamilyCommunities</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-23</code> — info מחזיר רק שורות family_communities. קהילה שהמשפחה יצרה ועזבה לא מוצגת יותר כחברות. היא נשארת ב-my-initiatives.</li><li><code>COM-10</code> — "מנהל נוסף" נספר רק בין משפחות approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community manager appoint set-manager is_community_manager zone sa"><h3>מינוי/הסרת מנהל קהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA (<code>PUT /api/sa/communities/:commId/set-manager</code>, <code>sa-app.js:setSACommunityManager</code> 4616) או ZM (<code>POST /api/zone-manager/set-community-manager</code>, <code>zmSetCommunityManager</code> 649 / <code>zmSetManagerFromFamily</code> 663).</div>
+<div>הרשאות</div><div>SA עם הרשאת comm, או ZM שהקהילה באזור שלו (403 "קהילה לא שייכת לאזור שלך").</div>
+<div>קלט ואימותים</div><div><ul><li>groupId, communityId ו-isManager חובה.</li><li>מינוי (isManager=true) מותר רק למשפחה עם <code>family_communities.status='approved'</code>. אחרת: 400 "המשפחה אינה חברה מאושרת".</li><li>אם אין שורה (0 rows): 404 "המשפחה אינה חברה בקהילה".</li><li>בהסרה (isManager=false) של CM היחיד: מותר, והממשק מציג אזהרה "לקהילה לא יישאר מנהל".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>family_communities.is_community_manager = !!isManager</code> WHERE group, community ו-status='approved'. התנאי על status חל רק במינוי.</li><li>הודעה למשפחה "מונית למנהל/ת קהילה X" או "הוסר מינוי" (<code>ARC-16</code>).</li></ol></div>
+<div>חישובים</div><div>אין. מותר יותר ממנהל אחד לקהילה.</div>
+<div>מכונת מצבים</div><div>הדגל is_community_manager מתחלף בין false ל-true. רק על שורה approved.</div>
+<div>תופעות לוואי</div><div>כשיש בקהילה CM approved, זרימת אישור העסקים עוברת דרכו: <code>resolveCommunityJoinStatus</code> מחזיר <code>pending_cm_review</code>. הרשאות CM (<code>verifyCommunityManagerAccess</code>) דורשות <code>is_community_manager=TRUE AND status='approved'</code>.</div>
+<div>ממשק</div><div>ZM מחפש חברים ב-<code>GET /api/zone-manager/communities-members?communityId&amp;q</code> (LIMIT 30, ILIKE על name/admin_email), רק בקהילות האזור שלו. אצל המשפחה, כפתור "ניהול" מופיע לפי is_community_manager מ-<code>/api/community/cashback-info</code>. המדריך (community-guide תרחיש 8) תואם.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-10</code> — מינוי רק למשפחה approved. 0 שורות מחזיר 404. הרשאת CM דורשת status approved.</li><li><code>COM-31</code> — הודעה למשפחה על מינוי או הסרה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community info family-feed businesses discount cashback-info"><h3>תצוגת הקהילות והעסקים למשפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טעינת טאב הקהילה: <code>GET /api/community/info</code>, <code>GET /api/community/cashback-info</code>, <code>GET /api/community/family-feed</code> ו-<code>GET /api/community/promos</code>. groupId נלקח מהסשן.</div>
+<div>הרשאות</div><div>סשן משפחה.</div>
+<div>קלט ואימותים</div><div><ul><li>אין קלט מלבד הסשן.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>info: הקהילות הן שורות family_communities של המשפחה, בכל סטטוס, עם status ו-family_count (approved). עסקים: <code>community_businesses.status='approved'</code>, רק בקהילות שהמשפחה approved בהן. לוגו: <code>COALESCE(store_settings.logo_url, family_groups.image_url)</code>. גם family_count (approved) ו-min_families האפקטיבי.</li>
+<li>family-feed: מבצעים מאושרים בתוקף (LIMIT 20), חבילות פעילות, ובאנרים מאושרים בטווח התאריכים (LIMIT 5). הכול <b>רק לקהילות שהמשפחה approved בהן</b>.</li>
+<li>promos: רק קהילות שהמשפחה approved בהן. מבצע approved עם <code>valid_until ≥ todayIL()</code> או NULL (<code>ARC-25</code>).</li>
+<li>משפחה pending מקבלת עבור הקהילה רק כרטיס "ממתין לאישור", עם שם הקהילה, בלי מבצעים, קודים, באנרים או עסקים.</li></ol></div>
+<div>חישובים</div><div>תג "פעיל" לעסק בקהילה: <code>family_count(approved) ≥ COALESCE(min_families, community_min_families, 30)</code>. התג ויזואלי (ירוק או כתום) ותואם ל-<code>discount_active</code> שהשרת מחזיר ל-storefront.</div>
+<div>מכונת מצבים</div><div>אין (קריאה בלבד).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>app.js:renderFamilyCommunities</code> (6960): "הקהילות שלי (n/5)", תג ארנק ₪ מ-community_wallets, תג "מנהל קהילה", וכפתורי ניהול, הזמן עסק והתנתק. <code>renderFamCommunityBenefits</code> (6342) מקשר לחנות <code>storefront.html?store=CODE&amp;communityId=ID</code>. עסק שנמצא בכמה קהילות פותח את <code>openBizCommunityPicker</code>. הכל כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-24</code> — family-feed, עסקים ומבצעים מוצגים רק בקהילות approved. משפחה pending רואה כרטיס המתנה.</li><li><code>COM-23</code> — אין UNION עם created_by_group_id. הספירות לפי approved.</li><li><code>COM-32</code> — יעד המשפחות נקרא מהקהילה או מההגדרה, ולא קבוע 30 בלקוח.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community interests tags type geographic interest discover by-interest match score business"><h3>תחומי עניין, סוג קהילה, גילוי קהילות ודירוג התאמה לעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA מגדיר תגיות וסוג לקהילה, משפחה מחפשת קהילות, ועסק רואה ציון התאמה.</div>
+<div>הרשאות</div><div>interests ו-type: SA עם הרשאת comm. discover ו-by-interest: ציבוריים במכוון, ורשומים ב-allowlist של <code>ARC-02</code>. match: סשן BIZ, ו-bizId נלקח מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST /api/sa/communities/:id/interests</code>: <code>tags</code> חייב להיות מערך (400 "tags חייב להיות מערך"), כל תגית עד 50 תווים.</li><li><code>POST /api/sa/communities/:id/type</code>: רק <code>geographic|interest</code> (400 "סוג לא חוקי").</li><li>match: פרמטר bizId שלא תואם לסשן מחזיר 403.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>interests, בטרנזקציה: <code>communities.interest_tags = tags.join(',')</code>, ואז DELETE+INSERT ל-<code>community_interests</code>.</li>
+<li>discover: <code>status='active'</code>. <code>q</code> (ILIKE על שם, עיר או שם אזור) גובר על <code>city</code>. מסנן <code>type</code>. LIMIT 50, ממוין לפי family_count (approved). מחזיר גם <code>byCity</code> (עיר ריקה מוצגת כ'ארצי') ואת <code>code</code>, שמאפשר הצטרפות ישירה.</li>
+<li>by-interest: ILIKE על interest_tag.</li>
+<li>match (<code>GET /api/biz/communities/match</code>): לכל קהילה active מחושב ציון.</li></ol></div>
+<div>חישובים</div><div>ציון התאמה, עם תקרה 100 ועיגול:
+<ul><li>עיר: עיר העסק היא <code>family_groups.city</code>. התאמה מלאה מול <code>communities.city</code> נותנת +35, התאמה חלקית (includes לכל כיוון) +20, ואחרת 0.</li>
+<li>עסקים: <code>min(20, biz_count·2)</code>. משפחות: <code>min(30, family_count·0.5)</code>, כאשר family_count נספר רק approved.</li>
+<li>תגית: +10 אם <code>interest_tags</code> כולל מילה מהמפה: beauty→[יופי,קוסמטיקה,ספא], sport→[כושר,ספורט], food→[אוכל,מסעדה,קייטרינג], logistics→[שירותים,לוגיסטיקה].</li></ul></div>
+<div>מכונת מצבים</div><div>community_type ∈ {geographic, interest}.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>app.js:openCommunityDiscoveryModal</code> (7943), <code>searchCommunitiesByCity</code> (8012), <code>business-app.js:loadBizCommunitiesWithMatch</code> (17600).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-43</code> — ענף הגאו המת (lat/lng בקהילה) מוסר. העיר נלקחת מ-family_groups.city, בלי <code>address_city</code> ובלי <code>community_city</code> הלגאסי. המשקלים 35/20 נשמרים.</li><li><code>COM-07</code> — match ללא bizId חופשי.</li><li><code>COM-23</code> — family_count לפי approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community articles zone manager sa content kol-haam"><h3>מאמרי קהילה (SA / מנהל אזור / מנהל קהילה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פרסום תוכן לקהילה. SA: <code>/api/sa/articles</code>. ZM: <code>/api/zm/articles</code> (<code>zone-manager-app.js:zmPublishArticle</code> 2209). CM: <code>POST /api/community/manager/articles</code> (<code>app.js:cmPublishArticle</code>).</div>
+<div>הרשאות</div><div>SA עם הרשאת content. ZM: רק קהילות באזור שלו (403 'אין הרשאה'). CM: approved בקהילה, לא CHILD. קריאה: סשן משפחה.</div>
+<div>קלט ואימותים</div><div><ul><li>ZM: title ו-body חובה ("title and body required"). community_id ריק, או קהילה באזור שלו.</li><li>CM: title, body ו-community_id חובה. title עד 200 תווים, body עד 5000. נדרש is_community_manager approved ("Not a community manager").</li><li>SA: community_id, zone_id או שניהם ריקים (גלובלי).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>community_articles(community_id, zone_id, author_type∈{sa,zone_manager,community_manager}, author_id, title, body, image_url)</code>. מאמר ZM עם "כל הקהילות באזור" נשמר עם community_id=NULL ו-zone_id של הקהילה, אם למנהל יש אזור אחד. אם יש לו כמה אזורים, הוא נדרש לבחור אזור.</li>
+<li>קריאה (<code>GET /api/community/articles/:communityId</code>, רק לחבר approved): <code>community_id=$1 OR (community_id IS NULL AND zone_id = communities.zone_id) OR (community_id IS NULL AND zone_id IS NULL)</code>, LIMIT 20, לפי published_at DESC.</li>
+<li>ZM מוחק רק מאמרים שלו.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין (פרסום מיידי, ומחיקה).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>app.js:loadCommunityArticles</code> (6260). ב-ZM, <code>zmLoadContent</code> טוען את רשימת הקהילות והאזורים מ-<code>GET /api/zone-manager/dashboard</code> במקום מ-<code>/api/zm/zones</code> שלא קיים. האפשרות "כל הקהילות באזור" נשמרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-08</code> — ZM מוגבל לאזור שלו. "כל הקהילות באזור" נשמר עם zone_id ולא גלובלי. מאמר גלובלי: SA בלבד.</li><li><code>COM-44</code> — הלקוח עובר מ-<code>/api/zm/zones</code> ל-<code>/api/zone-manager/dashboard</code> (<code>ARC-36</code>).</li><li><code>COM-24</code> — קריאת מאמרים לחבר approved.</li></ul></div>
+</div></section>
+
+<h2 class="grp">קישור עסק ↔ קהילה (community_businesses)</h2>
+
+<section class="proc" data-f="community business status machine pending zm_pending pending_cm_review comm_mgr_pending biz_invited approved rejected removed"><h3>מכונת המצבים של חיבור עסק לקהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הישות <code>community_businesses</code> (PK community_id+business_id) מייצגת חברות של עסק בקהילה, עם <code>discount_pct</code>, דגלי הסרה, ועמודות חדשות: <code>invited_by_type</code> ∈ {family, community_manager, zone_manager} ו-<code>invited_by_id</code>.</div>
+<div>הרשאות</div><div>לפי מעבר (ראו טבלה). עסק: ADMIN של העסק מהסשן. CM: approved בקהילה. ZM: הקהילה באזור שלו. SA: הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>כל מעבר מוגדר עם <code>WHERE status IN (מצבי המקור המותרים)</code>. rowCount=0 מחזיר 409 "המצב השתנה — רעננו את הדף".</li><li>discount_pct ∈ [0,100] בכל מעבר שקובע הנחה (<code>COM-34</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כל מעבר רץ בטרנזקציה: UPDATE, ואז awardFlow (אם המעבר ל-approved והוא הראשון), ואז notification.</li><li>biz_join_approved מוענק בכל מסלול שמעביר ל-approved, פעם אחת לכל זוג (עסק, קהילה), עם reference_id=communityId (<code>COM-25</code>, <code>COM-12</code>).</li></ol></div>
+<div>חישובים</div><div>יעד ההמתנה הראשוני הוא <code>resolveCommunityJoinStatus(communityId)</code>: אם יש בקהילה CM approved, המצב הוא <code>pending_cm_review</code>. אחרת <code>resolveCommunityFinalApprovalStatus</code>: אם לקהילה יש zone_id ולאזור ZM פעיל, המצב <code>zm_pending</code>. אחרת <code>pending</code> (SA).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>— / rejected / removed</td><td>pending_cm_review / zm_pending / pending</td><td>עסק</td><td><code>POST /api/biz/communities/join</code>. מצב אחר מחזיר 409 "העסק כבר חבר בקהילה" / "העסק כבר בתהליך הצטרפות"</td><td>איפוס rejected_at, removal_requested ו-removed_*. badge למאשר</td></tr>
+<tr><td>— / rejected / removed</td><td>לפי resolve</td><td>משפחה approved</td><td>הפניה <code>POST /api/community/family-refer</code></td><td>INSERT community_referrals</td></tr>
+<tr><td>— / rejected / removed</td><td>biz_invited</td><td>משפחה approved / CM / ZM</td><td><code>/api/community/invite-business</code> / <code>/api/zone-manager/invite-business</code></td><td>discount_pct=0, created_at=NOW, invited_by_*. הודעה לעסק</td></tr>
+<tr><td>biz_invited</td><td>approved</td><td>עסק</td><td>accept, כשהמזמין CM או ZM. חובה discountPct</td><td>biz_join_approved. הודעה למזמין</td></tr>
+<tr><td>biz_invited</td><td>comm_mgr_pending</td><td>עסק</td><td>accept, כשהמזמין משפחה ובקהילה יש CM approved או ZM פעיל. חובה discountPct</td><td>badge ל-CM/ZM</td></tr>
+<tr><td>biz_invited</td><td>pending</td><td>עסק</td><td>accept, כשהמזמין משפחה ואין CM ואין ZM</td><td>badge ל-SA</td></tr>
+<tr><td>biz_invited</td><td>rejected (business)</td><td>עסק</td><td><code>/decline</code></td><td>rejected_at. הודעה למזמין</td></tr>
+<tr><td>comm_mgr_pending</td><td>approved</td><td>CM / ZM</td><td><code>/api/community/manager/community-business/approve</code> / <code>/api/zone-manager/community-business/approve-invited</code></td><td>biz_join_approved. הודעה לעסק</td></tr>
+<tr><td>comm_mgr_pending, pending_cm_review</td><td>rejected (community_manager)</td><td>CM</td><td>reject</td><td>הודעה לעסק</td></tr>
+<tr><td>comm_mgr_pending</td><td>rejected (zone_manager)</td><td>ZM</td><td>reject-invited</td><td>הודעה לעסק</td></tr>
+<tr><td>pending_cm_review</td><td>zm_pending / pending</td><td>CM</td><td>forward-approve</td><td>מחזיר forwardedTo. badge למאשר הבא</td></tr>
+<tr><td>zm_pending</td><td>approved</td><td>ZM</td><td><code>WHERE status='zm_pending'</code>. FLOW רק אם rowCount=1</td><td>biz_join_approved. הודעה</td></tr>
+<tr><td>zm_pending</td><td>rejected (zone_manager)</td><td>ZM</td><td>reject</td><td>הודעה</td></tr>
+<tr><td>pending, zm_pending</td><td>zm_pending / approved</td><td>SA</td><td><code>/api/sa/community-business/approve</code>. יש ZM פעיל ו-status=pending: zm_pending. אחרת approved</td><td>FLOW רק ב-approved</td></tr>
+<tr><td>pending, zm_pending</td><td>rejected (super_admin)</td><td>SA</td><td>reject</td><td>הודעה</td></tr>
+<tr><td>pending/zm_pending/pending_cm_review/comm_mgr_pending</td><td>approved</td><td>SA</td><td>override-approve</td><td>biz_join_approved</td></tr>
+<tr><td>כנ"ל + biz_invited</td><td>rejected (super_admin)</td><td>SA</td><td>override-reject</td><td>הודעה</td></tr>
+<tr><td>* פרט ל-approved</td><td>approved</td><td>SA</td><td>approve-direct / קישור ידני <code>POST /api/sa/community-business</code> (UPSERT)</td><td>biz_join_approved במעבר ראשון</td></tr>
+<tr><td>approved (+removal_requested)</td><td>removed</td><td>ZM / SA</td><td>approve-removal. נדרש removal_requested=TRUE</td><td>removed_at, removed_by. הודעה לעסק ול-CM</td></tr>
+<tr><td>approved (+removal_requested)</td><td>approved (דגל מאופס)</td><td>ZM / SA</td><td>decline-removal. רק כש-removal_requested=TRUE</td><td>הודעה ל-CM</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>עסק / SA</td><td><code>DELETE /api/biz/communities/leave/:communityId</code> / <code>DELETE /api/sa/community-business/:c/:b</code></td><td>מחיקה פיזית</td></tr></table></div>
+<code>rejected_by</code> ∈ {business, community_manager, zone_manager, super_admin}. <code>removed_by</code> ∈ {zone_manager, super_admin}.</div>
+<div>תופעות לוואי</div><div>רק <code>approved</code> נחשב חבר: מבצעים, פיד עסקי, פולים, קמפייני שוקה, באנרים וקאשבק. בכל מעבר נשלחת inbox_message לצד המושפע, ו-badge למאשר הבא, עם reference_key ייחודי (<code>COM-31</code>, <code>ARC-16</code>).</div>
+<div>ממשק</div><div>תוויות השלבים זהות ב-<code>sa-app.js:SA_BIZ_STAGE_LABELS</code> (4164) וב-<code>business-app.js</code> (16527): pending "ממתין לאישורך", zm_pending "ממתין למנהל אזור", pending_cm_review "ממתין למנהל קהילה", comm_mgr_pending "ממתין לאישור מי שהזמין", biz_invited "ממתין לתגובת העסק". כפתור האישור מוסתר כשהמצב biz_invited.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-25</code> — join רק כשאין שורה או שהשורה rejected/removed. כל מעבר עם תנאי מקור ו-rowCount. biz_join_approved בכל מסלול, פעם אחת, כולל approve-direct וקישור ידני.</li>
+<li><code>COM-12</code> — אישור ZM שלא עדכן שורה לא מעניק FLOW.</li>
+<li><code>COM-33</code> — הזמנה של CM או ZM מאושרת ב-accept. הזמנה של משפחה עוברת ל-comm_mgr_pending כמו היום, או ל-pending כשאין CM ואין ZM. נשמרים invited_by_*.</li>
+<li><code>COM-31</code> — התראות על כל מעבר.</li>
+<li><code>COM-34</code> — טווח הנחה 0–100.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="business join community self request discount available via-biz"><h3>בקשת הצטרפות עצמית של עסק לקהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "גלה קהילות" בעסק: <code>business-app.js:loadBizAvailableCommunities</code> (16848) → מודל → <code>submitBizCommunityJoin</code> (17319) → <code>POST /api/biz/communities/join</code>.</div>
+<div>הרשאות</div><div>סשן BIZ, ADMIN או מי שיש לו הרשאת טאב הקהילות. businessId נלקח מהסשן (<code>COM-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>בלקוח: הנחה היא מספר ≥ 0 ("יש להזין אחוז הנחה תקין (אפשרי 0)").</li><li>בשרת: <code>discountPct</code> ∈ [0,100]. ערך ריק נשמר כ-0, ומחוץ לטווח מחזיר 400 "אחוז הנחה חייב להיות בין 0 ל-100".</li><li>הקהילה active.</li><li>שורה קיימת שאינה rejected/removed מחזירה 409 "העסק כבר חבר בקהילה" או "העסק כבר בתהליך הצטרפות".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>status = resolveCommunityJoinStatus(communityId)</code>.</li><li>UPSERT ל-<code>community_businesses</code>: discount, status, ואיפוס דגלי הדחייה וההסרה. WHERE על השורה הקיימת: status IN (rejected, removed).</li><li>badge ונוטיפיקציה למאשר שנקבע.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>— / rejected / removed → pending_cm_review / zm_pending / pending (ראו מכונת המצבים).</div>
+<div>תופעות לוואי</div><div>התראה למאשר (<code>COM-31</code>).</div>
+<div>ממשק</div><div>זמינות: <code>GET /api/biz/communities/available</code>, כלומר קהילות active שאין לעסק בהן שורה שאינה rejected/removed. גילוי דרך עסק עמית: <code>GET /api/biz/communities/via-biz/:bizCode</code>, כש-myBizId נלקח מהסשן. הודעת ההצלחה: "בקשת ההצטרפות נשלחה לניהול הקהילה!".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-07</code> — available, via-biz ו-join לוקחים את העסק מהסשן.</li><li><code>COM-25</code> — עסק approved או ממתין לא חוזר להמתנה (409).</li><li><code>COM-34</code> — טווח 0–100 בשרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="invite business family zone manager invitation accept decline search-business"><h3>הזמנת עסק לקהילה ותגובת העסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה חברה (<code>app.js:openInviteBizModal</code>), CM, או ZM (<code>zone-manager-app.js:openZMInviteBizModal</code> 419 → <code>zmSendBizInvite</code> 465). חיפוש עסק: <code>GET /api/community/search-business?q</code> (ILIKE על name/group_code, LIMIT 10).</div>
+<div>הרשאות</div><div>הזמנה: משפחה approved בקהילה (CHILD נחסם), או ZM שהקהילה באזור שלו. search-business: סשן משפחה, ZM או SA (<code>COM-09</code>). תגובה: עסק, מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>משפחה: חברות approved ("אינך חבר מאושר בקהילה זו").</li><li>ZM: הקהילה באזור שלו.</li><li>שורה קיימת שאינה rejected/removed: 400 "העסק כבר חבר בקהילה" / "העסק כבר בתהליך הצטרפות".</li><li>accept: <code>discountPct</code> חובה ("יש להזין אחוז הנחה"), בטווח [0,100]. אם השורה לא ב-biz_invited: 404 "הזמנה לא נמצאה".</li><li>search-business מחזיר שם, קוד ולוגו בלבד (<code>ARC-32</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPSERT עם status=<code>biz_invited</code>, discount 0, invited_by_type לפי המזמין (family / community_manager / zone_manager) ו-invited_by_id. הודעה לעסק "הוזמנת לקהילה X".</li><li>העסק רואה את ההזמנות ב-<code>GET /api/biz/community-invitations</code>.</li><li>accept: מזמין CM או ZM → <code>approved</code> + biz_join_approved. מזמין משפחה → <code>comm_mgr_pending</code> כשיש בקהילה CM approved או ZM פעיל, ואחרת <code>pending</code>. ההנחה נשמרת.</li><li>decline: rejected (business), והודעה למזמין.</li><li>CM או ZM מאשרים comm_mgr_pending ישירות (ראו טבלת המצבים).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>biz_invited → approved | comm_mgr_pending | pending | rejected (ראו מכונת המצבים).</div>
+<div>תופעות לוואי</div><div>הודעות לעסק ולמזמין. badge למאשר (<code>COM-31</code>).</div>
+<div>ממשק</div><div><code>business-app.js:loadBizCommunityInvitations</code> (18019). ZM: לשונית בקשות עסקים <code>zmLoadPendingBiz</code> (314) ופאנל ממתינים שמתרענן כל 60 שניות (<code>showDashboard</code> 132). אפליקציית ה-ZM שולחת Authorization גם בחיפוש העסק.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-33</code> — accept של הזמנת CM או ZM מאושר ישירות. הזמנת משפחה נשארת ב-comm_mgr_pending, או עוברת ל-pending כשאין מאשר מקומי. invited_by_* נשמרים.</li><li><code>COM-09</code> — search-business דורש סשן משפחה, ZM או SA.</li><li><code>COM-34</code> — טווח הנחה ב-accept.</li><li><code>COM-31</code> — הודעות.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community manager business review forward approve reject removal request cancel manager-data"><h3>סקירת עסקים ע"י מנהל קהילה (כולל בקשת הסרה)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>CM פועל מאפליקציית המשפחה, בפאנל <code>app.js:openCommunityManagerPanel</code> (8252). הנתונים מגיעים מ-<code>GET /api/community/manager-data</code>.</div>
+<div>הרשאות</div><div><code>verifyCommunityManagerAccess</code>: שורת family_communities עם <code>is_community_manager=TRUE AND status='approved'</code> (403 "אין הרשאה לקהילה זו"). <code>blockIfChildFamilyUser</code>: משתמש CHILD מקבל 403 "פעולה זו אינה זמינה למשתמש מסוג ילד/ה". הבדיקה fail-closed: שגיאת DB מחזירה 503.</div>
+<div>קלט ואימותים</div><div><ul><li>request-removal: רק לעסק approved, אחרת 404 "העסק אינו פעיל בקהילה זו". אם הדגל כבר מסומן: 409.</li><li>cancel-removal-request: רק כש-removal_requested=TRUE.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>manager-data: הקהילות המנוהלות, עסקים שאינם rejected/removed (כולל removal_requested), משפחות pending, ארנקים (community_wallets) ו-50 התנועות האחרונות.</li><li>request-removal: <code>removal_requested=TRUE, removal_requested_at=NOW</code>. העסק נשאר פעיל, ונשלח badge ל-ZM ול-SA.</li><li>cancel-removal-request: איפוס הדגל.</li><li>ZM או SA מאשרים (status=removed) או דוחים (decline-removal, איפוס הדגל רק כש-removal_requested=TRUE).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>approved, removal_requested=FALSE → TRUE (CM) → FALSE (CM מבטל, או ZM/SA דוחים) או removed (ZM/SA).</div>
+<div>תופעות לוואי</div><div>הודעה ל-CM על אישור או דחייה של בקשת ההסרה, והודעה לעסק כשהוסר (<code>COM-31</code>).</div>
+<div>ממשק</div><div>בפאנל: "אשר" ו"דחה" ל-comm_mgr_pending, "אשר והעבר הלאה" ל-pending_cm_review, ו"בקש הסרה" או "בקשת הסרה נשלחה · ביטול" לעסק פעיל (app.js:8277–8320). הכול כמו היום.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-10</code> — הרשאת CM דורשת status approved.</li><li><code>COM-31</code> — התראות על בקשות הסרה ותוצאותיהן.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="discount community business update zone manager sa"><h3>עדכון אחוז הנחה קהילתי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק (<code>PUT /api/biz/community-discount</code>, מודל <code>openUpdateDiscountModal</code> 17345), ZM (<code>PUT /api/zone-manager/community-business/discount</code>, <code>openZMDiscountEdit</code>) או SA (<code>PUT /api/sa/community-business/discount</code>).</div>
+<div>הרשאות</div><div>עסק: מהסשן, עם חיבור approved ("אין הרשאה לעדכן — החיבור לא מאושר"). ZM: הקהילה באזור שלו. SA: הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>ערך מספרי ∈ [0,100] בשרת, אחרת 400 "אחוז הנחה חייב להיות בין 0 ל-100". בלקוח נשאר <code>min=0 max=100</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>UPDATE <code>community_businesses.discount_pct</code>. רישום ב-audit עם actor.</li></ol></div>
+<div>חישובים</div><div>יישום ההנחה בהזמנה: בהזמנת storefront שהגיעה עם <code>communityId</code>, כשהעסק approved בקהילה ו-<code>discount_active = family_count(approved) ≥ COALESCE(min_families, 0)</code> (הנוסחה הקיימת, server.js:15337), השרת מחשב <code>line_price = round2(catalog_price × (1 − discount_pct/100))</code> לכל פריט שאינו <code>complex_builder</code>. ההזמנה שומרת <code>community_id</code> ו-<code>community_discount_pct</code>. התנאי לכך הוא שהלקוח (sc-auth) מקושר ל-family_group_id approved בקהילה. אם התנאי לא מתקיים, ההזמנה מתומחרת ללא הנחה, וה-storefront מציג "הנחת קהילה לחברים מאושרים".</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אחוז ההנחה מוצג באפליקציית המשפחה, ובחנות הקלאסית מוצגים המחירים אחרי ההנחה (storefront.html:979).</div>
+<div>ממשק</div><div>ללא שינוי במסכים. החנות ממשיכה להציג מחיר מקורי מחוק ומחיר אחרי הנחה, והתצוגה תואמת לחישוב השרת.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-34</code> — טווח [0,100] נאכף בשרת. ההנחה שהחנות הקלאסית מציגה היום בצד הלקוח מחושבת ונשמרת בשרת, באותו הקשר בדיוק (קישור communityId), ורק לחבר approved.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מבצעי קהילה, בקשות באנר, חבילות וביקורות</h2>
+
+<section class="proc" data-f="community promotions promo submit approve reject promo_code product condition"><h3>מבצע קהילה — הגשה ואישור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק מגיש מבצע לקהילה שהוא חבר בה: <code>business-app.js:submitBizPromo</code> (17548) → <code>POST /api/biz/community/promotions</code>.</div>
+<div>הרשאות</div><div>הגשה: סשן BIZ, ו-businessId נלקח מהסשן. אישור ודחייה: SA עם הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>communityId ו-title חובה (400 "חסרים שדות חובה"). חיבור approved, אחרת 403 "העסק אינו חבר בקהילה זו".</li>
+<li><code>valid_until</code>: NULL (ללא תפוגה), או תאריך ≥ <code>todayIL()</code>. אחרת 400 "תאריך התוקף חייב להיות היום או בעתיד".</li>
+<li>discount_pct ∈ [0,100].</li>
+<li>בלקוח: כותרת ("יש להזין כותרת למבצע") וקהילה ("יש לבחור קהילה"). בסוג <code>product</code>: מוצר קטלוג חובה, ומחיר ≥ 0 או "חינם" (=0). תנאי: <code>min_amount</code> &gt; 0, <code>product</code> (מוצר תנאי), <code>category</code> או <code>none</code>.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>community_promotions</code> עם status='pending'. ברירות מחדל: promo_type 'discount', condition_type 'none'. badge ל-SA.</li>
+<li>אישור (handler יחיד, <code>POST /api/sa/community-promo/approve</code>; הנתיב <code>/api/sa/community/promotions/:id/status</code> מפנה לאותו handler), בטרנזקציה: UPDATE status='approved' WHERE status IN ('pending','rejected'). אם promo_code ריק, נוצר <code>'PROMO' + 5 תווים base36 uppercase</code>, עם ניסיון חוזר על התנגשות. <code>awardFlow(business,'biz_promo_approved', community, promoId)</code> פעם אחת. הודעה לעסק "המבצע אושר! קוד: X".</li>
+<li>דחייה (<code>/api/sa/community-promo/reject</code> או status=rejected): WHERE status IN ('pending','approved'), עם סיבה אופציונלית והודעה לעסק.</li></ol></div>
+<div>חישובים</div><div>biz_promo_approved: 10 FLOW אישי ו-5 לקהילה (flow_config).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>עסק</td><td>חבר approved</td><td>badge ל-SA</td></tr>
+<tr><td>pending / rejected</td><td>approved</td><td>SA</td><td>handler יחיד</td><td>promo_code אם חסר. FLOW פעם אחת. הודעה</td></tr>
+<tr><td>pending / approved</td><td>rejected</td><td>SA</td><td>handler יחיד (הורדת מבצע פעיל)</td><td>הודעה לעסק</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>FLOW לעסק ולקהילה. הודעות לעסק (<code>COM-31</code>).</div>
+<div>ממשק</div><div>SA: פאנל הממתינים <code>loadSAPendingRequests</code> (sa-app.js:4172) → <code>approveSAPromo</code> ("המבצע אושר! קוד: X"). הפאנל <code>openSAPromotionsPanel</code>/<code>saApprovePromo</code> (9142/9180) נשאר, ועכשיו מציג גם את הקוד שנוצר. העסק רואה את המבצעים שלו ב-<code>/api/biz/community/promotions</code>, מהסשן.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-35</code> — handler אישור יחיד, שתמיד יוצר promo_code. תנאי מקור למעברים. valid_until ≥ היום בהגשה. שני הפאנלים נשמרים.</li><li><code>COM-07</code> — הנתיב הכפול <code>/api/biz/community/promotions/:bizId</code> (21153) מוסר. נשאר נתיב אחד מהסשן.</li><li><code>COM-12</code> — biz_promo_approved אידמפוטנטי לפי promoId.</li><li><code>COM-31</code> — הודעה לעסק.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community promo validate redeem code checkout flow promo_redemption"><h3>אימות ומימוש קוד מבצע קהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>(א) אימות בקופה של ה-storefront: <code>GET /api/community/promotions/validate?code&amp;communityId</code>, מ-storefront, storefront-market, storefront-restaurant ו-storefront-sport. (ב) סימון מימוש ידני מכרטיס המבצע: <code>app.js:redeemCommunityPromo</code> (7320) → <code>POST /api/community/promotions/:id/redeem</code>. (ג) הזמנת חנות עם <code>communityPromoCode</code>/<code>promoCode</code>.</div>
+<div>הרשאות</div><div>validate: סשן לקוח sc-auth שמקושר ל-family_group_id, או סשן משפחה. מקופה עסקית: verifyBiz, כשהמבצע של העסק. redeem: סשן משפחה, לא CHILD.</div>
+<div>קלט ואימותים</div><div><ul><li>validate: code חובה. בלי communityId: 403 "קוד מבצע קהילה זמין רק לחברי קהילה". נדרשים: promo_code (uppercase), status approved, community_id, ותוקף ב-<code>todayIL()</code>. בנוסף המשפחה approved בקהילה. אחרת 404 "קוד לא תקין, לא מאושר, או פג תוקף".</li>
+<li>redeem: המבצע approved ובתוקף. כשיש community_id, המשפחה approved בקהילה ("יש להיות חבר מאושר בקהילה כדי לממש הטבה זו"). מימוש ידני קודם של אותה משפחה למבצע מחזיר 409 "כבר סימנת מימוש של הטבה זו".</li>
+<li>הזמנת חנות: <code>communityPromoCode</code> נשמר רק אם המשפחה approved בקהילת המבצע.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>redeem, בטרנזקציה: INSERT ל-<code>community_promo_redemptions(promo_id, family_group_id, order_id NULL, channel='manual')</code>, עם UNIQUE חלקי על (promo_id, family_group_id) WHERE channel='manual'. אם השורה נוצרה: <code>awardFlow(family,'promo_redemption')</code> (3+2), <code>awardFlow(business,'biz_promo_redeemed')</code> (5+5) ו-<code>awardFlow('community', community,'promo_community')</code> (0+5), כולם עם reference_id=redemptionId.</li>
+<li>הזמנה עם promoCode: INSERT redemption עם channel='order' ו-order_id, ו-UNIQUE על (promo_id, order_id). אותם שלושה awardFlow, עם reference_id=orderId. כל הזמנה נחשבת מימוש נפרד.</li>
+<li>סגירת הזמנה (delivered/completed) עם community_promo_id: הקריאה ל-<code>promo_used</code>, שאינו קיים בקונפיג, מוסרת. התגמול כבר ניתן ביצירת ההזמנה.</li></ol></div>
+<div>חישובים</div><div>סה"כ לקהילה במימוש אחד: 2+5+5 = 12 FLW. אם יוגדר <code>max_uses_per_family</code> למבצע (אופציונלי, NULL = ללא הגבלה), מימוש מעבר לו מחזיר 409.</div>
+<div>מכונת מצבים</div><div>community_promo_redemptions: נוצרת בלבד (append-only).</div>
+<div>תופעות לוואי</div><div>FLOW לשלושת הצדדים. מונה מימושים לעסק ב-<code>/api/biz/community/promotions</code>.</div>
+<div>ממשק</div><div>הכפתור "✅ מימשתי", ואחריו "✅ נרשם! +3 Flw". בלחיצה חוזרת מוצג "כבר מימשת". בחזיתות ה-storefront הזנת הקוד שולחת את טוקן הלקוח, ולקוח לא מחובר מתבקש להתחבר (<code>scAuth.requireLogin</code>) לפני האימות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-13</code> — רישום מימוש. סימון ידני פעם אחת לכל משפחה ומבצע. בהזמנות, פעם אחת לכל הזמנה. FLOW רק בשורה חדשה.</li><li><code>COM-11</code> — validate דורש זהות מאומתת וחברות approved. החזיתות שולחות טוקן.</li><li><code>COM-12</code> — awardFlow אידמפוטנטי.</li><li><code>COM-15</code> — הקריאה ל-promo_used הלא קיים מוסרת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community banner request promotion headline position ai approved-banners legacy"><h3>בקשת באנר קהילתי (מערכת לגאסי, על בסיס מבצע)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק עם מבצע מאושר מבקש באנר: <code>business-app.js:requestBannerForPromo</code> (17759) → <code>POST /api/biz/community/promotions/:id/banner-request</code>.</div>
+<div>הרשאות</div><div>בקשה: סשן BIZ, והמבצע של העסק. אישור ו-AI: SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27). תצוגה: חבר approved בקהילה.</div>
+<div>קלט ואימותים</div><div><ul><li>המבצע של העסק ובמצב approved (404 "מבצע לא נמצא או לא מאושר"). אין בקשה קיימת שאינה rejected (409 "בקשת באנר כבר קיימת למבצע זה").</li>
+<li>אישור SA: status ∈ {approved, rejected}. approved דורש startDate ו-endDate ("נדרש תאריך התחלה וסיום"), ו-endDate ≥ startDate.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>banner_orders</code> עם <code>source='promo_request'</code>, promotion_id, business_id, community_ids=[community_id של המבצע], total_price_ils=0, coins_used=0, cash_amount=0 ו-status='pending_approval'. slot_id הוא השטח community_top אם קיים.</li>
+<li>SA מאשר: status='active' (מקביל ל-approved של הלגאסי), start_date ו-end_date מהטופס, banner_headline, ו-<code>position = clamp(parseInt||5, 1, 10)</code>. דחייה: status='rejected', ואפשר לבקש שוב.</li>
+<li>כותרת AI (<code>POST /api/sa/community/banner-ai/:id</code>): דרך aiGateway (<code>ARC-30</code>), מודל טקסט ראשי, עם הפרומפט "כותרת שיווקית קצרה (עד 10 מילים) בעברית". המרכאות והנקודה הסופית מנוקות, והתוצאה נשמרת ב-banner_headline.</li>
+<li>מיגרציה חד-פעמית (<code>ARC-12</code>) מעבירה את <code>community_banner_requests</code> ל-banner_orders: pending→pending_approval, approved→active, rejected→rejected. אחר כך הטבלה נמחקת.</li></ol></div>
+<div>חישובים</div><div>position בטווח 1–10 (ברירת מחדל 5). ללא חיוב.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>עסק</td><td>מבצע approved, אין בקשה פתוחה</td><td>badge ל-SA</td></tr>
+<tr><td>pending_approval</td><td>active</td><td>SA</td><td>תאריכים</td><td>הודעה לעסק</td></tr>
+<tr><td>pending_approval</td><td>rejected</td><td>SA</td><td>—</td><td>אפשר לבקש שוב</td></tr>
+<tr><td>active</td><td>expired</td><td>cron</td><td>אחרי end_date (כולל)</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>תצוגה: <code>GET /api/community/approved-banners?communityId</code> מחזיר מקור אחד, banner_orders active בטווח התאריכים שה-community_ids שלהם מכילים את הקהילה. בקשות מבצע ממוינות לפי position ASC, ואחריהן באנרים בתשלום. family-feed מציג עד 5.</div>
+<div>ממשק</div><div>SA: <code>openSABannerRequestsPanel</code>/<code>approveBannerRequest</code>/<code>generateBannerAI</code> (sa-app.js:9554–9660) נשמרים, עם תצוגה של הבקשות מסוג promo_request. משפחה: <code>app.js:loadCommHomeBanners</code> (6314) ו-<code>renderCommunityBanners</code> (7198).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-36</code> — מקור נתונים אחד (banner_orders, source='promo_request', מחיר 0). כל יכולות הבקשה, האישור, הכותרת, המיקום וה-AI נשמרות. הבאנר מוצג רק בקהילת המבצע.</li><li><code>COM-21</code> — התפוגה מחושבת לפי end_date כולל.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community bundles package purchase flow sa create"><h3>חבילות קהילה (Bundles)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA יוצר חבילה של כמה עסקים, ומשפחה "רוכשת" (מממשת) אותה. SA: <code>createCommunityBundle</code> (sa-app.js:9783) → <code>POST /api/sa/community/bundles</code>. משפחה: <code>app.js:purchaseCommunityBundle</code> (7299) → <code>POST /api/community/bundles/:id/purchase</code>.</div>
+<div>הרשאות</div><div>יצירה ושינוי סטטוס: SA עם הרשאת comm. רכישה: משפחה approved בקהילת החבילה, לא CHILD.</div>
+<div>קלט ואימותים</div><div><ul><li>יצירה: communityId, name, ו-<code>businessIds</code> מערך באורך ≥ 2. אחרת 400 "נדרשים קהילה, שם ולפחות 2 עסקים". כל עסק חייב <code>community_businesses.status='approved'</code> בקהילה, אחרת 400 "עסק X אינו חבר מאושר בקהילה". discount_pct ∈ [0,100].</li>
+<li>רכישה: החבילה active (404 "חבילה לא נמצאה"). אם כבר נרכשה על ידי המשפחה: 409 "כבר רכשתם חבילה זו".</li>
+<li>PATCH status ∈ {active, inactive}. ערך אחר מחזיר 400.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה, בטרנזקציה: INSERT ל-community_bundles ול-community_bundle_businesses.</li>
+<li>רכישה, בטרנזקציה: INSERT ל-<code>community_bundle_purchases(bundle_id, family_group_id, created_at)</code> עם UNIQUE. אם השורה נוצרה: <code>awardFlow(family,'bundle_purchase')</code> (18+7), לכל עסק <code>'biz_bundle_sold'</code> (10+20), ו-<code>'community','bundle_community'</code> (0+20), כולם עם reference_id=purchaseId. לכל עסק בחבילה נוצר ליד/inbox_message: "משפחת X רכשה את החבילה Y (הנחה Z%)".</li>
+<li>SA מחליף סטטוס ב-<code>PATCH /api/sa/community/bundles/:id</code>.</li></ol></div>
+<div>חישובים</div><div>FLOW לפי flow_config. ההנחה של החבילה מוצגת ומכובדת על ידי העסקים. אין תשלום במערכת.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>active</td><td>SA</td><td>עסקים approved</td><td>—</td></tr>
+<tr><td>active</td><td>inactive</td><td>SA</td><td>"🔴 השבת"</td><td>החבילה מוסתרת מהמשפחות</td></tr>
+<tr><td>inactive</td><td>active</td><td>SA</td><td>"✅ הפעל"</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>FLOW פעם אחת לכל רכישה (משפחה, חבילה). לידים לעסקים.</div>
+<div>ממשק</div><div>הכפתור "🛒 רכישה +18 Flw", ואחריו "✅ נרכש! +18 Flw". בחבילה שכבר נרכשה מוצג "✅ נרכש" כשהכפתור מושבת. SA: <code>loadSABundles</code> ו-<code>toggleBundleStatus</code>. המדריך (community-guide תרחיש 5) תואם.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-14</code> — הרכישה נשארת פעולת מימוש, אבל נרשמת פעם אחת לכל משפחה, והתגמולים ניתנים פעם אחת. לעסקים נשלחים לידים. ביצירה העסקים חייבים להיות approved. status ∈ {active, inactive}.</li><li><code>COM-12</code> — אידמפוטנטיות.</li><li><code>COM-24</code> — רכישה רק לחבר approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community review business rating biz-contact lead flow"><h3>ביקורת על עסק ופנייה לעסק דרך הקהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>app.js:submitCommunityReview</code> (7376) → <code>POST /api/community/reviews</code>. פנייה: <code>POST /api/community/biz-contact</code>.</div>
+<div>הרשאות</div><div>סשן משפחה. familyGroupId נלקח מהסשן. העסק חייב להיות approved בקהילה שהמשפחה approved בה.</div>
+<div>קלט ואימותים</div><div><ul><li>ביקורת: businessGroupId ו-rating חובה. rating בין 1 ל-5 ("דירוג 1–5 בלבד"). text עד 1000 תווים. אם כבר קיימת ביקורת של אותה משפחה לאותו עסק ב-30 הימים האחרונים: 409 "כבר כתבת ביקורת על עסק זה החודש".</li>
+<li>פנייה: message חובה, עד 1000 תווים. פעם ביום לכל זוג (עסק, משפחה).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ביקורת, בטרנזקציה: INSERT ל-<code>business_reviews(family_group_id, business_group_id, community_id, rating, text, created_at)</code>. זו ישות הביקורת האחת של העסק (<code>ARC-19</code>), והיא מוצגת לעסק במסך הביקורות. אחרי השמירה: <code>awardFlow(family,'review_business')</code> (7+3). אם rating ≥ 4: <code>awardFlow(business,'biz_review_received')</code> (8+2). reference_id=reviewId.</li>
+<li>פנייה: נשמרת כליד או inbox_message אצל העסק ("פנייה מחבר קהילה X"). אחר כך <code>awardFlow(business,'biz_lead_received')</code> (5+2), עם reference_id=messageId.</li></ol></div>
+<div>חישובים</div><div>חלון של 30 יום לביקורת, ויום אחד לפנייה, לפי <code>todayIL()</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>העסק מקבל התראה על ביקורת חדשה או על פנייה (<code>ARC-16</code>).</div>
+<div>ממשק</div><div>המודל <code>openWriteReviewModal</code> והכפתור "צור קשר" נשארים. הטקסט נשלח ונשמר. הביקורת מופיעה במסך הביקורות של העסק.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-37</code> — טקסט הביקורת וההודעה נשמרים ומוצגים לעסק. FLOW ניתן רק אחרי שמירה מוצלחת.</li><li><code>COM-12</code> — FLOW עם reference_id.</li></ul></div>
+</div></section>
+
+<h2 class="grp">הפניות, קאשבק, ארנקי קהילה ומנוע FLOW</h2>
+
+<section class="proc" data-f="referral code family my-referral-code stats share whatsapp"><h3>קוד הפניה משפחתי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה משתפת קוד הפניה, ומצטרף חדש מזין אותו ב-join. הנתיבים: <code>GET /api/community/my-referral-code</code> ו-<code>GET /api/community/my-referral-stats</code>.</div>
+<div>הרשאות</div><div>סשן משפחה. groupId נלקח מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>אין קלט. הקוד ייחודי (<code>family_groups.referral_code</code> UNIQUE, VARCHAR 12).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם אין קוד, הוא נוצר on-demand: שני מקטעים של 4 תווים base36 uppercase, עם ניסיון חוזר על התנגשות. ה-backfill לקבוצות קיימות (<code>UPPER(SUBSTRING(MD5(id||'fref'),1,8))</code>) רץ כמיגרציה חד-פעמית (<code>ARC-12</code>) ולא באתחול.</li><li>stats: COUNT של family_communities לפי <code>referred_by_group_id</code>, ו-COUNT של השורות ה-approved.</li></ol></div>
+<div>חישובים</div><div>תגמול למפנה: <code>referral_join</code> (20 FLOW אישי) כשהמשפחה המופנית מאושרת בקהילה, פעם אחת לכל משפחה מופנית (reference_id = groupId של המופנה). המפתח <code>referral</code> מתועד ככינוי ישן ולא מוענק בנפרד, כדי לא להעניק פעמיים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>הענקת referral_join באישור (ראו הצטרפות משפחה).</div>
+<div>ממשק</div><div><code>app.js:loadMyReferralCode</code> (8147), <code>copyReferralCode</code>, <code>shareReferralWhatsApp</code> (8221) ו-<code>selectCommunityForReferral</code> (8175). ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-15</code> — המפנה מקבל referral_join כשהמשפחה המופנית מאושרת.</li><li><code>COM-12</code> — פעם אחת לכל משפחה מופנית.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="ambassador family refer business community_referrals approve reward points wallet"><h3>שגריר קהילה — הפניית עסק ע"י משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>app.js:openFamReferralModal</code>/<code>submitFamReferral</code> (7838/7877) → <code>POST /api/community/family-refer</code>.</div>
+<div>הרשאות</div><div>הפניה: משפחה approved בקהילה (CHILD נחסם). אישור ודחייה: SA עם הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>bizCode ו-communityId חובה. המשפחה approved בקהילה ("אינך חבר בקהילה זו"). bizCode קיים ומסוג BUSINESS ("לא נמצא עסק עם קוד זה"). אם כבר קיימת הפניה לאותו מפנה, עסק וקהילה: 409 "כבר הפנית עסק זה לקהילה". notes עד 500 תווים.</li>
+<li>אישור SA: ההפניה pending (409 "ההפניה כבר טופלה"), והעסק המופנה <code>community_businesses.status='approved'</code> בקהילה (400 "העסק טרם אושר בקהילה"). rewardPoints מספר ≥ 0 (ברירת מחדל 50).</li>
+<li>דחייה: reason חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-<code>community_referrals</code> (status 'pending', notes).</li><li>UPSERT ל-community_businesses לפי <code>resolveCommunityJoinStatus</code>. העדכון קורה רק אם השורה לא קיימת או שהיא rejected/removed.</li>
+<li>אישור SA (<code>POST /api/sa/community/referrals/:id/approve</code>), בטרנזקציה: UPDATE status='approved' ו-reward_points=pts, WHERE status='pending'. <code>awardFlow(family, referrer,'ambassador_approved', community, refId)</code> (35+15). אם pts&gt;0: זיכוי של pts לארנק ה-<b>FLOW</b> הקהילתי (<code>flow_wallets('community')</code>) עם action_key 'ambassador_bonus_community', התיאור "בונוס שגריר קהילה", ו-reference_id=refId. הודעה למשפחה.</li>
+<li>דחייה (<code>POST /api/sa/community/referrals/:id/reject</code>): status='rejected', rejection_reason, הודעה למשפחה.</li></ol></div>
+<div>חישובים</div><div><code>pts = rewardPoints ?? 50</code>. 0 נשאר 0. pts נזקף ל-FLOW קהילתי, לא ל-₪.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>משפחה approved</td><td>אין הפניה כפולה</td><td>חיבור העסק לפי resolve</td></tr>
+<tr><td>pending</td><td>approved</td><td>SA</td><td>העסק approved בקהילה</td><td>35+15 FLOW. בונוס FLOW לקהילה. הודעה</td></tr>
+<tr><td>pending</td><td>rejected</td><td>SA</td><td>סיבה חובה</td><td>הודעה</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>FLOW למשפחה ולקהילה. אין יותר זיכוי של community_wallets (₪).</div>
+<div>ממשק</div><div>ב-SA (<code>sa-app.js</code> 9277) נשאר שדה הבונוס, בתווית "בונוס FLOW לקהילה (ברירת מחדל 50)", ונוסף כפתור "דחה" עם סיבה. כפתור האישור מושבת עם הסבר כשהעסק עוד לא אושר. משפחה: <code>GET /api/community/my-referrals</code> מציג את הסטטוס, כולל "נדחתה" והסיבה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-17</code> — המעברים pending→approved|rejected. אישור רק כשהעסק approved. הבונוס שה-SA מזין נשמר, אבל נזקף ל-FLOW הקהילתי במקום לארנק ה-₪. נוספה דחייה עם סיבה.</li><li><code>COM-12</code> — אישור חוזר לא מזכה שוב.</li><li><code>COM-24</code> — הפניה רק מחבר approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="cashback order delivered platform commission community wallet business_platform_dues zone manager commission"><h3>קאשבק קהילתי ועמלות בעת השלמת הזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שינוי סטטוס של הזמנת חנות ל-<code>delivered</code>/<code>completed</code> (מעבר ראשון) ב-<code>completeOrder()</code> של תחום החנות מפעיל <code>triggerCashbackForOrder(orderId)</code>. הקריאה רצה כעבודה אסינכרונית ואידמפוטנטית (<code>ARC-23</code>).</div>
+<div>הרשאות</div><div>שינוי הסטטוס מחייב verifyBiz, ושההזמנה שייכת ל-<code>req.principal.groupId</code> (<code>COM-04</code>→<code>STR-04</code>). העבודה עצמה פנימית.</div>
+<div>קלט ואימותים</div><div><ul><li>ההזמנה ב-delivered/completed.</li><li>קהילה זכאית: המשפחה המזמינה (<code>family_group_id</code>) approved ב-family_communities, והעסק (<code>group_id</code>) approved ב-community_businesses באותה קהילה. אם יש כמה קהילות: קודם <code>store_orders.community_id</code> אם נשמר (הזמנה שהגיעה בקישור קהילה), ואחרת הקהילה הוותיקה ביותר לפי <code>family_communities.joined_at</code> ASC.</li><li>אין כבר שורת <code>business_platform_dues</code> להזמנה (UNIQUE לפי order_id).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טרנזקציה אחת (<code>ARC-11</code>): INSERT ל-<code>business_platform_dues</code> (order_amount, commission_pct, commission_amount, cashback_pct, cashback_amount, community_id, status 'pending').</li>
+<li>אם cashback&gt;0: זיכוי של ארנק הקהילה ב-₪ דרך postEntry על (community, ILS_CASHBACK) (<code>ARC-15</code>): FOR UPDATE, INSERT ל-wallet_entries עם reason 'cashback', reference_id=orderId, idempotency_key=cashback:{orderId}, והתיאור "קאשבק מהזמנה #X על סך ₪Y". community_wallets.balance/total_earned ו-community_wallet_transactions נשארים תצוגות נגזרות לקריאה, כמו שהמסכים קוראים היום.</li>
+<li>אם לקהילה יש אזור עם ZM active: INSERT ל-<code>zone_manager_commissions</code> (manager_id, community_id, order_id, amount, commission_pct, "עמלה מהזמנה #X בקהילה").</li>
+<li>COMMIT. כשל מבצע ROLLBACK של הכול, נרשם בלוג, והעבודה מנסה שוב (<code>ARC-33</code>).</li></ol></div>
+<div>חישובים</div><div>
+<code>commPct = system_settings.platform_commission_pct ?? 3</code>, <code>cashbackPct = community_cashback_pct ?? 30</code>. ערך NULL או חסר מקבל את ברירת המחדל, ו-0 נשאר 0.<br>
+<code>commAmount = round2(total_amount × commPct/100)</code>, <code>cashbackAmount = round2(commAmount × cashbackPct/100)</code>.<br>
+<code>zmPct = zone_managers.commission_pct ?? zone_manager_commission_pct ?? 5</code>, <code>zmAmount = round2(commAmount × zmPct/100)</code>.<br>
+דוגמה: הזמנה של ₪100 → עמלה ₪3 → קאשבק ₪0.90 לקהילה, ו-₪0.15 ל-ZM.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>מערכת</td><td>השלמת הזמנה</td><td>קאשבק, עמלת ZM</td></tr>
+<tr><td>pending</td><td>invoiced</td><td>SA</td><td>הפקת חשבונית או דרישת תשלום לעסק (<code>ARC-22</code>)</td><td>—</td></tr>
+<tr><td>pending / invoiced</td><td>paid</td><td>מערכת</td><td>הקצאת גבייה מכסה את מלוא commission_amount</td><td>—</td></tr>
+<tr><td>pending / invoiced</td><td>written_off</td><td>SA</td><td>סיבה חובה</td><td>audit</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>SA מגדיר את האחוזים ב-<code>GET/PUT /api/sa/settings/rates</code>. הסיכומים ב-<code>/api/sa/finance-summary</code> וב-<code>/api/sa/business-dues</code>. רישום גבייה, <code>POST /api/sa/business-collections</code> (business_id ו-amount&gt;0 חובה, collected_at ברירת מחדל היום), מקצה את הסכום לשורות dues לא-paid של העסק לפי FIFO (created_at ASC) בטבלת <code>dues_allocations</code>, ומעדכן את הסטטוס. יתרה לא מוקצית נשמרת כזיכוי לעסק. <code>יתרת חוב עסק = Σ commission_amount(dues לא paid ולא written_off) − Σ הקצאות לשורות אלה</code>.</div>
+<div>ממשק</div><div>מסכי הכספים של SA נשארים, ומציגים גם את הסטטוס של כל שורת dues ואת יתרת החוב לעסק.</div>
+<div>שינויים מהקיים</div><div><ul>
+<li><code>COM-04</code>→<code>STR-04</code> — הטריגר זמין רק לבעל ההזמנה המאומת.</li>
+<li><code>COM-18</code> — הזכאות דורשת משפחה ועסק approved, עם סדר קהילה מוגדר. 0 נשמר כ-0. הכול בטרנזקציה אחת.</li>
+<li><code>COM-20</code> — סטטוסים pending→invoiced→paid|written_off, והקצאת גבייה FIFO.</li>
+<li><code>COM-27</code>→<code>ARC-11</code> — אין עוד שגיאות שנבלעות.</li>
+<li><code>COM-24</code> — משפחה pending לא מזכה בקאשבק.</li><li><code>RECON-19</code> — הזיכוי עובר דרך postEntry ל-wallet_entries (שמות tobe-arch), והטבלאות הישנות נשארות לקריאה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community wallet cashback-info sa community-wallets balance"><h3>ארנק קהילה (₪ קאשבק) — צפייה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>חבר או מנהל קהילה: <code>GET /api/community/cashback-info</code>. מנהל: manager-data. SA: <code>GET /api/sa/community-wallets</code>. בנוסף, יש תהליך חדש של בקשת שימוש ביתרה.</div>
+<div>הרשאות</div><div>צפייה: חבר approved, ו-CM רואה גם תנועות. בקשת שימוש: CM approved, לא CHILD. אישור: SA עם הרשאת stats (לשונית finance ב-SA_TAB_PERMS) (<code>ARC-07</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>בקשת שימוש: amount &gt; 0 ו-≤ היתרה הנוכחית (400 "הסכום חורג מהיתרה"), purpose חובה עד 500 תווים.</li><li>אישור: הבקשה pending, והיתרה ≥ amount בזמן האישור (FOR UPDATE).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>צפייה: family_communities (approved) ⋈ communities ⟕ community_wallets, ומחזיר balance, total_earned (COALESCE 0) ו-is_community_manager.</li><li>SA: כל הקהילות, ממוינות לפי total_earned DESC, כולל family_count (approved).</li>
+<li>בקשת שימוש: INSERT ל-<code>community_wallet_requests(community_id, requested_by_group_id, amount, purpose, status='pending')</code>, ו-badge ל-SA.</li>
+<li>אישור SA, בטרנזקציה: UPDATE balance -= amount (לא יורד מתחת ל-0), INSERT ל-<code>community_wallet_transactions</code> מסוג 'debit' עם reference_id=requestId, status='approved', והודעה ל-CM. דחייה: status='rejected' עם סיבה, והודעה.</li></ol></div>
+<div>חישובים</div><div><code>balance ≥ 0</code> תמיד. total_earned לא יורד בשימוש.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>CM</td><td>amount ≤ balance</td><td>badge ל-SA</td></tr>
+<tr><td>pending</td><td>approved</td><td>SA</td><td>יתרה מספיקה</td><td>debit, הודעה</td></tr>
+<tr><td>pending</td><td>rejected</td><td>SA</td><td>סיבה</td><td>הודעה</td></tr>
+<tr><td>pending</td><td>cancelled</td><td>CM המבקש</td><td>—</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>תנועות debit מופיעות ב-50 התנועות האחרונות שב-manager-data.</div>
+<div>ממשק</div><div>תג ₪ על כרטיס הקהילה (app.js:6981), בצבע ענבר כשהיתרה &gt; 0, וקריאה ב-<code>fetchCashbackInfo</code> (6828), כמו היום. חדש: בפאנל ה-CM, כפתור "בקשת שימוש ביתרה" (סכום ומטרה) ורשימת בקשות. ב-SA: תור בקשות שימוש במסך ארנקי הקהילות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-19</code> — נוסף תהליך שימוש ביתרה: בקשת CM, אישור SA, ואז debit. הצפייה הקיימת לא השתנתה.</li><li><code>COM-24</code> — צפייה לחבר approved.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="flow engine awardflow flow_config flow_wallets community wallet fl coins"><h3>מנוע FLOW (awardFlow) וארנק FLOW קהילתי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>פונקציה משותפת, <code>awardFlow(entityType, entityId, actionKey, communityId, referenceId)</code>, מזכה ארנק אישי ו/או קהילתי לפי <code>flow_config</code>.</div>
+<div>הרשאות</div><div>פנימית: נקראת רק מקוד השרת. ארנק FLOW קהילתי: משפחה approved, עסק approved בקהילה, ZM של האזור או SA. עריכת קונפיג ומענק ידני: SA עם הרשאת comm (הכפתורים בלשונית comm, כמו ב-tobe-sa "תצורת FLW" ו"הענקה/ניכוי ידני של FLW").</div>
+<div>קלט ואימותים</div><div><ul><li>actionKey חייב להיות קיים ב-flow_config. בעליית השרת נבדקת רשימה סגורה של המפתחות שהקוד קורא להם, ומפתח חסר נרשם כשגיאה בלוג. בזמן ריצה, מפתח חסר מחזיר שגיאה פנימית שנרשמת, ולא no-op שקט.</li><li>מענק ידני: entityType ∈ family/business/community, reason חובה, amount ≠ 0, והיתרה לא יורדת מתחת ל-0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>טעינת <code>personal_amount, community_amount, description</code> של actionKey.</li>
+<li>withTransaction (<code>ARC-11</code>): אם pa>0 ו-entityId: postEntry על ארנק (entity, FLOW) (<code>ARC-15</code>) עם idempotency_key = flow:{entity_type}:{entity_id}:{action_key}:{reference_id} (UNIQUE ב-wallet_entries). בהתנגשות: no-op ויציאה. אחרת FOR UPDATE על הארנק, INSERT ל-wallet_entries ועדכון wallets.balance. flow_wallets ו-flow_transactions נשארים תצוגות נגזרות (יתרה והיסטוריה), כמו שהמסכים קוראים היום.</li>
+<li>אם ca&gt;0 ו-communityId: אותו דבר מול ('community', communityId), עם אותו reference_id.</li>
+<li>מפתחות בלי reference טבעי (daily_login): reference_id = <code>todayIL()</code>, כלומר פעם ביום.</li></ol></div>
+<div>חישובים</div><div>ערכי הזריעה (personal / community): join_community 15/5; referral 20/10 (כינוי ישן, לא מוענק); promo_redemption 3/2; profile_complete 12/3; review_business 7/3; bundle_purchase 18/7; daily_login 1/0; ambassador_approved 35/15; promo_community 0/5; bundle_community 0/20; biz_join_approved 20/10; biz_promo_approved 10/5; biz_promo_redeemed 5/5; biz_bundle_sold 10/20; biz_review_received 8/2; biz_lead_received 5/2; pool_join 5/2; pool_bid_accepted 25/10; pool_create 3/1; referral_join 20/0. <b>נוספים לקונפיג:</b> community_post 3/1; post_popular_bonus 5/0; ambassador_bonus_community 0/משתנה (הסכום שה-SA מזין). קונפיג: flow_to_ils_rate=100 (100 Flw = ₪10), flow_min_redeem=100, flow_redeem_quarter=0. CHECK <code>flow_wallets.balance ≥ 0</code>.</div>
+<div>מכונת מצבים</div><div>קוד מימוש FLOW (flow_redemptions): active → used | expired | cancelled. validate מקבל רק active שלא פג. השימוש מעביר ל-used באופן אטומי (<code>UPDATE … WHERE status='active' RETURNING</code>). במיגרציה NULL/pending הופכים ל-active.</div>
+<div>תופעות לוואי</div><div>ארנק FLOW קהילתי: <code>GET /api/flow/community-wallet/:communityId</code> מחזיר balance ו-20 תנועות ("אין הרשאה לקהילה זו" למי שאינו מורשה). ZM רואה אותו ב-community-detail. SA עורך ערכים ב-<code>PUT /api/sa/flow/config</code>, ומזכה או מחייב ידנית ב-<code>POST /api/sa/flow/grant</code> (action_key 'sa_manual', reference_id ייחודי לכל מענק).</div>
+<div>ממשק</div><div>ללא שינוי במסכים.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — אידמפוטנטיות ב-awardFlow, ו-daily_login פעם ביום.</li><li><code>COM-15</code> — רשימת מפתחות סגורה. community_post ו-post_popular_bonus נוספו. promo_used הוסר. מפתח חסר נרשם כשגיאה.</li><li><code>COM-16</code>→<code>SA-34</code> — מחזור חיים אחיד לקוד מימוש, ו-validate עובד.</li><li><code>COM-27</code>→<code>ARC-11</code> — הארנק והתנועה נכתבים בטרנזקציה אחת, בלי שגיאות שנבלעות.</li><li><code>RECON-19</code> — awardFlow כותב דרך postEntry ל-wallets ו-wallet_entries (tobe-arch), עם אותו מפתח אידמפוטנטיות. flow_wallets ו-flow_transactions נשארים לקריאה.</li><li><code>E2E-22</code> — ההרשאה "finance", שאינה קיימת ב-SA_TAB_PERMS, הוחלפה ב-comm לעריכת קונפיג FLOW ולמענק ידני, כמו ב-tobe-sa.</li></ul></div>
+</div></section>
+
+<h2 class="grp">פיד קהילה, תחומי עניין והתראות</h2>
+
+<section class="proc" data-f="community feed ranking posts fetch pinned score pagination"><h3>שליפת פיד קהילה ודירוג</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>app.js:loadFeedSection</code> (17877) / <code>fetchFeedPosts</code> (18014) → <code>GET /api/community/feed?communityId&amp;groupId&amp;page&amp;limit</code>. familyId נלקח מהסשן.</div>
+<div>הרשאות</div><div>סשן משפחה. כשנשלח communityId, המשפחה חייבת להיות approved בו (403 "לא חבר בקהילה").</div>
+<div>קלט ואימותים</div><div><ul><li>בלי communityId: כל הקהילות שהמשפחה approved בהן.</li><li>limit בין 1 ל-50 (ברירת מחדל 20). page ≥ 1.</li><li>is_hidden=false.</li><li>פוסט עסקי (post_type ∈ {promo, biz_update}) מוצג רק כש-<code>biz_post_status='approved'</code> ו-(<code>biz_valid_until</code> IS NULL או ≥ <code>todayIL()</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT עם מסנני הקהילה והקבוצה, המיון, ו-<code>liked_by_me</code> לפי community_post_likes.</li></ol></div>
+<div>חישובים</div><div>מיון: <code>is_pinned DESC</code>, ואחריו <code>likes×3 + comments×5 + shares×4 + 100/(hours_since_created + 2)</code> DESC. <code>hasMore = rows == limit</code>. שם המחבר: <code>name (family_nickname)</code>. בפוסט עסקי: שם העסק ולוגו מ-<code>store_settings.logo_url</code>.</div>
+<div>מכונת מצבים</div><div>אין (קריאה).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>מסנני קהילה וקבוצה (<code>renderFeedCommunityFilters</code>/<code>setFeedFilter</code>), "טען עוד" (<code>loadMoreFeedPosts</code>), וחיפוש: <code>runFeedSearch</code> → <code>GET /api/community/feed/search</code> (ILIKE על content, רק קהילות approved, מיון created_at DESC, 20 לעמוד, hasMore לפי lim+1). אותו מסנן של פוסט עסקי approved חל גם בחיפוש.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-38</code> — פוסט עסקי מוצג רק אחרי אישור ובתוקף.</li><li><code>COM-24</code> — רק קהילות approved. communityId זר מחזיר 403.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community post create flow interest group posts_count"><h3>יצירת פוסט ע"י משפחה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודל פוסט חדש (<code>app.js:onNewPostCommunityChange</code> 18339) → <code>POST /api/community/posts</code>.</div>
+<div>הרשאות</div><div>סשן משפחה. המשפחה approved בקהילה ("לא חבר בקהילה").</div>
+<div>קלט ואימותים</div><div><ul><li>content לא ריק ("תוכן ריק"), עד 5000 תווים.</li><li>כשנשלח group_id: הוא חייב להשתייך לאותה community_id (400 "תחום העניין אינו שייך לקהילה").</li><li>image_url מאחסון אובייקטים (<code>ARC-26</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה: INSERT ל-community_posts (author_family_id, author_user_id מהסשן, community_id, group_id, post_type ברירת מחדל 'general', content אחרי trim, image_url). אם יש group_id: <code>community_interest_groups.posts_count += 1</code>.</li><li><code>awardFlow(family, familyId, 'community_post', communityId, postId)</code> (3+1).</li></ol></div>
+<div>חישובים</div><div>FLOW: 3 למשפחה ו-1 לקהילה לכל פוסט.</div>
+<div>מכונת מצבים</div><div>community_posts: נוצר כשהוא גלוי (is_hidden=false).</div>
+<div>תופעות לוואי</div><div>FLOW. מונה הפוסטים של תחום העניין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-15</code> — בונוס הפוסט מוענק דרך awardFlow ומעדכן ארנק, במקום INSERT כושל.</li><li><code>COM-40</code> — group_id חייב להשתייך לקהילה.</li><li><code>COM-24</code> — רק חבר approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="community like comment notification share report hide likers sharers public"><h3>לייק, תגובה, שיתוף, דיווח והתראות פיד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>toggleFeedLike</code> (18105), <code>openFeedComments</code> (18144), <code>shareFeedPost</code> (18311) ו-<code>reportFeedPost</code> (18327).</div>
+<div>הרשאות</div><div>לייק, תגובה, שיתוף ודיווח: סשן משפחה approved בקהילת הפוסט. בשיתוף לקהילה אחרת, המשפחה צריכה להיות approved גם בקהילת היעד. קריאת תגובות, likers ו-sharers: חבר approved. דף פוסט ציבורי: ציבורי במכוון.</div>
+<div>קלט ואימותים</div><div><ul><li>תגובה: content לא ריק, עד 2000 תווים. parent_comment_id, אם נשלח, שייך לאותו פוסט.</li><li>שיתוף: targetCommunityId אופציונלי, ותנאי החברות שלמעלה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><b>לייק</b> (toggle): אם קיים, DELETE ו-<code>likes_count=GREATEST(0,−1)</code>. אם לא קיים, INSERT ו-<code>+1</code>. כשהספירה מגיעה בדיוק ל-10 ו-<code>flw_earned=0</code>: <code>flw_earned=5</code>, ו-<code>awardFlow(family, author,'post_popular_bonus', community, postId)</code> (פעם אחת לפוסט). התראה לכותב דרך notify() לטבלת notifications המאוחדת (<code>ARC-16</code>; community_notifications ממוגרת אליה) עם type='like', אם הוא לא זה שעשה לייק.</li>
+<li><b>תגובה:</b> INSERT ל-community_post_comments (parent_comment_id לתשובות), comments_count+1, והתראה מסוג 'comment'. ה-GET מחזיר רק תגובות שורש שאינן מוסתרות.</li>
+<li><b>דיווח:</b> INSERT ל-community_post_reports ON CONFLICT DO NOTHING. רק אם נוספה שורה: <code>reports_count = COUNT(DISTINCT reporter)</code>. כשיש ≥ 3 מדווחים שונים: <code>is_hidden=true</code>.</li>
+<li><b>שיתוף:</b> INSERT ל-community_post_shares (ON CONFLICT). אם יש targetCommunityId: פוסט חדש בקהילת היעד עם התוכן <code>"[שותף] " + content</code>. shares_count+1 רק כשנוספה שורה.</li>
+<li><b>פוסט ציבורי:</b> בלי סשן משפחה approved בקהילה, מוחזרים <code>gated:true</code>, שם הקהילה ותקציר של עד 140 תווים, בלי רשימות מגיבים או משתפים. עם סשן של חבר approved: הפוסט המלא.</li>
+<li>התראות: <code>GET /api/community/notifications</code> (limit 30), count, ו-mark-read (יחיד או הכול). הכול מהסשן.</li></ol></div>
+<div>חישובים</div><div>סף פוסט פופולרי: 10 לייקים, בונוס 5. סף הסתרה: 3 מדווחים שונים.</div>
+<div>מכונת מצבים</div><div>community_posts.is_hidden: false → true (3 מדווחים, או SA), ו-true → false (SA).</div>
+<div>תופעות לוואי</div><div>התראות לכותב. FLOW על פוסט פופולרי.</div>
+<div>ממשק</div><div>ללא שינוי בפיד. דף הפוסט המשותף מציג במצב gated כפתור "הצטרפו לקהילה".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-40</code> — reports_count לפי מדווחים שונים. שיתוף, לייק ותגובה רק לחבר approved בקהילת הפוסט והיעד.</li><li><code>COM-09</code> — זהות מהסשן. רשימות likers, sharers ותגובות לא ציבוריות. הפוסט הציבורי מצומצם.</li><li><code>COM-15</code> — post_popular_bonus דרך awardFlow.</li><li><code>RECON-18</code> — התראות הפיד נכתבות ל-notifications המאוחדת (tobe-arch).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="feed unread mark-read community_feed_reads badge"><h3>ספירת פוסטים שלא נקראו</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>loadFeedUnreadCounts</code> (app.js:17905) ו-<code>markFeedRead</code> (17895).</div>
+<div>הרשאות</div><div>סשן משפחה.</div>
+<div>קלט ואימותים</div><div><ul><li>mark-read: communityId אופציונלי, וחייב להיות קהילה approved של המשפחה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>unread-counts: לכל קהילה approved, <code>since = COALESCE(community_feed_reads.last_read_at, family_communities.approved_at, family_communities.joined_at)</code>. סופרים פוסטים לא מוסתרים (ופוסטים עסקיים approved בלבד) שנוצרו אחרי since.</li><li>mark-read: UPSERT של last_read_at=NOW, לקהילה אחת או לכל הקהילות המאושרות.</li></ol></div>
+<div>חישובים</div><div>התצוגה מוגבלת ל-"99+".</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>עמודה חדשה, <code>family_communities.approved_at</code>, שנכתבת במעבר ל-approved. במיגרציה מקבלת את ערך joined_at.</div>
+<div>ממשק</div><div>badge על מסנן הקהילה, עם 99+ כתקרה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-41</code> — כשאין שורת קריאה, סופרים ממועד האישור ולא מציגים 0. תקרת תצוגה 99+.</li><li><code>COM-38</code> — פוסט עסקי לא מאושר לא נספר.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="interest groups community_interest_groups join leave create add remove members notification"><h3>קבוצות/תחומי עניין בקהילה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחות יוצרות תחומי עניין בתוך הקהילה ומצטרפות אליהם.</div>
+<div>הרשאות</div><div>כל הפעולות והקריאות: סשן משפחה approved בקהילה. הוספה והסרה של משפחות: רק יוצר הקבוצה. SA: הרשאת comm. עסק: approved בקהילה.</div>
+<div>קלט ואימותים</div><div><ul><li>create: שם חובה ("שם חובה"), עד 60 תווים, וייחודי בקהילה בלי תלות ברישיות ("כבר קיים תחום עניין עם שם זה בקהילה").</li><li>add/remove family: רק יוצר הקבוצה ("רק יוצר הקבוצה יכול להוסיף משפחות"). המשפחה הנוספת חייבת להיות approved בקהילה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>create, בטרנזקציה: INSERT עם members_count=1 ו-icon ברירת מחדל '💬'. היוצר נוסף כחבר. התראה מסוג <code>group_new</code> לכל החברים המאושרים (INSERT מרובה שורות).</li><li>join/add: INSERT ON CONFLICT … RETURNING, ו-members_count+1 רק אם נוספה שורה.</li><li>leave/remove: DELETE RETURNING, ו-members_count=GREATEST(0,−1).</li><li>SA יוצר קבוצה דרך <code>POST /api/sa/community/groups</code> (icon ברירת מחדל '📌'; הנתיב <code>/api/sa/feed/groups</code> מאוחד לתוכו).</li><li>עסק רואה את קבוצות הקהילה ב-<code>GET /api/biz/community/:communityId/groups</code>.</li></ol></div>
+<div>חישובים</div><div>members_count ו-posts_count כמונים.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>התראת group_new.</div>
+<div>ממשק</div><div>ללא שינוי. ה-is_member וה-addable נקבעים מהסשן.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-09</code> — רשימת הקבוצות והחברים דורשת סשן. is_member ו-addable מהסשן ולא מ-query.</li><li><code>COM-42</code> — יצירת קבוצה ב-SA בנתיב אחד, <code>/api/sa/community/groups</code>.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="sa community feed moderation posts hide pin stats ai analyze anthropic claude"><h3>ניהול פיד ע"י SA וניתוח AI</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>sa-app.js:loadSACommunityFeed</code> (11663), <code>refreshSAFeedStats</code> ו-<code>loadSAFeedPosts</code>.</div>
+<div>הרשאות</div><div>SA עם הרשאת comm. ai-analyze דורש גם זכאות AI ב-aiGateway (<code>ARC-30</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>days מספר שלם בין 1 ל-365 (ברירת מחדל 7). ID מספרי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li><code>GET /api/sa/community/posts</code>: מסננים communityId, postType, isHidden ו-<code>hidden=1</code> (התאמה למסך), 30 לעמוד, מיון reports_count DESC.</li>
+<li><code>GET /api/sa/community/posts/reported</code>: פוסטים עם דיווחים (במקום <code>/api/sa/feed/reported</code>).</li>
+<li><code>PATCH /api/sa/community/posts/:id</code>: is_hidden ו/או is_pinned (רק שדות שנשלחו), updated_at. <code>POST /api/sa/community/posts/:id/toggle</code> הופך את is_hidden (במקום <code>/api/sa/feed/posts/:id/toggle</code>).</li>
+<li><code>GET /api/sa/community/feed-stats?days</code>: סה"כ, חדשים, לייקים, תגובות, דיווחים, פילוח לפי סוג, top-10 קהילות ו-top-5 פוסטים. כולל את כל שדות התגובה של <code>/api/sa/feed/stats</code>.</li>
+<li><code>GET/POST /api/sa/community/groups</code>: רשימה ויצירה של קבוצות.</li>
+<li><code>POST /api/sa/community/ai-analyze</code>: אוסף עד 50 פוסטים מובילים ועד 20 מדווחים, ושולח דרך aiGateway לספק Anthropic (מודל מ-config, max_tokens 1500) עם הפרומפט העברי: מגמות, קהילות מובילות, דגלים אדומים, 3 המלצות והזדמנויות. שגיאת ספק מחזירה 502 <code>{code:'AI_UPSTREAM', message_he:'שירות ה-AI אינו זמין כרגע'}</code> ונרשמת בלוג.</li>
+<li><code>/api/sa/feed/*</code> מוסר אחרי שהלקוח עובר לנתיבים שלמעלה.</li></ol></div>
+<div>חישובים</div><div>כמו היום.</div>
+<div>מכונת מצבים</div><div>is_hidden ו-is_pinned מתחלפים בחופשיות על ידי SA.</div>
+<div>תופעות לוואי</div><div>audit לכל הסתרה והצמדה.</div>
+<div>ממשק</div><div>המסכים נשארים. הקריאות ב-sa-app.js:11671–11817 מומרות לנתיבי <code>/api/sa/community/*</code>, עם Authorization. ה-toast מוצג לפי תוצאת התשובה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-42</code> — מערכת אחת, <code>/api/sa/community/*</code>, שכוללת את כל הפונקציות של <code>/api/sa/feed/*</code>. שגיאת AI מחזירה 502 מובחן.</li><li><code>COM-03</code>→<code>SA-03</code> — כל הנתיבים תחת verifySA.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="business feed posts biz posts deal update moderation approve reject hide carousel promos"><h3>פוסטים עסקיים בפיד — הגשה, אישור, קרוסלה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מערכת אחת: <code>/api/biz/community/feed-posts</code> (POST/GET/DELETE ו-<code>/stats</code>), ומודרציה ב-<code>PATCH /api/sa/community/biz-posts/:id</code>. לקוח העסק: <code>business-app.js:submitBizFeedPost</code> (58316) ו-<code>loadBizFeedPosts</code> (58169).</div>
+<div>הרשאות</div><div>עסק: סשן BIZ, ו-businessId נלקח מהסשן. SA: הרשאת comm (<code>COM-03</code>→<code>SA-03</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>POST: content לא ריק. postType הוא deal או update ("סוג פוסט לא תקין"). update עד 3 שורות לא ריקות ("עדכון קצר — עד 3 שורות בלבד"). העסק approved בקהילה ("העסק אינו חבר מאושר בקהילה זו"). <code>biz_promo_url</code> חייב להיות http/https. <code>biz_valid_until</code> הוא תאריך ≥ היום או ריק.</li>
+<li>DELETE: הפוסט של העסק מהסשן. פוסט approved לא נמחק ("לא ניתן למחוק פוסט מאושר").</li>
+<li>SA PATCH: status ∈ {approved, rejected}. rejected דורש rejectionReason ("חובה לציין סיבת דחייה"). המעבר מ-pending, או החלפה בין approved ל-rejected.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>POST: INSERT ל-community_posts עם author_family_id=businessId, post_type = deal→<code>promo</code> או update→<code>biz_update</code>, biz_post_status='pending', biz_promo_url ו-biz_valid_until. badge ל-SA.</li><li>GET: הפוסטים של העסק עם הסטטוס וסיבת הדחייה. <code>/stats</code>: מונים (pending, approved, rejected, צפיות, לייקים), במקום <code>/api/biz/feed/stats</code>.</li><li>SA approve: biz_post_status='approved', is_hidden=false. reject: 'rejected', is_hidden=true, וסיבה. hide: is_hidden=true. הודעה לעסק.</li><li>נתיבי הלגאסי (<code>/api/biz/feed/posts</code>, <code>/api/biz/feed/stats</code>, וה-PATCH הישנים approve/reject/hide) מוסרים. GET הכפול 37111 מוסר.</li></ol></div>
+<div>חישובים</div><div>"expired" הוא מצב תצוגה בלבד: <code>biz_valid_until &lt; todayIL()</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending</td><td>עסק</td><td>חבר approved</td><td>badge ל-SA</td></tr>
+<tr><td>pending / rejected</td><td>approved</td><td>SA</td><td>PATCH</td><td>is_hidden=false. הודעה</td></tr>
+<tr><td>pending / approved</td><td>rejected</td><td>SA</td><td>rejectionReason חובה</td><td>is_hidden=true. הודעה</td></tr>
+<tr><td>*</td><td>(is_hidden)</td><td>SA</td><td>hide</td><td>—</td></tr>
+<tr><td>approved</td><td>expired (תצוגה)</td><td>—</td><td>biz_valid_until &lt; היום</td><td>יוצא מהפיד ומהקרוסלה</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>קרוסלה למשפחה, <code>GET /api/community/feed/biz-promos</code>: approved, לא מוסתר, post_type='promo', בתוקף, רק בקהילות שהמשפחה approved בהן, LIMIT 10. הלוגו מ-<code>store_settings.logo_url</code>.</div>
+<div>ממשק</div><div>SA: <code>approveSABizPost</code>/<code>confirmSAReject</code>/<code>hideSABizPost</code> (11946–12015), עם סיבות דחייה כ-radio ו"אחר", ו-badge ממתינים (<code>initSABizFeedBadge</code>). הקריאות נשלחות עם Authorization, וה-toast של הצלחה מוצג רק בתשובת 2xx. בעסק: הקריאות מתוקנות ל-<code>/api/biz/community/feed-posts</code> (בלי <code>/feed/post</code> ביחיד), עם השדות biz_promo_url ו-biz_valid_until.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-39</code> — מערכת אחת, כולל stats. הלגאסי והנתיבים הכפולים מוסרים. הלוגו מ-store_settings. הלקוח מתוקן, וה-toast לפי 2xx.</li><li><code>COM-03</code>→<code>SA-03</code> — המודרציה תחת verifySA.</li><li><code>COM-07</code> — businessId מהסשן.</li><li><code>COM-38</code> — פוסט pending לא מופיע בפיד.</li></ul></div>
+</div></section>
+
+<h2 class="grp">פולים — קנייה קבוצתית (FlowPool)</h2>
+
+<section class="proc" data-f="pool flowpool create community family expires initiator"><h3>פתיחת פול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה שחברה בקהילה פותחת בקשה קבוצתית לשירות או למוצר: <code>app.js:openCreatePoolModal</code>/<code>createFamPool</code> (6443/6454) → <code>POST /api/community/pool</code>.</div>
+<div>הרשאות</div><div>סשן משפחה. CHILD נחסם. המשפחה approved בקהילה ("היוזם אינו חבר בקהילה").</div>
+<div>קלט ואימותים</div><div><ul><li>communityId ו-title חובה ("חסרים שדות חובה"). title עד 200 תווים.</li><li><code>initiatorType</code> נקבע בשרת כ-'family', ו-<code>initiatorId</code> נלקח מהסשן. ערך שנשלח בגוף מתעלמים ממנו.</li><li><code>minFamilies</code> שלם ≥ 1 (ברירת מחדל 2). <code>maxPrice</code> ≥ 0, כאשר 0 פירושו "מחיר פתוח".</li><li>בלקוח: כותרת ותיאור חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>expires_at</code> = התאריך <code>todayIL() + 7</code> ימים, בשעה 23:59:59 Asia/Jerusalem (<code>ARC-25</code>).</li><li>טרנזקציה: INSERT ל-flow_pools (status 'open_r1'), INSERT ל-flow_pool_members עבור היוזם, והודעת מערכת "פול חדש נפתח: {title}".</li><li><code>awardFlow(family,'pool_create', community, poolId)</code> (3+1).</li></ol></div>
+<div>חישובים</div><div>תוקף ברירת מחדל: 7 ימים, עד 23:59:59 שעון ישראל. min_families הוא יעד, ומוצג כ"X/Y משפחות".</div>
+<div>מכונת מצבים</div><div>(INSERT) → open_r1.</div>
+<div>תופעות לוואי</div><div>הודעת מערכת בצ'אט הפול. FLOW.</div>
+<div>ממשק</div><div>המודל נשאר. מוצג התוקף ("פתוח עד {תאריך}") ומונה המשפחות מול היעד. המדריך flowpool-guide ("מגדיר מינימום משפחות לעסקה", "תוקף פול") תואם.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-45</code> — initiatorType נקבע בשרת. תוקף ברירת המחדל 7 ימים בשעון ישראל, במקום סוף היום בשעון השרת. min_families נשאר יעד (לא חוסם).</li><li><code>COM-24</code> — רק חבר approved.</li><li><code>COM-12</code> — pool_create אידמפוטנטי לפי poolId.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pool status machine open_r1 open_r2 closed expired archived renew restore"><h3>מכונת מצבים של פול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ניהול מחזור החיים של <code>flow_pools.status</code>.</div>
+<div>הרשאות</div><div>יוזם (משפחה מהסשן) או CM approved של קהילת הפול. CHILD נחסם. ניקוי: עבודת רקע, או SA עם הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>select-bid: bidId שייך לפול ונמצא במצב pending, או closeOnly=true.</li><li>renew: days שלם בין 1 ל-30 (ברירת מחדל 7).</li><li>כל מעבר מוגדר עם <code>WHERE status IN (...)</code>. rowCount=0 מחזיר 409 "לא ניתן לבצע פעולה זו במצב הנוכחי של הפול".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כל מעבר רץ בטרנזקציה: UPDATE, ואחריו הודעת מערכת, ו-FLOW אם רלוונטי.</li><li>select-bid עם bid: winner_bid_id, ההצעה הנבחרת accepted ושאר ההצעות rejected. <code>awardFlow(business,'pool_bid_accepted', community, poolId)</code>, פעם אחת לפול. הודעה לעסקים.</li><li>הפעולה נרשמת עם actor (יוזם או CM).</li><li>תפוגה lazy בקריאות GET, ובנוסף עבודת רקע יומית (<code>ARC-23</code>).</li></ol></div>
+<div>חישובים</div><div>renew: <code>expires = todayIL() + days</code>, בשעה 23:59:59. restore: <code>todayIL() + 7</code>, בשעה 23:59:59.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>open_r1</td><td>משפחה</td><td>—</td><td>הודעת מערכת, FLOW</td></tr>
+<tr><td>open_r1</td><td>open_r2</td><td>יוזם או CM</td><td><code>/open-round2</code></td><td>"הפול נפתח לעסקים מחוץ לקהילה". הפול מוצג לעסקים אורחים</td></tr>
+<tr><td>open_r1 / open_r2</td><td>expired</td><td>מערכת</td><td><code>expires_at ≤ NOW</code></td><td>ההודעות <b>נשמרות</b></td></tr>
+<tr><td>open_r1 / open_r2 / expired, ללא winner</td><td>closed</td><td>יוזם או CM</td><td><code>/select-bid</code> עם bidId, או closeOnly</td><td>winner_bid_id. FLOW לזוכה, פעם אחת</td></tr>
+<tr><td>*</td><td>archived</td><td>יוזם או CM</td><td><code>/archive</code> בלי bizArchive</td><td>"הפול הועבר לארכיב"</td></tr>
+<tr><td>expired, או closed ללא winner</td><td>open_r1</td><td>יוזם</td><td><code>/renew</code></td><td>הודעה עם תאריך בפורמט he-IL</td></tr>
+<tr><td>archived ללא winner</td><td>open_r1</td><td>יוזם</td><td><code>/restore</code></td><td>"הפול הוחזר לפעילות"</td></tr></table></div>
+סטטוסי הצעה: pending → accepted | rejected (רק ב-select-bid). closed עם winner הוא סופי, ומשם מותר רק archive.</div>
+<div>תופעות לוואי</div><div>ניקוי של פולים שפגו: הסטטוס מתעדכן ל-expired, וההודעות נמחקות רק 90 יום אחרי expires_at (עבודת רקע).</div>
+<div>ממשק</div><div>תוויות הלקוח (app.js:6413): open_r1 "סיבוב 1 פתוח", open_r2 "סיבוב 2 פתוח", closed "סגור", expired "פג תוקף". הכפתור "חדש תוקף (7 ימים)" מוצג רק במצבים שמאפשרים renew. סגירה בלי הצעה: "לסגור את הפול כבוע מול עסק?". בחירת הצעה כשמספר המשפחות קטן מ-min_families מציגה אישור: "הפול טרם הגיע למינימום של Y משפחות — לבחור בכל זאת?".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-46</code> — אין בחירה חוזרת כשכבר יש זוכה. closed עם זוכה סופי. renew ו-restore רק בלי זוכה. ה-CM שומר על הסגירה, הבחירה והארכוב, עם רישום actor.</li><li><code>COM-12</code> — pool_bid_accepted פעם אחת לפול.</li><li><code>COM-47</code> — ניקוי לא מוחק הודעות לפני 90 יום. open_r2 נגיש לאורחים.</li><li><code>COM-45</code> — אזהרת מינימום בלקוח, בלי חסימה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pool join member remove family flow"><h3>הצטרפות משפחות לפול והסרתן</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>app.js:joinFamPool</code> (6737) → <code>POST /api/community/pool/:id/join</code>. הסרה על ידי היוזם: <code>removePoolMember</code> → <code>/remove-member</code>.</div>
+<div>הרשאות</div><div>join: משפחה approved בקהילת הפול (מהסשן). remove: היוזם (מהסשן), לא CHILD.</div>
+<div>קלט ואימותים</div><div><ul><li>join: הפול open_r1 או open_r2, ו-expires_at&gt;NOW ("הפול אינו פעיל").</li><li>remove: הפול family ושייך ליוזם. היוזם לא יכול להסיר את עצמו.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>join: INSERT ל-flow_pool_members ON CONFLICT DO NOTHING RETURNING. <b>רק אם נוספה שורה:</b> הודעת מערכת "משפחה חדשה הצטרפה לפול", ו-<code>awardFlow(family,'pool_join', community, poolId)</code> (5+2). מחזיר member_count. אם המשפחה כבר חברה: 200 עם <code>alreadyMember:true</code>.</li><li>remove: DELETE.</li></ol></div>
+<div>חישובים</div><div>member_count = COUNT(flow_pool_members).</div>
+<div>מכונת מצבים</div><div>אין (חברות).</div>
+<div>תופעות לוואי</div><div>הודעת מערכת ו-FLOW, פעם אחת למשפחה בפול.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — FLOW והודעה רק בהצטרפות ראשונה (rowCount, ומפתח אידמפוטנטיות).</li><li><code>COM-24</code> — רק חבר approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pool bid business guest round2 price one bid"><h3>הגשת הצעה מעסק לפול</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק בטאב הפולים: <code>business-app.js:loadBizPools</code> (16980) → <code>submitBizPoolBid</code> (17158) → <code>POST /api/community/pool/:id/bid</code>.</div>
+<div>הרשאות</div><div>סשן BIZ. businessGroupId נלקח מהסשן ("אין הרשאה להגיש הצעה בשם עסק אחר").</div>
+<div>קלט ואימותים</div><div><ul><li><code>price</code> מספר סופי &gt; 0 ("מחיר ההצעה אינו תקין").</li><li>פול של משפחה, open_r1 או open_r2, שלא פג ("הפול אינו פתוח להצעות").</li><li>עסק approved בקהילה מגיש כחבר. עסק שאינו חבר מסומן אורח בשרת (<code>is_guest</code> נקבע לפי החברות ולא לפי הגוף), ומותר לו להגיש רק ב-open_r2 ("עסק שאינו חבר בקהילה יכול להגיש הצעה רק בסיבוב 2").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה: DELETE של ההצעה הקודמת של העסק לפול (הצעה אחת לעסק), ואז INSERT ל-flow_pool_bids (status pending, is_guest).</li><li>הודעת מערכת "הצעה חדשה התקבלה", והודעה ליוזם.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>flow_pool_bids: pending → accepted | rejected (ב-select-bid).</div>
+<div>תופעות לוואי</div><div>צפייה בהצעות (<code>GET /bids</code>): רק היוזם או CM, לפי הסשן. ממוין לפי מחיר ASC, כולל טלפון העסק (store_settings.phone) ותג "אורח". בחירה מפעילה <code>awardFlow(business,'pool_bid_accepted')</code> (25+10).</div>
+<div>ממשק</div><div>רשימת הפולים לעסק (<code>GET /api/biz/pools</code>, מהסשן): (1) פולים פתוחים בקהילות שהעסק approved בהן ושהוא לא הסתיר. (2) <b>חדש:</b> פולים ב-open_r2 בקהילות שהעסק לא חבר בהן, כשעיר הקהילה = <code>family_groups.city</code> של העסק, או כש-service_category תואם לסוג העסק. מסומנים "סיבוב 2 — הגשה כאורח". (3) פולים שפגו והעסק השתתף בהם. <code>GET /api/biz/my-pool-bids</code> בוחר <code>fpb.submitted_at</code>.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-47</code> — מסלול האורח בסיבוב 2 נגיש מה-UI (חלופה א). is_guest נקבע בשרת.</li><li><code>COM-28</code> — my-pool-bids משתמש ב-submitted_at, ולא נופל יותר על עמודה שאינה קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="pool messages chat archive biz hidden family archive"><h3>צ'אט פול וארכיונים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>משפחה ועסק מתכתבים בפול. לעסק יש ארכיון אישי.</div>
+<div>הרשאות</div><div>GET messages: היוזם, משפחה approved בקהילה, עסק approved בקהילה, או עסק שהגיש הצעה (כולל אורח). POST: אותם גורמים, כשהשולח וסוג השולח נלקחים מהסשן. archive: verifyFamilyOrBiz, ו-viewerId מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>POST message: תוכן לא ריק, חיתוך ל-1000 תווים. הפול פעיל ולא פג ("הפול לא פעיל").</li><li>archive: <code>bizArchive</code> → INSERT ל-biz_pool_hidden (אישי). אחרת רק היוזם, או CM.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שליחה: INSERT להודעה. קריאה: לפי created_at.</li><li>ארכיון משפחה: <code>GET /api/community/pool/family-archive</code>, הפולים שהמשפחה יזמה במצב archived או closed.</li><li>ארכיון עסק: <code>GET /api/biz/pool-archive</code>, פולים מוסתרים ופולים ב-archived שהעסק השתתף בהם.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>ההודעות נשמרות 90 יום אחרי התפוגה (ראו מכונת המצבים).</div>
+<div>ממשק</div><div><code>business-app.js:openBizPoolChat</code>/<code>sendBizPoolMsg</code>/<code>archiveBizPool</code> (16917–17043), <code>app.js:sendPoolMessage</code> (6771) ו-<code>loadFamPoolArchive</code> (6651). ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-47</code> — הודעות של פול שפג נשמרות לארכיון. עסק אורח שהגיש הצעה יכול להתכתב.</li><li><code>COM-24</code> — משפחה approved בלבד.</li></ul></div>
+</div></section>
+
+<h2 class="grp">"שוקה" — קמפייני שוק קהילתיים</h2>
+
+<section class="proc" data-f="shuka market campaign create code community manager zone manager community_campaigns"><h3>יצירת קמפיין שוק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM (<code>zone-manager-app.js:zmCreateCommunityCampaign</code> 1671 → <code>POST /api/zone-manager/community-campaigns</code>) או CM מאפליקציית המשפחה (<code>app.js:cmCreateCampaign</code> 8442 → <code>POST /api/community/manager/campaigns</code>).</div>
+<div>הרשאות</div><div>ZM: הקהילה באזור שלו. CM: <code>verifyCommunityManagerAccess</code> (approved) ולא CHILD.</div>
+<div>קלט ואימותים</div><div><ul><li>communityId ו-code חובה.</li><li><code>cleanCode</code>: lowercase. תווים שאינם <code>[a-z0-9-]</code> מוחלפים ב-'-', מקפים כפולים מכווצים, ומקפים בקצוות מוסרים. אם התוצאה ריקה: "קוד לא תקין". קוד כפול: 409 "קוד זה כבר תפוס, בחרו קוד אחר".</li><li>title עד 200 תווים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>כותרת אופציונלית. ברירת המחדל: <code>"קמפיין " + שם הקהילה</code>.</li><li>INSERT ל-community_campaigns: <code>created_by_manager_id</code> הוא ה-id של ה-ZM, או NULL כשהיוצר CM. במקרה של CM נשמר בנוסף <code>created_by_group_id</code>. ברירות מחדל: status 'active', ordering_enabled TRUE, recurrence 'none', is_open_for_requests TRUE.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>(INSERT) → active.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>קישור ציבורי <code>/campaign/{code}</code>. שיתוף WhatsApp: <code>zmShareCampaignWhatsapp</code>/<code>cmShareCampaignWhatsapp</code>.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-10</code> — CM חייב להיות approved.</li><li>אחרת ללא שינוי.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="shuka campaign settings patch status suspended active days hours ordering logo slogan share"><h3>הגדרות קמפיין והשעיה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM <code>PATCH /api/zone-manager/community-campaigns/:id</code>, CM <code>PATCH /api/community/manager/campaigns/:id</code>, SA <code>PATCH /api/sa/shuka/campaigns/:id</code> ו-<code>POST /api/sa/shuka/campaigns/:id/status</code>.</div>
+<div>הרשאות</div><div>בעלות: <code>verifyCampaignOwnership</code> (קמפיין בקהילה שבאזור ה-ZM) או <code>verifyCampaignOwnershipFamily</code> (CM approved של הקהילה). SA: הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>status ∈ {active, suspended} בכל המסלולים. ערך אחר מחזיר 400 "סטטוס לא חוקי".</li><li>שדה שלא נשלח לא משתנה. שדה טקסט שנשלח כ-'' או null מתנקה (NULL).</li><li>active_days: מערך של ימים 0–6, או null. active_hours: <code>{start,end}</code> בפורמט HH:MM, או null.</li><li>start_at ≤ end_at, כשנשלחים שניהם.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ZM ו-CM: title, description, banner_image_url, status, logo_url, slogan, hide_title, share_description, ordering_enabled, active_days, active_hours.</li><li>SA: בנוסף start_at, end_at ו-is_open_for_requests (כמו היום, בלי description/banner).</li><li>recurrence נשאר שדה תצוגה בפרטי הקמפיין ב-SA. הוא לא נאכף ולא נערך מהמסכים הקיימים.</li></ol></div>
+<div>חישובים</div><div>בלקוח: <code>activeDays</code> = null כשמסומנים 0 או 7 ימים. <code>activeHours = {start,end}</code> רק כשמולאו שניהם (zone-manager-app.js:1723).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>active</td><td>suspended</td><td>ZM / CM / SA</td><td>—</td><td>הדף הציבורי מחזיר 403 "הקמפיין אינו פעיל כרגע"</td></tr>
+<tr><td>suspended</td><td>active</td><td>ZM / CM / SA</td><td>—</td><td>—</td></tr></table></div>
+רק active נגיש בדף הציבורי ובהזמנה. בנוסף, ההזמנה נחסמת מחוץ ל-start_at/end_at (ראו חנות הקמפיין).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>zmSaveCampaignSettings</code> (1715), <code>cmSaveCampaignSettings</code> (8485), SA <code>saShukaUpdateSettings</code>/<code>saShukaToggleStatus</code> (sa-app.js:16717/16702). ריקון שדה בטופס שולח '' ומנקה אותו.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-48</code> — status סגור (active/suspended). אפשר לנקות שדות. start_at/end_at נאכפים בהזמנה. recurrence נשמר לתצוגה בלבד.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="shuka campaign business add remove request invite respond manager_invite business_request"><h3>שיוך עסקים לקמפיין — הוספה ישירה, בקשות והזמנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מנהל (ZM, CM או SA) מוסיף או מסיר עסק, או זרימת בקשה/הזמנה דרך <code>community_campaign_requests</code>.</div>
+<div>הרשאות</div><div>מנהל: בעלות על הקמפיין (ZM, CM או SA). עסק: מהסשן.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>הוספה והסרה ישירה (ZM, CM ו-SA): action ∈ add/remove. בהוספה, העסק approved בקהילת הקמפיין ("העסק אינו חלק מקהילה זו"), ועוד לא בקמפיין ("העסק כבר חלק מהקמפיין"). <b>חל גם על SA.</b></li>
+<li>הזמנה (ZM, CM ו-SA): העסק approved בקהילה, לא כבר בקמפיין, ואין הזמנה ממתינה (409 "כבר קיימת הזמנה ממתינה לעסק זה").</li>
+<li>בקשת עסק (<code>POST /api/biz/market-campaigns/:campaignId/request</code>): הקמפיין active. <code>is_open_for_requests !== false</code> ("שוק זה סגור כרגע לבקשות הצטרפות חדשות"). העסק approved בקהילה, אחרת 409 עם code <code>COMMUNITY_MEMBERSHIP_REQUIRED</code>. העסק עוד לא חבר. אין בקשה ממתינה ("כבר יש בקשה ממתינה לשוק הזה"), ואינדקס ייחודי חלקי מונע שתי בקשות pending.</li>
+<li>תגובת מנהל: רק ל-<code>direction='business_request'</code>. תגובת עסק: רק ל-<code>direction='manager_invite'</code> שלו. אחרת 403 "אין הרשאה להגיב לבקשה זו". הבקשה חייבת להיות pending.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: INSERT ל-community_campaign_businesses ON CONFLICT DO NOTHING. remove, בטרנזקציה: DELETE של העסק, ו-DELETE של כל מוצרי העסק בקמפיין.</li><li>בקשה או הזמנה: INSERT ל-requests (direction <code>business_request</code> / <code>manager_invite</code>, status pending, message). הודעה לצד השני.</li><li>תגובה, בטרנזקציה: approve מוסיף את העסק לעסקי הקמפיין ומעדכן responded_at. reject מעדכן רק responded_at. הודעה לצד השני.</li><li>עזיבת עסק: DELETE מהקמפיין, יחד עם המוצרים שלו.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending (business_request)</td><td>approved / rejected</td><td>מנהל</td><td>—</td><td>approve: INSERT campaign_businesses. responded_at</td></tr>
+<tr><td>pending (manager_invite)</td><td>approved / rejected</td><td>העסק המוזמן</td><td>—</td><td>כנ"ל</td></tr>
+</table></div></div>
+<div>תופעות לוואי</div><div>הודעות לעסק ולמנהל (<code>ARC-16</code>).</div>
+<div>ממשק</div><div>עסק: <code>shukaRequestJoin</code> (business-app.js:61882) עם ההודעה "בקשת ההצטרפות נשלחה לאישור מנהל הקהילה", ו-<code>fetchShukaMine</code>/<code>renderShukaMine</code>/<code>shukaRespondInvite</code>/<code>shukaLeaveMarket</code>. ZM: <code>zmLoadCampaignRequests</code>/<code>zmRespondCampaignRequest</code>/<code>zmInviteCampaignBusiness</code>/<code>zmToggleCampaignBusiness</code> (1878–1928). כפתורי התגובה אצל המנהל מוצגים רק לבקשות business_request. הזמנות שהוא שלח מוצגות כ"ממתין לתגובת העסק".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-49</code> — כל צד מגיב רק לכיוון שלו. גם SA מוסיף ומזמין רק עסק approved בקהילה שאינו בקמפיין.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="shuka campaign products assign price_override approval pending approved rejected review takedown"><h3>מוצרי קמפיין — הקצאה ע"י העסק ואישור מנהל</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>העסק בוחר מוצרים מהקטלוג שלו וקובע מחיר לשוק: <code>business-app.js:shukaOpenProducts</code>/<code>shukaToggleProduct</code>/<code>shukaSetPrice</code> (61991–62047) → <code>POST /api/biz/market-campaigns/:campaignId/products</code>.</div>
+<div>הרשאות</div><div>עסק מהסשן שחבר בקמפיין ("העסק עדיין לא חלק מהשוק הזה"). סקירה: ZM, CM או SA עם בעלות על הקמפיין.</div>
+<div>קלט ואימותים</div><div><ul><li>add: המוצר בקטלוג של העסק ("מוצר לא נמצא בקטלוג שלך"). <code>price</code> ריק נשמר כ-NULL (מחיר קטלוג). אחרת מספר ≥ 0 ("מחיר לא תקין").</li><li>מנהל: רק <code>action='remove'</code> ("ניתן רק להסיר מוצר קיים - בחירת מוצרים חדשים מתבצעת ע"י העסק עצמו").</li><li>review: decision ∈ approve/reject. אם השורה לא קיימת: 404 "מוצר לא נמצא בקמפיין". המעבר מ-pending, או החלפה מפורשת בין approved ל-rejected.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>add: UPSERT ל-community_campaign_products (PK campaign+catalog) עם price_override, <code>approval_status='pending'</code>, submitted_by_user_id ו-reviewed_at=NULL. כל שינוי מחיר מחזיר את המוצר ל-pending.</li><li>review (ZM, CM ו-SA): approval_status ו-reviewed_at. הודעה לעסק.</li></ol></div>
+<div>חישובים</div><div>מחיר תצוגה ומחיר בסיס: <code>COALESCE(price_override, catalog.price)</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>— / *</td><td>pending</td><td>עסק</td><td>add או שינוי מחיר</td><td>badge למנהל</td></tr>
+<tr><td>pending</td><td>approved / rejected</td><td>ZM / CM / SA</td><td>review, rowCount=1</td><td>reviewed_at, הודעה</td></tr>
+<tr><td>approved ↔ rejected</td><td>rejected / approved</td><td>ZM / CM / SA</td><td>review מפורש</td><td>reviewed_at</td></tr>
+<tr><td>*</td><td>(נמחק)</td><td>עסק / מנהל</td><td>remove, או הסרת העסק</td><td>—</td></tr></table></div>
+רק מוצר approved מוצג בחנות הציבורית ומתקבל בהזמנה.</div>
+<div>תופעות לוואי</div><div>הודעה לעסק על תוצאת הסקירה.</div>
+<div>ממשק</div><div>תור בקרה <code>products-review?status=</code>, ממוין כך ש-pending ראשון. ZM: <code>zmOpenProductsReview</code>/<code>zmRenderProductsReview</code>, עם סינון לפי סטטוס ועסק (1971–2045).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-51</code> — review מחזיר 404 כשאין שורה, ומוגדרים מצבי מקור. אחיד ל-SA, ZM ו-CM.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="shuka market radar business discover campaigns filter city interest date"><h3>רדאר שווקים לעסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>business-app.js:fetchShukaRadar</code>/<code>renderShukaRadar</code> (61836/61856) → <code>GET /api/biz/market-radar</code>.</div>
+<div>הרשאות</div><div>סשן BIZ. העסק נלקח מהסשן.</div>
+<div>קלט ואימותים</div><div><ul><li>מסננים אופציונליים: city, interest ו-search (עד 100 תווים), dateFrom ו-dateTo (תאריך ISO).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>קמפיינים active בכל הקהילות. city (ILIKE), interest (על <code>communities.interest_tags</code>), search (כותרת או שם קהילה), dateFrom (<code>end_at IS NULL OR end_at ≥</code>) ו-dateTo (<code>start_at IS NULL OR start_at ≤</code>).</li><li>לכל קמפיין: business_count, is_community_member, already_joined ו-pending_request_status. מיון לפי start_at NULLS LAST, LIMIT 100.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div>ללא שינוי (מלבד העסק מהסשן, לפי <code>ARC-04</code>).</div>
+</div></section>
+
+<section class="proc" data-f="shuka public campaign store page og whatsapp community-store order cart single business schedule"><h3>חנות הקמפיין הציבורית והזמנה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>לקוח פותח <code>/campaign/:code</code>. השרת מזריק og:title, og:url ו-<code>window.__CAMPAIGN_CODE__</code> לתוך community-store.html, ואז <code>community-store-app.js:init</code> → <code>GET /api/campaign/:code</code>. הזמנה: <code>csSubmitOrder</code> → <code>POST /api/campaign/:code/order</code>.</div>
+<div>הרשאות</div><div>הדף וה-GET ציבוריים (allowlist של <code>ARC-02</code>). ההזמנה וההיסטוריה דורשות טוקן לקוח sc-auth.</div>
+<div>קלט ואימותים</div><div><ul>
+<li>og: הכותרת היא share_description || slogan || title || שם הקהילה. התיאור הקבוע "WEFLOWZ עושה לכם סדר". התמונה <code>/api/public/logo</code>.</li>
+<li>GET: קמפיין לא קיים מחזיר 404. קמפיין שאינו active מחזיר 403 "הקמפיין אינו פעיל כרגע". עסקים ומוצרים (approved) מסוננים לפי <code>account_status != 'frozen'</code>.</li>
+<li>הזמנה: טוקן sc-auth חובה (401 "יש להתחבר לפני ביצוע הזמנה"). items לא ריק ("העגלה ריקה"). הקמפיין active. <code>ordering_enabled===false</code> מחזיר 403 marketClosed עם reason 'disabled'.</li>
+<li>תקופה: כש-<code>now &lt; start_at</code> או <code>now &gt; end_at</code> מוחזר 403 <code>{marketClosed, reason:'period'}</code> "השוק אינו פעיל בתאריכים אלה".</li>
+<li>לוח זמנים, ב-Asia/Jerusalem: ימים לפי <code>active_days</code> (ריק = כל השבוע), שעות לפי <code>active_hours</code> (ברירת מחדל 00:00–23:59, זמן הסיום exclusive). כשסגור: 403 <code>{marketClosed, reason:'schedule', nextOpenText}</code> "השוק סגור כרגע. הפתיחה הקרובה: ...".</li>
+<li>עסק אחד בלבד בהזמנה ("ניתן להזמין מוצרים מעסק אחד בלבד בכל הזמנה"). העסק בקמפיין. כל פריט approved בקמפיין ("פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף").</li>
+<li>לכל פריט: <code>quantity</code> שלם בין 1 ל-50 (400 "כמות לא תקינה (1–50)"). <code>optionIds</code> הם מזהי האפשרויות שנבחרו, וכל אחד חייב להופיע ב-options_text של המוצר (400 "אפשרות לא תקינה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>חישוב מחיר בשרת (ראו חישובים).</li><li>טרנזקציה: INSERT ל-store_orders עם status <code>pending_approval</code>, order_source <code>community_campaign</code>, campaign_id, family_group_id של הלקוח, ו-total=serverTotal. items JSON, ו-INSERT ל-store_order_items לכל פריט.</li><li>אחרי COMMIT: <code>upsertStoreCustomer</code> אצל <b>כל</b> עסקי הקמפיין, עם הערה שונה לעסק המזמין ולשאר (<code>ARC-14</code>: customers).</li></ol></div>
+<div>חישובים</div><div>מחיר הבסיס הוא <code>COALESCE(price_override, catalog.price)</code>. <code>unitPrice = base + Σ price(option) לכל optionId שנבחר</code>. בתבנית complex: stepPrice של השלבים שנבחרו ועוד האפשרויות שלהם. <code>lineTotal = round2(unitPrice × quantity)</code>, ו-<code>serverTotal = Σ lineTotal</code>. מחיר שהלקוח שולח משמש רק להשוואה: אם הוא שונה מ-unitPrice ביותר מ-₪0.01, מוחזר 409 "המחיר עודכן — אנא אשרו מחדש" עם המחיר החדש.</div>
+<div>מכונת מצבים</div><div>store_orders: נוצר ב-pending_approval, וממשיך לפי מכונת ההזמנה של תחום החנות.</div>
+<div>תופעות לוואי</div><div>היסטוריה, <code>GET /api/campaign/:code/my-orders</code>: עד 30 הזמנות community_campaign של הלקוח (לפי טלפון או family_group_id) <b>בקמפיין הזה</b> (<code>campaign_id</code>). קאשבק מופעל רק בהשלמת ההזמנה.</div>
+<div>ממשק</div><div><code>community-store-app.js</code>: <code>_isMarketOpen</code> משכפל את בדיקת השעות בשעון ישראל, וגם את התקופה. עגלה מעסק יחיד ("אפשר להזמין רק מעסק אחד — רוקנו את העגלה..."). כניסה דרך <code>scAuth.requireLogin</code>. בונה הפיצה והמוצר המורכב שולחים optionIds. בורר כמות 1–50. תוויות CS_STATUS_LABELS (pending_approval "ממתין לאישור" וכו'). הפאנל "הפעילות שלי" מציג את היסטוריית הקמפיין. משלוח לא נשלח מהלקוח, רק notes.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-50</code> — כמות 1–50. מחיר השורה מחושב בשרת לפי מזהי האפשרויות, בלי טולרנס. my-orders מסונן לפי campaign_id. שעון Asia/Jerusalem.</li><li><code>COM-48</code> — start_at/end_at נאכפים (reason 'period').</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="shuka sa oversight campaigns table gmv delete"><h3>פיקוח SA על קמפייני שוק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>sa-app.js:renderSAShukaPanel</code> (16342), <code>openSAShukaDetail</code> (16454).</div>
+<div>הרשאות</div><div>SA עם הרשאת comm.</div>
+<div>קלט ואימותים</div><div><ul><li>מסננים: search, status ∈ {active, suspended}, communityId.</li><li>מחיקה: אישור כפול בלקוח.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>GET /api/sa/shuka/campaigns</code>: מדדים — עסקים, מוצרים approved, מוצרים pending, בקשות pending, הזמנות, ו-GMV = Σ total_amount של הזמנות שאינן 'quote' (כמו היום).</li><li><code>GET /api/sa/shuka/campaigns/:id</code>: הקמפיין, עסקי הקהילה (included), מוצרים, בקשות, ועד 100 הזמנות.</li><li>מחיקה (<code>DELETE</code>) בטרנזקציה: CASCADE לעסקים, למוצרים ולבקשות. store_orders.campaign_id מתעדכן ל-NULL.</li></ol></div>
+<div>חישובים</div><div>GMV כמתואר.</div>
+<div>מכונת מצבים</div><div>active ↔ suspended (ראו הגדרות קמפיין).</div>
+<div>תופעות לוואי</div><div>audit על מחיקה.</div>
+<div>ממשק</div><div>ללא שינוי. הפרטים מציגים גם את recurrence (לתצוגה בלבד).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-48</code> — מסנן status סגור.</li><li><code>COM-27</code>→<code>ARC-11</code> — מחיקה בטרנזקציה.</li></ul></div>
+</div></section>
+
+<h2 class="grp">מנהלי אזור (Zone Manager)</h2>
+
+<section class="proc" data-f="zone manager register login session token reset password forgot email bcrypt"><h3>הרשמה, כניסה, סשן ואיפוס סיסמה של מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zone-manager.html</code> + <code>zone-manager-app.js</code>: <code>zmRegister</code> (57), <code>zmLogin</code> (38), <code>zmForgotSubmit</code> (77), <code>zmResetSubmit</code> (95).</div>
+<div>הרשאות</div><div>register, login, forgot ו-reset ציבוריים (allowlist של <code>ARC-02</code>), עם rate limit (<code>ARC-29</code>). כל שאר נתיבי ה-ZM דורשים סשן ZM מהטבלה המאוחדת (<code>ARC-08</code>).</div>
+<div>קלט ואימותים</div><div><ul>
+<li>register: name, email ו-password חובה, סיסמה ≥ 6 (גם בשרת). מייל שכבר קיים: במצב pending "בקשת הרשמה כבר קיימת ומחכה לאישור". במצב active "כתובת מייל זו כבר רשומה ופעילה במערכת". אחרת "כתובת מייל זו כבר רשומה".</li>
+<li>login: email ומנהל ב-status='active'. bcrypt בלבד. שגיאה: "פרטי גישה שגויים". 5 כשלונות ב-15 דקות נועלים את החשבון (<code>ARC-29</code>).</li>
+<li>forgot: לא חושף אם המייל קיים. רק למנהל active.</li>
+<li>reset: token ו-password, סיסמה ≥ 6 ("טוקן או סיסמה לא תקינים"). הטוקן נשמר ב-DB כ-hash, בתוקף שעה וחד-פעמי ("הקישור לא תקף או שפג תוקפו — בקש קישור חדש").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>register: INSERT ל-zone_managers עם status 'pending', commission_pct 5 ו-bcrypt (10 rounds).</li><li>login: נוצר טוקן אקראי של 32 בתים ונשמר כ-sessions(principal_type='zm', token_hash, expires_at +30 יום מתגלגל). מוחזר manager (id, name, email, commission_pct). הלקוח שומר <code>zm_token</code>/<code>zm_manager</code> (המעבר לקידומת wfz_ לפי <code>ARC-39</code>).</li><li>forgot: טוקן אקראי, ו-hash שלו נשמר ב-<code>password_resets</code> (תוקף 60 דקות). נשלח מייל <code>sendSystemEmail</code> "איפוס סיסמה — WEFLOWZ Zone Manager" עם הקישור <code>/zone-manager.html?reset=TOKEN</code>.</li><li>reset: עדכון הסיסמה ב-bcrypt, סימון הטוקן כמשומש, וביטול כל הסשנים של המנהל (<code>ARC-09</code>).</li><li>logout: הסשן מסומן revoked_at.</li></ol></div>
+<div>חישובים</div><div>תפוגת סשן: 30 יום מתגלגלים, עם מקסימום 90 יום (<code>ARC-09</code>).</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(הרשמה)</td><td>pending</td><td>ZM</td><td>—</td><td>—</td></tr>
+<tr><td>(יצירה ע"י SA)</td><td>active</td><td>SA</td><td>—</td><td>—</td></tr>
+<tr><td>pending</td><td>active</td><td>SA</td><td><code>approveZMRegistration</code> (sa-app.js:5307)</td><td>מייל אישור</td></tr>
+<tr><td>active</td><td>inactive</td><td>SA</td><td><code>toggleZMStatus</code> (5488)</td><td>ביטול כל הסשנים מיד</td></tr>
+<tr><td>inactive</td><td>active</td><td>SA</td><td>toggle</td><td>—</td></tr>
+<tr><td>pending</td><td>(נמחק)</td><td>SA</td><td>דחייה</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>בכל בקשה <code>verifyZoneManager</code> בודק שהסשן קיים, לא פג, לא בוטל, ושה-<code>zone_managers.status='active'</code>. אין fallback לפי הקידומת <code>ZM_{id}_</code>.</div>
+<div>ממשק</div><div>ללא שינוי במסכים. תשובת 401 מפעילה <code>zmLogout</code>.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-02</code>→<code>ARC-08</code> — סשנים ב-DB, בלי fallback שניתן לזייף, ובדיקת status בכל בקשה. השהיה מבטלת סשנים. טוקני האיפוס ב-DB וחד-פעמיים.</li><li><code>COM-06</code> — ענף ההשוואה בטקסט גלוי מוסר. מיגרציה חד-פעמית מגבבת סיסמאות גלויות שנותרו (<code>ARC-31</code>).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager sa crud zones assign community transfer settings max zones commission"><h3>ניהול מנהלי אזור ואזורים ע"י SA</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>sa-app.js:loadZoneManagers</code> (5255), <code>saveNewZoneManager</code> (5419), <code>saveEditZoneManager</code> (5469), <code>addZoneToManagerUI</code> (5628), <code>assignCommunityToZone</code> (5696), <code>transferCommunityToZone</code> (5768), <code>saveZoneSettings</code> (5373).</div>
+<div>הרשאות</div><div>SA בלשונית partners, open לכל איש צוות פעיל לפי SA_TAB_PERMS (tobe-arch), כפי שהמסך נגיש היום (sa-app.js:5035). הגדרות סף ואחוזים (saveZoneSettings, sa-app.js:5373) באותה לשונית ובאותה הרשאה. audit לכל שינוי.</div>
+<div>קלט ואימותים</div><div><ul><li>יצירה: name, email ו-password חובה. סיסמה ≥ 6. מייל ייחודי. commission_pct ∈ [0,100] (ברירת מחדל 5).</li><li>אזור חדש: <code>COUNT(manager_zones) ≥ zone_max_zones_per_manager</code> (ברירת מחדל 4) מחזיר 400 "מנהל יכול להחזיק עד N אזורים".</li><li>שיוך קהילה: zone_id קיים, או NULL.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>עדכון: עדכון חלקי דינמי. סיסמה חדשה נשמרת ב-bcrypt, וגורמת לביטול כל הסשנים של המנהל.</li><li>מחיקה: DELETE ל-zone_managers וביטול הסשנים.</li><li>שיוך קהילה: <code>communities.zone_id = zone_id || NULL</code> (העברה או הסרה).</li><li>הגדרות סף (ב-system_settings): zone_min_communities=5, zone_max_zones_per_manager=4, zone_manager_commission_pct=5, community_min_families=30, community_min_businesses=15.</li><li>רשימה: מנהלים שאינם pending, עם zone_count, community_count, total_commissions, total_paid ו-month_paid.</li></ol></div>
+<div>חישובים</div><div><code>community_min_families</code> משמש כיעד ההפעלה האוטומטית של קהילת יזמות, כשאין לקהילה min_families משלה (<code>COM-32</code>). zone_min_communities ו-community_min_businesses הם יעדי תצוגה בלבד, ובמסך ההגדרות הם מתויגים "יעד (לא נאכף)". zone_max_zones_per_manager נאכף.</div>
+<div>מכונת מצבים</div><div>ראו מחזור החיים של zone_managers.status בתהליך ההרשמה.</div>
+<div>תופעות לוואי</div><div>audit לכל שינוי (<code>ARC-19</code>).</div>
+<div>ממשק</div><div>ללא שינוי, מלבד התיוג "יעד (לא נאכף)" ליד שני ספי התצוגה ותיוג "משמש להפעלת קהילה" ליד community_min_families.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-32</code> — community_min_families נאכף כיעד ההפעלה. שאר הספים מתועדים כיעדי תצוגה.</li><li><code>COM-06</code> — bcrypt בלבד.</li><li><code>E2E-21</code> — ההרשאה יושרה ל-SA_TAB_PERMS: לשונית partners (open), במקום comm ו-finance (הרשאה שלא קיימת במפה).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager dashboard commissions payments finance debt"><h3>דשבורד מנהל אזור, עמלות ותשלומים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>zone-manager-app.js:loadDashboard</code> (263) → <code>GET /api/zone-manager/dashboard</code>. <code>loadCommissions</code> (1482) → <code>/commissions</code> (LIMIT 100). SA רושם תשלום ב-<code>POST /api/sa/zone-manager-payments</code>.</div>
+<div>הרשאות</div><div>ZM מהסשן. תשלום: SA עם הרשאת stats (לשונית finance ב-SA_TAB_PERMS).</div>
+<div>קלט ואימותים</div><div><ul><li>תשלום SA: manager_id ו-amount&gt;0 חובה. paid_at ברירת מחדל עכשיו. recorded_by מהסשן של ה-SA.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>dashboard: אזורים (community_count, family_count approved, business_count approved), קהילות (has_local_manager), סך העמלות והסכום החודשי, סך ששולם והסכום החודשי, settings, ו-<code>communities</code> לפי אזור (משמש גם לבחירת קהילה למאמר).</li><li>תשלום SA: INSERT.</li><li>סיכום SA: total/month earned מ-zone_manager_commissions, total/month paid, <code>total_debt = max(0, earned − paid)</code>, וכנ"ל לחודש (חודש לפי Asia/Jerusalem).</li></ol></div>
+<div>חישובים</div><div>בלקוח: <code>paid% = min(100, round(paid/earned·100))</code>, סה"כ ולחודש. עמלה נוצרת רק ב-<code>triggerCashbackForOrder</code>.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>אם dashboard מחזיר 401, מופעל <code>zmLogout</code>. הטאבים (<code>zmSwitchTab</code> 294): zones, biz-requests, marketing, leads, inbox, commissions, content, kol-haam. פאנל הממתינים (עסקים, משפחות, הסרות, מוזמנים) מתרענן כל 60 שניות.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-44</code> — dashboard משמש מקור לרשימת הקהילות במסך התוכן.</li><li><code>COM-23</code> — family_count לפי approved.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager community detail family detail flow"><h3>צפייה בקהילה ובמשפחה ע"י מנהל אזור</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div><code>openCommunityDetail</code> (1506) → <code>GET /api/zone-manager/community-detail/:id</code>. <code>openZMFamilyDetail</code> (2115) → <code>/family-detail/:groupId</code>.</div>
+<div>הרשאות</div><div>ZM. הקהילה באזור שלו, או המשפחה חברה (בכל סטטוס) בקהילה באזור שלו. אחרת 403 'אין הרשאה'.</div>
+<div>קלט ואימותים</div><div><ul><li>id מספרי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>community-detail: משפחות (כל הסטטוסים, עם הסטטוס), עסקים approved, 10 מבצעים approved, ארנק FLOW קהילתי ו-20 תנועות.</li><li>family-detail: פרטי הקבוצה, משתמשים (nickname, role, email), קהילות, ויתרת FLOW משפחתית. בלי password_hash ובלי שדות רגישים (<code>ARC-32</code>).</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>טאבים בכרטיס הקהילה, <code>switchCDTab</code>/<code>renderCDTab</code> (1541/1546), כולל קמפייני שוקה (<code>zmLoadCommunityCampaigns</code> 1644). ברשימת המשפחות נוסף כפתור "הסר מהקהילה" (עם סיבה) למשפחה approved (<code>COM-30</code>).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-08</code> — הבדיקה מול האזור מרוכזת ב-helper אחד.</li><li><code>COM-30</code> — פעולת remove זמינה ל-ZM.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager marketing campaign lead form public token zm_campaigns zm_campaign_leads crm status actions"><h3>קמפייני גיוס (טפסי לידים) ו-CRM לידים</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM יוצר דף נחיתה עם טופס: <code>openZMCreateCampaign</code>/<code>saveZMCampaign</code> (830/892) → <code>POST /api/zone-manager/campaigns</code>. הציבור ממלא ב-<code>campaign.html?t=TOKEN</code> → <code>/api/public/campaign/:token</code> ו-<code>/submit</code>.</div>
+<div>הרשאות</div><div>ZM: רק קמפיינים ולידים שלו (<code>zm_campaigns.zone_manager_id</code> = המנהל), אחרת 403 'אין הרשאה'. נתיבי ה-public ציבוריים, עם rate limit.</div>
+<div>קלט ואימותים</div><div><ul><li>title חובה ("כותרת הקמפיין חובה").</li><li>ציבורי: קמפיין active לפי token ("קמפיין לא נמצא או לא פעיל").</li><li>submit: נשמרים רק שדות שמוגדרים ב-<code>fields_config</code>. כל שדה עד 500 תווים, לפי הטיפוס שלו (טקסט, טלפון, מייל). שדה חובה חסר מחזיר 400 "חסר שדה: X". שדה honeypot שמולא נדחה בשקט. rate limit: 5 שליחות לשעה לכל IP וקמפיין (429).</li><li>פעולת ליד: action_type חובה ("סוג פעולה חובה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>יצירה: token אקראי ובלתי ניתן לניחוש (32 בתים, base64url). fields_config JSON. campaign_type ברירת מחדל 'general'. טוקנים קיימים בפורמט <code>CAMP_…</code> ממשיכים לעבוד.</li><li>submit: data JSON מסונן. <code>lead_type</code> נלקח מ-body.lead_type אם הוא ∈ {business, family}, אחרת לפי campaign_type, ואחרת 'unknown'.</li><li>CRM: <code>PUT /api/zone-manager/leads/:id</code> (status, crm_notes, lead_type) ופעולות <code>zm_lead_actions</code>, רק לליד בקמפיין של המנהל.</li><li>עדכון ומחיקה של קמפיין: רק לבעלים.</li></ol></div>
+<div>חישובים</div><div>AI, דרך aiGateway (<code>ARC-30</code>): <code>generate-banner</code> מחזיר SVG 1600×900 בלי טקסט, עם פלטה לפי סוג. ה-SVG עובר sanitize ומוחזר כ-data URI להצגה בלבד, ונשמר כ-PNG באחסון אובייקטים (<code>ARC-26</code>). <code>draft-campaign</code> מחזיר JSON {title, subtitle, text_content} לפי ההקשר business, family או community_join, עם fallback של מודל על 503. <code>analyze-leads</code> מנתח עד 50 לידים שאין להם ai_score, ונותן ציון 1–10 והערה, שנשמרים ב-ai_score/ai_notes. כל הקריאות האלה רק לקמפיינים של המנהל. המודלים מוגדרים ב-config.</div>
+<div>מכונת מצבים</div><div>zm_campaigns.status: active (ברירת מחדל), או הערך שנשלח ב-PUT, כמו היום. zm_campaign_leads.status (תוויות הלקוח ב-1017): <code>new</code> → <code>contacted</code> / <code>interested</code> / <code>not_interested</code> / <code>converted</code>, במעבר חופשי בתוך הרשימה הסגורה. lead_type ∈ {business, family, unknown}. action_type ∈ {call, whatsapp, meeting, email}.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>loadCampaigns</code> (686), <code>viewCampaignLeads</code> (956), <code>openLeadCRM</code> (1062), <code>saveLeadCRM</code> (1164), <code>analyzeLeads</code> (1205). ב-SA: מונה קמפיינים ולידים. ב-campaign.html נוסף שדה honeypot מוסתר.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-08</code> — ליד, פעולות ו-AI רק לקמפיין של המנהל.</li><li><code>COM-52</code> — ולידציה מול fields_config, rate limit ו-honeypot.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="zone manager inbox thread message broadcast community manager templates ai suggest reply"><h3>תיבת הודעות מנהל אזור ↔ מנהלי קהילה ותבניות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>ZM: <code>loadInbox</code>/<code>openZMThread</code>/<code>sendZMReply</code>/<code>openZMBroadcast</code>/<code>sendZMNewMessage</code> (1225–1362). CM: <code>app.js:openCommunityManagerInbox</code> (9005) → <code>/api/community/inbox/*</code>.</div>
+<div>הרשאות</div><div>ZM: רק קהילות באזור שלו, ורק משפחות שהן CM approved בקהילות האלה. CM: approved, והשיחות של הקהילה שלו.</div>
+<div>קלט ואימותים</div><div><ul><li>ZM new: communityId, groupId ו-content חובה. communityId באזור שלו, ו-groupId הוא CM approved באותה קהילה. אחרת 403 'אין הרשאה'.</li><li>broadcast: content חובה. היעדים הם רק משפחות is_community_manager approved בקהילות האזור, גם כשנשלחו targetGroupIds.</li><li>CM new: לקהילה יש אזור ("לא נמצא מנהל אזור לקהילה זו").</li><li>תבניות: name ו-content חובה.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>ZM new/broadcast, בטרנזקציה: INSERT ל-zm_inbox_threads עם <code>last_message_at=NOW()</code>, INSERT ל-zm_inbox_messages (sender_type 'manager'), ועותק ל-<code>inbox_messages</code> של המשפחה (sender_type 'zone_manager'). במודל המאוחד: conversation מסוג zm_inbox (<code>ARC-16</code>).</li><li>ZM reply: הודעה, עדכון last_message_at, ועותק "תגובה: {subject}".</li><li>CM new/reply: sender_type 'community', ועדכון last_message_at.</li><li>קריאת שיחה מסמנת is_read להודעות של הצד השני.</li><li>הצעת תשובה ב-AI: 6 ההודעות האחרונות, דרך aiGateway, עם ההנחיה "תשובה מקצועית, קצרה וחמה בעברית".</li><li>תבניות: CRUD לכל מנהל.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>הודעה: is_read false → true.</div>
+<div>תופעות לוואי</div><div>עותק לתיבת ההודעות של המשפחה.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-08</code> — הודעה חדשה מ-ZM מאומתת מול האזור והקהילה. שיחה חדשה מעדכנת last_message_at.</li></ul></div>
+</div></section>
+
+<h2 class="grp">באנרים בתשלום (Banner Ads, FLOW + מזומן)</h2>
+
+<section class="proc" data-f="banner slots pricing communities location_key sa seed"><h3>הגדרת שטחי פרסום ומחירון</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA מנהל את שטחי הפרסום: <code>sa-app.js:loadBannerSlotsPanel</code> (10454), <code>saveBannerSlot</code> (10598).</div>
+<div>הרשאות</div><div>SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27).</div>
+<div>קלט ואימותים</div><div><ul><li>יצירה: name ו-location_key חובה ("שם ומיקום חובה").</li><li>pricing: חייב להיות מערך ("pricing must be array"). כל שורה: duration_days &gt; 0, community_count ≥ 0, coins ≥ 0, price_ils ≥ 0.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>זריעה, כקובץ seed אידמפוטנטי (<code>ARC-12</code>) ולא בזמן ריצה: community_top (500 coins / ₪250), storefront_top (300 / ₪150), community_feed_card (400 / ₪200). לכל שטח מחירון עם community_count=0: 7 ימים 100 / ₪50, 14 ימים 180 / ₪90, 30 ימים 350 / ₪175, 60 ימים 600 / ₪300, 90 ימים 800 / ₪400.</li><li>עדכון שטח: עדכון חלקי. is_active = <code>!== false</code>.</li><li>שיוך קהילות, בטרנזקציה: DELETE ואז INSERT ל-banner_slot_communities. מערך ריק = כל הקהילות.</li><li>מחירון, בטרנזקציה: DELETE של כל המחירון לשטח, ואז INSERT לפי (duration_days, community_count), עם UNIQUE.</li></ol></div>
+<div>חישובים</div><div>מפתח המחיר: (slot, duration_days, community_count). <code>base_price_*</code> של השטח לא משמש בחישוב הזמנה.</div>
+<div>מכונת מצבים</div><div>banner_slots.is_active: true ↔ false.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-27</code>→<code>ARC-11</code> — שיוך הקהילות והמחירון בטרנזקציה.</li><li>אחרת ללא שינוי.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="banner order business submit coins cash flow_rate payment pending_approval"><h3>הזמנת באנר ע"י עסק</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>טאב "פרסום" בעסק: <code>business-app.js:renderBizAdsTab</code> (57827), <code>_loadBizAdSlots</code> (57847) → <code>GET /api/biz/banner/slots?communityId</code>. מחשבון: <code>bizAdsCalc</code> (57874). שליחה: <code>submitBizAdOrder</code> (57979) → <code>POST /api/biz/banner/orders</code>.</div>
+<div>הרשאות</div><div>סשן BIZ, ADMIN בלבד (<code>verifyBizAdminOnly</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>slot_id ו-duration_days חובה ("שדות חסרים").</li><li>community_ids: כל קהילה חייבת להיות משויכת לשטח, או שהשטח פתוח לכל הקהילות. אחרת 400 "קהילה לא זמינה לשטח זה".</li><li>מחירון: התאמה מדויקת ל-community_count, כלומר לאורך community_ids. אם אין, fallback ל-community_count 0 או NULL. אם גם זה חסר: "מחירון לא נמצא".</li><li>coins_used גדול מיתרת ארנק ה-FLOW של העסק: 400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-banner_orders (status <code>pending_approval</code>, start/end NULL, payment_method ברירת מחדל 'mixed', source='paid'). המטבעות <b>לא</b> מנוכים בשלב הזה.</li></ol></div>
+<div>חישובים</div><div>
+<code>flow_rate = flow_config.flow_to_ils_rate || 100</code> (X מטבעות = ₪10).<br>
+<code>coins_used = max(0, clientCoins)</code>. אם <code>coins_used/flow_rate·10 &gt; total</code>, אז <code>coins_used = floor(total/10 · flow_rate)</code>.<br>
+<code>cash_amount = max(0, total − coins_used/flow_rate·10)</code>. דוגמה: ₪50 ו-rate 100 מאפשרים עד 500 מטבעות.<br>
+הלקוח מחשב באותה צורה (<code>coinValueIls</code>, <code>maxCoinsCanUse</code>), ומציג "✅ תשלום מלא במטבעות!" כש-cash=0. הערכים הנומריים מומרים למספר בשרת לפני השוואה.</div>
+<div>מכונת מצבים</div><div>(INSERT) → pending_approval.</div>
+<div>תופעות לוואי</div><div>badge ל-SA.</div>
+<div>ממשק</div><div>שטחים ללא שיוך קהילות מציגים לבחירה את כל הקהילות, כמו היום. רשימת ההזמנות: <code>_loadBizAdOrders</code> → <code>GET /api/biz/banner/orders</code>.</div>
+<div>שינויים מהקיים</div><div><ul><li>ללא שינוי עסקי. הוספה רק של ולידציה ששיוך הקהילות תואם לשטח, והמרה מספרית בשרת (<code>ARC-34</code>).</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="banner order approve sa deduct coins billing record conflict schedule active cancel expired cron"><h3>אישור הזמנת באנר, תזמון, חיוב ותפוגה</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA: <code>loadBannerOrders</code> (10650), <code>openBannerScheduleModal</code>/<code>confirmBannerSchedule</code> (10712/10778) → <code>PUT /api/sa/banner/orders/:id/approve</code>.</div>
+<div>הרשאות</div><div>SA עם הרשאת content (לשונית adslots ב-SA_TAB_PERMS; E2E-27). ביטול עם החזר: הרשאת stats (לשונית finance ב-SA_TAB_PERMS) או content.</div>
+<div>קלט ואימותים</div><div><ul><li>ההזמנה קיימת ("הזמנה לא נמצאה") ובמצב pending_approval ("הזמנה לא ממתינה לאישור").</li><li>אם coins_used&gt;0: היתרה ≥ coins (FOR UPDATE). אחרת ROLLBACK ו-400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li><li>התנגשות: הזמנה אחרת <b>active</b> באותו slot, עם חפיפת תאריכים (<code>start ≤ newEnd AND end ≥ newStart</code>, כולל הקצוות) <b>וגם</b> חפיפת קהילות. מערך ריק נחשב כל הקהילות, ולכן חופף לכל. התנגשות מחזירה 409 "תפוס ע"י: ...".</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה על client ייעודי.</li><li>start = <code>body.start_date</code> או <code>todayIL()</code>. <code>end = start + duration_days − 1</code> (כולל).</li><li>בדיקת ההתנגשות, לפני הניכוי.</li><li>ניכוי: UPDATE ל-flow_wallets של העסק במינוס coins, ו-INSERT ל-flow_transactions עם action_key 'banner_purchase', "רכישת שטח פרסום", reference_id=order.</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT ל-billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'issued', due_date = היום + 7).</li><li>COMMIT. מוחזר billing_id.</li>
+<li><b>ביטול</b> (<code>PUT .../cancel</code>), בטרנזקציה: מ-pending_approval, status='cancelled' בלי חיוב ובלי ניכוי. מ-active: <code>unusedDays = max(0, end_date − max(todayIL(), start_date) + 1)</code>, ו-<code>refundCoins = floor(coins_used × unusedDays / duration_days)</code> מוחזרים לארנק העסק (flow_transactions 'banner_refund'). ה-billing_record הקשור: אם הוא issued, הוא עובר ל-void. אם הוא paid או pending_confirm, נוצר זיכוי יחסי (billing_record שלילי מסוג credit) על החלק במזומן. status='cancelled'.</li></ol></div>
+<div>חישובים</div><div>end_date כולל: הבאנר מוצג N ימים בדיוק. החזר יחסי כמתואר.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>pending_approval</td><td>עסק admin / בקשת מבצע</td><td>—</td><td>—</td></tr>
+<tr><td>pending_approval</td><td>active</td><td>SA</td><td>approve, בלי התנגשות</td><td>ניכוי מטבעות, billing_record, הודעה לעסק</td></tr>
+<tr><td>pending_approval</td><td>rejected</td><td>SA</td><td>reject, רק ל-source='promo_request' (כמו בלגאסי)</td><td>הודעה לעסק. אפשר לבקש שוב</td></tr>
+<tr><td>pending_approval</td><td>cancelled</td><td>SA</td><td>cancel</td><td>ללא חיוב</td></tr>
+<tr><td>active</td><td>cancelled</td><td>SA</td><td>cancel</td><td>החזר מטבעות יחסי. ביטול או זיכוי של החיוב</td></tr>
+<tr><td>active</td><td>expired</td><td>עבודת רקע</td><td><code>end_date &lt; todayIL()</code>. רצה כל 6 שעות כ-singleton (<code>ARC-23</code>)</td><td>—</td></tr></table></div>
+עריכת SA (community_ids, slot_id, notes) מותרת ב-pending_approval וב-active. ב-active היא עוברת בדיקת התנגשות מחדש.</div>
+<div>תופעות לוואי</div><div>תצוגה (approved-banners): active ו-<code>start ≤ today ≤ end</code>, כולל יום הסיום, ו-<code>community_ids @&gt; communityId</code> או מערך ריק. זמינות: <code>GET /api/sa/banner/slots/:id/availability</code> (כולל pending_approval). ציר זמן: <code>/api/sa/banner/timeline</code>.</div>
+<div>ממשק</div><div>מודל הביטול מציג את סכום ההחזר המחושב במטבעות ובמזומן לפני האישור. בשאר המסכים אין שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-21</code> — ביטול עם החזר יחסי וביטול או זיכוי של החיוב. end_date כולל (N ימים ולא N+1). התנגשות לפי חפיפת קהילות.</li><li><code>COM-36</code> — הזמנות promo_request חולקות את אותה מכונת מצבים, במחיר 0.</li><li><code>RECON-15</code> — רשומת חיוב נוצרת כ-issued, ובביטול עוברת ל-void (שמות המצבים של tobe-arch).</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="billing records payment confirmation signature paid pending_confirm ledger"><h3>חיוב, אישור תשלום בחתימה דיגיטלית וסימון "שולם"</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק: <code>_loadBizBilling</code> (58057) → <code>GET /api/biz/billing</code>. <code>openBizPaymentConfirm</code>/<code>confirmBizPayment</code> (58090/58098) → <code>POST /api/biz/billing/:id/confirm</code>. SA: <code>GET /api/sa/billing</code>, <code>PUT /api/sa/billing/:id/paid</code>, ויומן הלקוח <code>/api/sa/clients/:bizId/ledger</code>.</div>
+<div>הרשאות</div><div>עסק: ADMIN מהסשן, והרשומה שייכת לו. SA: הרשאת stats (לשונית finance ב-SA_TAB_PERMS).</div>
+<div>קלט ואימותים</div><div><ul><li>confirm: signature_data חובה ("חתימה דיגיטלית חסרה"), מאוחסן לפי <code>ARC-26</code>. הרשומה של העסק ("רשומה לא נמצאה"). לא paid ("כבר מסומן כשולם"). אין אישור קודם ("אישור כבר קיים"). הרשומה לא cancelled.</li><li>paid: אסמכתה ותאריך תשלום (<code>ARC-22</code>). sa_note אופציונלי.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>confirm, בטרנזקציה: INSERT ל-payment_confirmations (signature, ip לפי trust proxy, user_agent), ו-UPDATE ל-billing_records.payment_status='pending_confirm'.</li><li>SA paid: payment_status='paid', paid_at, אסמכתה ו-sa_note.</li></ol></div>
+<div>חישובים</div><div>סיכומי SA בשלוש קטגוריות: <code>total_unpaid = Σ cash_amount (issued)</code>, <code>total_pending_confirm = Σ cash_amount (pending_confirm)</code>, <code>paid_this_month = Σ cash_amount (paid בחודש הנוכחי, Asia/Jerusalem)</code>. <code>total_outstanding = total_unpaid + total_pending_confirm</code>.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>issued</td><td>מערכת</td><td>אישור באנר עם מזומן</td><td>—</td></tr>
+<tr><td>issued</td><td>pending_confirm</td><td>עסק ADMIN</td><td>חתימה</td><td>badge ל-SA</td></tr>
+<tr><td>issued / pending_confirm</td><td>paid</td><td>SA</td><td>אסמכתה</td><td>הודעה לעסק</td></tr>
+<tr><td>issued</td><td>void</td><td>מערכת / SA</td><td>ביטול באנר</td><td>—</td></tr></table></div></div>
+<div>תופעות לוואי</div><div>יומן הלקוח כולל חיובים, זיכויים ותשלומים.</div>
+<div>ממשק</div><div>במסך החיוב של SA נוספה קטגוריה שלישית, "ממתין לאימות", ושורת "סה"כ פתוח".</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-22</code> — pending_confirm מוצג כקטגוריה, ונוסף total_outstanding.</li><li><code>COM-21</code> — נוסף מצב cancelled, וזיכוי בביטול.</li><li><code>RECON-15</code> — מצבי רשומת החיוב לפי tobe-arch ו-tobe-sa: issued (לשעבר unpaid) ו-void (לשעבר cancelled). שם השדה total_unpaid בתגובה נשמר לתאימות, והתוויות בממשק לא משתנות.</li><li><code>E2E-22</code> — ההרשאה "finance" הוחלפה ב-stats, ההרשאה שלשונית finance ממופה אליה ב-SA_TAB_PERMS (tobe-arch). finance אינה הרשאה קיימת.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="legacy system banners settings ad_banner top bottom business family public system-banner"><h3>באנרי מערכת סטטיים (הגדרות SA)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA שומר באנר עליון ותחתון למשפחות ולעסקים: <code>sa-app.js:saveAllBanners</code> (2139) → <code>POST /api/superadmin/banners</code>. תצוגה: <code>GET /api/banners?type=BUSINESS</code> ו-<code>GET /api/public/system-banner</code>.</div>
+<div>הרשאות</div><div>שמירה: SA עם הרשאת content (<code>/api/superadmin/*</code> תחת verifySA, <code>SA-03</code>). תצוגה: ציבורית.</div>
+<div>קלט ואימותים</div><div><ul><li>טקסטים עד 500 תווים. קישורים http/https בלבד. תמונות כ-URL מאחסון אובייקטים (<code>ARC-26</code>), בלי base64.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>withTransaction (<code>ARC-11</code>): UPSERT ל-system_settings עבור ad_banner_{text,link,img}_{top,bottom} ו-business_ad_banner_*. אופציונלית גם global_ai_logo, login_slides, member_welcome_*, member_module_settings, pwa_install_prompt_enabled, smtp_from_* ו-admin_notification_email. ROLLBACK בכשל.</li><li>/api/banners ממפה למפתחות banner_top_text וכו'.</li><li>מיגרציה חד-פעמית מעבירה תמונות base64 קיימות לאחסון.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div><code>app.js:fetchBanners</code>/<code>applyBannersToDOM</code> (243/205) ו-<code>business-app.js</code> (518/470). ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-27</code>→<code>ARC-11</code> — טרנזקציה אמיתית על client אחד.</li></ul></div>
+</div></section>
+
+<h2 class="grp">משחקים חיים (טריוויה) וספריית קווסטים</h2>
+
+<section class="proc" data-f="live games create edit questions sponsor images game_code sa"><h3>יצירה ועריכה של משחק טריוויה חי</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA: <code>sa-app.js:loadSALiveGames</code> (12062), עורך שאלות (<code>_renderLGQuestions</code>/<code>_lgAddQuestion</code>), והעלאת לוגו ודמות → <code>POST /api/live-games</code> / <code>PUT /api/live-games/:id</code>.</div>
+<div>הרשאות</div><div>SA עם הרשאת content. נתיבי הניהול של <code>/api/live-games</code> (יצירה, עריכה, סטטוס, מחיקה, שיוך, חדר המתנה) דורשים verifySA. רק join, answer ו-state משמשים שחקנים (ראו השתתפות שחקן).</div>
+<div>קלט ואימותים</div><div><ul><li>title חובה ("כותרת חובה"). ב-PUT: id מספרי ("מזהה משחק לא תקין").</li><li>שאלה: טקסט, 2–6 אפשרויות, correct_index בטווח, time_seconds בין 5 ל-120 (ברירת מחדל 20).</li><li>תמונות לפי <code>ARC-26</code> (עד 8MB, png/jpg/webp/gif).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li><code>generateGameCode</code>: 6 תווים מתוך <code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code>, עם עד 10 ניסיונות לייחודיות.</li><li>טרנזקציה: INSERT ל-live_games עם status 'waiting'. התמונות נשמרות באחסון אובייקטים, ו-sponsor_logo/character_image מחזיקים URL. img_version=1. שאלות: INSERT ל-live_game_questions (opts JSON, correct_index, time_seconds, order_num=אינדקס).</li><li>PUT, בטרנזקציה: דורס את השדות מ-title עד community_id (כולל is_public ו-is_hidden). תמונה חדשה מעלה את img_version ב-1. השאלות מוחלפות רק אם נשלח מערך לא ריק.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>(INSERT) → waiting.</div>
+<div>תופעות לוואי</div><div>תמונות מוגשות דרך <code>/api/live-games/:code/image/logo|char</code> (הפניה ל-URL באחסון), עם <code>?v=img_version</code>.</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li>ניהול המשחק תחת verifySA (<code>ARC-02</code>, <code>ARC-07</code>). תמונות באחסון אובייקטים (<code>ARC-26</code>). אין שינוי עסקי.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="live game status waiting active ended disabled next question restart delete visibility"><h3>הפעלת משחק — סטטוסים ושאלות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>מודל בקרה של SA: <code>_lgSetStatus</code> (12776), <code>_lgNextQuestion</code> (12788), <code>_lgRestartGame</code> (12136), <code>_lgToggleHidden</code> (12732), ו-polling בקרה כל 2 שניות (<code>_lgControlPoll</code>).</div>
+<div>הרשאות</div><div>SA עם הרשאת content.</div>
+<div>קלט ואימותים</div><div><ul><li>status ∈ waiting/active/ended/disabled ("סטטוס לא תקין"). active בלי שאלות מחזיר 400 "לא נמצאו שאלות במשחק זה. יש להוסיף שאלות לפני ההתחלה."</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שינוי סטטוס ל-active: current_question_index=0, <code>question_started_at=NOW()</code>, ניקוי cache.</li><li>next-question: index+1, ו-<code>question_started_at=NOW()</code>. אם <code>next ≥ total</code>, הסטטוס הופך ל-ended.</li><li>restart, בטרנזקציה: מחיקת התשובות, score=0, index=0, status=waiting, question_started_at=NULL.</li><li>מחיקה, בטרנזקציה: תשובות, משתתפים, שאלות, ואז המשחק.</li></ol></div>
+<div>חישובים</div><div>זמן ההתחלה של כל שאלה נשמר בשרת (<code>question_started_at</code>) ומשמש לניקוד.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(INSERT)</td><td>waiting</td><td>SA</td><td>—</td><td>—</td></tr>
+<tr><td>*</td><td>active</td><td>SA</td><td>יש שאלות</td><td>index=0, question_started_at, ניקוי cache</td></tr>
+<tr><td>active</td><td>active (שאלה הבאה)</td><td>SA</td><td>next &lt; total</td><td>index=next, question_started_at</td></tr>
+<tr><td>active</td><td>ended</td><td>SA / next-question</td><td><code>next ≥ total</code></td><td>index=next</td></tr>
+<tr><td>*</td><td>ended / disabled / waiting</td><td>SA</td><td>status</td><td>—</td></tr>
+<tr><td>*</td><td>waiting</td><td>SA</td><td>restart</td><td>מחיקת תשובות, score=0, index=0</td></tr></table></div>
+is_hidden (ב-PUT, או PATCH visibility) עצמאי מהסטטוס. משחק מוסתר חוסם join ו-state (403 "המשחק אינו זמין").</div>
+<div>תופעות לוואי</div><div>cache מצב של 200ms (<code>_lgStateCache</code>), שמבוטל בכל שינוי סטטוס או שאלה. במצב רב-מופעים ה-cache משותף או מקומי עם TTL של 200ms (<code>ARC-24</code>).</div>
+<div>ממשק</div><div>ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-53</code> — נשמר question_started_at לחישוב זמן התגובה בשרת.</li><li><code>COM-27</code>→<code>ARC-11</code> — מחיקה ו-restart בטרנזקציה.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="live game join participant approve waiting room answer score leaderboard state polling notify"><h3>השתתפות שחקן — הצטרפות, אישור, תשובה וניקוד</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>שחקן ב-<code>/game/:code</code> (game.html) נכנס או נרשם (<code>/api/login</code>, או <code>/api/groups</code> עם registrationSource <code>game:CODE</code>). התשובה כוללת טוקן סשן משפחה, ו-game.html שומר אותו. אם כבר קיים <code>ofl_family_token</code>, הוא משמש. אחר כך <code>joinAndStart</code> → <code>POST /api/live-games/:code/join</code>. polling ל-<code>/state</code> כל שנייה.</div>
+<div>הרשאות</div><div>join ו-answer: סשן משפחה (verifyFamily). userId ו-groupId נלקחים מהסשן. state: החלק המשותף ציבורי, והחלק האישי (my_approved) מוחזר רק עם סשן. leaderboard: ציבורי בלי טלפונים. <code>?sa=1</code> דורש verifySA. חדר המתנה, אישור ו-notify-start: SA.</div>
+<div>קלט ואימותים</div><div><ul><li>join: המשחק קיים, לא hidden, ולא disabled/ended ("המשחק הסתיים"). displayName עד 40 תווים, וברירת המחדל היא ה-nickname מהסשן. joinSource מתוך הרשימה הסגורה.</li><li>answer: המשחק active ("המשחק אינו פעיל"). המשתתף approved ("טרם אושרת להשתתף"). questionId = השאלה הנוכחית (<code>current_question_index</code>), אחרת 409 "השאלה כבר הסתיימה". כפילות (question+user) מחזירה <code>already_answered</code>. answerIndex −1 = timeout ולא נשמר. תשובה שמגיעה אחרי <code>question_started_at + T</code> נרשמת כשגויה עם 0 נקודות.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>join: INSERT ל-participant עם approved=false ו-join_source (inbox/whatsapp/telegram/direct-internal/external/utm/direct, לפי referrer). ON CONFLICT (game,user) DO NOTHING. מחזיר את מצב ה-approved הנוכחי.</li><li>SA מאשר בחדר ההמתנה (<code>/waiting-room</code>, <code>/approve</code> עם participantIds ו-approved, <code>/approve-all</code>).</li><li>state: חלק אישי (my_approved, ועדכון last_seen_at למאושרים), וחלק משותף ב-cache: סטטוס, השאלה הנוכחית (בלי correct_index), answered_count, מאושרים, סה"כ שאלות, חסות ו-notify_sent_at.</li><li>תשובה נכונה: <code>responseTimeMs = NOW − question_started_at</code> בשרת. <code>score += round(100 + (max(0, T·1000 − responseTimeMs) / (T·1000)) · 900)</code>, כאשר T=time_seconds (ברירת מחדל 20). הטווח 100–1000.</li><li>notify-start: לכל משתתף מאושר עם group_id נשלחת התראה (trigger 'live_game') ו-inbox_message "⏰ ... עומד להתחיל!". notify_sent_at=NOW, והלקוח מזהה זאת דרך ה-polling.</li><li>leaderboard: TOP 50 לפי score, עם displayName ו-score בלבד. <code>?sa=1</code> (SA) כולל משתתפים לא מאושרים ופרטי קשר.</li></ol></div>
+<div>חישובים</div><div>ניקוד 100–1000 לפי זמן התגובה שנמדד בשרת.</div>
+<div>מכונת מצבים</div><div>participant.approved: false → true (SA), ו-true → false (SA).</div>
+<div>תופעות לוואי</div><div>התראות והודעות inbox ב-notify-start.</div>
+<div>ממשק</div><div>game.html: אחרי login או הרשמה נשמר <code>session.token</code>, וכל קריאה ל-join או answer נשלחת עם Authorization. הלקוח לא שולח עוד userId ו-responseTimeMs. הזרימה החזותית (ספונסר, חדר המתנה, שאלות, סיום) לא משתנה.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-53</code> — join ו-answer מאומתים בסשן משפחה. התשובה מתקבלת רק במשחק active, ממשתתף approved, ולשאלה הנוכחית. הזמן נמדד בשרת. <code>?sa=1</code> דורש SA, ובתצוגה הציבורית אין טלפונים. ה-allowlist של <code>ARC-02</code> מצומצם ל-state ול-leaderboard הציבוריים.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="live game assign groups notification inbox community public family list"><h3>הפצת משחק למשפחות וקהילות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>SA משייך משחק לקבוצות (<code>_lgAssignVisible</code>/<code>_lgSendInbox</code>) → <code>POST /api/live-games/:id/assign</code>. המשפחה רואה משחקים ב-<code>GET /api/community/:id/live-games</code> וב-<code>/api/family/live-games</code>.</div>
+<div>הרשאות</div><div>assign: SA עם הרשאת content. רשימות: סשן משפחה, ו-groupId מהסשן. ברשימת הקהילה נדרש גם חבר approved.</div>
+<div>קלט ואימותים</div><div><ul><li>assign: groupIds לא ריק ("חסרות קבוצות"). המשחק קיים.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>לכל קבוצה: INSERT ל-live_game_assignments ON CONFLICT, התראה (reference_key <code>game:CODE</code>), ו-inbox_message "הוזמנת למשחק: …". הודעת ברירת המחדל כוללת את הקישור <code>https://weflowz.co.il/game/CODE</code> ואת הפרס.</li><li>רשימת משחקי הקהילה: waiting או active, לא מוסתרים, ובנוסף אחד מהבאים: is_public וקהילה NULL, משחק של אחת מהקהילות שהמשפחה <b>approved</b> בהן (family_communities), או שיוך ישיר. LIMIT 10.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div>אין.</div>
+<div>תופעות לוואי</div><div>התראות והודעות inbox.</div>
+<div>ממשק</div><div><code>app.js:loadCommHomeGames</code>, שנקרא מ-fetchCommunityData. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-23</code> — הסינון לפי family_communities approved ולא לפי family_groups.community_id.</li><li><code>COM-09</code> — <code>/api/family/live-games</code> דורש סשן.</li><li><code>COM-24</code> — רק קהילות approved.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="quest library share use rate report hide seed builtin community public kid quests"><h3>ספריית קווסטים — שיתוף, שימוש, דירוג ודיווח</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>הורה משתף קווסט שיצר לילד, ולוקח קווסטים מהמאגר: <code>app.js:showQuestShareDialog</code> (17472), <code>openQuestLibrary</code> (17529), <code>useLibQuest</code> (17620). SA: <code>sa-app.js:loadSAQuestLib</code>/<code>saEditQuest</code>/<code>runQuestLibSeed</code> (11357–11651).</div>
+<div>הרשאות</div><div>כל נתיבי המשפחה: verifyFamily. userId ו-familyGroupId נלקחים מהסשן. share, use ו-rate רק ל-ADMIN או MEMBER (לא CHILD). נתיבי SA, כולל <code>PATCH /api/sa/quest-library/:id/visibility</code>: verifySA עם הרשאת content.</div>
+<div>קלט ואימותים</div><div><ul><li>share: הקווסט קיים ו-<code>created_by</code> = המשתמש מהסשן. visibility ∈ {public, community}. ב-community נדרש communityId של קהילה שהמשפחה approved בה.</li><li>rate: 1–5. report: reason אופציונלי, דיווח אחד למשפחה לכל קווסט.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol>
+<li>רשימה: visibility public או builtin, או community עם <code>community_id</code> ∈ קהילות ה-approved של המשפחה (מהסשן ולא מפרמטר). לא מוסתר. מסננים: subject, ageMin (age_max ≥), ageMax (age_min ≤) ו-search. מיון: builtin, featured, ואז rating, popular או newest. LIMIT 100.</li>
+<li>share, בטרנזקציה: INSERT ל-quest_library (age 6–16 קבוע, flw_reward, pass_score, visibility, community_id רק ב-community, tags=subject), העתקת השאלות, ו-<code>kid_quests.shared_to_library = visibility</code>.</li>
+<li>use, בטרנזקציה: יצירת kid_quests חדש (status 'active', library_source_id) והעתקת השאלות. use_count+1.</li>
+<li>rate: UPSERT לדירוג, ממוצע ו-count. <code>hidden_by_rating = avg &lt; 2.5 AND count ≥ 5</code>.</li>
+<li>report: INSERT ON CONFLICT DO NOTHING. <code>hidden_by_reports = COUNT(DISTINCT reporter) ≥ 3</code>.</li>
+<li>SA visibility: מעדכן <code>hidden_by_sa</code>.</li>
+<li>הקווסט מוסתר אם <code>hidden_by_sa OR hidden_by_reports OR hidden_by_rating</code>. כל פעולה משנה רק את הדגל שלה.</li>
+<li>SA seed: מוחק builtin ואת השאלות שלהם, ומריץ <code>runQuestLibrarySeed</code>. כפעולת devops עם audit (<code>ARC-10</code>). עריכה מלאה מחליפה שאלות (answer_type 'multiple_choice').</li></ol></div>
+<div>חישובים</div><div>ספי ההסתרה כמתואר.</div>
+<div>מכונת מצבים</div><div>שלושה דגלי הסתרה בלתי תלויים. is_hidden מחושב כ-OR שלהם (במיגרציה: is_hidden קיים=true הופך ל-hidden_by_sa=true).</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>ללא שינוי. ב-SA מוצגת גם סיבת ההסתרה (SA, דיווחים או דירוג).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-54</code> — כל הנתיבים מאומתים, והזהות מהסשן. ההסתרה מפוצלת לשלושה דגלים, ודירוג לא מבטל הסתרה של SA או של דיווחים. סינון community לפי הקהילות ה-approved של המשפחה.</li><li><code>COM-03</code>→<code>SA-03</code> — visibility תחת verifySA.</li></ul></div>
+</div></section>
+
+<h2 class="grp">אפליקציית חבר (Member) ו-Events Hub</h2>
+
+<section class="proc" data-f="member account create for business link pending approve reject solo password"><h3>יצירת חשבון חבר ע"י עסק ושיוך עסק-חבר</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק (למשל ספורט או שירות) יוצר ללקוח חשבון "חבר WEFLOWZ": <code>POST /api/member/create-for-business</code>, מ-business-app.js:49036/49068/49167/51295. החבר מאשר או דוחה את השיוך: <code>POST /api/member/link/:linkId/respond</code> (app.js:13916/14327).</div>
+<div>הרשאות</div><div>create-for-business: verifyBiz. business_group_id נלקח מהסשן, ופרמטר שונה מחזיר 403. respond: verifyFamily, והקישור חייב להיות של החבר מהסשן (member_group_id).</div>
+<div>קלט ואימותים</div><div><ul><li>name ו-phone חובה ("חסרים שדות חובה"). phone מנורמל.</li><li>זיהוי חבר קיים (<code>_findMemberByIdentifier</code>): קוד בפורמט <code>M\d+</code> מחפש לפי group_code. אחרת מחפש לפי טלפון של ADMIN בקבוצה עם member_type='member'.</li><li>respond: decision ∈ approve/reject. הקישור במצב pending.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה. חבר חדש: INSERT ל-family_groups (name "{name} - WEFLOWZ"; group_code מ-generateGroupCode האחיד (AUTH-45; הקידומת 'M' לחבר נשמרת); type FAMILY; member_type 'member'; plan 'solo'; account_status 'pending_activation'; created_by_business_group_id). סיסמה זמנית אקראית של 10 תווים (AUTH-37), שנשמרת רק כ-bcrypt ב-password_hash. solo_temp_password לא נשמר. INSERT ל-users כ-ADMIN active, עם permissions <code>{"tabs":["feed","members","bank","tasks"]}</code> ו-must_change_password=true.</li><li>UPSERT ל-member_business_links (status 'pending', או נשאר 'active' אם כבר active), is_active=true.</li><li>COMMIT. מוחזרים password (רק לחבר חדש, פעם אחת, להצגה ולשליחה ב-WhatsApp), group_code ו-link_status.</li><li>approve: status 'active', והתראה לעסק בעמודות הקיימות (group_id=העסק, trigger_type='member_link', message "שיוך אושר ✅", reference_key <code>mlink_{linkId}_approved</code>). reject: status 'rejected', is_active=false.</li></ol></div>
+<div>חישובים</div><div>אין.</div>
+<div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>(UPSERT)</td><td>pending</td><td>עסק</td><td>—</td><td>חשבון חדש אם צריך</td></tr>
+<tr><td>pending</td><td>active</td><td>החבר</td><td>approve</td><td>התראה לעסק</td></tr>
+<tr><td>pending</td><td>rejected</td><td>החבר</td><td>reject</td><td>is_active=false</td></tr></table></div>
+family_groups.account_status של חבר חדש: pending_activation (<code>ARC-05</code>: נתיבי הפעלה בלבד עד החלפת הסיסמה).</div>
+<div>תופעות לוואי</div><div>שינוי סטטוס הזמנה אצל עסק מקושר (active) מפעיל את <code>_sendMemberBizNotif</code>, עם reference_key ייחודי <code>mbiz_order_{id}_{status}</code>.</div>
+<div>ממשק</div><div>ללא שינוי. מוצגים הקוד האישי, השם והסיסמה הזמנית, ויש כפתור "שלח בוואטסאפ" (biz-setup-guide תרחיש ג׳). הקריאות מהעסק נשלחות עם Authorization.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-05</code> — שני הנתיבים מאומתים, והזהות מהסשן.</li><li><code>COM-06</code> — סיסמת החבר נשמרת ב-bcrypt בלבד, ומוחזרת פעם אחת.</li><li><code>COM-29</code> — group_code אקראי עם בדיקת ייחודיות. התראת האישור נכתבת לעמודות הקיימות ונשמרת.</li><li><code>RECON-27</code> — אורך הסיסמה הזמנית (10) וקוד הקבוצה (generateGroupCode) יושרו ל-tobe-auth.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="member app modules unlock request locks my-businesses my-orders upgrade sa"><h3>מודולים נעולים לחבר, בקשות פתיחה ותצוגת עסקים/הזמנות</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>באפליקציית המשפחה, כש-<code>member_type==='member'</code>: <code>applyMemberLocks</code> (13512) נועל כל טאב מלבד <code>feed</code>, <code>myorders</code> והמודולים שב-<code>unlocked_modules</code>. לחיצה על טאב נעול → <code>showMemberModuleUpgrade</code> → <code>POST /api/member/request-module</code>.</div>
+<div>הרשאות</div><div>request-module, my-businesses ו-my-orders: verifyFamily, וה-group נלקח מהסשן. <code>PATCH /api/sa/groups/:id/(modules|unlock-module|upgrade-member)</code>: verifySA עם הרשאת biz (<code>COM-03</code>→<code>SA-03</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>request-module: moduleKey חובה, מתוך module_catalog (<code>ARC-18</code>).</li><li>my-orders: הקישור (business, member מהסשן) active.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>request-module: הוספה ל-<code>module_requests</code> JSONB (DISTINCT) עם requested_at.</li><li>SA: <code>PATCH /api/sa/groups/:id/modules</code> קובע את unlocked_modules ומנקה בקשות תואמות. <code>/unlock-module</code> פותח מודול בודד. <code>/upgrade-member</code> מחליף member_type בין family ל-member. בעולם הזכאויות, unlocked_modules הוא sa_grant ב-tenant_entitlements (<code>ARC-17</code>).</li><li><code>GET /api/member/my-businesses</code>: קישורים is_active ו-unlocked_modules.</li><li><code>GET /api/member/my-orders/:biz</code>: רק לקישור active. לפי business_type: sport → מנויים (sport_memberships לפי ref או טלפון החבר). maintenance_repair → service_calls (family_group_id או טלפון). restaurant ושאר הסוגים → store_orders (family_group_id או טלפון). התאמה לפי שם מלא מדויק נשארת רק להזמנה או קריאה <b>בלי טלפון</b>, אצל העסק המקושר. LIMIT 50.</li></ol></div>
+<div>חישובים</div><div>טלפון מנורמל להשוואה.</div>
+<div>מכונת מצבים</div><div>module_requests: נוסף, ונמחק כשהמודול נפתח.</div>
+<div>תופעות לוואי</div><div>badge ל-SA על בקשת מודול.</div>
+<div>ממשק</div><div>Member Feed: <code>fetchMemberFeedOrders</code>, <code>switchMemberFeedTab</code>, תקלות והצעות מחיר (app.js:13553–13700). אם unlocked_modules משתנה ב-fetchData, <code>applyMemberLocks</code> רץ מחדש. ללא שינוי.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-05</code> — כל נתיבי <code>/api/member/*</code> מאומתים. ההתאמה לפי family_group_id או טלפון, ולפי שם רק כשאין טלפון.</li><li><code>COM-03</code>→<code>SA-03</code> — נתיבי ה-SA תחת verifySA.</li></ul></div>
+</div></section>
+
+<section class="proc" data-f="events hub new event from menu template quote restaurant guests per person"><h3>Events Hub — אירוע חדש מתבנית תפריט</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>עסק מסוג מסעדה <b>או events</b> יוצר הצעת מחיר לאירוע מתבנית תפריט: הכפתור "אירוע חדש מתפריט" → <code>business-app.js:openNewEventFromMenuModal</code> (42716) → <code>submitNewEventFromMenu</code> → <code>POST /api/store/quotes/from-template</code>.</div>
+<div>הרשאות</div><div>verifyBiz, עם זכאות למודול התפריטים או הצעות המחיר (<code>ARC-17</code>).</div>
+<div>קלט ואימותים</div><div><ul><li>בלקוח: אם אין תבניות, מוצע לעבור ל-<code>menu_templates</code>. שם לקוח חובה. חריגה מ-min/max_guests מציגה אישור: "מספר הסועדים חורג מטווח התבנית — להמשיך בכל זאת?".</li><li>בשרת: templateId ו-customerName ("חסרים נתוני תבנית/לקוח"). התבנית של העסק ("תבנית לא נמצאה").</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>INSERT ל-store_orders עם status 'quote', is_event=TRUE, event_guest_count, target_datetime=eventDate, menu_template_id ו-items JSON.</li><li><code>quote_number = 'QT-' + id מרופד ל-6</code>.</li><li>התשובה כוללת <code>warnings</code>: פריטים בלי מחיר.</li><li>הלקוח מרענן את פקודות העבודה ואת הצעות המחיר, ומציג את האזהרות.</li></ol></div>
+<div>חישובים</div><div><code>guests = max(1, guestCount || min_guests || 1)</code>. מחיר הפריט: <code>COALESCE(menu_item.custom_price, catalog.price, 0)</code>. אם הוא 0 כי שני המחירים חסרים, נוספת לתשובה האזהרה "לפריט X אין מחיר — יש לעדכן בהצעה". הכמות היא guests אם <code>pricing_mode='per_person'</code>, ואחרת 1. ב-per_person עם base_price_per_person נוספת שורת "מחיר בסיס לסועד" × guests. <code>total = Σ price × qty</code>. פריטים לא זמינים (<code>is_available IS FALSE</code>) מסוננים. הלקוח מציג הערכה: <code>base_price_per_person × guests</code>.</div>
+<div>מכונת מצבים</div><div>store_orders נוצרת במצב quote, וממשיכה לפי מכונת הצעות המחיר של תחום החנות.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>הכפתור מוצג כש-<code>business_type ∈ {'restaurant','events'}</code> (business-app.js:2956). למסעדה, טאב פקודות העבודה מתויג "אירועים 🥂" כמו היום. לעסק events הכפתור מופיע בטאב התפריטים, שכבר מוצג לו (menuRelevantTypes, 2969). מדריך מקביל: אין כרגע מדריך לסוג events. כשייווצר, יתעד את הכפתור (CLAUDE.md כלל 6).</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-55</code> — Events Hub זמין גם לעסק events. פריט בלי custom_price מתומחר לפי מחיר הקטלוג. כשגם הוא חסר, הפריט נכנס ב-0 עם אזהרה, בלי חסימה.</li></ul></div>
+</div></section>
+
+<h2 class="grp">גישה ואימות בסביבת הקהילה</h2>
+
+<section class="proc" data-f="community bootstrap-token family token session auth communityfetch"><h3>הנפקת טוקן משפחה לפיצ'רי קהילה (bootstrap-token)</h3>
+<div class="kv">
+<div>מטרה וטריגר</div><div>כל קריאות הקהילה באפליקציית המשפחה עוברות דרך <code>communityFetch</code> (app.js:846), עם <code>Bearer ofl_family_token</code> (בעתיד הקידומת wfz_, לפי <code>ARC-39</code>). הטוקן מתקבל רק מזרימות כניסה והרשמה מאומתות: <code>/api/login</code>, OTP, הרשמה, ו-SSO (app.js:128/156). הלקוח כבר שומר אותו היום.</div>
+<div>הרשאות</div><div>אין נתיב הנפקה בלי הוכחת זהות. <code>POST /api/community/bootstrap-token</code> מוסר.</div>
+<div>קלט ואימותים</div><div><ul><li>קריאה ל-<code>/api/community/bootstrap-token</code> מחזירה 404.</li><li>כל נתיב קהילה מאמת את הטוקן דרך authenticate() (<code>ARC-01</code>/<code>ARC-05</code>).</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>אם <code>ofl_family_token</code> חסר, או שהתשובה 401: <code>ensureFamilyToken</code> לא מנפיק טוקן. הלקוח מבצע logout מקומי (<code>clearFamilyToken</code>) ומנתב למסך הכניסה, עם חזרה לטאב הקהילה אחרי הכניסה.</li><li>מיגרציה למשתמשים קיימים: משתמש מחובר שאין לו טוקן יתבקש להתחבר פעם אחת. מוצגת הודעה "לאבטחת החשבון יש להתחבר מחדש".</li></ol></div>
+<div>חישובים</div><div>תפוגת הסשן לפי <code>ARC-09</code>: 30 יום מתגלגלים.</div>
+<div>מכונת מצבים</div><div>סשן משפחה: active → revoked (logout, שינוי סיסמה, השעיה) או expired.</div>
+<div>תופעות לוואי</div><div>אין.</div>
+<div>ממשק</div><div>כל פיצ'רי הקהילה, הפולים והפיד ממשיכים לעבוד עם הטוקן מהכניסה. אין שינוי במסכים מלבד הניתוב לכניסה כשהטוקן חסר.</div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-01</code>→<code>AUTH-01</code> — הנתיב מוסר. הטוקן מונפק רק בכניסה או בהרשמה מאומתת. טוקן חסר מנתב לכניסה.</li></ul></div>
+</div></section>
+
+</div><script>
+(function(){var q=document.getElementById('q'),cnt=document.getElementById('cnt');var items=[].slice.call(document.querySelectorAll('[data-f]'));
+function run(){var v=q.value.trim().toLowerCase(),n=0;items.forEach(function(el){var hit=!v||el.getAttribute('data-f').indexOf(v)>-1||el.textContent.toLowerCase().indexOf(v)>-1;el.classList.toggle('hidden',!hit);if(hit)n++;});
+document.querySelectorAll('h2.grp').forEach(function(h){var g=h.nextElementSibling,any=false;while(g&&!g.matches('h2.grp')){if(g.hasAttribute('data-f')&&!g.classList.contains('hidden'))any=true;g=g.nextElementSibling;}h.classList.toggle('hidden',!any);});
+cnt.textContent=n+' / '+items.length;}
+q.addEventListener('input',run);run();})();
+</script></body></html>
