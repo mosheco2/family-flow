@@ -1,0 +1,9 @@
+// source: public/sa-app.js:760
+const SA_INSIGHTS_CATEGORIES = [
+    { key: 'business',    label: 'עסקים והזמנות',      icon: 'fa-store' },
+    { key: 'families',    label: 'משפחות',              icon: 'fa-house-user' },
+    { key: 'communities', label: 'קהילות',               icon: 'fa-city' },
+    { key: 'finance',     label: 'כספים',                icon: 'fa-sack-dollar' },
+    { key: 'coins',       label: 'מטבעות (Flow)',        icon: 'fa-coins' },
+    { key: 'entities',    label: 'תפעול וישויות',        icon: 'fa-layer-group' }
+];

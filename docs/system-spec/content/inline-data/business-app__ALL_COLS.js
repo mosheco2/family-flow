@@ -1,0 +1,16 @@
+// source: public/business-app.js:52524
+const ALL_COLS = [
+        { key:'new',           label:'חדש',            icon:'📥', bg:'bg-slate-50',   border:'border-slate-200' },
+        { key:'pending_quote', label:'ממתין הצעה',     icon:'💬', bg:'bg-yellow-50',  border:'border-yellow-200' },
+        { key:'quote_sent',    label:'הצעה נשלחה',    icon:'📄', bg:'bg-blue-50',    border:'border-blue-200' },
+        { key:'confirmed',     label:'אושר',           icon:'✅', bg:'bg-cyan-50',    border:'border-cyan-200' },
+        { key:'assigned',      label:'שויך',           icon:'👤', bg:'bg-indigo-50',  border:'border-indigo-200' },
+        { key:'picked_up',     label:'נאסף',           icon:'📦', bg:'bg-violet-50',  border:'border-violet-200' },
+        { key:'in_transit',    label:'בדרך',           icon:'🚚', bg:'bg-purple-50',  border:'border-purple-200' },
+        { key:'arrived',       label:'הגיע',           icon:'📍', bg:'bg-amber-50',   border:'border-amber-200' },
+        { key:'delivered',     label:'נמסר',           icon:'✅', bg:'bg-emerald-50', border:'border-emerald-200' },
+        { key:'partial',       label:'חלקי',           icon:'⚠️', bg:'bg-lime-50',    border:'border-lime-200' },
+        { key:'failed_attempt',label:'לא ענה',         icon:'📵', bg:'bg-red-50',     border:'border-red-200' },
+        { key:'returned',      label:'הוחזר',          icon:'↩️', bg:'bg-slate-100',  border:'border-slate-300' },
+        { key:'cancelled',     label:'בוטל',           icon:'❌', bg:'bg-rose-50',    border:'border-rose-200' }
+    ];

@@ -1,0 +1,39 @@
+// source: public/business-app.js:21224
+const ROLE_OPTIONS = {
+            restaurant:   [
+                { value: 'branch_manager', label: 'מנהל סניף',    icon: 'fa-user-tie' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'waiter',         label: 'מלצר/ית',       icon: 'fa-utensils' },
+                { value: 'cook',           label: 'טבח/ית',        icon: 'fa-fire-burner' },
+                { value: 'delivery',       label: 'שליח/ה',        icon: 'fa-motorcycle' },
+            ],
+            beauty: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'therapist',      label: 'מטפל/ת',        icon: 'fa-spa' },
+                { value: 'makeup_artist',  label: 'איפרגן/ית',     icon: 'fa-wand-sparkles' },
+                { value: 'nail_tech',      label: 'טכנאי/ת ציפורניים', icon: 'fa-hand-sparkles' },
+                { value: 'reception',      label: 'קבלן/ית',       icon: 'fa-headset' },
+            ],
+            sport: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'instructor',     label: 'מדריך/ה',       icon: 'fa-dumbbell' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'shift_manager',  label: 'מנהל/ת משמרת',  icon: 'fa-clock' },
+            ],
+            services: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'field_tech',     label: 'טכנאי/ת שטח',  icon: 'fa-screwdriver-wrench' },
+                { value: 'support',        label: 'תמיכה / שירות', icon: 'fa-headset' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+            ],
+            professional: [
+                { value: 'partner',        label: 'שותף/ה',        icon: 'fa-handshake' },
+                { value: 'consultant',     label: 'יועץ/ת',        icon: 'fa-briefcase' },
+                { value: 'associate',      label: 'עמית/ה',        icon: 'fa-user-graduate' },
+            ],
+            other: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'field_tech',     label: 'טכנאי/ת שטח',  icon: 'fa-screwdriver-wrench' },
+            ],
+        };

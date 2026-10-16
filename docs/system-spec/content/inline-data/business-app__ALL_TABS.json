@@ -1,0 +1,210 @@
+[
+ {
+  "id": "feed",
+  "name": "ראשי 🏠"
+ },
+ {
+  "id": "timeclock",
+  "name": "נוכחות ⏱️"
+ },
+ {
+  "id": "shifts",
+  "name": "משמרות 🗓️"
+ },
+ {
+  "id": "calendar",
+  "name": "יומן ציבורי 🌐"
+ },
+ {
+  "id": "shop",
+  "name": "רכש ארגוני 🛒"
+ },
+ {
+  "id": "pantry",
+  "name": "ניהול מלאי 📦"
+ },
+ {
+  "id": "sales",
+  "name": "מכירות / חנות 🛍️"
+ },
+ {
+  "id": "pos",
+  "name": "קופה (POS) 💰"
+ },
+ {
+  "id": "customers",
+  "name": "לקוחות 🤝"
+ },
+ {
+  "id": "deliveries",
+  "name": "שליחויות 🛵"
+ },
+ {
+  "id": "reviews",
+  "name": "דירוגים וביקורות ⭐"
+ },
+ {
+  "id": "foodcost",
+  "name": "תמחור ורווחיות 🍽️"
+ },
+ {
+  "id": "bank",
+  "name": "כספים 💳"
+ },
+ {
+  "id": "cashflow",
+  "name": "תזרים מזומנים 💸"
+ },
+ {
+  "id": "budget",
+  "name": "תקציבים 📊"
+ },
+ {
+  "id": "forecast",
+  "name": "תשקיף 📅"
+ },
+ {
+  "id": "tasks",
+  "name": "פרויקטים ומשימות ✅"
+ },
+ {
+  "id": "equipment",
+  "name": "תחזוקת ציוד 🔧"
+ },
+ {
+  "id": "academy",
+  "name": "מרכז הכשרות 🎓"
+ },
+ {
+  "id": "community",
+  "name": "קהילות מחוברות 🏘️"
+ },
+ {
+  "id": "surveys",
+  "name": "תקשורת ועדכונים 📣"
+ },
+ {
+  "id": "members",
+  "name": "ניהול צוות 👥"
+ },
+ {
+  "id": "beauty_calendar",
+  "name": "יומן מטפלות 💆"
+ },
+ {
+  "id": "beauty_clients",
+  "name": "תיקי לקוחות 📋"
+ },
+ {
+  "id": "beauty_inventory",
+  "name": "מלאי מקצועי 🧴"
+ },
+ {
+  "id": "beauty_services",
+  "name": "שירותים וטיפולים 💎"
+ },
+ {
+  "id": "beauty_subscriptions",
+  "name": "מנויים וחבילות 🎁"
+ },
+ {
+  "id": "beauty_commissions",
+  "name": "עמלות ושכר 💰"
+ },
+ {
+  "id": "beauty_rfq",
+  "name": "ייעוץ ובקשות 💬"
+ },
+ {
+  "id": "settings",
+  "name": "הגדרות ⚙️"
+ },
+ {
+  "id": "beauty_practitioners",
+  "name": "מטפלות 💆"
+ },
+ {
+  "id": "logistics_orders",
+  "name": "קנבן משלוחים 📦"
+ },
+ {
+  "id": "logistics_drivers",
+  "name": "נהגים 🚗"
+ },
+ {
+  "id": "logistics_vehicles",
+  "name": "צי רכבים 🚚"
+ },
+ {
+  "id": "logistics_pricing",
+  "name": "מחירון 💰"
+ },
+ {
+  "id": "logistics_cod",
+  "name": "גבייה COD 💵"
+ },
+ {
+  "id": "logistics_rfq",
+  "name": "הצעות מחיר 📋"
+ },
+ {
+  "id": "logistics_routes",
+  "name": "מסלולי חלוקה 🗺️"
+ },
+ {
+  "id": "logistics_tracking",
+  "name": "לינקי מעקב 🔗"
+ },
+ {
+  "id": "logistics_reports",
+  "name": "דוחות לוגיסטיקה 📊"
+ },
+ {
+  "id": "logistics_customers",
+  "name": "מזמינים ונמענים 🤝"
+ },
+ {
+  "id": "logistics_invoices",
+  "name": "חשבוניות 🧾"
+ },
+ {
+  "id": "biz-ads",
+  "name": "פרסום FLOW 📢"
+ },
+ {
+  "id": "cases",
+  "name": "תיקים 📁"
+ },
+ {
+  "id": "timelog",
+  "name": "שעות עבודה ⏱️"
+ },
+ {
+  "id": "content",
+  "name": "תוכן האתר 🌐"
+ },
+ {
+  "id": "leads",
+  "name": "פניות נכנסות 📥"
+ },
+ {
+  "id": "documents",
+  "name": "מסמכים 📄"
+ },
+ {
+  "id": "reports",
+  "name": "דוחות 📊"
+ },
+ {
+  "id": "whatsapp-alerts",
+  "name": "התראות WhatsApp 📱"
+ },
+ {
+  "id": "menu_templates",
+  "name": "תפריטים 📋"
+ },
+ {
+  "id": "routines",
+  "name": "שגרות 🔁"
+ }
+]

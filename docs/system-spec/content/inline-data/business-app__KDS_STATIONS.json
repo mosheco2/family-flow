@@ -1,0 +1,32 @@
+[
+ {
+  "id": "hot",
+  "label": "🔥 פס חם",
+  "cls": "border-red-300 bg-red-50/40",
+  "hdr": "bg-red-100 text-red-700"
+ },
+ {
+  "id": "cold",
+  "label": "❄️ פס קר",
+  "cls": "border-blue-300 bg-blue-50/40",
+  "hdr": "bg-blue-100 text-blue-700"
+ },
+ {
+  "id": "drinks",
+  "label": "🥤 שתיה",
+  "cls": "border-purple-300 bg-purple-50/40",
+  "hdr": "bg-purple-100 text-purple-700"
+ },
+ {
+  "id": "bread",
+  "label": "🍞 לחמים",
+  "cls": "border-yellow-300 bg-yellow-50/40",
+  "hdr": "bg-yellow-100 text-yellow-700"
+ },
+ {
+  "id": "other",
+  "label": "📋 אחר",
+  "cls": "border-slate-300 bg-white",
+  "hdr": "bg-slate-100 text-slate-600"
+ }
+]

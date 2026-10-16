@@ -1,0 +1,11 @@
+// source: public/sa-app.js:7344
+const PERM_OPTIONS = [
+            { v:'support',   l:'תמיכה וקריאות' },
+            { v:'devops',    l:'פיתוח ומוצר (QA)' },
+            { v:'marketing', l:'שיווק והשקות' },
+            { v:'stats',     l:'דוחות ופיננסים' },
+            { v:'biz',       l:'ניהול עסקים' },
+            { v:'comm',      l:'ניהול קהילות' },
+            { v:'users',     l:'ניהול משתמשים/RBAC' },
+            { v:'content',   l:'מיתוג ובאנרים' },
+        ];

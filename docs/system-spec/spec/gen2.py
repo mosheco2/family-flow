@@ -68,7 +68,7 @@ open('out/ops.html','w',encoding='utf-8').write(shell('ops','תפעול ותשת
 cards=''
 counts={k:sum(1 for r in api if bucket(r['path'])==k) for k,_,_ in BUCKETS}
 for k,t in PAGES[1:]:
-    n={'db':f'{len([x for x in schema if re.match(r"^[a-z_][a-z0-9_]*$",x)])} טבלאות','functions':f'{len(funcs)} פונקציות','ops':f'{len(crons)} תהליכי רקע','ui-biz':'business-app.js + business.html','ui-family':'app.js + index.html','ui-sa':'sa-app.js + sa.html','ui-other':'ZM, קול העם, חנויות, שאר'}.get(k,'תהליכים עסקיים' if k.startswith('rules-') else ('שכבת אפיון' if k.startswith('s1-') else f'{counts.get(k,0)} נתיבים'))
+    n={'db':f'{len([x for x in schema if re.match(r"^[a-z_][a-z0-9_]*$",x)])} טבלאות','functions':f'{len(funcs)} פונקציות','ops':f'{len(crons)} תהליכי רקע','ui-biz':'business-app.js + business.html','ui-family':'app.js + index.html','ui-sa':'sa-app.js + sa.html','ui-other':'ZM, קול העם, חנויות, שאר'}.get(k,'תהליכים עסקיים' if k.startswith('rules-') else ('שכבת אפיון' if k.startswith('s1-') else ('קטלוג טקסטים' if k.startswith('texts-') else ('מלאי ורשימות' if k in ('assets','repo-files') else ('אפיון יעד' if k.startswith('tobe-') else f'{counts.get(k,0)} נתיבים')))))
     cards+=f'<a class="card" data-f="{E(t)}" href="{k}.html" style="display:block;padding:14px 16px;text-decoration:none;color:inherit"><strong>{E(t)}</strong><div class="count">{n}</div></a>'
 nomw=sum(1 for r in api if not r['mw']); sh=sum(1 for r in api if r['shadowed_by'])
 content=f'''<div class="intro"><strong>שכבת המפרט לבנייה מחדש.</strong> המסמך הראשי מתאר יכולות, זרימות וממצאים. העמודים כאן מוסיפים את הפרטים המדויקים שנחוצים למימוש מחדש, וכולם חולצו מכנית מהקוד: server.js (46,397 שורות) וקבצי הלקוח (כ-104 אלף שורות JS ועוד דפי HTML):

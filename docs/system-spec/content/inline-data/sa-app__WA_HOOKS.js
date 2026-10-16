@@ -1,0 +1,13 @@
+// source: public/sa-app.js:13564
+const WA_HOOKS = [
+    { value: 'every_minute',  label: 'כל דקה (אירועים בזמן אמת)' },
+    { value: 'daily_07:00',   label: 'כל יום 07:00' },
+    { value: 'daily_08:00',   label: 'כל יום 08:00' },
+    { value: 'daily_09:00',   label: 'כל יום 09:00' },
+    { value: 'daily_10:00',   label: 'כל יום 10:00' },
+    { value: 'daily_12:00',   label: 'כל יום 12:00' },
+    { value: 'daily_14:00',   label: 'כל יום 14:00' },
+    { value: 'daily_17:00',   label: 'כל יום 17:00' },
+    { value: 'daily_19:00',   label: 'כל יום 19:00' },
+    { value: 'daily_21:00',   label: 'כל יום 21:00' },
+];

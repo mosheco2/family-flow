@@ -1,0 +1,8 @@
+// source: public/business-app.js:5402
+const GNAV_GROUPS = {
+    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners','routines'],
+    sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','menu_templates','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
+    finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
+    more:      ['community','surveys','content','documents','biz-ads','whatsapp-alerts','settings']
+};

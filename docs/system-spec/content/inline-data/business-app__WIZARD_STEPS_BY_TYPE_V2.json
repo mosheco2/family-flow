@@ -1,0 +1,66 @@
+{
+ "restaurant": [
+  "identity",
+  "modules",
+  "food_type",
+  "menu",
+  "my_role",
+  "team"
+ ],
+ "beauty": [
+  "identity",
+  "modules",
+  "practitioners",
+  "services",
+  "my_role",
+  "team"
+ ],
+ "sport": [
+  "identity",
+  "modules",
+  "trainer",
+  "subscriptions",
+  "schedule",
+  "my_role",
+  "team"
+ ],
+ "services": [
+  "identity",
+  "modules",
+  "service_types",
+  "billing_flow",
+  "first_customer",
+  "my_role",
+  "team"
+ ],
+ "maintenance_repair": [
+  "identity",
+  "modules",
+  "service_types",
+  "billing_flow",
+  "first_customer",
+  "my_role",
+  "team"
+ ],
+ "professional": [
+  "identity",
+  "modules",
+  "case_type",
+  "first_case",
+  "document_template",
+  "my_role",
+  "team"
+ ],
+ "other": [
+  "identity",
+  "modules",
+  "catalog",
+  "my_role",
+  "team"
+ ],
+ "store_only": [
+  "identity",
+  "modules",
+  "catalog"
+ ]
+}

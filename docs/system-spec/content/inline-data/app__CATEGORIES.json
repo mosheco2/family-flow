@@ -1,0 +1,82 @@
+{
+ "income": [
+  {
+   "value": "salary",
+   "label": "💼 משכורת"
+  },
+  {
+   "value": "allowance",
+   "label": "💰 דמי כיס"
+  },
+  {
+   "value": "bonus",
+   "label": "🌟 בונוס"
+  },
+  {
+   "value": "gift",
+   "label": "🎁 מתנה"
+  },
+  {
+   "value": "business",
+   "label": "🚀 עסק"
+  },
+  {
+   "value": "other",
+   "label": "💸 אחר"
+  }
+ ],
+ "expense": [
+  {
+   "value": "food",
+   "label": "🍔 מסעדות וטייקאווי"
+  },
+  {
+   "value": "groceries",
+   "label": "🛒 סופר ופארם"
+  },
+  {
+   "value": "transport",
+   "label": "🚌 תחבורה ודלק"
+  },
+  {
+   "value": "home",
+   "label": "🏠 דיור ותחזוקה"
+  },
+  {
+   "value": "bills",
+   "label": "📄 חשבונות ותקשורת"
+  },
+  {
+   "value": "fun",
+   "label": "🎉 פנאי ובילויים"
+  },
+  {
+   "value": "clothes",
+   "label": "👕 ביגוד והנעלה"
+  },
+  {
+   "value": "health",
+   "label": "💊 בריאות וביטוחים"
+  },
+  {
+   "value": "education",
+   "label": "📚 חינוך וחוגים"
+  },
+  {
+   "value": "vacation",
+   "label": "✈️ חופשות וטיולים"
+  },
+  {
+   "value": "pets",
+   "label": "🐶 חיות מחמד"
+  },
+  {
+   "value": "gifts",
+   "label": "🎁 מתנות ותרומות"
+  },
+  {
+   "value": "other",
+   "label": "💸 אחר"
+  }
+ ]
+}

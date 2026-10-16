@@ -1,0 +1,611 @@
+[
+ {
+  "name": "KH_SANITIZE_OPTIONS",
+  "source": "server.js:9",
+  "bytes": 589,
+  "json": true,
+  "file": "content/inline-data/server__KH_SANITIZE_OPTIONS.json"
+ },
+ {
+  "name": "BUILTIN_QUESTS_DATA",
+  "source": "server.js:289",
+  "bytes": 24850,
+  "json": true,
+  "file": "content/inline-data/server__BUILTIN_QUESTS_DATA.json"
+ },
+ {
+  "name": "WA_DEFAULTS",
+  "source": "server.js:4508",
+  "bytes": 710,
+  "json": true,
+  "file": "content/inline-data/server__WA_DEFAULTS.json"
+ },
+ {
+  "name": "TEMPLATES",
+  "source": "server.js:6539",
+  "bytes": 7811,
+  "json": false,
+  "file": "content/inline-data/server__TEMPLATES.js"
+ },
+ {
+  "name": "DEFS",
+  "source": "server.js:9578",
+  "bytes": 10280,
+  "json": true,
+  "file": "content/inline-data/server__DEFS.json"
+ },
+ {
+  "name": "FALLBACK",
+  "source": "server.js:12701",
+  "bytes": 1459,
+  "json": true,
+  "file": "content/inline-data/server__FALLBACK.json"
+ },
+ {
+  "name": "PROFESSION_BY_CATEGORY",
+  "source": "server.js:13692",
+  "bytes": 422,
+  "json": true,
+  "file": "content/inline-data/server__PROFESSION_BY_CATEGORY.json"
+ },
+ {
+  "name": "LEGAL_DEFAULTS",
+  "source": "server.js:25251",
+  "bytes": 2605,
+  "json": true,
+  "file": "content/inline-data/server__LEGAL_DEFAULTS.json"
+ },
+ {
+  "name": "ROUTINE_TEMPLATE_CATALOG",
+  "source": "server.js:27238",
+  "bytes": 7379,
+  "json": true,
+  "file": "content/inline-data/server__ROUTINE_TEMPLATE_CATALOG.json"
+ },
+ {
+  "name": "DOCS_CONFIG",
+  "source": "server.js:37204",
+  "bytes": 2499,
+  "json": true,
+  "file": "content/inline-data/server__DOCS_CONFIG.json"
+ },
+ {
+  "name": "KNOWN_VIEWS",
+  "source": "server.js:37899",
+  "bytes": 1469,
+  "json": true,
+  "file": "content/inline-data/server__KNOWN_VIEWS.json"
+ },
+ {
+  "name": "KNOWN_AREAS",
+  "source": "server.js:38187",
+  "bytes": 417,
+  "json": true,
+  "file": "content/inline-data/server__KNOWN_AREAS.json"
+ },
+ {
+  "name": "BIZ_STEPS",
+  "source": "server.js:38251",
+  "bytes": 963,
+  "json": true,
+  "file": "content/inline-data/server__BIZ_STEPS.json"
+ },
+ {
+  "name": "FAM_STEPS",
+  "source": "server.js:38265",
+  "bytes": 426,
+  "json": true,
+  "file": "content/inline-data/server__FAM_STEPS.json"
+ },
+ {
+  "name": "FAM_MANAGE",
+  "source": "server.js:38355",
+  "bytes": 492,
+  "json": true,
+  "file": "content/inline-data/server__FAM_MANAGE.json"
+ },
+ {
+  "name": "GAMES",
+  "source": "server.js:38483",
+  "bytes": 2294,
+  "json": true,
+  "file": "content/inline-data/server__GAMES.json"
+ },
+ {
+  "name": "KH_THREAT_PATTERNS",
+  "source": "server.js:40465",
+  "bytes": 1077,
+  "json": true,
+  "file": "content/inline-data/server__KH_THREAT_PATTERNS.json"
+ },
+ {
+  "name": "QUEUE_ITEMS",
+  "source": "server.js:41658",
+  "bytes": 2350,
+  "json": true,
+  "file": "content/inline-data/server__QUEUE_ITEMS.json"
+ },
+ {
+  "name": "COVERS",
+  "source": "server.js:45082",
+  "bytes": 1204,
+  "json": false,
+  "file": "content/inline-data/server__COVERS.js"
+ },
+ {
+  "name": "COVERS",
+  "source": "server.js:45336",
+  "bytes": 767,
+  "json": false,
+  "file": "content/inline-data/server__COVERS.js"
+ },
+ {
+  "name": "ARTICLES",
+  "source": "server.js:45348",
+  "bytes": 2940,
+  "json": true,
+  "file": "content/inline-data/server__ARTICLES.json"
+ },
+ {
+  "name": "CATEGORIES",
+  "source": "public/app.js:69",
+  "bytes": 774,
+  "json": true,
+  "file": "content/inline-data/app__CATEGORIES.json"
+ },
+ {
+  "name": "BUDGET_LABELS",
+  "source": "public/app.js:73",
+  "bytes": 505,
+  "json": true,
+  "file": "content/inline-data/app__BUDGET_LABELS.json"
+ },
+ {
+  "name": "PRODUCT_DB",
+  "source": "public/app.js:74",
+  "bytes": 680,
+  "json": true,
+  "file": "content/inline-data/app__PRODUCT_DB.json"
+ },
+ {
+  "name": "ALL_TABS",
+  "source": "public/app.js:9461",
+  "bytes": 641,
+  "json": true,
+  "file": "content/inline-data/app__ALL_TABS.json"
+ },
+ {
+  "name": "FAMILY_HELP_CONTENT",
+  "source": "public/app.js:11915",
+  "bytes": 10796,
+  "json": true,
+  "file": "content/inline-data/app__FAMILY_HELP_CONTENT.json"
+ },
+ {
+  "name": "MEMBER_MODULES",
+  "source": "public/app.js:13482",
+  "bytes": 3946,
+  "json": true,
+  "file": "content/inline-data/app__MEMBER_MODULES.json"
+ },
+ {
+  "name": "GAME_LEVELS_BY_PATH",
+  "source": "public/app.js:16493",
+  "bytes": 777,
+  "json": true,
+  "file": "content/inline-data/app__GAME_LEVELS_BY_PATH.json"
+ },
+ {
+  "name": "CATEGORIES",
+  "source": "public/business-app.js:138",
+  "bytes": 532,
+  "json": true,
+  "file": "content/inline-data/business-app__CATEGORIES.json"
+ },
+ {
+  "name": "BUDGET_LABELS",
+  "source": "public/business-app.js:142",
+  "bytes": 885,
+  "json": true,
+  "file": "content/inline-data/business-app__BUDGET_LABELS.json"
+ },
+ {
+  "name": "PRODUCT_DB",
+  "source": "public/business-app.js:148",
+  "bytes": 591,
+  "json": true,
+  "file": "content/inline-data/business-app__PRODUCT_DB.json"
+ },
+ {
+  "name": "ALL_TABS",
+  "source": "public/business-app.js:3837",
+  "bytes": 2591,
+  "json": true,
+  "file": "content/inline-data/business-app__ALL_TABS.json"
+ },
+ {
+  "name": "GNAV_GROUPS",
+  "source": "public/business-app.js:5402",
+  "bytes": 577,
+  "json": true,
+  "file": "content/inline-data/business-app__GNAV_GROUPS.json"
+ },
+ {
+  "name": "TYPES_V2",
+  "source": "public/business-app.js:19465",
+  "bytes": 820,
+  "json": true,
+  "file": "content/inline-data/business-app__TYPES_V2.json"
+ },
+ {
+  "name": "WIZARD_STEPS_BY_TYPE_V2",
+  "source": "public/business-app.js:21004",
+  "bytes": 965,
+  "json": true,
+  "file": "content/inline-data/business-app__WIZARD_STEPS_BY_TYPE_V2.json"
+ },
+ {
+  "name": "ROLE_OPTIONS",
+  "source": "public/business-app.js:21224",
+  "bytes": 2454,
+  "json": true,
+  "file": "content/inline-data/business-app__ROLE_OPTIONS.json"
+ },
+ {
+  "name": "TEAM_ROLES_BY_TYPE",
+  "source": "public/business-app.js:21284",
+  "bytes": 406,
+  "json": true,
+  "file": "content/inline-data/business-app__TEAM_ROLES_BY_TYPE.json"
+ },
+ {
+  "name": "SVC_TYPES",
+  "source": "public/business-app.js:21525",
+  "bytes": 459,
+  "json": true,
+  "file": "content/inline-data/business-app__SVC_TYPES.json"
+ },
+ {
+  "name": "BILLING_OPTIONS",
+  "source": "public/business-app.js:21592",
+  "bytes": 482,
+  "json": true,
+  "file": "content/inline-data/business-app__BILLING_OPTIONS.json"
+ },
+ {
+  "name": "PROFESSIONS",
+  "source": "public/business-app.js:21826",
+  "bytes": 563,
+  "json": true,
+  "file": "content/inline-data/business-app__PROFESSIONS.json"
+ },
+ {
+  "name": "SLA_DEFAULTS",
+  "source": "public/business-app.js:34704",
+  "bytes": 859,
+  "json": true,
+  "file": "content/inline-data/business-app__SLA_DEFAULTS.json"
+ },
+ {
+  "name": "BIZ_HELP_CONTENT",
+  "source": "public/business-app.js:35617",
+  "bytes": 22665,
+  "json": true,
+  "file": "content/inline-data/business-app__BIZ_HELP_CONTENT.json"
+ },
+ {
+  "name": "BIZ_HELP_SUBTAB_CONTENT",
+  "source": "public/business-app.js:36176",
+  "bytes": 6459,
+  "json": true,
+  "file": "content/inline-data/business-app__BIZ_HELP_SUBTAB_CONTENT.json"
+ },
+ {
+  "name": "ROLE_TYPE_TABS",
+  "source": "public/business-app.js:37506",
+  "bytes": 1426,
+  "json": true,
+  "file": "content/inline-data/business-app__ROLE_TYPE_TABS.json"
+ },
+ {
+  "name": "BUSINESS_TYPES",
+  "source": "public/business-app.js:37525",
+  "bytes": 3469,
+  "json": true,
+  "file": "content/inline-data/business-app__BUSINESS_TYPES.json"
+ },
+ {
+  "name": "BUSINESS_CONFIG",
+  "source": "public/business-app.js:37545",
+  "bytes": 2885,
+  "json": true,
+  "file": "content/inline-data/business-app__BUSINESS_CONFIG.json"
+ },
+ {
+  "name": "EMPLOYEE_ROLE_TYPES",
+  "source": "public/business-app.js:37566",
+  "bytes": 3813,
+  "json": true,
+  "file": "content/inline-data/business-app__EMPLOYEE_ROLE_TYPES.json"
+ },
+ {
+  "name": "MODULE_DESCRIPTIONS",
+  "source": "public/business-app.js:37607",
+  "bytes": 4701,
+  "json": true,
+  "file": "content/inline-data/business-app__MODULE_DESCRIPTIONS.json"
+ },
+ {
+  "name": "TAB_RENAME",
+  "source": "public/business-app.js:38010",
+  "bytes": 860,
+  "json": true,
+  "file": "content/inline-data/business-app__TAB_RENAME.json"
+ },
+ {
+  "name": "CONFIG",
+  "source": "public/business-app.js:39506",
+  "bytes": 1723,
+  "json": true,
+  "file": "content/inline-data/business-app__CONFIG.json"
+ },
+ {
+  "name": "KDS_STATIONS",
+  "source": "public/business-app.js:41015",
+  "bytes": 546,
+  "json": true,
+  "file": "content/inline-data/business-app__KDS_STATIONS.json"
+ },
+ {
+  "name": "KDS_STATIONS",
+  "source": "public/business-app.js:41665",
+  "bytes": 603,
+  "json": true,
+  "file": "content/inline-data/business-app__KDS_STATIONS.json"
+ },
+ {
+  "name": "ALL_COLS",
+  "source": "public/business-app.js:52524",
+  "bytes": 1489,
+  "json": true,
+  "file": "content/inline-data/business-app__ALL_COLS.json"
+ },
+ {
+  "name": "BEAUTY_CATEGORIES",
+  "source": "public/business-app.js:54319",
+  "bytes": 562,
+  "json": true,
+  "file": "content/inline-data/business-app__BEAUTY_CATEGORIES.json"
+ },
+ {
+  "name": "RFQ_STATUS",
+  "source": "public/business-app.js:54753",
+  "bytes": 744,
+  "json": true,
+  "file": "content/inline-data/business-app__RFQ_STATUS.json"
+ },
+ {
+  "name": "TRIGGER_MAP",
+  "source": "public/business-app.js:57598",
+  "bytes": 2122,
+  "json": true,
+  "file": "content/inline-data/business-app__TRIGGER_MAP.json"
+ },
+ {
+  "name": "ROUTINE_EVENT_LABELS",
+  "source": "public/business-app.js:61184",
+  "bytes": 767,
+  "json": true,
+  "file": "content/inline-data/business-app__ROUTINE_EVENT_LABELS.json"
+ },
+ {
+  "name": "SA_GROUPS",
+  "source": "public/sa-app.js:532",
+  "bytes": 2549,
+  "json": true,
+  "file": "content/inline-data/sa-app__SA_GROUPS.json"
+ },
+ {
+  "name": "SA_INSIGHTS_CATEGORIES",
+  "source": "public/sa-app.js:760",
+  "bytes": 477,
+  "json": true,
+  "file": "content/inline-data/sa-app__SA_INSIGHTS_CATEGORIES.json"
+ },
+ {
+  "name": "SA_PENDING_ITEM_ACTIONS",
+  "source": "public/sa-app.js:944",
+  "bytes": 1313,
+  "json": true,
+  "file": "content/inline-data/sa-app__SA_PENDING_ITEM_ACTIONS.json"
+ },
+ {
+  "name": "SA_MODULE_LIST",
+  "source": "public/sa-app.js:2246",
+  "bytes": 4129,
+  "json": true,
+  "file": "content/inline-data/sa-app__SA_MODULE_LIST.json"
+ },
+ {
+  "name": "SA_BIZ_STAGE_LABELS",
+  "source": "public/sa-app.js:4163",
+  "bytes": 506,
+  "json": true,
+  "file": "content/inline-data/sa-app__SA_BIZ_STAGE_LABELS.json"
+ },
+ {
+  "name": "PERM_OPTIONS",
+  "source": "public/sa-app.js:7344",
+  "bytes": 416,
+  "json": true,
+  "file": "content/inline-data/sa-app__PERM_OPTIONS.json"
+ },
+ {
+  "name": "BIZ_TEMPLATE_TREE",
+  "source": "public/sa-app.js:8609",
+  "bytes": 27792,
+  "json": true,
+  "file": "content/inline-data/sa-app__BIZ_TEMPLATE_TREE.json"
+ },
+ {
+  "name": "FLOW_CONFIG_LABELS",
+  "source": "public/sa-app.js:9804",
+  "bytes": 1160,
+  "json": true,
+  "file": "content/inline-data/sa-app__FLOW_CONFIG_LABELS.json"
+ },
+ {
+  "name": "AD_SLOT_DEFS",
+  "source": "public/sa-app.js:10240",
+  "bytes": 1064,
+  "json": true,
+  "file": "content/inline-data/sa-app__AD_SLOT_DEFS.json"
+ },
+ {
+  "name": "AUDIT_LABELS",
+  "source": "public/sa-app.js:11004",
+  "bytes": 547,
+  "json": true,
+  "file": "content/inline-data/sa-app__AUDIT_LABELS.json"
+ },
+ {
+  "name": "MKT_SLIDE_DEFS",
+  "source": "public/sa-app.js:12805",
+  "bytes": 960,
+  "json": true,
+  "file": "content/inline-data/sa-app__MKT_SLIDE_DEFS.json"
+ },
+ {
+  "name": "WA_TYPE_META",
+  "source": "public/sa-app.js:13107",
+  "bytes": 960,
+  "json": true,
+  "file": "content/inline-data/sa-app__WA_TYPE_META.json"
+ },
+ {
+  "name": "WA_DEFAULTS_JS",
+  "source": "public/sa-app.js:13350",
+  "bytes": 710,
+  "json": true,
+  "file": "content/inline-data/sa-app__WA_DEFAULTS_JS.json"
+ },
+ {
+  "name": "TPL_DEFS",
+  "source": "public/sa-app.js:13360",
+  "bytes": 645,
+  "json": true,
+  "file": "content/inline-data/sa-app__TPL_DEFS.json"
+ },
+ {
+  "name": "WA_HOOKS",
+  "source": "public/sa-app.js:13564",
+  "bytes": 566,
+  "json": true,
+  "file": "content/inline-data/sa-app__WA_HOOKS.json"
+ },
+ {
+  "name": "KH_SA_TABS",
+  "source": "public/sa-app.js:13725",
+  "bytes": 423,
+  "json": true,
+  "file": "content/inline-data/sa-app__KH_SA_TABS.json"
+ },
+ {
+  "name": "KH_STATUS_META",
+  "source": "public/sa-app.js:13820",
+  "bytes": 614,
+  "json": true,
+  "file": "content/inline-data/sa-app__KH_STATUS_META.json"
+ },
+ {
+  "name": "BIZ_TYPE_MODULES",
+  "source": "public/sa-app.js:14751",
+  "bytes": 1895,
+  "json": true,
+  "file": "content/inline-data/sa-app__BIZ_TYPE_MODULES.json"
+ },
+ {
+  "name": "PRICING_CATALOG_DEFAULT",
+  "source": "public/sa-app.js:14767",
+  "bytes": 12064,
+  "json": true,
+  "file": "content/inline-data/sa-app__PRICING_CATALOG_DEFAULT.json"
+ },
+ {
+  "name": "COLOR_MAP",
+  "source": "public/sa-app.js:14955",
+  "bytes": 1250,
+  "json": true,
+  "file": "content/inline-data/sa-app__COLOR_MAP.json"
+ },
+ {
+  "name": "trivia-questions.json",
+  "source": "public/games/trivia-questions.json",
+  "bytes": 3208585,
+  "json": true,
+  "file": "content/data-files/public__games__trivia-questions.json"
+ },
+ {
+  "name": "manifest.json",
+  "source": "public/manifest.json",
+  "bytes": 1002,
+  "json": true,
+  "file": "content/data-files/public__manifest.json"
+ },
+ {
+  "name": "manifest-business.json",
+  "source": "public/manifest-business.json",
+  "bytes": 1012,
+  "json": true,
+  "file": "content/data-files/public__manifest-business.json"
+ },
+ {
+  "name": "manifest-biz.json",
+  "source": "public/manifest-biz.json",
+  "bytes": 1669,
+  "json": true,
+  "file": "content/data-files/public__manifest-biz.json"
+ },
+ {
+  "name": "qa-results.json",
+  "source": "public/qa-results.json",
+  "bytes": 1977,
+  "json": true,
+  "file": "content/data-files/public__qa-results.json"
+ },
+ {
+  "name": "assetlinks.json",
+  "source": "public/.well-known/assetlinks.json",
+  "bytes": 307,
+  "json": true,
+  "file": "content/data-files/public__.well-known__assetlinks.json"
+ },
+ {
+  "name": "seed_quizzes.js",
+  "source": "seed_quizzes.js",
+  "bytes": 15927,
+  "json": false,
+  "file": "content/data-files/seed_quizzes.js"
+ },
+ {
+  "name": "seed_quizzes.js",
+  "source": "services/seed_quizzes.js",
+  "bytes": 10568,
+  "json": false,
+  "file": "content/data-files/services__seed_quizzes.js"
+ },
+ {
+  "name": "seedqabook.js",
+  "source": "seedqabook.js",
+  "bytes": 5582,
+  "json": false,
+  "file": "content/data-files/seedqabook.js"
+ },
+ {
+  "name": "reset-db.js",
+  "source": "reset-db.js",
+  "bytes": 2219,
+  "json": false,
+  "file": "content/data-files/reset-db.js"
+ }
+]

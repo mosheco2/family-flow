@@ -1,0 +1,18 @@
+// source: public/business-app.js:37525
+const BUSINESS_TYPES = [
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','menu_templates','routines','biz-ads','reports'] },
+    { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','biz-ads','reports'] },
+    { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','biz-ads','reports'] },
+    { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','biz-ads','reports'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','timelog','cashflow','pantry','shop','sales','routines','biz-ads','reports'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks','biz-ads','reports'] },
+    { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','biz-ads','reports'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','biz-ads','reports'] },
+    { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos','biz-ads','reports'] },
+    { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports'] },
+    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','menu_templates','biz-ads','reports'] },
+    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','menu_templates','biz-ads','reports'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','biz-ads','reports'] },
+    { id: 'store_only',         name: 'חנות בלבד',              icon: '🏪', modules: ['feed','shop','pos','pantry','sales','customers','cashflow','budget','reports','biz-ads'] },
+    { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
+];

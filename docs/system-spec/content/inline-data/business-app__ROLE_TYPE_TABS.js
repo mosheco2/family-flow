@@ -1,0 +1,20 @@
+// source: public/business-app.js:37506
+const ROLE_TYPE_TABS = {
+    salesperson:    ['pos','sales','customers','tasks','calendar','timeclock','shifts'],
+    field_tech:     ['tasks','equipment','calendar','timeclock','shifts'],
+    instructor:     ['tasks','equipment','calendar','timeclock','shifts'],
+    delivery:       ['deliveries','tasks','timeclock','shifts'],
+    warehouse:      ['pantry','shop','tasks','timeclock','shifts'],
+    cleaner:        ['tasks','timeclock','shifts'],
+    support:        ['customers','tasks','calendar','timeclock'],
+    cashier:        ['pos','sales','tasks','timeclock','shifts'],
+    shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','reviews'],
+    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews','equipment','reports'],
+    waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
+    cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
+    reception:        ['beauty_calendar','beauty_clients','pos','tasks','timeclock'],
+    therapist:        ['beauty_calendar','beauty_clients','tasks','timeclock'],
+    senior_therapist: ['beauty_calendar','beauty_clients','beauty_practitioners','beauty_commissions','tasks','timeclock'],
+    nail_tech:        ['beauty_calendar','beauty_clients','tasks','timeclock'],
+    makeup_artist:    ['beauty_calendar','beauty_clients','tasks','timeclock'],
+};

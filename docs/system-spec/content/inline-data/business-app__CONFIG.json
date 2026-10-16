@@ -1,0 +1,137 @@
+{
+ "therapist": {
+  "icon": "💆",
+  "title": "ממשק מטפלת",
+  "subtitle": "יומן תורים וכרטיסי לקוחות",
+  "from": "from-pink-500",
+  "to": "to-rose-600",
+  "actions": [
+   {
+    "icon": "📅",
+    "label": "יומן תורים",
+    "tab": "beauty_calendar"
+   },
+   {
+    "icon": "👥",
+    "label": "לקוחות",
+    "tab": "beauty_clients"
+   },
+   {
+    "icon": "✅",
+    "label": "משימות",
+    "tab": "tasks"
+   }
+  ]
+ },
+ "senior_therapist": {
+  "icon": "⭐",
+  "title": "ממשק מטפלת בכירה",
+  "subtitle": "יומן תורים, צוות ועמלות",
+  "from": "from-purple-500",
+  "to": "to-fuchsia-600",
+  "actions": [
+   {
+    "icon": "📅",
+    "label": "יומן תורים",
+    "tab": "beauty_calendar"
+   },
+   {
+    "icon": "👥",
+    "label": "לקוחות",
+    "tab": "beauty_clients"
+   },
+   {
+    "icon": "👩‍⚕️",
+    "label": "צוות מטפלות",
+    "tab": "beauty_practitioners"
+   },
+   {
+    "icon": "💸",
+    "label": "עמלות",
+    "tab": "beauty_commissions"
+   },
+   {
+    "icon": "✅",
+    "label": "משימות",
+    "tab": "tasks"
+   }
+  ]
+ },
+ "nail_tech": {
+  "icon": "💅",
+  "title": "ממשק טכנאית ציפורניים",
+  "subtitle": "יומן תורים וכרטיסי לקוחות",
+  "from": "from-rose-500",
+  "to": "to-pink-600",
+  "actions": [
+   {
+    "icon": "📅",
+    "label": "יומן תורים",
+    "tab": "beauty_calendar"
+   },
+   {
+    "icon": "👥",
+    "label": "לקוחות",
+    "tab": "beauty_clients"
+   },
+   {
+    "icon": "✅",
+    "label": "משימות",
+    "tab": "tasks"
+   }
+  ]
+ },
+ "makeup_artist": {
+  "icon": "💄",
+  "title": "ממשק איפורנית",
+  "subtitle": "יומן תורים וכרטיסי לקוחות",
+  "from": "from-fuchsia-500",
+  "to": "to-purple-600",
+  "actions": [
+   {
+    "icon": "📅",
+    "label": "יומן תורים",
+    "tab": "beauty_calendar"
+   },
+   {
+    "icon": "👥",
+    "label": "לקוחות",
+    "tab": "beauty_clients"
+   },
+   {
+    "icon": "✅",
+    "label": "משימות",
+    "tab": "tasks"
+   }
+  ]
+ },
+ "reception": {
+  "icon": "🗓️",
+  "title": "ממשק פקידת קבלה",
+  "subtitle": "קביעת תורים, קבלת קהל וגביה",
+  "from": "from-teal-500",
+  "to": "to-cyan-600",
+  "actions": [
+   {
+    "icon": "📅",
+    "label": "יומן תורים",
+    "tab": "beauty_calendar"
+   },
+   {
+    "icon": "👥",
+    "label": "לקוחות",
+    "tab": "beauty_clients"
+   },
+   {
+    "icon": "💳",
+    "label": "קופה",
+    "tab": "pos"
+   },
+   {
+    "icon": "✅",
+    "label": "משימות",
+    "tab": "tasks"
+   }
+  ]
+ }
+}

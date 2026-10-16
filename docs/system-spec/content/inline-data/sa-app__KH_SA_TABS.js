@@ -1,0 +1,12 @@
+// source: public/sa-app.js:13725
+const KH_SA_TABS = [
+    { key: 'approvals',   label: 'אישורים' },
+    { key: 'content',     label: 'תוכן' },
+    { key: 'reports',     label: 'דיווחים' },
+    { key: 'comments',    label: 'תגובות' },
+    { key: 'authors',     label: 'כותבים' },
+    { key: 'categories',  label: 'קטגוריות ותגיות' },
+    { key: 'economy',     label: 'כלכלת FLOW' },
+    { key: 'settings',    label: 'הגדרות' },
+    { key: 'analytics',   label: 'אנליטיקס' },
+];

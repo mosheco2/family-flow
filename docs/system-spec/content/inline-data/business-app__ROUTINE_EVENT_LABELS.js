@@ -1,0 +1,10 @@
+// source: public/business-app.js:61184
+const ROUTINE_EVENT_LABELS = {
+        occurrence_created: 'מופע נוצר', occurrence_activated: 'מופע הופעל', occurrence_overdue: 'סומן כפיגור',
+        occurrence_completed: 'סומן כבוצע', occurrence_completed_with_exception: 'סומן כבוצע עם חריגה',
+        occurrence_submitted: 'הוגש לאישור', internal_approved: 'אושר פנימית', internal_rejected: 'נדחה פנימית',
+        customer_approval_requested: 'נשלחה בקשת אישור ללקוח', customer_approved: 'הלקוח אישר', customer_rejected: 'הלקוח דחה',
+        move_requested: 'התבקשה הזזה', move_approved: 'הזזה אושרה', move_rejected: 'הזזה נדחתה',
+        occurrence_skipped: 'דולג', assignee_changed_single: 'הוחלף אחראי (מופע זה)', assignee_changed_series: 'הוחלף אחראי (כל הסדרה)',
+        document_generated: 'הופק מסמך', document_sent: 'מסמך נשלח',
+    };

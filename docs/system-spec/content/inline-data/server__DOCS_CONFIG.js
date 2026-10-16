@@ -1,0 +1,91 @@
+// source: server.js:37204
+const DOCS_CONFIG = {
+  'spec-biz-environment': {
+    file: 'public/docs/spec-biz-environment.md',
+    label: 'אפיון סביבת עסקים',
+    scanFiles: ['public/business.html'],
+    apiPrefix: '/api/biz',
+  },
+  'spec-family-environment': {
+    file: 'public/docs/spec-family-environment.md',
+    label: 'אפיון סביבת משפחה',
+    scanFiles: ['public/index.html'],
+    apiPrefix: '/api/family',
+  },
+  'spec-zone-community': {
+    file: 'public/docs/spec-zone-community.md',
+    label: 'אפיון Zone Manager וקהילה',
+    scanFiles: [],
+    apiPrefix: '/api/zone',
+  },
+  'spec-super-admin': {
+    file: 'public/docs/spec-super-admin.md',
+    label: 'אפיון Super Admin',
+    scanFiles: ['public/sa.html'],
+    apiPrefix: '/api/sa',
+  },
+  'spec-qa-book': {
+    file: 'public/docs/spec-qa-book.md',
+    label: 'ספר QA',
+    scanFiles: [],
+    apiPrefix: null,
+  },
+  'spec-db-schema': {
+    file: 'public/docs/spec-db-schema.md',
+    label: 'סכמת DB מלאה',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'db-schema',
+  },
+  'spec-api-complete': {
+    file: 'public/docs/spec-api-complete.md',
+    label: 'מפת API מלאה',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'api-complete',
+  },
+  'spec-missing-modules': {
+    file: 'public/docs/spec-missing-modules.md',
+    label: 'מודולים מתקדמים',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'missing-modules',
+  },
+  'spec-kol-haam': {
+    file: 'public/docs/spec-kol-haam.md',
+    label: 'כל העם — פלטפורמת תוכן',
+    scanFiles: ['public/kol-haam.html', 'public/kol-haam-author.html'],
+    apiPrefix: '/api/kol-haam',
+  },
+  'spec-storefront': {
+    file: 'public/docs/spec-storefront.md',
+    label: 'Storefront — חזית חנות',
+    scanFiles: ['public/storefront.html'],
+    apiPrefix: '/api/storefront',
+  },
+  'spec-marketplace': {
+    file: 'public/docs/spec-marketplace.md',
+    label: 'Marketplace — מרקטפלייס',
+    scanFiles: ['public/marketplace.html'],
+    apiPrefix: '/api/public',
+  },
+  'spec-onboarding': {
+    file: 'public/docs/spec-onboarding.md',
+    label: 'Onboarding — אונבורדינג',
+    scanFiles: ['public/biz-onboarding.html', 'public/family-onboarding.html'],
+    apiPrefix: '/api/biz',
+  },
+  'spec-menu': {
+    file: 'public/docs/spec-menu.md',
+    label: 'תפריט דיגיטלי',
+    scanFiles: ['public/menu.html', 'public/menus.html'],
+    apiPrefix: '/api/menu',
+  },
+  'spec-games': {
+    file: 'public/docs/spec-games.md',
+    label: 'משחקים חינוכיים',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'games',
+  },
+};

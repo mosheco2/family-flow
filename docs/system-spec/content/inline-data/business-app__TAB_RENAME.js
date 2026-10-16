@@ -1,0 +1,11 @@
+// source: public/business-app.js:38010
+const TAB_RENAME = {
+            restaurant:     { customers: 'אורחים 🤝', calendar: 'ניהול יומן 📅' },
+            healthcare:     { customers: 'מטופלים 🤝', calendar: 'יומן תורים 📅', members: 'צוות רפואי 👥' },
+            beauty:         { customers: 'לקוחות 🤝', calendar: 'יומן תורים 📅' },
+            sport:          { customers: 'חברים 🤝', members: 'חברי מועדון 👥', calendar: 'לוח אימונים 📅' },
+            logistics:      { customers: 'לקוחות 🤝' },
+            construction:   { customers: 'לקוחות 🤝', calendar: 'לוח פרויקטים 📅' },
+            events:         { customers: 'לקוחות 🤝', calendar: 'יומן אירועים 📅', sales: 'מכירות אירועים 🛍️' },
+            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️', content: 'אתר תדמית 🌐', leads: 'פניות נכנסות 📥', documents: 'מסמכים 📄' },
+        };

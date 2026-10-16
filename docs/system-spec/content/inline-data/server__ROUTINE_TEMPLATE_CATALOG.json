@@ -1,0 +1,392 @@
+{
+ "restaurant": [
+  {
+   "key": "temp_log",
+   "name": "רישום טמפרטורות קירור והקפאה",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "obligationSource": "law",
+   "frequencyInterval": "daily",
+   "evidenceRequirements": [
+    "numeric_value"
+   ],
+   "valueUnit": "°C",
+   "retentionPeriodDays": 365
+  },
+  {
+   "key": "closing_clean",
+   "name": "ניקוי בגמר יום העבודה",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "frequencyInterval": "daily",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "extinguisher_visual",
+   "name": "בדיקה ויזואלית של מטפים",
+   "family": "רגולציה ובטיחות",
+   "category": "safety",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "checklist",
+    "photo"
+   ]
+  },
+  {
+   "key": "pest_control",
+   "name": "הדברה",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "obligationSource": "law",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "document"
+   ],
+   "retentionPeriodDays": 730
+  },
+  {
+   "key": "hood_cleaning",
+   "name": "ניקוי מנדפים ותעלות",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "obligationSource": "insurer",
+   "frequencyInterval": "quarterly",
+   "evidenceRequirements": [
+    "document",
+    "photo"
+   ],
+   "retentionPeriodDays": 1095
+  },
+  {
+   "key": "grease_trap",
+   "name": "שאיבת מפריד שומן",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "fire_system_annual",
+   "name": "בדיקת מערכת כיבוי במנדף",
+   "family": "רגולציה ובטיחות",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ],
+   "retentionPeriodDays": 1460
+  },
+  {
+   "key": "extinguisher_annual",
+   "name": "בדיקת מטפים בידי בודק מוסמך",
+   "family": "רגולציה ובטיחות",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "electric_check",
+   "name": "בדיקת חשמל ותאורת חירום",
+   "family": "רגולציה ובטיחות",
+   "category": "safety",
+   "obligationSource": "insurer",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "used_oil",
+   "name": "פינוי שמן טיגון משומש",
+   "family": "רגולציה ובטיחות",
+   "category": "operational",
+   "frequencyInterval": "weekly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "kashrut_renewal",
+   "name": "חידוש תעודת כשרות",
+   "family": "רגולציה ובטיחות",
+   "category": "regulatory",
+   "frequencyType": "certificate_expiry",
+   "evidenceRequirements": [
+    "document"
+   ],
+   "retentionPeriodDays": 365
+  },
+  {
+   "key": "coffee_filter",
+   "name": "החלפת פילטר מים — מכונת קפה ומכונת קרח",
+   "family": "תחזוקת ציוד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "ice_machine_clean",
+   "name": "ניקוי וחיטוי מכונת קרח",
+   "family": "תחזוקת ציוד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "weekly",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "ac_service",
+   "name": "שירות מערכת מיזוג",
+   "family": "תחזוקת ציוד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "semiannual",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "opening_checklist",
+   "name": "צ'קליסט פתיחה",
+   "family": "תפעול ובקרה",
+   "category": "operational",
+   "frequencyInterval": "daily",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "closing_checklist",
+   "name": "צ'קליסט סגירה",
+   "family": "תפעול ובקרה",
+   "category": "operational",
+   "frequencyInterval": "daily",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "cash_register_close",
+   "name": "סגירת קופה והתאמה",
+   "family": "תפעול ובקרה",
+   "category": "operational",
+   "frequencyInterval": "daily",
+   "evidenceRequirements": [
+    "numeric_value"
+   ]
+  },
+  {
+   "key": "inventory_count",
+   "name": "ספירת מלאי",
+   "family": "תפעול ובקרה",
+   "category": "operational",
+   "frequencyInterval": "weekly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "foodcost_calc",
+   "name": "חישוב פודקוסט",
+   "family": "תפעול ובקרה",
+   "category": "operational",
+   "frequencyInterval": "weekly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  }
+ ],
+ "maintenance_repair": [
+  {
+   "key": "elevator_periodic",
+   "name": "בדיקה תקופתית — מעלית",
+   "family": "מעלית",
+   "category": "regulatory",
+   "obligationSource": "law",
+   "frequencyInterval": "semiannual",
+   "evidenceRequirements": [
+    "document"
+   ],
+   "retentionPeriodDays": 1095
+  },
+  {
+   "key": "elevator_maintenance",
+   "name": "טיפול מונע — מעלית",
+   "family": "מעלית",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "electric_inspector",
+   "name": "בדיקת חשמלאי בודק",
+   "family": "מתקן חשמל",
+   "category": "regulatory",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "thermal_panel_scan",
+   "name": "בדיקה תרמוגרפית — לוחות חשמל",
+   "family": "מתקן חשמל",
+   "category": "safety",
+   "obligationSource": "insurer",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document",
+    "photo"
+   ]
+  },
+  {
+   "key": "sprinkler_check",
+   "name": "בדיקה תקופתית — מערכת מתזים",
+   "family": "כיבוי אש",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "fire_detection_check",
+   "name": "בדיקה ותחזוקה — גילוי אש",
+   "family": "כיבוי אש",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "extinguisher_annual_mr",
+   "name": "בדיקה שנתית — מטפים",
+   "family": "כיבוי אש",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "hydrant_check",
+   "name": "בדיקה — גלגלונים והידרנטים",
+   "family": "כיבוי אש",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "generator_run",
+   "name": "הרצה — גנרטור חירום",
+   "family": "גנרטור",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "checklist"
+   ]
+  },
+  {
+   "key": "generator_load_test",
+   "name": "בדיקה מקיפה עם עומס — גנרטור חירום",
+   "family": "גנרטור",
+   "category": "safety",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "water_tank_clean",
+   "name": "ניקוי וחיטוי — מאגר מים",
+   "family": "מאגר מים",
+   "category": "regulatory",
+   "obligationSource": "law",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "document"
+   ]
+  },
+  {
+   "key": "ac_maintenance",
+   "name": "טיפול מונע — מיזוג אוויר",
+   "family": "חוזי בלבד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "semiannual",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "ac_filters",
+   "name": "ניקוי מסננים — מיזוג אוויר",
+   "family": "חוזי בלבד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "quarterly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "pump_maintenance",
+   "name": "טיפול מונע — משאבות",
+   "family": "חוזי בלבד",
+   "category": "preventive_maintenance",
+   "frequencyInterval": "quarterly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "contract_visit",
+   "name": "ביקור שגרתי אצל לקוח בחוזה",
+   "family": "שגרות ללא מתקן",
+   "category": "operational",
+   "frequencyInterval": "monthly",
+   "evidenceRequirements": [
+    "confirm"
+   ],
+   "outputType": "work_order_template"
+  },
+  {
+   "key": "contract_renewal",
+   "name": "תזכורת חידוש חוזה שירות",
+   "family": "שגרות ללא מתקן",
+   "category": "operational",
+   "frequencyInterval": "yearly",
+   "evidenceRequirements": [
+    "confirm"
+   ]
+  },
+  {
+   "key": "tech_cert_renewal",
+   "name": "חידוש רישיונות והסמכות של הטכנאים",
+   "family": "שגרות ללא מתקן",
+   "category": "regulatory",
+   "frequencyType": "certificate_expiry",
+   "evidenceRequirements": [
+    "document"
+   ]
+  }
+ ]
+}

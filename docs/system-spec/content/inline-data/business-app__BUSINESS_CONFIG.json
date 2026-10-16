@@ -1,0 +1,128 @@
+{
+ "restaurant": {
+  "customer": "אורח",
+  "customer_pl": "אורחים",
+  "product": "מנה",
+  "appointment": "שולחן",
+  "supplier": "ספק חומרי גלם",
+  "costing": "תמחור מנות",
+  "order": "הזמנה"
+ },
+ "retail": {
+  "customer": "לקוח",
+  "customer_pl": "לקוחות",
+  "product": "מוצר",
+  "appointment": "ביקור",
+  "supplier": "ספק/יצרן",
+  "costing": "תמחור מוצרים",
+  "order": "הזמנה"
+ },
+ "services": {
+  "customer": "לקוח",
+  "customer_pl": "לקוחות",
+  "product": "שירות",
+  "appointment": "פגישה",
+  "supplier": "קבלן חיצוני",
+  "costing": "תמחור שירותים",
+  "order": "פרויקט"
+ },
+ "construction": {
+  "customer": "מזמין",
+  "customer_pl": "מזמינים",
+  "product": "חומר",
+  "appointment": "פגישת אתר",
+  "supplier": "ספק חומרי בנייה",
+  "costing": "עלות פרויקט",
+  "order": "פרויקט"
+ },
+ "maintenance_repair": {
+  "customer": "לקוח",
+  "customer_pl": "לקוחות",
+  "product": "שירות/חלק",
+  "appointment": "קריאת שירות",
+  "supplier": "ספק חלקים",
+  "costing": "תמחור שירות",
+  "order": "קריאה"
+ },
+ "logistics": {
+  "customer": "לקוח B2B",
+  "customer_pl": "לקוחות",
+  "product": "פריט",
+  "appointment": "חלון מסירה",
+  "supplier": "ספק/יצרן",
+  "costing": "עלות לוגיסטיקה",
+  "order": "הזמנה"
+ },
+ "healthcare": {
+  "customer": "מטופל",
+  "customer_pl": "מטופלים",
+  "product": "טיפול",
+  "appointment": "תור",
+  "supplier": "ספק ציוד רפואי",
+  "costing": "תמחור טיפול",
+  "order": "הפניה"
+ },
+ "beauty": {
+  "customer": "לקוחה",
+  "customer_pl": "לקוחות",
+  "product": "טיפול/מוצר",
+  "appointment": "תור",
+  "supplier": "ספק קוסמטיקה",
+  "costing": "תמחור טיפולים",
+  "order": "הזמנה"
+ },
+ "education": {
+  "customer": "תלמיד",
+  "customer_pl": "תלמידים",
+  "product": "שיעור/קורס",
+  "appointment": "שיעור",
+  "supplier": "ספק חומרי לימוד",
+  "costing": "תמחור קורסים",
+  "order": "הרשמה"
+ },
+ "sport": {
+  "customer": "חבר",
+  "customer_pl": "חברים",
+  "product": "מנוי/אימון",
+  "appointment": "אימון",
+  "supplier": "ספק ציוד",
+  "costing": "תמחור מנויים",
+  "order": "הרשמה"
+ },
+ "events": {
+  "customer": "מזמין",
+  "customer_pl": "מזמינים",
+  "product": "שירות הפקה",
+  "appointment": "אירוע",
+  "supplier": "נותן שירות",
+  "costing": "תמחור אירוע",
+  "order": "הזמנה"
+ },
+ "food_production": {
+  "customer": "לקוח B2B",
+  "customer_pl": "לקוחות",
+  "product": "מוצר",
+  "appointment": "הזמנת ייצור",
+  "supplier": "ספק חומרי גלם",
+  "costing": "עלות ייצור",
+  "order": "הזמנה"
+ },
+ "professional": {
+  "customer": "לקוח",
+  "customer_pl": "לקוחות",
+  "product": "שירות",
+  "appointment": "פגישה",
+  "supplier": "קבלן חיצוני",
+  "costing": "תמחור שירותים",
+  "order": "תיק"
+ },
+ "other": {
+  "customer": "לקוח",
+  "customer_pl": "לקוחות",
+  "product": "מוצר/שירות",
+  "appointment": "תור/פגישה",
+  "supplier": "ספק",
+  "costing": "תמחור",
+  "order": "הזמנה"
+ }
+}
