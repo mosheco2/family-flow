@@ -5,7 +5,7 @@
 <p><b>יישוב סתירות בין פריטים מאושרים:</b></p>
 <ul>
 <li>נשיאת טוקן: <code>ARC-01</code> קובע Authorization: Bearer, ו-AUTH-43 קובע cookie HttpOnly. <code>authenticate()</code> מקבל את שניהם: cookie (עם CSRF double-submit בכתיבה) לאפליקציות FAMILY/BIZ/SA/ZM, ו-Bearer לחנות, ל-embeds ולתקופת המעבר. זהה ל-tobe-auth.</li>
-<li>תוקף סשן: FAMILY/BIZ/ZM/storefront — 30 יום מתגלגלים (הארכה לכל היותר פעם ב-24 שעות) עם תקרה של 90 יום מ-created_at. SA — 12 שעות מתגלגלות. התחזות — שעה קבועה (<code>ARC-09</code>, AUTH-20, SA-06).</li>
+<li>תוקף סשן: FAMILY/BIZ/ZM/storefront — 30 יום מתגלגלים (הארכה לכל היותר פעם ב-24 שעות) עם תקרה של 90 יום מ-created_at. SA — 12 שעות מתגלגלות עם תקרה מוחלטת של 7 ימים מ-created_at (SA-06). התחזות — שעה קבועה (<code>ARC-09</code>, AUTH-20, SA-06).</li>
 <li>OTP: חלים המספרים של <code>ARC-29</code> (6 ספרות, 10 דק', 5 ניסיונות לקוד, 3 שליחות בשעה ו-10 ביום לטלפון) על כל הזרימות, כולל SA ו-AUTH-17.</li>
 <li>חיוב סוללת AI: SA-13 מחייב סוללה בכל נתיב AI של לקוח, ו-STR-36 (מתוקן) קובע שיצירת תמונה, שאינה נספרת היום, לא תצרוך סוללה. הכלל האחיד כאן: סוללה נצרכת בדיוק בפיצ'רים שצורכים אותה היום (handleAITokens), ורק על תשובה מוצלחת (SA-14). פיצ'רים שאינם נספרים היום מקבלים אימות, rate limit ולוג שימוש, בלי סוללה (ראו <code>ARC-30</code>).</li>
 <li>מגבלת ייחודיות טלפון ללקוח: <code>ARC-14</code> הציע UNIQUE(group_id, phone_normalized). BTY-46 ו-SPT-19 (מתוקנים) מתירים טלפון משותף. האילוץ חל רק על לקוחות שאינם מסומנים <code>shared_phone</code>.</li>
@@ -79,11 +79,11 @@
 <li><code>authenticate()</code> בונה <code>req.principal = {type, userId, groupId, role, employeeRoleType, effectiveTabs, saUserId, saPermissions, zmId, customerId, impersonatedBy}</code>. ב-SA הוא גם מצמיד req.saUser (AUTH-42).</li>
 <li>בדיקות סטטוס בכל בקשה (ARC-05): users.status='active' (אחרת 401). family_groups.account_status ∈ {frozen, archived} או is_deleted מחזירים 403 "החשבון מוקפא" (SA-22, SA-23). קבוצה ב-pending_activation מקבלת רק נתיבי GET של טעינה, solo/activate, solo/status ו-logout (מתוקן). sa_users.status='active'. zone_managers.status='active'. storefront_customers פעיל.</li>
 <li><code>requireType</code> אוכף התאמה בין סוג הסשן לסוג הנתיב. נתיב שמשרת גם family וגם biz מצהיר על כך במפורש. req.bizAuth לא מוצב לסשן משפחתי, ופעולות משפחה לא נרשמות ב-audit העסקי.</li>
-<li><b>תוקף:</b> family/biz/zm/storefront — 30 יום מתגלגלים, הארכה לכל היותר פעם ב-24 שעות, ותקרה של created_at+90d. sa — 12 שעות מתגלגלות. התחזות — שעה קבועה, בלי הארכה (ARC-09, AUTH-20).</li>
+<li><b>תוקף:</b> family/biz/zm/storefront — 30 יום מתגלגלים, הארכה לכל היותר פעם ב-24 שעות, ותקרה של created_at+90d. sa — 12 שעות מתגלגלות, עם תקרה מוחלטת של created_at+7d (SA-06). התחזות — שעה קבועה, בלי הארכה (<code>ARC-09</code>, AUTH-20).</li>
 <li><b>ביטול:</b> <code>POST /api/auth/logout</code> מסמן revoked_at, וכל אפליקציה קוראת לו בהתנתקות. כל הסשנים של principal מבוטלים בשינוי סיסמה, הורדת תפקיד, השעיה, מחיקה, חסימת איש צוות SA או השבתת ZM. ניקוי יומי ב-03:00 שעון ישראל, עם נעילה, של כל טבלאות הטוקנים, ה-OTP והאיפוס (AUTH-40).</li>
 <li>אין JWT. קוד ה-JWT המת מוסר (ARC-38).</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-01</code>, <code>ARC-05</code> (מתוקן), <code>ARC-08</code> (מכסה את AUTH-03, COM-02), <code>ARC-09</code>, <code>ARC-24</code>; AUTH-20, AUTH-40, AUTH-42, AUTH-43, SA-06, SA-51.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-01</code>, <code>ARC-05</code> (מתוקן), <code>ARC-08</code> (מכסה את AUTH-03, COM-02), <code>ARC-09</code>, <code>ARC-24</code>; AUTH-20, AUTH-40, AUTH-42, AUTH-43, SA-06, SA-51.<br><code>RECON-04</code> — לסשן SA נוספה התקרה המוחלטת של 7 ימים מ-SA-06, כמו ב-tobe-sa.</div>
 <div>הערות מיגרציה</div><div><ul>
 <li>family_sessions מועתקת ל-sessions עם אותו hash, ו-session_type ממופה ל-principal_type. משתמשים מחוברים נשארים מחוברים.</li>
 <li>sa_sessions: הטוקן הגולמי מגובב בזמן ההעתקה. שורות בלי זהות משתמש מבוטלות, כי אין להן sa_user_id. כל איש צוות מתחבר מחדש פעם אחת.</li>
@@ -227,22 +227,22 @@
 </ol>
 <div class="tbl-wrap"><table><tr><th>קטגוריה</th><th>נתיבים (מייצגים)</th><th>מזהה / הגנה</th></tr>
 <tr><td>כניסה, הרשמה ו-OTP</td><td>/api/login, /api/family/login/*, /api/groups (יצירת סביבה), /api/join, /api/biz/register|login|send-otp|verify-otp, /api/forgot-code, /api/reset-password, /api/sa/login|send-otp|verify-otp, /api/zone-manager/register|login|forgot-password|reset-password, /api/sc-auth/send-otp|verify-otp|register|login|forgot-pin|reset-pin</td><td>ARC-29: נעילה ומגבלות OTP. הרשמת לקוח חנות מחייבת OTP מאומת (AUTH-04)</td></tr>
-<tr><td>חזית חנות</td><td>רשימת STR-03: GET /api/storefront/:code, /:alias, /storefront*.html, item-image, ביקורות ציבוריות (3 aliases), /api/public/* (פופאפים, גלריה, לוגו), promotions פעילים, coupons/validate, banner-promos, products, public/alias, POST /api/store/orders (ערוץ חזית), leads, service-request (sc-auth), צ'אט לקוח (sc-auth), target-date ללקוח בעלים</td><td>קוד חנות; מחירים מחושבים בשרת</td></tr>
+<tr><td>חזית חנות</td><td>רשימת STR-03: GET /api/storefront/:code, /:alias, /storefront*.html, item-image, ביקורות ציבוריות (3 aliases), /api/public/* (פופאפים, גלריה, לוגו), promotions פעילים, coupons/validate, banner-promos, products, public/alias, POST /api/store/orders (ערוץ חזית), leads (sc-auth, SRV-36), service-request (sc-auth), צ'אט לקוח (sc-auth), target-date ללקוח בעלים</td><td>קוד חנות; מחירים מחושבים בשרת</td></tr>
 <tr><td>תפריטים</td><td>/menu, /menus, /api/menu/public/*, menu-quote-requests (יצירה)</td><td>קוד תבנית/עסק</td></tr>
-<tr><td>יופי ציבורי</td><td>קטלוג שירותים, slots/availability (תפוסה בלבד), בקשת תור (BTY)</td><td>קוד חנות; SMS 6 ספרות</td></tr>
-<tr><td>ספורט ציבורי</td><td>מחירון מנויים, רכישה ציבורית, ליד ציבורי, GET /api/sport/me (sc-auth) (SPT)</td><td>קוד חנות; sc-auth לזיהוי עצמי</td></tr>
+<tr><td>יופי ציבורי</td><td>קטלוג שירותים, practitioners/public, slots/availability (תפוסה בלבד); בקשת תור (sc-auth לפי SRV-36, ואימות SMS) (BTY)</td><td>קוד חנות; SMS 6 ספרות</td></tr>
+<tr><td>ספורט ציבורי</td><td>ציבורי: public-types, public-schedule, availability של מאמן (משבצות בלבד). sc-auth (STORE): רכישת מנוי, רישום וביטול לשיעור, תור אימון, צ'ק-אין עצמי, GET /api/sport/me (SPT)</td><td>קוד חנות; sc-auth לזיהוי עצמי</td></tr>
 <tr><td>מסעדה ציבורית</td><td>בקשת הזמנת שולחן ואימות SMS, צ'ק-אין עצמי (sc-auth) (RST)</td><td>קוד עסק; SMS 6 ספרות</td></tr>
-<tr><td>מקצועי</td><td>טופס ליד (28803), דף אתר ציבורי</td><td>alias</td></tr>
+<tr><td>מקצועי</td><td>דף אתר ציבורי (תוכן, תחומי עיסוק, מאמרים שפורסמו); טופס ליד (28803) דורש sc-auth (SRV-36)</td><td>alias</td></tr>
 <tr><td>סקרים</td><td>מילוי סקר ציבורי לפי קוד (survey.html)</td><td>קוד סקר; 30 לדקה ל-IP</td></tr>
-<tr><td>קישורי טוקן</td><td>/c/po/:id/:token, /c/rt/:occurrenceId/:token, /c/q/:id/:token, /c/camp/:token, /api/public/campaign/:token, /api/logistics/track/:token, leave-at-door</td><td>טוקן אקראי ≥128 ביט; תוקף לפי סוג; פעולה אחת</td></tr>
+<tr><td>קישורי טוקן</td><td>/c/po/:id/:token, /c/rt/:occurrenceId/:token, /c/rt-v/:occurrenceId/:token, /c/rt-doc/:id/:token, /c/q/:id/:token, /c/camp/:token, /api/public/campaign/:token, /api/logistics/track/:token, leave-at-door</td><td>טוקן אקראי ≥128 ביט; תוקף לפי סוג; פעולה אחת</td></tr>
 <tr><td>קמפיינים ושוק קהילתי</td><td>/campaign/:code, /api/campaign/* (קריאה ובקשה)</td><td>קוד קמפיין</td></tr>
-<tr><td>משחק חי</td><td>/api/live-games/join|answer|state</td><td>קוד משחק; 30 לדקה ל-IP</td></tr>
-<tr><td>קול העם — קריאה</td><td>תוכן שפורסם, קטגוריות (39513), מונה צפיות</td><td>מונה צפייה בלי userId מה-URL (אנונימי, dedup לפי IP+יום)</td></tr>
+<tr><td>משחק חי</td><td>/api/live-games/:code/state (החלק המשותף), image, leaderboard. join ו-answer דורשים סשן family (tobe-community), כי game.html מחבר או רושם את השחקן לפני ההצטרפות</td><td>קוד משחק; 30 לדקה ל-IP</td></tr>
+<tr><td>קול העם — קריאה</td><td>תוכן שפורסם, קטגוריות (39513), מונה צפיות</td><td>מונה צפייה בלי userId מה-URL. עם סשן: user_id מהסשן. בלי סשן: anon_hash=SHA-256(IP+User-Agent+מלח יומי), dedup של 30 דקות, כמו היום (tobe-kolhaam)</td></tr>
 <tr><td>הגדרות ותצורה ציבורית</td><td>/api/public/settings/:key (PUBLIC_READABLE_SETTINGS בלבד, 8996), GET biz_type_visibility (25339), GET מסמכים משפטיים, GET page-images</td><td>allow-list מפתחות</td></tr>
 <tr><td>מדריכים ועוזר מדריך</td><td>public/*-guide.html, POST /api/guide/chat</td><td>20 שאלות לשעה ל-IP (SA-12)</td></tr>
 <tr><td>שונות</td><td>POST /api/pilot-waitlist, /api/health, הפניית 301 מ-oneflowlife.co.il, הזרקת OG לתבניות storefront</td><td>5 לשעה ל-IP (SA-50)</td></tr>
 </table></div></div>
-<div>החלטות שהוחלו</div><div><code>ARC-02</code> (מתוקן); STR-03, SA-12, SA-50, AUTH-04; מפרטי הדומיין (BTY, SPT, RST, STR) לרשימות המפורטות.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-02</code> (מתוקן); STR-03, SA-12, SA-50, AUTH-04; מפרטי הדומיין (BTY, SPT, RST, STR) לרשימות המפורטות.<br><code>RECON-22</code> — ליד בחזית ובאתר המקצועי ובקשת תור ביופי מסומנים sc-auth (SRV-36), כמו ב-tobe-services, tobe-store ו-tobe-beauty.<br><code>RECON-28</code> — join ו-answer של משחק חי דורשים סשן family (tobe-community). state, image ו-leaderboard ציבוריים.<br><code>RECON-29</code> — מונה הצפיות של קול העם: dedup של 30 דקות לפי anon_hash, כמו ב-tobe-kolhaam, ולא לפי IP+יום.<br><code>RECON-30</code> — נוספו קישורי הטוקן של שגרות: /c/rt-v (ספק חיצוני) ו-/c/rt-doc (מסמך), כמו ב-tobe-routines.<br><code>RECON-31</code> — שורת הספורט יושרה ל-tobe-sport: רכישה ורישום דורשים sc-auth, וציבוריים רק מחירון, לוח שיעורים וזמינות.</div>
 <div>הערות מיגרציה</div><div>כל נתיב שנמצא היום בלי אימות ואינו ברשימה מקבל authenticate, ובמקביל כל קריאות הלקוח אליו עוברות ל-apiFetch. נתיבים שנשארים ציבוריים ומקבלים היום groupId מקבלים בנוסף פרמטר קוד חנות. groupId נשאר נתמך בתקופת מעבר רק לקריאה, ורק לשדות ציבוריים.</div>
 </div></section>
 
@@ -300,9 +300,9 @@
 <li><b>allow_negative לפי מטבע, כמו היום (מתוקן):</b> ILS_FAMILY — מותר (היום אין בדיקה בהוצאה). FLW_KID, FLOW, ILS_CASHBACK, ILS_STORE_CREDIT — אסור. חריגה מחזירה 409 עם הודעה ולא 500 (SA-35).</li>
 <li>שערי המרה ב-config אחד: flow_to_ils_rate (100 Flw = ₪10) ו-flow_min_redeem (100), מתוך flow_config, כמו היום.</li>
 <li>תנועות הכסף המשפחתי (transactions) נשארות יומן התזרים שהמשפחה רואה. כל transaction שמשנה יתרה יוצרת wallet_entry עם reference_type='transaction'.</li>
-<li>users.balance, flw_kid_wallets.balance וכו' נשארים זמינים ב-API כשדות נגזרים, כדי שהלקוחות לא ישתנו.</li>
+<li>users.balance, flw_kid_wallets.balance וכו' נשארים זמינים ב-API כשדות נגזרים, כדי שהלקוחות לא ישתנו. מפרטי הדומיין שמתארים "UPDATE flow_wallets / community_wallets / users.balance" מתכוונים ל-postEntry על הארנק המתאים. חוב לקוח בחנות (on_account) אינו ארנק: הוא נרשם ביומן customer_ledger (charge/payment, STR-23), והיתרה בו = Σcharge − Σpayment.</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-15</code> (מתוקן), <code>ARC-11</code>; SA-24, SA-35.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-15</code> (מתוקן), <code>ARC-11</code>; SA-24, SA-35.<br><code>RECON-19</code> — tobe-family, tobe-biz ו-tobe-community יושרו ל-postEntry, ו-customer_ledger של tobe-store הוגדר כיומן חוב שאינו ארנק.</div>
 <div>הערות מיגרציה</div><div><ol>
 <li>לכל מקור נוצר ארנק: users.balance→(user, ILS_FAMILY); flw_kid_wallets→(user, FLW_KID); flow_wallets→(לפי entity_type: user/group/community, FLOW); community_wallets→(community, ILS_CASHBACK); store_customers.credit_balance→(customer, ILS_STORE_CREDIT).</li>
 <li>תנועות היסטוריות (flow_transactions, community_wallet_transactions, היסטוריית FLW, transactions) מועתקות כ-entries עם חותמות הזמן המקוריות.</li>
@@ -359,10 +359,10 @@
 <li><code>features</code> נשאר רק kill-switch של SA (מכבה, לא מדליק). הסתרת מודול לפי בחירת המשתמש נשמרת כהעדפת תצוגה <code>hidden_modules</code> (FAM-02), ולא כזכאות.</li>
 <li><b>שינוי זכאות:</b> SA (הרשאת biz) מעניק או מסיר. אישור module_request על ידי SA יוצר רשומה. ה-ADMIN של העסק <b>שומר את ההפעלה העצמית של ממשקי תפקיד</b> (role_interface): ההפעלה יוצרת זכאות source='addon' ושורת חיוב לפי המחיר בקטלוג, והכיבוי מסיים אותה (מתוקן). מתגי ss_* עוברים ל-<code>group_settings.self_service</code>, שה-ADMIN עורך כמו היום, כי הם אינם זכאות בתשלום.</li>
 <li><b>ברירת המחדל לסוג עסק</b> (מוצעת בויזארד ובחבילה) היא האיחוד של BUSINESS_TYPES ו-BIZ_TYPE_MODULES של היום (מתוקן): feed, settings ו-biz-ads הם core לכל סוג. kds נשמר כמודול של restaurant. maintenance_repair כולל sales ו-timelog. store_only = budget, cashflow, customers, pantry, pos, reports, sales, shop (STR-49). beauty מקבל את 8 מודולי היופי ואת pos. logistics מקבל את 11 מודולי הלוגיסטיקה. other = כל המודולים. מודולי יופי ולוגיסטיקה נמכרים גם כחבילה (beauty_all ₪89, logistics_all ₪109) וגם כמודול בודד, כמו במחירון.</li>
-<li><b>סוג עסק</b> נכתב רק בשני מסלולים: (1) <code>PATCH /api/biz/wizard/complete</code>, על ידי ADMIN, רק כש-wizard_completed=false, והפעולה מסמנת את הוויזארד כהושלם; (2) <code>PATCH /api/sa/groups/:id</code> עם requireSAPermission('biz') ו-audit. שדה business_type שנשלח לכל נתיב אחר נדחה ב-400. business-settings ממשיך לשמור את table_count ואת send_order_email. בממשק אין בחירת סוג עסק מחוץ לוויזארד ולמסך SA (CLAUDE.md כלל 5). ערכי business_type מאוחדים לפי SA-20.</li>
+<li><b>סוג עסק</b> נכתב רק בשני מסלולים: (1) <code>PATCH /api/biz/wizard/complete</code>, על ידי ADMIN, רק כש-wizard_completed=false, והפעולה מסמנת את הוויזארד כהושלם; (2) <code>PATCH /api/sa/groups/:id</code> עם requireSAPermission('biz') ו-audit. שדה business_type שנשלח לכל נתיב אחר נדחה ב-400. business-settings ממשיך לשמור את table_count ואת send_order_email. בממשק אין בחירת סוג עסק מחוץ לוויזארד ולמסך SA (CLAUDE.md כלל 5). ערכי business_type מאוחדים לפי SA-20: enum של 15 ערכים (restaurant, retail, services, professional, maintenance_repair, beauty, sport, logistics, construction, healthcare, education, events, food_production, store_only, other), עם מיגרציה health→healthcare ו-consulting→professional.</li>
 <li>משתמש FAMILY מסוג account_kind='member': feed ו-myorders הם free. מודולים שנפתחו (unlocked_modules) הם רשומות sa_grant. בקשת מודול (31042) עוברת לסשן family.</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-17</code> (מתוקן; מכסה את BIZ-16), <code>ARC-18</code> (מתוקן), <code>ARC-37</code>; AUTH-13, SA-10, SA-17, SA-18, SA-19, SA-20, SA-21, SA-26; STR-02, STR-49, FAM-02.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-17</code> (מתוקן; מכסה את BIZ-16), <code>ARC-18</code> (מתוקן), <code>ARC-37</code>; AUTH-13, SA-10, SA-17, SA-18, SA-19, SA-20, SA-21, SA-26; STR-02, STR-49, FAM-02.<br><code>RECON-14</code> — enum סוג העסק כולל services ו-store_only, שקיימים ב-BUSINESS_TYPES ובשימוש. כך הוא תואם ל-tobe-sa.<br><code>RECON-11</code> — ss_* נשמרים ב-group_settings.self_service, ונתיב הרישיונות ממשיך לקבל אותם (alias), כדי שמודאל ההגדרות לא ישתנה. tobe-biz ו-tobe-sa יושרו לכך.</div>
 <div>הערות מיגרציה</div><div><ol>
 <li>לכל קבוצת BUSINESS מחושב "מה נגיש היום":
 <ul><li>אם קיים billing_config: המודולים שמסומנים open, ועוד core.</li>
@@ -439,8 +439,8 @@
 <li>פרטי כרטיס אשראי לא נשמרים בשום מקום.</li>
 <li>שלב 2 (backlog): שער סליקה ישראלי בדף מתארח עם tokenization, למנוי חודשי, ובאופן אופציונלי להזמנות storefront.</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-22</code>; SA-36.</div>
-<div>הערות מיגרציה</div><div>סטטוסים קיימים ממופים: רשומה שנוצרה ועדיין לא אושרה → issued; pending_confirm → pending_confirm; paid → paid. מספרי חשבונית קיימים נשמרים, והרצף ממשיך מהמקסימום לכל מנפיק.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-22</code>; SA-36.<br><code>RECON-15</code> — tobe-sa ו-tobe-community עברו לשמות המצבים issued ו-void. המיפוי unpaid→issued ו-cancelled→void מפורש כאן.</div>
+<div>הערות מיגרציה</div><div>סטטוסים קיימים ממופים: רשומה שנוצרה ועדיין לא אושרה (unpaid) → issued; pending_confirm → pending_confirm; paid → paid; cancelled → void. התוויות בממשק ושמות שדות הסיכום בתגובות (למשל total_unpaid) נשמרים. מספרי חשבונית קיימים נשמרים, והרצף ממשיך מהמקסימום לכל מנפיק.</div>
 </div></section>
 
 <h2 class="grp">אינטגרציות, AI וקבצים</h2>
@@ -457,13 +457,13 @@
 <div>כלל יעד</div><div><ol>
 <li>שכבת adapters אחת, <code>integrations/</code>: whatsapp, sms, email, images, ai (ARC-30), storage (ARC-26). כל adapter מחזיר סטטוס אחיד ({sent, failed, skipped_no_config, invalid_phone}), ונרשם ב-notification_deliveries (ARC-16). השליחה מתבצעת מה-outbox אחרי COMMIT, עם retry מוגבל.</li>
 <li>WhatsApp: סכמה אחת ל-whatsapp_settings עם 12 מפתחות WA_TYPE_KEYS, ov_* ו-tpl_*. הכלל האפקטיבי הוא <code>ov ?? setting ?? global ?? true</code>, ושליחה רק כש-enabled (SA-41, SA-42). סדר בחירת התבנית נשמר: תבנית העסק, אחריה ברירת המחדל הגלובלית, ואחריה WA_DEFAULTS (4508-4523). החתימה היא WEFLOWZ (SA-46, ARC-39). כל קישורי wa.me בלקוח נשמרים כפי שהם.</li>
-<li>SMS: Twilio בלבד. smsService המת מוסר. sms_debug_code וטלפון הבדיקה פעילים רק כש-NODE_ENV!='production' (SA-49, ARC-31).</li>
+<li>SMS: Twilio בלבד. smsService המת מוסר. sms_debug_code: מחוץ לייצור כמו היום. בייצור הקוד הקבוע חל רק על טלפונים שברשימה המפורשת sms_test_phones (עד 10), וכל טלפון אחר מקבל קוד אקראי (SA-49 מתוקן, <code>ARC-31</code>). הקוד הקבוע באורך 6 ספרות (<code>ARC-29</code>).</li>
 <li>דוא"ל: כל שליחה עוברת דרך sendSystemEmail. התבניות מוגדרות פעם אחת (emailTemplates עם render ו-auto-escape, ARC-27). אין כתובת קשיחה: כש-admin_notification_email ריק, מיילי SA לא נשלחים ונרשמת אזהרה. כל שליחה נרשמת (email_log או notification_deliveries) (SA-47). הערות פנימיות לא נשלחות לנמען חיצוני (SA-48).</li>
 <li><b>סודות</b> רק במשתני סביבה או ב-secret manager, לעולם לא ב-DB או ב-API: DATABASE_URL, GEMINI_API_KEY (מוחלף מיד, ARC-30), ANTHROPIC_API_KEY, HF_TOKEN, PIXABAY_API_KEY, PEXELS_API_KEY, TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER, SMTP_USER/SMTP_PASS (+SMTP_HOST/PORT עם ברירת מחדל Gmail כמו היום), ULTRAMSG_INSTANCE_ID/TOKEN, CLOUDINARY_API_KEY/API_SECRET (עוברים מ-system_settings), OTP_SECRET (AUTH-39), CSRF_SECRET, SENTRY_DSN. SEED_SECRET ו-SMS_SERVICE מוסרים.</li>
 <li><b>תצורה לא סודית</b> ב-system_settings, עם allow-list לכתיבה (SA-54) ו-audit: smtp_from_email, smtp_from_name, admin_notification_email, cloudinary_cloud_name, cloudinary_upload_preset (ציבוריים), מודלי AI ומכסות (ARC-30), קבועים עסקיים (סעיף הקבועים). APP_URL הוא כתובת הבסיס היחידה, ו-BASE_URL נשאר alias.</li>
 <li>Pixabay, Pexels ו-Pollinations נקראים רק מהשרת, אחרי אימות (ARC-30).</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-31</code>, <code>ARC-39</code>, <code>ARC-16</code>; SA-41..SA-49, AUTH-39.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-31</code>, <code>ARC-39</code>, <code>ARC-16</code>; SA-41..SA-49, AUTH-39.<br><code>RECON-05</code> — קוד הדיבאג בייצור חל רק על sms_test_phones (SA-49 מתוקן), כדי שבודקי SA ימשיכו לבדוק זרימות SMS בייצור.</div>
 <div>הערות מיגרציה</div><div>הערכים cloudinary_api_secret ו-SMTP שנמצאים היום ב-system_settings מועברים למשתני סביבה ונמחקים מה-DB. מפתחות שנחשפו (GEMINI_API_KEY דרך /api/guide-config, Cloudinary secret) מוחלפים. whatsapp_settings: notify_* מועתקים ל-owner_* (SA-42), כך שהעדפות קיימות נשמרות.</div>
 </div></section>
 
@@ -561,11 +561,11 @@
 <li>כל סיסמה, PIN או קוד זמני נשמר כ-bcrypt (cost 12 לסיסמאות ול-PIN, 10 לקודים קצרי חיים). קודי OTP נשמרים כ-HMAC-SHA256 עם OTP_SECRET (AUTH-39). אין השוואת plaintext בשום מקום. PUT /api/settings/tour עובר ל-requireSAPermission('content').</li>
 <li><b>סיסמת דמו (מתוקן):</b> SA לוחץ "אפס והצג סיסמת דמו". נוצרת סיסמה חדשה, מוצגת פעם אחת ונשמרת רק כ-bcrypt. כך SA יכול תמיד למסור פרטי כניסה לעסק דמו, בלי שהסיסמה נשמרת בגלוי.</li>
 <li>סיסמה זמנית של SOLO: מוגרלת, מוחזרת פעם אחת בתגובה כדי שהעסק יציג אותה או ישלח אותה בוואטסאפ כמו היום, ונשמרת רק כ-bcrypt (AUTH-37).</li>
-<li>קודי דיבאג (sms_debug_code) וטלפון בדיקה פעילים רק כש-NODE_ENV!='production' (SA-49).</li>
+<li>קודי דיבאג (sms_debug_code, 6 ספרות): מחוץ לייצור כמו היום. בייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן, כמו ב-tobe-sa).</li>
 <li>סודות צד שלישי רק במשתני סביבה או ב-secret manager (ראו סעיף האינטגרציות).</li>
 <li>מדיניות סיסמה אחידה: מינימום 6 תווים בכל endpoint (AUTH-24).</li>
 </ol></div>
-<div>החלטות שהוחלו</div><div><code>ARC-31</code> (מתוקן); AUTH-23, AUTH-24, AUTH-37, AUTH-39, SA-04, SA-32, SA-49, SA-56.</div>
+<div>החלטות שהוחלו</div><div><code>ARC-31</code> (מתוקן); AUTH-23, AUTH-24, AUTH-37, AUTH-39, SA-04, SA-32, SA-49, SA-56.<br><code>RECON-05</code> — כלל קוד הדיבאג יושר ל-SA-49 המתוקן (sms_test_phones בייצור, 6 ספרות).</div>
 <div>הערות מיגרציה</div><div>demo_password_plain ו-solo_temp_password מגובבים במיגרציה (כשאין hash קיים), והעמודה הגלויה נמחקת. sa_password מוחלף ב-sa_users.password_hash (סעיף הרשאות SA). קוד שמשווה plaintext מוסר באותו שחרור.</div>
 </div></section>
 
@@ -673,7 +673,7 @@
 <tr><td>מגבלת ייבוא קטלוג</td><td>standard 50 / premium 100 / enterprise 500</td><td>platform_config (13628)</td></tr>
 <tr><td>OTP</td><td>6 ספרות, 10 דק', 5 ניסיונות, 3 בשעה ו-10 ביום</td><td>ARC-29</td></tr>
 <tr><td>verified token בהרשמה</td><td>15 דק'</td><td>כקיים (7690)</td></tr>
-<tr><td>תוקף סשן</td><td>30 יום מתגלגל, תקרה 90; SA 12 שע'; התחזות שעה</td><td>ARC-09</td></tr>
+<tr><td>תוקף סשן</td><td>30 יום מתגלגל, תקרה 90; SA 12 שע' מתגלגלות, תקרה 7 ימים; התחזות שעה</td><td>ARC-09</td></tr>
 <tr><td>PIN לקוח חנות</td><td>5 ניסיונות / 15 דק'</td><td>כקיים</td></tr>
 <tr><td>חשבון מוקפא עד ארכוב / snapshot</td><td>30 יום / 30 יום</td><td>כקיים</td></tr>
 <tr><td>העלאה</td><td>תמונה 8MB, PDF 15MB</td><td>ARC-26</td></tr>

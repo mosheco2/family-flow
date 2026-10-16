@@ -4,7 +4,7 @@
 <p><b>מושגים משותפים שהמפרט מגדיר:</b> <code>woFinancials</code> (הכנסה = total_amount + הצעות משויכות, ועלויות), <code>dealTotal</code> ו-<code>recalcPaymentStatus</code> (גביה), <code>releaseReservation</code> (שחרור שריון לפי מקור), סטטוסים קנוניים לפקודות עבודה ולקריאות שירות, וסמנטיקת PATCH: שדה שלא נשלח לא משתנה, null מנקה. כל התראה פנימית נכתבת דרך פונקציה אחת (<code>SA-52</code>/<code>ARC-16</code>), עם reference_key ל-dedup.</p>
 <p><b>פריטים שעודכנו (16)</b>. בכל אחד: מזהה, למה שונה, והכלל הסופי.</p>
 <ul>
-<li><code>SRV-01</code> (FIX). <b>למה עודכן:</b> ההצעה קבעה status='open' להמרה בלי תאריך, אבל היום המרה מעבירה ל-processing ומוצגת כ'בטיפול' בטאב התיקים. ההצעה גם לא הזכירה את שתי נקודות הכניסה בממשק ואת חילוץ הכותרת מה-metadata. <b>הכלל הסופי:</b> נתיב שרת יחיד POST /api/work-orders/convert/:quoteId לשתי נקודות הכניסה (כפתור ההמרה ומודל 'יעד אספקה'). ללא target_datetime: status=processing כמו היום. עם target_datetime: status=scheduled ונוצר אירוע יומן מקושר. הכול בטרנזקציה אחת: quote_status=approved, quote_title (כולל חילוץ מה-metadata), אירוע quote_history, timeline 'created' והתראה למשפחה אחרי COMMIT. הצעה שכבר הומרה → 409. to-work-order מוסר רק כמימוש כפול.</li>
+<li><code>SRV-01</code> (FIX). <b>למה עודכן:</b> ההצעה קבעה status='open' להמרה בלי תאריך, אבל היום המרה מעבירה ל-processing ומוצגת כ'בטיפול' בטאב התיקים. ההצעה גם לא הזכירה את שתי נקודות הכניסה בממשק ואת חילוץ הכותרת מה-metadata. <b>הכלל הסופי:</b> נתיב שרת יחיד POST /api/work-orders/convert/:quoteId לשתי נקודות הכניסה (כפתור ההמרה ומודל 'יעד אספקה'). ללא target_datetime: status=processing כמו היום. עם target_datetime: status נשאר processing, target_datetime נשמר ונוצר אירוע יומן מקושר (<code>RECON-21</code>). הכול בטרנזקציה אחת: quote_status=approved, quote_title (כולל חילוץ מה-metadata), אירוע quote_history, timeline 'created' והתראה למשפחה אחרי COMMIT. הצעה שכבר הומרה → 409. to-work-order לא מוסר: הוא נשאר alias לאותו handler (<code>ARC-34</code>), כי מודל "יעד אספקה" קורא לו היום. גם עם target_datetime הסטטוס נשאר processing, כמו היום (<code>RECON-21</code>).</li>
 <li><code>SRV-03</code> (BEHAVIOR). <b>למה עודכן:</b> ההצעה הגבילה מעברים: אין cancelled מ-completed, ופתיחה מחדש רק ל-ADMIN. היום כל משתמש עסקי מורשה יכול להעביר תיק לכל סטטוס, וזו יכולת קיימת של תיקון ידני. <b>הכלל הסופי:</b> רשימת סטטוסים סגורה ואחידה לכל המסכים: open, scheduled, processing, pending_payment, completed, cancelled. new ממופה ל-open (גם במיגרציה וגם ב-AI). ערך שאינו ברשימה → 400. בין סטטוסים קנוניים מותר כל מעבר לכל משתמש עם הרשאת כתיבה למודול, כמו היום, עם timeline ו-audit. מעבר ל-cancelled משחרר שריונים. 'פעיל' = open|scheduled|processing|pending_payment. הכותרת תמיד quote_title.</li>
 <li><code>SRV-08</code> (BEHAVIOR). <b>למה עודכן:</b> ההצעה אסרה למחוק תחנה שנגבתה (409), וזו פעולה שזמינה היום. היא גם הגבילה ל-ADMIN. <b>הכלל הסופי:</b> receive אטומי (WHERE status='pending', אחרת 409). מחיקת תחנה שנגבתה נשארת זמינה לבעלי ההרשאה של היום, והיא רושמת תנועה הפוכה ב-transactions באותה טרנזקציה. נוספה פעולה חדשה 'ביטול גביה' (ADMIN/MANAGER): התחנה חוזרת ל-pending עם תנועה הפוכה. payment_status מחושב בפונקציה אחת: אין תחנות→NULL, כולן received→paid, חלק→partial, אף אחת→pending_payment.</li>
 <li><code>SRV-09</code> (CONSISTENCY). <b>למה עודכן:</b> לפי ההצעה סכום העסקה נגזר בלבד. אבל בטופס התחנה יש היום שדה 'סכום עסקה' (wo-pay-original-amount) שהמשתמש ממלא ידנית, וביטולו היה מצמצם יכולת. <b>הכלל הסופי:</b> סכום העסקה מחושב בשרת בפונקציה אחת dealTotal: קודם override ידני שנשמר ברמת ההזמנה או הקריאה (deal_total_override), לא בכל תחנה. אחרת, לפקודה: הכנסת הפקודה (SRV-07). לקריאה: price_quote×(1−discount_pct/100). אחרת Σ amount. השרת מחזיר deal_total, received_total ו-remaining, והלקוח מציג אותם.</li>
@@ -36,9 +36,9 @@
 <li>ממשק: אישור <code>_uiConfirm</code> עם נוסח שונה לעסק <code>professional</code> ("להמיר הצעה זו לתיק?") (42691-42695) — ללא שינוי.</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li><b>טרנזקציה אחת</b> (<code>withTransaction</code>, <code>ARC-11</code>), נעילת שורת ההצעה <code>FOR UPDATE</code>.</li>
+<li><b>טרנזקציה אחת (withTransaction, ARC-11), נעילת שורת ההצעה FOR UPDATE. כוללת גם את תופעות הלוואי מ-/approve (tobe-store, STR-29): upsert לקוח (STR-42) ו-business_id מ-metadata.companyId אם הוא של העסק. created_at לא נדרס.</li>
 <li>חילוץ כותרת: <code>title</code> מהגוף, אחרת <code>quote_title</code>, אחרת מפריט metadata (<code>is_quote_metadata</code> → JSON <code>data.title/notes</code>), ברירת מחדל "פקודת עבודה — &lt;לקוח|מס' הצעה|#id&gt;" (הלוגיקה של 15094-15105 נשמרת).</li>
-<li><code>UPDATE store_orders SET call_type='work_order', quote_status='approved', quote_title=…, status=(target_datetime ? 'scheduled' : 'processing'), target_datetime=COALESCE($t, target_datetime)</code>.</li>
+<li><code>UPDATE store_orders SET call_type='work_order', quote_status='approved', quote_title=…, status='processing', target_datetime=COALESCE($t, target_datetime).</li>
 <li>הוספת אירוע <code>{type:'converted_to_work_order',actor:'business',at}</code> ל-<code>quote_history</code> (jsonb append).</li>
 <li>INSERT <code>work_order_timeline</code> (<code>event_type='created'</code>, "פקודת עבודה נוצרה מהצעת מחיר", <code>user_name</code> מהסשן או 'מנהל') — בעמודות הקיימות בסכמה בלבד.</li>
 <li>אם נשלח <code>target_datetime</code>: INSERT <code>calendar_events</code> (status approved, <code>work_order_id</code>, notes <code>ORDER_REF:&lt;id&gt;</code>, כותרת הפקודה) — במקום שתי הקריאות הנפרדות מהלקוח (<code>/calendar/events</code> + <code>PATCH target-date</code>, 9680-9702).</li>
@@ -47,15 +47,15 @@
 <div>חישובים</div><div>ללא חישוב כספי; total_amount של ההצעה נשמר כפי שהוא.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
 <tr><td>quote (call_type≠work_order)</td><td>processing + call_type=work_order + quote_status=approved</td><td>BIZ</td><td>בעלות, ללא target_datetime</td><td>timeline created, quote_history, התראה למשפחה</td></tr>
-<tr><td>quote (call_type≠work_order)</td><td>scheduled + call_type=work_order + quote_status=approved</td><td>BIZ</td><td>בעלות, עם target_datetime</td><td>כנ"ל + אירוע יומן מקושר (work_order_id)</td></tr>
+<tr><td>quote (call_type≠work_order)</td><td>processing + call_type=work_order + quote_status=approved + target_datetime</td><td>BIZ</td><td>בעלות, עם target_datetime</td><td>כנ"ל + אירוע יומן מקושר (work_order_id)</td></tr>
 <tr><td>work_order</td><td>—</td><td>BIZ</td><td>כבר הומרה</td><td>409</td></tr></table></div></div>
 <div>תופעות לוואי</div><div>Timeline; quote_history; אירוע יומן (רק עם תאריך); התראה למשפחה. ממשק אחרי הצלחה: <code>fetchStoreQuotes</code>, <code>fetchWorkOrders</code>, פתיחת <code>openWorkOrderModal</code>, ניווט ל-<code>cases</code> (professional) או לטאב sales/work-orders (42704-42711) — ללא שינוי.</div>
 <div>ממשק</div><div>שני הכפתורים קיימים כמו היום. כותרות: professional="תיק", maintenance_repair="קריאה #id" (43140). מודל "יעד אספקה" שולח קריאה אחת עם Bearer (<code>SRV-04</code>).</div>
 <div>שינויים מהקיים</div><div><ul>
-<li><code>SRV-01</code> — נתיב שרת יחיד (convert) לשתי נקודות הכניסה; <code>/api/store/quotes/:id/to-work-order</code> מוסר כמימוש כפול. ללא תאריך — status נשאר processing כמו היום; עם תאריך — scheduled + אירוע יומן באותה טרנזקציה. הצעה שהומרה → 409 (במקום 404).</li>
+<li><code>SRV-01</code> — נתיב שרת יחיד (convert) לשתי נקודות הכניסה; <code>/api/store/quotes/:id/to-work-order נשאר alias לאותו handler. הסטטוס processing כמו היום, ועם תאריך נוספים target_datetime ואירוע יומן באותה טרנזקציה. הצעה שהומרה → 409 (במקום 404).</li>
 <li><code>SA-52</code> (דרך <code>SRV-02</code>) — ההתראה למשפחה נכתבת לעמודות הקיימות (trigger_type, message, reference_key) ונשמרת בפועל.</li>
 <li><code>SRV-04</code> — מסלול "יעד אספקה" שולח Authorization דרך <code>bizFetch</code>.</li>
-</ul></div>
+<li><code>RECON-21</code> — יושר עם tobe-store: handler יחיד, to-work-order נשאר alias, הסטטוס processing גם עם תאריך (לא scheduled), ותופעות הלוואי של /approve מוזגו לכאן.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="work order new create empty case פתח תיק חדש"><h3>יצירת פקודת עבודה / תיק ריק</h3>
@@ -725,14 +725,15 @@
 <div>הרשאות</div><div>סשן BIZ; <code>AND group_id</code> בכל שאילתה לפי id.</div>
 <div>קלט ואימותים</div><div>status ∈ {approved, rejected, cancelled}; מעבר לא חוקי → 409 "האירוע כבר טופל".</div>
 <div>שלבי עיבוד</div><div><ol>
-<li>טרנזקציה: <code>UPDATE calendar_events SET status='approved' WHERE id=$1 AND group_id=$g AND status='pending' RETURNING</code>; 0 שורות על אירוע שכבר approved → 409 בלי תור/SMS/שולחן נוספים.</li>
+<li>טרנזקציה: UPDATE calendar_events SET status='approved' (בעסק beauty: status='converted', BTY-41) WHERE id=$1 AND group_id=$g AND status='pending' RETURNING; 0 שורות על אירוע שכבר approved → 409 בלי תור/SMS/שולחן נוספים.</li>
 <li>approved + table_reservation: הקצאת שולחן פנוי (אותו אלגוריתם) → UPDATE reserved_table_number; אחרי COMMIT: SMS ב-Twilio "&lt;עסק&gt; — הזמנת שולחן אושרה! … WEFLOWZ" (טלפון 0X→+972); inbox ללקוח.</li>
-<li>approved + עסק beauty: יצירת <code>beauty_appointments</code> עם <code>calendar_event_id</code> (UNIQUE) (source storefront, confirmed, total 0) + segment 1 (duration מקטלוג או 60, practitioner = <code>preferred_practitioner_id</code> של האירוע אם קיים, אחרת המועדף); אחרי COMMIT: SMS "התור שלך אושר! ✅ … 💅"; inbox "הסלון".</li>
+<li>עסק beauty (תהליך הבעלים: tobe-beauty, "בקשת תור מהחנות"): האירוע עובר ל-converted, ונוצר beauty_appointments עם calendar_event_id (UNIQUE) ו-calendar_events.converted_appointment_id (source storefront, confirmed, total_price = מחיר השירות מהקטלוג, BTY-40) + segment 1 (duration מקטלוג או 60, practitioner = <code>preferred_practitioner_id</code> של האירוע אם קיים, אחרת המועדף); אחרי COMMIT: SMS "התור שלך אושר! ✅ … 💅"; inbox "הסלון".</li>
 <li>cancelled (אירוע approved): status cancelled; תור יופי מקושר → cancelled; הודעה ללקוח "התור בוטל".</li>
 <li>DELETE: נשאר כמו היום ("הבקשה נדחתה"/"התור בוטל").</li>
 <li>תזכורת (חדש, opt-in): משימת worker שולחת SMS שעתיים לפני אירוע approved עם customer_phone, פעם אחת (refKey <code>cal_remind_&lt;id&gt;</code>), רק אם העסק הפעיל "תזכורת SMS" בהגדרות היומן (ברירת מחדל כבוי).</li></ol></div>
 <div>חישובים</div><div>זמן תזכורת = event_date+start_time (Asia/Jerusalem) − 2 שעות.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
+<tr><td>pending</td><td>converted (עסק beauty)</td><td>BIZ</td><td>אטומי, בדיקת התנגשות</td><td>תור יופי confirmed + SMS + inbox (פעם אחת); אישור חוזר → 409 "הבקשה כבר טופלה"</td></tr>
 <tr><td>pending</td><td>approved</td><td>BIZ</td><td>אטומי</td><td>שולחן/תור יופי + SMS + inbox (פעם אחת)</td></tr>
 <tr><td>approved</td><td>approved</td><td>—</td><td>אישור חוזר</td><td>409, ללא תופעות</td></tr>
 <tr><td>pending</td><td>rejected</td><td>BIZ (reject-with-alts)</td><td>—</td><td>alternatives_json + inbox</td></tr>
@@ -745,7 +746,7 @@
 <li><code>SRV-26</code> — שינוי סטטוס ומחיקה דורשים סשן עסקי ובעלות.</li>
 <li><code>SRV-30</code> — המטפלת המועדפת עוברת מהבקשה לאירוע ולתור היופי.</li>
 <li><code>SRV-31</code> — התיעוד מתאר את המודל בפועל (אירוע pending → אישור/דחייה); תזכורת SMS שעתיים לפני — אופציונלית, כבויה כברירת מחדל.</li>
-</ul></div>
+<li><code>RECON-23</code> — בעסק beauty האירוע עובר ל-converted (BTY-41), והתור מקבל את מחיר השירות מהקטלוג (BTY-40) ולא 0, כמו ב-tobe-beauty. הקישור UNIQUE לפי calendar_event_id נשמר, ונוסף converted_appointment_id.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="calendar suggest alternatives reject with alts table restaurant חלופות דחייה"><h3>דחיית הזמנת שולחן עם 3 חלופות</h3>
@@ -773,7 +774,7 @@
 <li>Rate limit: לפי <code>ARC-29</code> (3 SMS לשעה ו-10 ליום לטלפון) ובנוסף 10 בקשות ל-IP בשעה → 429.</li>
 <li>verify: קוד באורך 6 → אחרת 400 "קוד שגוי"; temp pending לאותו group → 404 "בקשה לא נמצאה"; קוד שגוי → "קוד שגוי" ו-attempts+1; 5 ניסיונות שגויים → הבקשה נפסלת ("יותר מדי ניסיונות — שלח בקשה חדשה"); תוקף 10 דקות (<code>ARC-29</code>) → "קוד פג תוקף".</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li>קוד אקראי 6 ספרות (crypto); נשמר hashed (<code>ARC-31</code>). <code>system_settings.sms_debug_code</code> פעיל רק כש-NODE_ENV≠production.</li>
+<li>קוד אקראי 6 ספרות (crypto); נשמר hashed (<code>ARC-31</code>). <code>system_settings.sms_debug_code: מחוץ לייצור כמו היום; בייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן).</li>
 <li>INSERT <code>temp_booking_requests</code> (כולל preferred_practitioner_id, attempts=0) + SMS "בקשת תור ✅ … קוד אישור: XXXXXX".</li>
 <li>verify (טרנזקציה): איתור customer_group_id מ-<code>storefront_customers.phone</code>; INSERT <code>calendar_events</code> pending (title "שם — שירות", <code>preferred_practitioner_id</code>); temp→verified; <code>upsertStoreCustomer</code>.</li></ol></div>
 <div>חישובים</div><div>—</div>
@@ -783,7 +784,7 @@
 <div>שינויים מהקיים</div><div><ul>
 <li><code>SRV-30</code> — rate limit, מגבלת 5 ניסיונות, קוד 6 ספרות, קוד דיבאג רק מחוץ לייצור, המטפלת המועדפת נשמרת על האירוע.</li>
 <li><code>SRV-36</code> — הנתיב דורש טוקן sc-auth בשרת, בהתאם לשער ההתחברות שכבר קיים בממשק.</li>
-</ul></div>
+<li><code>RECON-05</code> — קוד הדיבאג בייצור רק לטלפוני בדיקה (SA-49 מתוקן).</li></ul></div>
 </div></section>
 
 <h2 class="grp">פורטל לקוח חנות (sc-auth)</h2>
@@ -795,19 +796,19 @@
 <div>קלט ואימותים</div><div><ul>
 <li>phone חובה; ספרות 9..15 → "מספר טלפון לא תקין".</li>
 <li>email channel: regex מייל על ה-email או המייל השמור → "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li>
-<li>Rate: ≥3 קודים לטלפון+purpose ב-10 דקות → "נשלחו יותר מדי קודים — נסה שוב בעוד 10 דקות" (נשמר), ובנוסף מגבלות <code>ARC-29</code> (3 לשעה, 10 ליום, מונה ב-DB) → 429.</li>
+<li>Rate: מגבלות <code>ARC-29</code> בלבד (3 לשעה ו-10 ליום לטלפון, לפי otp_send_log ב-DB, כמו ב-tobe-auth) → 429 "נשלחו יותר מדי קודים — נסה שוב מאוחר יותר".</li>
 <li>verify: OTP לא used ולא פג; attempts≥5 → סימון used + "יותר מדי ניסיונות — שלח קוד חדש"; קוד שגוי → attempts+1.</li>
 <li>לקוח: טלפון ≥9 ספרות, קוד 6 ספרות.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li>קוד 6 ספרות 100000-999999 (crypto); bcrypt cost 10 (<code>ARC-31</code>); INSERT <code>storefront_otp</code> expires +5 דק', channel sms/email.</li>
-<li>שליחה: <code>sendSystemEmail</code> או Twilio "WEFLOWZ\nקוד האימות שלך: X (בתוקף 5 דקות)"; ב-non-production מודפס ללוג. כשל שליחת SMS → 502 JSON "שליחת ה-SMS נכשלה — ניתן לקבל את הקוד במייל" (<code>channelFallback:'email'</code>).</li>
+<li>קוד 6 ספרות 100000-999999 (crypto); bcrypt cost 10 (<code>ARC-31</code>); INSERT storefront_otp expires +10 דק' (<code>ARC-29</code>; תואם ל-tobe-auth), channel sms/email.</li>
+<li>שליחה: <code>sendSystemEmail</code> או Twilio "WEFLOWZ\nקוד האימות שלך: X (בתוקף 10 דקות)"; ב-non-production מודפס ללוג. כשל שליחת SMS → 502 JSON "שליחת ה-SMS נכשלה — ניתן לקבל את הקוד במייל" (<code>channelFallback:'email'</code>).</li>
 <li>verify הצלחה: used=TRUE; לקוח חדש → <code>{isNew:true, registration_token}</code> (ראו הרשמה); קיים → יצירת סשן storefront (token 96 hex / טבלת sessions <code>ARC-01</code>, 30 יום) והחזרת לקוח ללא pin_hash.</li>
 <li>כל הנתיב עטוף בטיפול שגיאות: כשל DB → 500 <code>{success:false, error:'שגיאת שרת'}</code> (<code>ARC-33</code>).</li></ol></div>
 <div>חישובים</div><div>E.164: מתחיל 972 → '+'; מתחיל 0 → '+972'+slice(1); אחרת '+'.</div>
 <div>מכונת מצבים</div><div>storefront_otp: active → used | expired | locked (5 ניסיונות).</div>
 <div>תופעות לוואי</div><div>SMS/מייל; סשן.</div>
 <div>ממשק</div><div>ללא שינוי; בכשל SMS מוצג כפתור "שלח במייל" (הקיים, <code>sendOtpByEmail</code>).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>SRV-35</code> — כל נתיבי sc-auth עטופים בטיפול שגיאות (500 JSON), וכשל SMS מחזיר הודעה ומציע ערוץ מייל.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-35</code> — כל נתיבי sc-auth עטופים בטיפול שגיאות (500 JSON), וכשל SMS מחזיר הודעה ומציע ערוץ מייל.</li><li><code>RECON-01</code> — תוקף הקוד 10 דקות (במקום 5) ומגבלת שליחה 3 לשעה ו-10 ליום, לפי <code>ARC-29</code> ו-tobe-auth, שהוא בעל התהליך.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="sc-auth register pin 6 digits family solo account shopper registration token הרשמה"><h3>הרשמת לקוח חנות</h3>
@@ -819,15 +820,15 @@
 <li>firstName, lastName, pin חובה → "חסרים שדות חובה"; PIN בדיוק 6 ספרות; טלפון קיים עם pin_hash → "מספר טלפון זה כבר רשום — נסה להתחבר".</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>טרנזקציה: מחיקה/סימון הטוקן כמשומש (אטומי).</li>
-<li>pin bcrypt cost 10.</li>
-<li>חיפוש משתמש קיים עם הטלפון בקבוצה active (עדיפות FAMILY, אח"כ BUSINESS) → family_group_id; אחרת יצירת <code>family_groups</code> (FAMILY, plan solo, <code>group_code='SC'+6 ספרות אחרונות</code>, account_kind shopper לפי <code>ARC-20</code>) + <code>users</code> ADMIN עם הטלפון.</li>
+<li>pin bcrypt cost 12 (<code>ARC-31</code>, AUTH-23).</li>
+<li>חיפוש משתמש קיים עם הטלפון בקבוצה active (עדיפות FAMILY, אח"כ BUSINESS) → family_group_id; אחרת יצירת <code>family_groups</code> (FAMILY, plan solo, <code>group_code מ-generateGroupCode האחיד (AUTH-45), account_kind shopper לפי <code>ARC-20</code>) + <code>users</code> ADMIN עם הטלפון.</li>
 <li>חשבון "שקט" קיים (בלי PIN) → UPDATE, אחרת INSERT <code>storefront_customers</code>.</li>
 <li>יצירת session 30 יום. COMMIT.</li></ol></div>
 <div>חישובים</div><div>—</div>
 <div>מכונת מצבים</div><div>storefront_customers: שקט (ללא PIN) → רשום (עם PIN).</div>
 <div>תופעות לוואי</div><div>family_groups/users חדשים; סשן.</div>
 <div>ממשק</div><div><code>_saveSession</code> (291) שומר <code>sc_auth_token</code>/<code>sc_customer</code> ב-localStorage, ממלא שדות checkout, ומריץ פעולה ממתינה <code>window._pendingAfterScLogin</code>. הלקוח מעביר את ה-registration_token שקיבל מ-verify-otp. ללא שינוי חזותי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>AUTH-04</code> (קנוני ל-<code>SRV-32</code>) — הרשמה מחייבת registration_token מ-verify-otp; הטלפון מהטוקן; אין השתלטות על חשבון שקט או על קישור משפחה.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-04</code> (קנוני ל-<code>SRV-32</code>) — הרשמה מחייבת registration_token מ-verify-otp; הטלפון מהטוקן; אין השתלטות על חשבון שקט או על קישור משפחה.</li><li><code>RECON-02</code> — PIN ב-bcrypt 12 וקוד קבוצה מ-generateGroupCode, כמו בתהליך ההרשמה ב-tobe-auth.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="sc-auth session me profile logout sliding expiry סשן פרופיל"><h3>סשן, פרופיל והתנתקות</h3>
@@ -848,16 +849,16 @@
 <div>מטרה וטריגר</div><div><code>requirePin/confirmPin</code> (sc-auth.js:322-344) → <code>POST /verify-pin</code> (43411); <code>doChangePin</code> → <code>PATCH /change-pin</code> (43393); <code>sendForgotPin</code> → <code>POST /forgot-pin</code> (43442); <code>doResetPin</code> → <code>POST /reset-pin</code> (43462).</div>
 <div>הרשאות</div><div>verify-pin, change-pin: Bearer של sc-auth. forgot-pin, reset-pin: ציבוריים מוצהרים.</div>
 <div>קלט ואימותים</div><div><ul>
-<li>verify-pin: נעילה נשמרת ב-DB (<code>storefront_customers.failed_pin_attempts</code>, <code>locked_until</code>): אחרי 5 כשלונות נעילה 15 דקות ("יותר מדי ניסיונות — נסה שוב בעוד N דקות"); הודעה "PIN שגוי (k ניסיונות נוספים)"; הצלחה מאפסת את המונה.</li>
+<li>verify-pin: נעילה נשמרת ב-DB בטבלה <code>pin_attempts(customer_id, attempts, locked_until)</code> (AUTH-38, כמו ב-tobe-auth): אחרי 5 כשלונות נעילה 15 דקות ("יותר מדי ניסיונות — נסה שוב בעוד N דקות"); הודעה "PIN שגוי (k ניסיונות נוספים)"; הצלחה מאפסת את המונה.</li>
 <li>change-pin: newPin 6 ספרות; currentPin שגוי → "ה-PIN הנוכחי שגוי" (נספר במונה הנעילה).</li>
-<li>forgot-pin: טלפון לא רשום → "מספר לא רשום"; עד 3 קודים ל-10 דקות לטלפון (ובנוסף <code>ARC-29</code>) → 429.</li>
+<li>forgot-pin: תגובה אחידה תמיד, "אם המספר רשום — נשלח קוד" (AUTH-44), גם כשהטלפון לא רשום; עד 3 קודים ל-10 דקות לטלפון (ובנוסף <code>ARC-29</code>) → 429.</li>
 <li>reset-pin: OTP purpose pin_reset בתוקף; קוד שגוי → "קוד שגוי" ו-attempts+1; 5 ניסיונות → הקוד נפסל ("יותר מדי ניסיונות — שלח קוד חדש").</li></ul></div>
 <div>שלבי עיבוד</div><div>forgot: OTP 6 ספרות (hashed), תוקף 10 דקות, SMS "קוד לאיפוס ה-PIN". reset (טרנזקציה): used=TRUE, pin_hash חדש לפי טלפון, איפוס מונה נעילה, ביטול סשנים אחרים של הלקוח (<code>ARC-09</code>).</div>
 <div>חישובים</div><div>locked_until = NOW()+15 דק' בכשלון החמישי.</div>
 <div>מכונת מצבים</div><div>לקוח: פעיל → נעול (15 דק') → פעיל.</div>
 <div>תופעות לוואי</div><div>SMS.</div>
 <div>ממשק</div><div>ללא שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>SRV-33</code> — forgot-pin מוגבל ל-3 ל-10 דקות; reset-pin עם 5 ניסיונות לקוד; נעילת PIN נשמרת ב-DB (שורדת ריסטארט ומופעים מרובים, <code>ARC-24</code>).</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>SRV-33</code> — forgot-pin מוגבל ל-3 ל-10 דקות; reset-pin עם 5 ניסיונות לקוד; נעילת PIN נשמרת ב-DB (שורדת ריסטארט ומופעים מרובים, <code>ARC-24</code>).</li><li><code>RECON-02</code> — מונה הנעילה בטבלת <code>pin_attempts</code>, ו-forgot-pin מחזיר תגובה אחידה (AUTH-44) במקום "מספר לא רשום", כמו ב-tobe-auth.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="sc-auth sso token family app my-families phone match SSO כניסה למשפחה"><h3>SSO מחנות לאפליקציית המשפחה</h3>

@@ -289,7 +289,7 @@
 <div>מטרה וטריגר</div><div>הנהג לוחץ "נמסר ✓" בממשק הנהג, או משתמש תפעול מסמן מסירה במודאל, ונפתח מסך POD: צילום, חתימה וברקוד. <code>PATCH /api/logistics/orders/:id/pod</code> נשמר כנתיב, ומבצע את אותה לוגיקת מעבר ל-delivered (<code>LOG-16</code>).</div>
 <div>הרשאות</div><div>נהג מקושר להזמנה שלו, או משתמש תפעול.</div>
 <div>קלט ואימותים</div><div><ul>
-<li><code>pod_photo_url</code>, <code>pod_signature_url</code>, <code>pod_barcode</code>. קבצים עולים דרך שירות ההעלאה עם סשן (<code>ARC-26</code>): png/jpg/webp, עד 8MB.</li>
+<li><code>pod_photo_url</code>, <code>pod_signature_url</code>, <code>pod_barcode</code>. קבצים עולים דרך שירות ההעלאה עם סשן (<code>ARC-26</code>): png/jpg/webp/gif, HEIC מומר ל-JPEG, עד 8MB.</li>
 <li><code>pod_required=true</code> בהגדרות העסק: לפחות צילום או חתימה, אחרת 400 "נדרש אישור מסירה". ברירת המחדל היא <code>false</code>, ולכן מסירה בלחיצה אחת נשארת כמו היום.</li>
 <li>הסטטוס הנוכחי חייב לאפשר מעבר ל-delivered לפי המטריצה (<code>LOG-06</code>).</li>
 </ul></div>
@@ -305,7 +305,7 @@
 <div>שינויים מהקיים</div><div><ul>
 <li><code>LOG-16</code> — נתיב POD אחד שמבצע את לוגיקת delivered המלאה. נוסף ממשק צילום, חתימה וברקוד, וחובה אופציונלית לפי הגדרת עסק.</li>
 <li><code>ARC-26</code> — העלאה מאובטחת.</li>
-</ul></div>
+<li><code>RECON-06</code> — רשימת הסוגים יושרה ל-<code>ARC-26</code> (תמונת POD מטלפון ב-HEIC מומרת).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="logistics cod collect cash credit qr transfer field undo"><h3>גביית COD בשטח (סימון הזמנה כנגבתה)</h3>
@@ -739,7 +739,7 @@ actor_name = <code>currentUser.name||'נהג'</code>, וגם <code>actor_user_id
 <li>ליד מחנות: רק כש-<code>business_type==='logistics'</code> ויש <code>name</code> (כמו היום). dedupe: טלפון מנורמל (בלי <code>-</code>, רווחים ותווים שאינם ספרות). אם אין טלפון: email (lowercase). אם אין שניהם: שם מדויק + כתובת. כשאין התאמה, הלקוח נוצר (<code>LOG-33</code> בגרסה המעודכנת).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li>ליד: <code>INSERT logistics_customers (group_id, name, phone, email, default_address = pickup_address||address, notes = notesParts.join(' | '))</code>, כמו היום. שגיאה נרשמת בלוג (<code>ARC-33</code>).</li>
+<li>ליד: upsert ל-customers (ARC-14) ו-INSERT ל-logistics_customer_profile (customer_id, default_address = pickup_address||address, notes = notesParts.join(' | ')), עם אותם שדות כמו היום. logistics_customers נשארת לקריאה בלבד עד סיום המיגרציה, ו-logistics_customers הוא גם מזהה הטאב והמודול. שגיאה נרשמת בלוג (<code>ARC-33</code>).</li>
 <li>מחיקה: <code>is_active=false</code>. הזמנות מקושרות נשארות.</li>
 <li>אחרי טעינה: <code>window._logisticsCustomersCache = rows</code> לחיפוש WEFLOWZ (<code>LOG-33</code>).</li>
 </ol></div>
@@ -751,7 +751,7 @@ actor_name = <code>currentUser.name||'נהג'</code>, וגם <code>actor_user_id
 <li><code>LOG-12</code> — קישור הזמנה↔לקוח, יצירה אוטומטית מהזמנה, והסרת oneflow_user_id. בהמשך, מיפוי לישות לקוח מאוחדת לפי <code>ARC-14</code> (טבלת הרחבה).</li>
 <li><code>LOG-33</code> — dedupe משופר שעדיין יוצר לקוח בלי טלפון ואימייל, טווח הנחה, והזנת ה-cache.</li>
 <li><code>LOG-02</code> — group מהסשן.</li>
-</ul></div>
+<li><code>RECON-17</code> — שם הטבלה הקנוני הוא customers + logistics_customer_profile (tobe-arch). logistics_customers נשאר מזהה טאב ומודול.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="logistics invoices vat 18 numbering pending sent paid cancelled monthly email"><h3>חשבוניות לוגיסטיקה</h3>

@@ -12,7 +12,7 @@
 <li><code>STR-15</code>. <b>למה:</b> ההצעה הסירה את ממשק אזורי המשלוח בשמות, שהוא יכולת קיימת ומוצגת. <b>כלל סופי:</b> שני סוגי האזורים נשמרים במודל אחד, <code>service_areas</code> עם type ∈ {named, radius} (<code>ARC-19</code>). אזור בשם מופעל בפועל: התאמה לפי שם העיר, כולל <code>min_order</code>, לעסק בלי מיקום או לכתובת שלא גואוקדה. מעגלי רדיוס גוברים כשיש מיקום ומעגלים.</li>
 <li><code>STR-17</code>. <b>למה:</b> טבלת המעברים שהוצעה חוסמת פעולות קיימות: אישור למטבח (pending_approval→processing), השלמה מיידית בקופה ובמלצר, ביטול אחרי אישור, החזרת סטטוס אחורה ותיקון הזמנה שהושלמה. <b>כלל סופי:</b> enum סגור עם טבלת מעברים רחבה שמכסה כל כפתור קיים, ופונקציה אחת <code>completeOrder()</code>. מפורט בתהליך מחזור החיים.</li>
 <li><code>STR-28</code>. <b>למה:</b> המעברים שהוצעו חסמו שליחה חוזרת אחרי תגובה (<code>resent_updated</code>), הפשרה של הצעה מוקפאת ופתיחה מחדש. <b>כלל סופי:</b> enum סגור. כל מצב שאינו approved יכול לעבור לשליחה, לטיוטה, להקפאה או לביטול. frozen חוזר ל-draft/sent. ההצעה נגמרת רק ב-approved.</li>
-<li><code>STR-29</code>. <b>למה:</b> ההצעה הייתה ממירה הצעות של עסקים שאינם שירות להזמנה בסטטוס 'new' בלי פקודת עבודה. היום הממשק משתמש רק ב-to-work-order לכל סוגי העסקים. <b>כלל סופי:</b> מסלול אישור אחד עם ההתנהגות הנוכחית של to-work-order לכל סוגי העסקים, ואליו נוספות תופעות הלוואי הייחודיות של <code>/approve</code> (upsert לקוח, <code>business_id</code> מ-metadata). <code>/approve</code> מוסר כמימוש כפול בלי קורא. <code>created_at</code> לא נדרס.</li>
+<li><code>STR-29</code>. <b>למה:</b> ההצעה הייתה ממירה הצעות של עסקים שאינם שירות להזמנה בסטטוס 'new' בלי פקודת עבודה. היום הממשק משתמש רק ב-to-work-order לכל סוגי העסקים. <b>כלל סופי:</b> מסלול אישור אחד עם ההתנהגות הנוכחית של to-work-order לכל סוגי העסקים, ואליו נוספות תופעות הלוואי הייחודיות של <code>/approve</code> (upsert לקוח, <code>business_id</code> מ-metadata). <code>/approve מוסר כמימוש כפול בלי קורא. ההמרה היא handler יחיד שמשותף ל-tobe-services (convert), ו-to-work-order נשאר alias אליו (<code>RECON-21</code>). <code>created_at</code> לא נדרס.</li>
 <li><code>STR-36</code>. <b>למה:</b> חיוב מכסת AI על יצירת תמונה, שהיום לא נספרת, מצמצם יכולת. <b>כלל סופי:</b> נדרש סשן BIZ או SA, עם rate limit לפי <code>ARC-29</code>. יצירת תמונה לא צורכת את סוללת ה-AI. כשל מחזיר 404. ההעלאה לפי <code>ARC-26</code> (עד 8MB, png/jpg/webp/gif).</li>
 <li><code>STR-37</code>. <b>למה:</b> הסרת <code>fixed_price</code> הייתה מבטלת מבצעים קיימים מסוג "מחיר קבוע". <b>כלל סופי:</b> הגדרה אחת של submitPromotion. הטופס הישן ב-business.html מוסר, ו-<code>fixed_price</code> נשאר סוג נתמך במנוע התמחור ובטופס הנוכחי ("מחיר קבוע"). התווית של discount_fixed מתוקנת ל"הנחה בסכום קבוע". <code>store_retail_promotions</code> נמחקת.</li>
 <li><code>STR-40</code>. <b>למה:</b> הסרת שני נתיבי ביקורות הייתה שוברת חזיתות שקוראות להם (professional/repairs: <code>/api/store/reviews</code>, מסעדה: <code>/api/store/public-reviews</code>). <b>כלל סופי:</b> handler אחד. שני הנתיבים האחרים נשארים aliases לאותו handler, והתשובה כוללת גם את השדות הקנוניים וגם את השדות הישנים עד שכל החזיתות יעודכנו.</li>
@@ -144,20 +144,20 @@
 <div class="kv">
 <div>מטרה וטריגר</div><div>כפתור AI בטופס המוצר (<code>generateStoreProductAI</code> 15976, <code>generateStoreProductLongAI</code> 15988) ובויזארד (<code>_wizGenDesc</code> 28460, <code>_wizGenLongDesc</code> 28477).</div>
 <div>הרשאות</div><div>סשן BIZ דרך aiGateway (<code>ARC-30</code>). groupId מהסשן, לא מהגוף.</div>
-<div>קלט ואימותים</div><div><ul><li>בצד הלקוח (ללא שינוי): אם אין שם מוצר, "נא להזין קודם את שם המוצר בשדה למעלה".</li><li>אם המכסה ריקה: <code>{success:false,error:'BATTERY_EMPTY'}</code> (ללא שינוי). מפתח חסר: "מפתח AI חסר בשרת".</li></ul></div>
+<div>קלט ואימותים</div><div><ul><li>בצד הלקוח (ללא שינוי): אם אין שם מוצר, "נא להזין קודם את שם המוצר בשדה למעלה".</li><li>אם המכסה ריקה: HTTP 429 {success:false,error:'BATTERY_EMPTY'} (גוף התגובה ללא שינוי, <code>ARC-30</code>). מפתח חסר: "מפתח AI חסר בשרת".</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>מכסה (ללא שינוי בערכים): enterprise ללא הגבלה, עם רישום <code>ai_usage_log</code>. premium=50 ליום, אחר=10 ליום. האיפוס היומי בחצות לפי שעון ישראל (<code>ARC-25</code>). ההפחתה אטומית: <code>UPDATE ... SET ai_tokens=ai_tokens-1 WHERE ai_tokens&gt;0 RETURNING</code> (<code>ARC-30</code>).</li><li>קריאה ל-Gemini <code>gemini-2.5-flash</code> עם אותם פרומפטים. קצר: "פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים)... עם אימוג'ים". מורחב: 3-5 משפטים עם מרכיבים, יתרונות וטיפ, בלי לחזור על התיאור הקצר.</li></ol></div>
 <div>חישובים</div><div>מכסה יומית: standard 10, premium 50, enterprise ∞.</div>
 <div>מכונת מצבים</div><div>אין.</div>
 <div>תופעות לוואי</div><div>הפחתת <code>family_groups.ai_tokens</code> ורישום ב-<code>ai_usage_log</code>. תגובת 429 מהספק מוצגת כ"מערכת ה-AI עמוסה כרגע..." (ללא שינוי).</div>
 <div>ממשק</div><div>ללא שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>ARC-30</code>: הקריאה עוברת דרך aiGateway עם סשן והפחתה אטומית.</li><li><code>ARC-25</code>: האיפוס בחצות לפי שעון ישראל.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-30</code>: הקריאה עוברת דרך aiGateway עם סשן והפחתה אטומית.</li><li><code>ARC-25</code>: האיפוס בחצות לפי שעון ישראל.</li><li><code>RECON-25</code> — BATTERY_EMPTY מוחזר תמיד עם HTTP 429, כמו ב-tobe-arch. הלקוח קורא את הגוף, ולכן ההודעה לא משתנה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="ai image generate pixabay pexels pollinations cloudinary upload product image"><h3>תמונת מוצר אוטומטית (POST /api/store/catalog/generate-image) והעלאת תמונה</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>"צור תמונה" בטופס המוצר (<code>generateProductImage</code> 16114), בויזארד (<code>_wizGenImage</code> 28436) ומ-SA (sa-app.js:15893). העלאת קובץ: <code>POST /api/upload/product-image</code>.</div>
 <div>הרשאות</div><div>סשן BIZ (groupId מהסשן) או סשן SA עם הרשאת biz (<code>ARC-07</code>). היום שני הנתיבים פתוחים.</div>
-<div>קלט ואימותים</div><div><ul><li>בלי <code>productName</code>: 400 "שם מוצר נדרש" (ללא שינוי).</li><li>Rate limit לכל עסק לפי <code>ARC-29</code> (30 לדקה). חריגה מחזירה 429. יצירת תמונה לא צורכת את סוללת ה-AI (כמו היום).</li><li>העלאה (<code>ARC-26</code>): png/jpg/webp/gif בלבד, נבדק לפי magic bytes, עד 8MB. SVG אסור. שם הקובץ נוצר בשרת.</li></ul></div>
+<div>קלט ואימותים</div><div><ul><li>בלי <code>productName</code>: 400 "שם מוצר נדרש" (ללא שינוי).</li><li>Rate limit לכל עסק לפי <code>ARC-29</code> (30 לדקה). חריגה מחזירה 429. יצירת תמונה לא צורכת את סוללת ה-AI (כמו היום).</li><li>העלאה (<code>ARC-26</code>): png/jpg/webp/gif, נבדק לפי magic bytes, עד 8MB. HEIC/HEIF מומר ל-JPEG, ו-SVG מומר לרסטר PNG ולעולם לא מוגש כ-image/svg+xml. שם הקובץ נוצר בשרת.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>ללא שינוי: שאילתת החיפוש היא <code>nameEn</code> מנוקה לאותיות וספרות, אחרי הסרת סיומות כמות (g/kg/ml/…).</li>
 <li>אם השאילתה קצרה מ-3 תווים ויש Gemini: תרגום עם <code>gemini-2.0-flash-lite</code> למונח אנגלי של 2-4 מילים. אחרת fallback לקטגוריה או ל-'product'.</li>
@@ -171,7 +171,7 @@
 <div>מכונת מצבים</div><div>אין.</div>
 <div>תופעות לוואי</div><div>קריאות לספקים חיצוניים והעלאה ל-Cloudinary.</div>
 <div>ממשק</div><div>ללא שינוי. בכישלון מוצגת ההודעה "לא נמצאה תמונה מתאימה (Pixabay, Pexels ו-AI נכשלו)".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>STR-36</code>: נדרש אימות ו-rate limit. אין חיוב מכסת AI. כשל מחזיר HTTP 404 (היום 200). ההעלאה לפי ARC-26.</li><li><code>ARC-26</code>: אחסון אובייקטים ובדיקת תוכן.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>STR-36</code>: נדרש אימות ו-rate limit. אין חיוב מכסת AI. כשל מחזיר HTTP 404 (היום 200). ההעלאה לפי ARC-26.</li><li><code>ARC-26</code>: אחסון אובייקטים ובדיקת תוכן.</li><li><code>RECON-06</code> — SVG ו-HEIC מומרים ולא נדחים, לפי <code>ARC-26</code> המתוקן (accept="image/*" של היום נשמר).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="retail inventory variants movements adjust stock count returns store credit credit_balance"><h3>מלאי קמעונאי: וריאציות, תנועות, ספירה והחזרות (קשור לקטלוג)</h3>
@@ -717,7 +717,7 @@
 <li>link-only (ללא שינוי): מעדכן את family_group_id רק אם הוא ריק או זהה. אם יש קישור פעיל, linkStatus הוא 'active'. אחרת UPSERT בסטטוס pending והתראת "בקשת שיוך חדשה" (דרך notify).</li>
 <li>customer-response: approved→'customer_approved' ו-rejected→'cancelled' (ללא שינוי). discount_request/items_request/message עוברים ל-<b>'waiting_business'</b> (היום נשארים 'waiting_customer', וה-UI מציג "ממתין לתגובת העסק" לפי ההיסטוריה) (<code>STR-28</code>). אירוע <code>customer_response</code> והתראה לעסק (notify).</li>
 <li>business-message (ללא שינוי): אירוע <code>business_message</code> ל-history והתראה ללקוח (טקסט עד 80 תווים). בנוסף: אם הסטטוס waiting_business, הוא חוזר ל-waiting_customer.</li>
-<li><b>אישור והמרה, מסלול אחד</b> (<code>STR-29</code>), עם ההתנהגות הנוכחית של to-work-order לכל סוגי העסקים: <code>quote_status='approved'</code>, <code>status='processing'</code>, <code>call_type='work_order'</code>, ו-<code>quote_title</code> (מה-metadata, או "פקודת עבודה — {לקוח/מספר}"). אירוע <code>converted_to_work_order</code>, ו-INSERT ל-<code>work_order_timeline</code> 'created'. מ-<code>/approve</code> נלקחות תופעות הלוואי: upsert לקוח (<code>STR-42</code>), ו-<code>business_id</code> מ-metadata.companyId (אם הוא של העסק). <code>created_at</code> <b>לא</b> נדרס. הלקוח ממשיך ליצור אירוע ביומן (<code>POST /api/calendar/events</code>, notes <code>ORDER_REF:{id}</code>) ולעדכן target-date (ללא שינוי). הנתיב <code>/approve</code>, שאין לו קורא, מוסר.</li>
+<li><b>אישור והמרה, מסלול אחד (STR-29, SRV-01): handler יחיד שנחשף ב-POST /api/work-orders/convert/:quoteId (כפתור ההמרה, business-app.js:42697) וב-POST /api/store/quotes/:id/to-work-order (מודל "יעד אספקה", 9666), שנשאר alias לאותו handler (<code>ARC-34</code>). ההתנהגות הנוכחית לכל סוגי העסקים: quote_status='approved', status='processing' (גם כשנשלח target_datetime), call_type='work_order', ו-<code>quote_title</code> (מה-metadata, או "פקודת עבודה — {לקוח/מספר}"). אירוע <code>converted_to_work_order</code>, ו-INSERT ל-<code>work_order_timeline</code> 'created'. מ-<code>/approve</code> נלקחות תופעות הלוואי: upsert לקוח (<code>STR-42</code>), ו-<code>business_id</code> מ-metadata.companyId (אם הוא של העסק). <code>created_at</code> <b>לא</b> נדרס. כשנשלח target_datetime, השרת שומר אותו ויוצר את אירוע היומן (notes ORDER_REF:{id}, work_order_id) באותה טרנזקציה, והלקוח מפסיק לשלוח את שתי הקריאות הנפרדות, כדי שלא ייווצר אירוע כפול (כמו ב-tobe-services). הצעה שכבר הומרה מחזירה 409. הנתיב <code>/approve</code>, שאין לו קורא, מוסר.</li>
 <li>WA (ללא שינוי): <code>prepare-send</code> יוצר <code>confirm_token</code> (24 בתים hex) ומחזיר <code>{APP_URL}/c/q/{id}/{token}</code>. הלקוח פותח wa.me עם טקסט ההצעה, וההצעה מסומנת 'sent'. עכשיו הקישור באמת מתווסף (<code>STR-26</code>).</li>
 </ol></div>
 <div>חישובים</div><div>אין.</div>
@@ -741,7 +741,7 @@
 <li><code>SA-52</code>: (מכסה את STR-27) התראות ההצעות נכתבות בפועל.</li>
 <li><code>STR-28</code>: enum ומעברים שמכסים את כל הפעולות הקיימות. waiting_business נשמר בפועל.</li>
 <li><code>STR-29</code>: מסלול אישור אחד (התנהגות to-work-order), עם תופעות הלוואי של /approve. <code>created_at</code> לא נדרס.</li>
-</ul></div>
+<li><code>RECON-21</code> — handler יחיד להמרה, משותף ל-tobe-services: convert הוא הנתיב הקנוני, to-work-order נשאר alias, ו-/approve מוסר (אין לו קורא). הסטטוס processing נשמר גם עם תאריך יעד.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="quote confirm link c q token whatsapp customer_confirmed_at"><h3>קישור אישור קבלת הצעה (GET /c/q/:id/:token)</h3>
@@ -778,7 +778,7 @@
 <div>הרשאות</div><div>כל הפעולות (GET, POST, PUT, DELETE): סשן BIZ, טאב לקוחות, groupId מהסשן, ובעלות לפי id (<code>STR-05</code>). היום GET ו-POST פתוחים.</div>
 <div>קלט ואימותים</div><div><ul>
 <li>PUT ו-DELETE: אם הלקוח לא נמצא, 404 "לקוח לא נמצא או אין הרשאה" (ללא שינוי).</li>
-<li>מהזמנה (ללא שינוי): אם כבר קיים לקוח עם אותו טלפון או שם, "לקוח עם פרטים אלו כבר קיים במאגר". השרת אוכף UNIQUE(group_id, phone_normalized) (<code>ARC-14</code>).</li>
+<li>מהזמנה (ללא שינוי): אם כבר קיים לקוח עם אותו טלפון או שם, "לקוח עם פרטים אלו כבר קיים במאגר". השרת אוכף UNIQUE(group_id, phone_normalized) WHERE NOT shared_phone (<code>ARC-14</code>). ב-POST מטאב הלקוחות, טלפון קיים מחזיר 409 DUPLICATE_PHONE עם קישור לכרטיס הקיים, והממשק מציע "צור בכל זאת", שיוצר לקוח נפרד עם shared_phone=true (כמו BTY-46 ו-SPT-19). כך נשמרת היכולת של היום לפתוח שני לקוחות עם אותו טלפון.</li>
 <li>familyGroupId שנשלח חייב להיות קבוצה מסוג FAMILY קיימת.</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
@@ -791,7 +791,7 @@
 <div>מכונת מצבים</div><div><code>member_business_links</code>: (אין) → pending (עסק) → active (לקוח מאשר או מתחבר). active לא יורד ל-pending (ללא שינוי).</div>
 <div>תופעות לוואי</div><div>קישורי WEFLOWZ והתראת שיוך.</div>
 <div>ממשק</div><div>ללא שינוי. בכרטיס הלקוח נוספות יתרת זיכוי ויתרת חוב.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>STR-05</code>: כל נתיבי הלקוחות מאומתים וכוללים בדיקת בעלות.</li><li><code>STR-42</code>: זיהוי אוטומטי יוצר קישור pending בלבד, ובלי יצירת חשבון.</li><li><code>ARC-14</code>: (מכסה את STR-43) ישות לקוח אחת ונרמול טלפון אחד.</li><li><code>STR-20</code>/<code>STR-23</code>: יתרות בכרטיס הלקוח.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>STR-05</code>: כל נתיבי הלקוחות מאומתים וכוללים בדיקת בעלות.</li><li><code>STR-42</code>: זיהוי אוטומטי יוצר קישור pending בלבד, ובלי יצירת חשבון.</li><li><code>ARC-14</code>: (מכסה את STR-43) ישות לקוח אחת ונרמול טלפון אחד.</li><li><code>STR-20</code>/<code>STR-23</code>: יתרות בכרטיס הלקוח.</li><li><code>RECON-16</code> — אילוץ הטלפון חלקי (WHERE NOT shared_phone) עם "צור בכל זאת", כמו ב-tobe-arch, ב-tobe-beauty וב-tobe-sport.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="search customers lookup oneflow check oneflow phone normalization"><h3>חיפוש וזיהוי לקוחות WEFLOWZ</h3>
@@ -815,7 +815,7 @@
 <section class="proc" data-f="service request lead storefront repairs logistics upsert"><h3>בקשת שירות וליד מהחזית</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>בקשת שירות: <code>submitServiceRequest</code> (storefront.html:4208) קורא ל-<code>POST /api/store/service-request/:groupId</code>. ליד: <code>submitLead</code> (storefront-repairs.html:229, professional) קורא ל-<code>POST /api/store/leads/:groupId</code>.</div>
-<div>הרשאות</div><div>ציבורי (ברשימה הלבנה). service-request דורש sc-auth (ללא שינוי). הלידים פתוחים, עם rate limit לכתיבה ציבורית של 30 לדקה לכל IP (<code>ARC-29</code>).</div>
+<div>הרשאות</div><div>service-request ו-POST /api/store/leads דורשים Bearer של sc-auth בשרת (SRV-36, כמו ב-tobe-services). כל טפסי הליד (storefront-logistics, -professional, -repairs) כבר מחייבים היום scAuth.requireLogin, ולכן אין צמצום. הלקוח מצרף את הטוקן. rate limit לכתיבה ציבורית של 30 לדקה לכל IP (<code>ARC-29</code>).</div>
 <div>קלט ואימותים</div><div><ul>
 <li>service-request (ללא שינוי): בלי טוקן, 401 "יש להתחבר לפני שליחת בקשת שירות". חשבון בלי family_group_id: 400. עסק לא קיים: 404. בלי serviceName: "חסר שם שירות". בלי preferredDate: "יש לבחור תאריך מועדף".</li>
 <li>leads (ללא שינוי): groupId 'general' או לא מספרי מחזיר הצלחה בלי פעולה. חסרים גם שם וגם טלפון: 400 "חסרים פרטים".</li>
@@ -828,7 +828,7 @@
 <div>מכונת מצבים</div><div>קריאת שירות נוצרת בסטטוס new עם needs_triage. ההמשך בתחום השירות.</div>
 <div>תופעות לוואי</div><div>קריאת שירות, קישור pending, ולקוח עסק.</div>
 <div>ממשק</div><div>ללא שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>STR-42</code>: ליד לא יוצר חשבון FAMILY.</li><li><code>ARC-29</code>: rate limit לנתיב ציבורי כותב.</li><li><code>ARC-14</code>: פרופיל לוגיסטי כהרחבה של הלקוח.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>STR-42</code>: ליד לא יוצר חשבון FAMILY.</li><li><code>ARC-29</code>: rate limit לנתיב ציבורי כותב.</li><li><code>ARC-14</code>: פרופיל לוגיסטי כהרחבה של הלקוח.</li><li><code>RECON-22</code> — הלידים דורשים טוקן sc-auth בשרת (SRV-36), כמו ב-tobe-services וב-tobe-arch, ולא פתוחים. שער ההתחברות כבר קיים בממשק.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="newsletter broadcast inbox oneflow message communities audience"><h3>ניוזלטר והודעות WEFLOWZ ללקוחות</h3>

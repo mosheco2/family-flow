@@ -72,7 +72,7 @@
 <div>הרשאות</div><div>ADMIN של קבוצת הסשן בלבד; היעד חייב להיות משתמש באותה קבוצה (verifyFamilyOrBiz מוצהר, <code>BIZ-13</code>).</div>
 <div>קלט ואימותים</div><div><ul>
 <li>PUT <code>/api/users/:id/permissions</code>: לא ADMIN → 403 "נדרשת הרשאת מנהל"; יעד מחוץ לקבוצה → 404 "משתמש לא נמצא בקבוצה". <code>tabs</code> — מערך מחרוזות מתוך ALL_TABS; חסר/לא מערך → [] (ואז feed נוסף) במקום קריסת 500 (<code>BIZ-14</code>). <code>feed</code> נוסף אוטומטית אם חסר. <code>role</code> (אם נשלח) ∈ {ADMIN,MANAGER,SENIOR,MEMBER} → אחרת 400 "תפקיד לא חוקי" (<code>BIZ-11</code>).</li>
-<li>PATCH <code>/api/users/:id/role-type</code>: ADMIN בלבד, יעד באותה קבוצה; <code>employee_role_type</code> ∈ מפתחות EMPLOYEE_ROLE_TYPES או NULL → אחרת 400; הרישיון <code>role_&lt;type&gt;</code> חייב להיות פעיל ב-group_licenses → אחרת 403 "ממשק לא מורשה לעסק זה" (<code>BIZ-14</code>).</li>
+<li>PATCH <code>/api/users/:id/role-type</code>: ADMIN בלבד, יעד באותה קבוצה; <code>employee_role_type ∈ מפתחות EMPLOYEE_ROLE_TYPES או NULL → אחרת 400. רישוי (<code>ARC-06</code>): הערך מותר כשהממשק ברישוי (licensed_features/addon) או כשהמבצע ADMIN, כמו היום (isFeatureLicensed מחזיר true ל-ADMIN), ולכן ADMIN אינו נחסם בשיבוץ (<code>BIZ-14</code>).</li>
 <li>POST <code>/api/admin/change-role</code>: בעסק newRole ∈ {ADMIN,MANAGER,SENIOR,MEMBER} (במשפחה נשאר ADMIN|CHILD|MEMBER) → 400 "תפקיד לא חוקי"; ADMIN בלבד; יעד באותה קבוצה. בעסק <b>אינו דורס</b> permissions.tabs במערכי טאבים משפחתיים — אם נבחר "אפס להרשאות ברירת מחדל" נכתב ROLE_DEFAULTS של BIZ בלבד. במשפחה — התנהגות הדריסה הקיימת נשמרת.</li>
 <li>ADMIN פעיל אחרון אינו יכול להוריד את עצמו → 403 "לא ניתן להוריד את המנהל היחיד בקבוצה".</li>
 <li>בלקוח (ללא שינוי): מקטע "ממשק תפקיד" מוצג רק אם יש לפחות תפקיד מ-EMPLOYEE_ROLE_TYPES ש-<code>isFeatureLicensed</code> עבורו.</li></ul></div>
@@ -80,11 +80,11 @@
 <div>חישובים</div><div>ללא שינוי: בחירת תפקיד מקצועי ברדיו מסמנת אוטומטית את טאבי ROLE_TYPE_TABS שלו + toast "סומנו N מודולים לתפקיד זה"; <code>applyRoleDefaults(role)</code> מסמן לפי ROLE_DEFAULTS.</div>
 <div>מכונת מצבים</div><div>role: כל ערך מה-enum ⇄ כל ערך מה-enum (ADMIN בלבד מבצע; ADMIN אחרון לא יורד). הורדה מ-ADMIN מבטלת סשנים של המשתמש (<code>ARC-09</code>).</div>
 <div>תופעות לוואי</div><div>רישום ב-biz_audit_log עם שם המבצע.</div>
-<div>ממשק</div><div>מודל <code>permissions-modal</code> ו-role-type-modal כמו היום; <code>assignRoleType</code> שולח Authorization ומציג "ממשק שובץ בהצלחה" רק כשהשרת אישר; תפקיד לא מורשה → toast "ממשק X לא מורשה לעסק זה".</div>
+<div>ממשק</div><div>מודל <code>permissions-modal</code> ו-role-type-modal כמו היום; <code>assignRoleType</code> שולח Authorization ומציג "ממשק שובץ בהצלחה" רק כשהשרת אישר; ערך שאינו ב-EMPLOYEE_ROLE_TYPES → toast עם הודעת השרת.</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>BIZ-14</code> — Authorization בכל הקריאות, הצלחה רק ב-res.ok, אימות tabs/employee_role_type/רישוי בשרת, ללא 500 על tabs חסר.</li>
 <li><code>BIZ-11</code> — whitelist תפקידי BIZ בכל נתיבי שינוי תפקיד; change-role בעסק אינו דורס טאבים במערכים משפחתיים; ADMIN אחרון לא יורד.</li>
-<li><code>ARC-06</code> / <code>ARC-09</code> — enum בשרת; ביטול סשנים בהורדת תפקיד.</li></ul></div>
+<li><code>ARC-06</code> / <code>ARC-09</code> — enum בשרת; ביטול סשנים בהורדת תפקיד.</li><li><code>RECON-12</code> — אין 403 על ממשק שאינו ברישוי כשה-ADMIN משבץ, לפי <code>ARC-06</code> ו-tobe-auth (היום ה-ADMIN רואה ומשבץ כל ממשק). ה-whitelist נאכף תמיד.</li></ul></div>
 </div></section>
 
 <h2 class="grp">ניווט ושערי מודולים</h2>
@@ -111,12 +111,12 @@
 
 <section class="proc" data-f="module gating billing_config managed_modules requiremodule features applybusinesstypefilter locked entitlements"><h3>שערי מודולים — billing_config / managed_modules / features / requireModule</h3>
 <div class="kv">
-<div>מטרה וטריגר</div><div>קביעה אילו מודולים העסק זכאי להם. מקור אמת יחיד: <code>tenant_entitlements(group_id, module_id, source ∈ {bundle,addon,trial,sa_grant,free}, status, valid_from, valid_to)</code> (<code>ARC-17</code>). נקבע ע"י SA (מסך billing / עריכת עסק) ובאישור בקשת מודול. <code>features</code> נשאר kill-switch של SA בלבד (מכבה, לא מדליק).</div>
-<div>הרשאות</div><div>כתיבה: SA בלבד (requireSAPermission('biz')) או אישור בקשה ע"י SA. קריאה: כל משתמש של העסק דרך <code>GET /api/me/entitlements</code>.</div>
+<div>מטרה וטריגר</div><div>קביעה אילו מודולים העסק זכאי להם. מקור אמת יחיד: <code>tenant_entitlements(group_id, module_id, source ∈ {bundle, addon, trial, sa_grant, free, migration}, status ∈ {active, suspended, ended}, valid_from, valid_to, granted_by, note) (<code>ARC-17</code>). נקבע ע"י SA (מסך billing / עריכת עסק), באישור בקשת מודול, ובהפעלה העצמית של ממשקי תפקיד על ידי ה-ADMIN (source='addon'). <code>features</code> נשאר kill-switch של SA בלבד (מכבה, לא מדליק).</div>
+<div>הרשאות</div><div>כתיבה: SA (requireSAPermission('biz')), אישור בקשה ע"י SA, וה-ADMIN של העסק לממשקי תפקיד בלבד (source='addon', <code>ARC-17</code> מתוקן). קריאה: כל משתמש של העסק דרך <code>GET /api/me/entitlements</code>.</div>
 <div>קלט ואימותים</div><div><ul>
 <li><code>requireModule(module_id)</code> מוצמד לכל נתיב של מודול, <b>לכל סוג סשן</b> (אין דילוג fromToken): אין רשומה פעילה → 403 <code>{error:'גישה למודול זה אינה כלולה בחבילה שלך', module}</code>. שימוש קיים נשמר: 'sales' על /api/store/catalog*, quotes*, coupons, promotions, store/customers PUT/DELETE, /api/biz/retail/*; 'logistics' על /api/logistics/*; 'menu_templates' על תפריטים.</li>
 <li>cache זכאויות: TTL 60 שניות כמו היום, <b>ומבוטל מפורשות</b> בכל שינוי זכאות (<code>ARC-24</code>).</li>
-<li>שגיאת DB → fail-closed (403) עם רישום ללוג.</li></ul></div>
+<li>שגיאת DB → fail-closed ב-503 ("השירות אינו זמין"), עם רישום ללוג (<code>ARC-17</code>, <code>ARC-33</code>). אין רשומה פעילה → 403.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li><b>מיגרציה משמרת-יכולת</b> (<code>ARC-12</code>): לכל עסק נגזרות רשומות entitlements מכל מה שנגיש לו היום — מודולי bundle (included_modules) ∪ billing_config.modules (מחרוזת, או אובייקט שאין בו <code>open:false</code> — הפרשנות המתירנית של switchTab) ∪ managed_modules. עסק "ותיק" (managed_modules ריק/null וללא billing_config, שהיום פתוח לכל) מקבל entitlement source='sa_grant' לכל המודולים שהוא רואה היום. אף עסק לא מאבד מודול שנגיש לו כיום.</li>
 <li>לקוח: <code>applyBusinessTypeFilter()</code> אחרי fetchData קורא את רשימת הזכאויות.</li>
@@ -124,15 +124,15 @@
 <li>לא נגיש: <code>tab-{id}</code> hidden+locked-module; <code>gdrop-{id}</code> גלוי עם opacity 0.55, מנעול ו-onclick → <code>openModuleUnlockModal</code> (ללא שינוי).</li>
 <li>קבוצת ניווט ריקה מוסתרת; שינוי שמות לפי סוג עסק (TAB_RENAME, למשל sport: customers="חברים 🤝", members="חברי מועדון 👥") — ללא שינוי.</li></ol></div>
 <div>חישובים</div><div>מודולי bundle נלקחים מ-<code>included_modules</code> של ה-bundle בקטלוג ולא מפענוח desc (<code>BIZ-17</code>).</div>
-<div>מכונת מצבים</div><div>entitlement: active → cancelled (valid_to = סוף מחזור חיוב) → expired; trial → active/expired.</div>
-<div>תופעות לוואי</div><div>כל שינוי זכאות: ביטול cache, רישום ב-sa_audit_log.</div>
+<div>מכונת מצבים</div><div>entitlement (status של <code>ARC-17</code>): active → suspended (השעיה ע"י SA) → active; active → ended (ביטול: valid_to = סוף מחזור החיוב, ובתומו ended). trial הוא source ולא status: רשומת trial שפג valid_to שלה עוברת ל-ended במשימה היומית 03:30.</div>
+<div>תופעות לוואי</div><div>כל שינוי זכאות: ביטול cache, רישום ב-audit_log המאוחד (<code>ARC-19</code>).</div>
 <div>ממשק</div><div>ללא שינוי: <code>module-unlock-modal</code> עם אייקון/שם/תיאור מ-MODULE_DESCRIPTIONS ומחיר "X ₪ / חודש" מהקטלוג אם לא free. "שגרות" מוצג רק ל-restaurant/maintenance_repair ללא תלות בחיוב.</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>ARC-17</code> (BIZ-16) — tenant_entitlements מחליף את שלושת השדות; features = kill-switch; requireModule fail-closed לכל סשן; מיגרציה שמשמרת כל גישה קיימת.</li>
 <li><code>ARC-03</code> — אין עוד עקיפת requireModule במסלול ללא header.</li>
 <li><code>ARC-24</code> — ביטול cache מפורש בשינוי זכאות.</li>
 <li><code>ARC-18</code> — BUSINESS_TYPES[].modules ו-getEnabledModules (לא בשימוש) מוחלפים בקטלוג שרת business_type_modules לברירות מחדל בויזארד; 'kds' מוכרע בקטלוג.</li>
-<li><code>BIZ-17</code> — מודולי bundle משדה מובנה.</li></ul></div>
+<li><code>BIZ-17</code> — מודולי bundle משדה מובנה.</li><li><code>RECON-13</code> — שמות המצבים והמקורות של tenant_entitlements זהים ל-tobe-arch ({active, suspended, ended}, כולל source='migration'), שגיאת DB מחזירה 503, וה-ADMIN יוצר זכאות addon לממשקי תפקיד.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="module request unlock biz module-request sa approve deny cancel member request-module support ticket"><h3>בקשת פתיחת/ביטול מודול ואישורה ע"י SA</h3>
@@ -187,34 +187,34 @@
 
 <section class="proc" data-f="licensed_features group_licenses business-settings licenses business_type table_count excel import"><h3>רישוי פיצ'רים — licensed_features / group_licenses / business-settings</h3>
 <div class="kv">
-<div>מטרה וטריגר</div><div>SA מנהל רישיונות לממשקי תפקיד (<code>role_*</code>) ופיצ'רים פר-עסק (<code>saManageLicenses</code> business-app.js:42310); העסק מעדכן הגדרות תפעול (table_count, send_order_email).</div>
-<div>הרשאות</div><div>GET licenses: ADMIN של העסק (שלו) או SA. POST licenses: SA בלבד, או בתוך אשף ההקמה (<code>SA-10</code>). PATCH business-settings: ADMIN של העסק (verifyBizAdminOnly), groupId מהסשן.</div>
+<div>מטרה וטריגר</div><div>ה-ADMIN של העסק מדליק ומכבה בעצמו ממשקי תפקיד ופעולות שירות-עצמי (ss_*) במודאל הגדרות העסק (toggleFeatureLicense, business-app.js:42122-42219), וה-SA מנהל רישיונות לכל עסק (saManageLicenses business-app.js:42310). העסק מעדכן הגדרות תפעול (table_count, send_order_email).</div>
+<div>הרשאות</div><div>GET licenses: חבר בעסק עצמו או SA. POST licenses (SA-10 מתוקן, כמו ב-tobe-sa): (א) ADMIN של העסק על הקבוצה שלו בלבד (verifyBizAdminOnly, groupId מהסשן; :id שונה מהסשן → 403); (ב) SA על כל קבוצה; (ג) סשן התחזות של SA; (ד) האשף, בתוך wizard/complete. בקשה בלי אימות → 401. PATCH business-settings: ADMIN של העסק (verifyBizAdminOnly), groupId מהסשן.</div>
 <div>קלט ואימותים</div><div><ul>
-<li>POST <code>/api/sa/groups/:id/licenses</code> (במקום /api/groups/:id/licenses הפתוח): feature_key חובה; is_active ברירת מחדל true; price_monthly ברירת מחדל 0.</li>
+<li>POST /api/groups/:id/licenses (ל-ADMIN, מאומת) ו-POST /api/sa/groups/:id/licenses (ל-SA): feature_key חובה, מתוך מזהי EMPLOYEE_ROLE_TYPES, ss_* ומודולי האשף, אחרת 400; is_active ברירת מחדל true; price_monthly נקבע בשרת (EMPLOYEE_ROLE_TYPES, ss_*=0) ומחיר מהלקוח לא נקרא.</li>
 <li>PATCH <code>/api/biz/business-settings</code>: מעדכן table_count (ברירת מחדל 8) ו-send_order_email (≠false). <b>business_type</b> ו-licensed_features <b>אינם</b> שדות בנתיב זה — שליחתם → 400 (<code>ARC-37</code>). business_type נכתב רק ב-PATCH /api/biz/wizard/complete (ADMIN, רק כש-wizard_completed=false) או ע"י SA.</li></ul></div>
-<div>שלבי עיבוד</div><div><ol><li>UPSERT ל-<code>group_licenses(group_id,feature_key)</code>.</li><li>סנכרון באותה טרנזקציה: SELECT כל הרישיונות ובניית <code>{feature_key:is_active}</code> → UPDATE <code>family_groups.licensed_features</code>. גם האשף מסנכרן licensed_features (<code>SA-10</code>).</li></ol></div>
+<div>שלבי עיבוד</div><div><ol><li>ממשק תפקיד: UPSERT ל-group_licenses(group_id,feature_key) ובאותה טרנזקציה זכאות tenant_entitlements(source='addon') שנכנסת לחיוב לפי המחירון; כיבוי מסיים אותה (<code>ARC-17</code> מתוקן). מפתח ss_*: נשמר ב-group_settings.self_service (<code>ARC-17</code>), והנתיב ממשיך לקבל אותו כדי שהמודאל לא ישתנה.</li><li>סנכרון באותה טרנזקציה: SELECT כל הרישיונות ובניית <code>{feature_key:is_active}</code> → UPDATE <code>family_groups.licensed_features</code>. גם האשף מסנכרן licensed_features (<code>SA-10</code>).</li></ol></div>
 <div>חישובים</div><div>מחירי תפקידים ב-<code>EMPLOYEE_ROLE_TYPES</code>: 15–39 ₪ (branch_manager 39, cashier 19, waiter 15 וכו') — ללא שינוי.</div>
-<div>מכונת מצבים</div><div>רישיון: active ⇄ inactive (SA).</div>
-<div>תופעות לוואי</div><div>רישום ב-sa_audit_log.</div>
+<div>מכונת מצבים</div><div>רישיון: active ⇄ inactive (ADMIN העסק או SA).</div>
+<div>תופעות לוואי</div><div>audit LICENSE_TOGGLE ב-audit_log המאוחד עם actor_type ו-actor_id (<code>ARC-19</code>).</div>
 <div>ממשק</div><div><code>isFeatureLicensed(key)</code> בלקוח (ADMIN תמיד true לתצוגה; אחרים licensed_features[key]===true) — לתצוגה בלבד; האכיפה בשרת ב-role-type (<code>BIZ-14</code>). מודאל ייבוא Excel: הבורר EXCEL_BIZ_TYPES (business-app.js:20101) נקרא "תבנית קטגוריות", מאותחל ל-business_type הנוכחי, ניתן לבחור תבנית אחרת, ואינו משנה business_type (<code>BIZ-57</code>).</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>SA-10</code> (BIZ-05) — licenses ו-business-settings מאובטחים; licenses רק SA/אשף עם סנכרון licensed_features.</li>
 <li><code>ARC-37</code> — business_type נכתב רק באשף או ע"י SA (כלל 5).</li>
 <li><code>BIZ-14</code> — הרישוי נאכף בשרת בשיבוץ ממשק תפקיד.</li>
-<li><code>BIZ-57</code> — בורר "סוג עסק" בייבוא Excel הופך ל"תבנית קטגוריות" שמאותחלת לסוג העסק ואינה משנה אותו (היכולת לבחור תבנית נשמרת).</li></ul></div>
+<li><code>BIZ-57</code> — בורר "סוג עסק" בייבוא Excel הופך ל"תבנית קטגוריות" שמאותחלת לסוג העסק ואינה משנה אותו (היכולת לבחור תבנית נשמרת).</li><li><code>RECON-11</code> — ה-ADMIN שומר את ההפעלה והכיבוי העצמיים של ממשקי תפקיד ו-ss_* (SA-10 מתוקן ב-tobe-sa, <code>ARC-17</code>), במקום "SA בלבד". ממשק תפקיד יוצר זכאות addon בחיוב, ו-ss_* נשמר בהגדרות הקבוצה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="biz visibility hidden keys tab feature data-viz-key sa"><h3>הסתרת אלמנטים לפי סוג עסק (SA Visibility)</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>SA מסתיר טאבים/פיצ'רים לכל עסקי סוג מסוים. הלקוח מריץ <code>window._applyBizVisibility()</code> אחרי fetchData (מימוש business-app.js:57259).</div>
-<div>הרשאות</div><div>toggle: SA (requireSAPermission('biz')). קריאה: סשן biz — סוג העסק נגזר מקבוצת הסשן (<code>ARC-04</code>); ה-SA קורא כל סוג.</div>
+<div>הרשאות</div><div>toggle: כל סשן SA (לשונית templates פתוחה, כמו היום ולפי tobe-arch), עם audit. קריאה: סשן biz — סוג העסק נגזר מקבוצת הסשן (<code>ARC-04</code>); ה-SA קורא כל סוג.</div>
 <div>קלט ואימותים</div><div><ul><li>טבלה <code>biz_type_visibility(business_type, element_key)</code> PK כפול (ללא שינוי).</li><li>POST <code>/api/sa/biz-visibility/:type/toggle</code>: key חובה; hidden=true → INSERT, אחרת DELETE.</li><li>GET <code>/api/biz-visibility</code> (סשן biz, ללא :type) — ו-GET <code>/api/sa/biz-visibility/:type</code> ל-SA.</li><li>business_type 'other' או חסר — הלקוח לא מריץ.</li></ul></div>
 <div>שלבי עיבוד</div><div>מפתחות <code>tab:{id}</code> → הסתרת tab-{id} ו-gdrop-{id} וחישוב מחדש של קבוצות ניווט; מפתחות <code>feature:*</code> → CSS <code>[data-viz-key="..."]{display:none!important}</code> בתגית style#biz-viz-style (ללא שינוי).</div>
 <div>חישובים</div><div>—</div>
 <div>מכונת מצבים</div><div>מפתח: גלוי ⇄ מוסתר (SA).</div>
 <div>תופעות לוואי</div><div>רישום ב-sa_audit_log.</div>
 <div>ממשק</div><div>ללא שינוי. הסתרה היא תצוגתית בלבד ואינה מחליפה זכאות.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>ARC-02</code> / <code>ARC-04</code> — נתיב הקריאה הציבורי הופך למאומת, וסוג העסק נגזר מהסשן.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>ARC-02</code> / <code>ARC-04</code> — נתיב הקריאה הציבורי הופך למאומת, וסוג העסק נגזר מהסשן.</li><li><code>RECON-08</code> — ה-toggle פתוח לכל איש צוות SA, כמו היום ולפי SA_TAB_PERMS של tobe-arch.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="biz me settings name business name filled_by_role daily_limit"><h3>פרטי עסק נוכחי ושינוי שם עסק</h3>
@@ -241,7 +241,7 @@
 <li>אפשרויות תפקיד מקצועי לפי סוג עסק — <code>_ROLE_TYPE_OPTIONS</code> ללא שינוי (restaurant: waiter, cook, cashier, delivery, shift_manager, branch_manager; beauty: therapist, makeup_artist, nail_tech, reception, branch_manager; sport: instructor, cashier, shift_manager, branch_manager; services: field_tech, support, cashier, branch_manager; maintenance_repair: field_tech, branch_manager; professional: consultant, associate, partner; אחר: branch_manager).</li>
 <li>/api/join: חובה groupCode, nickname, password, email → 400 "חסרים נתונים חובה"; קוד לא קיים → 404 "קוד ארגון/משפחה לא חוקי"; גיל ≥10 בלי phone → 400 "מספר טלפון הוא שדה חובה מגיל 10".</li>
 <li>תפקיד בהצטרפות: השרת <b>לעולם לא מקבל role מ-join</b> — המשתמש נוצר כ-MEMBER (בעסק; CHILD רק בקבוצה משפחתית). role ו-role_type מהקישור נשמרים כ-<code>requested_role</code> / <code>requested_role_type</code> (<code>BIZ-20</code>).</li>
-<li>approve-user: לא ADMIN → 403 "רק מנהל/ת יכול/ה לאשר בקשות"; יעד מחוץ לקבוצה → 403 "משתמש לא שייך לקבוצה זו". מקבל role ∈ {ADMIN,MANAGER,SENIOR,MEMBER} (ברירת מחדל requested_role) ו-employee_role_type (ברירת מחדל requested_role_type, בכפוף לרישוי <code>BIZ-14</code>).</li>
+<li>approve-user: לא ADMIN → 403 "רק מנהל/ת יכול/ה לאשר בקשות"; יעד מחוץ לקבוצה → 403 "משתמש לא שייך לקבוצה זו". מקבל role ∈ {ADMIN,MANAGER,SENIOR,MEMBER} (ברירת מחדל requested_role) ו-employee_role_type (ברירת מחדל requested_role_type, מתוך EMPLOYEE_ROLE_TYPES; המאשר הוא ADMIN ולכן אינו נחסם ברישוי, <code>ARC-06</code>).</li>
 <li>pending-users: ADMIN בלבד; מחזיר status IN ('pending','invited') כולל requested_role/requested_role_type.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>הזמנה: פתיחת wa.me עם טקסט הכולל שם התפקיד המבוקש, קוד העסק, הקישור, "📱 בהרשמה יש להכניס מספר טלפון (חובה מגיל 10)" ו-"התפקיד ייקבע סופית באישור המנהל".</li><li>join: bcrypt(password,10); משתמש status='invited' עם אותו טלפון בקבוצה → UPDATE (nickname, first/last, birth_year, hash, status='pending', email, requested_role, requested_role_type); אחרת INSERT users status='pending', role='MEMBER'.</li><li>התראות async: <code>sendAlertEmail</code> למייל המנהל + <code>sendSystemEmail</code> ל-SA (admin_notification_email) "WEFLOWZ | עובד/ת חדש/ה הצטרף/ה ל-…" (ללא שינוי).</li><li>approve: בטרנזקציה — <code>UPDATE users SET status='active', role=$role, employee_role_type=$type</code>.</li></ol></div>
 <div>חישובים</div><div>—</div>
@@ -250,7 +250,7 @@
 <tr><td>pending</td><td>active</td><td>ADMIN</td><td>אותה קבוצה; role מה-enum</td><td>role/role_type נקבעים; מופיע ב-/api/group/members</td></tr></table></div></div>
 <div>תופעות לוואי</div><div>רישום אישור ב-biz_audit_log.</div>
 <div>ממשק</div><div>פאנל <code>admin-panel</code> עם רשימת ממתינים (<code>fetchPendingUsers</code>), polling 30ש' לאדמין — לכל ממתין מוצגים התפקיד וממשק התפקיד שהוזמן אליהם עם select לשינוי לפני "אישור".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BIZ-20</code> — התפקיד שבהזמנה נשמר כמבוקש ומוצג למנהל באישור; approve-user קובע role/role_type; טקסט ההזמנה מעודכן.</li><li><code>BIZ-11</code> — תפקידי BIZ באישור.</li><li><code>ARC-29</code> — rate limit לנתיב ההצטרפות הציבורי.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BIZ-20</code> — התפקיד שבהזמנה נשמר כמבוקש ומוצג למנהל באישור; approve-user קובע role/role_type; טקסט ההזמנה מעודכן.</li><li><code>BIZ-11</code> — תפקידי BIZ באישור.</li><li><code>ARC-29</code> — rate limit לנתיב ההצטרפות הציבורי.</li><li><code>RECON-12</code> — באישור, ה-ADMIN משבץ ממשק מתוך ה-whitelist בלי חסימת רישוי (<code>ARC-06</code>).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="members list group members delete user user-details send credentials fetchmembers has_login"><h3>רשימת צוות, עריכת פרטים ומחיקת עובד</h3>
@@ -280,12 +280,12 @@
 <li>POST <code>/api/admin/update-settings</code>: עובד מחוץ לקבוצה → 404. ערכים שליליים מאופסים ל-0 (Math.max).</li>
 <li>POST <code>/api/admin/adjust-balance</code> (verifyFamilyOrBiz מוצהר, <code>BIZ-13</code>): עובד מחוץ לקבוצה → 404 "עובד/ת לא נמצא/ה בעסק" (בעסק) / "ילד לא נמצא בקבוצה" (במשפחה) (<code>BIZ-22</code>); amount &gt; 0 (<code>ARC-34</code>).</li>
 <li>לקוח: סכום ≤0 → "נא להזין סכום תקין לביצוע הפעולה"; נשלח ערך מוחלט.</li></ul></div>
-<div>שלבי עיבוד</div><div>adjust — בטרנזקציה אחת (<code>ARC-11</code>, עם FOR UPDATE על שורת היתרה): 1) UPDATE users.balance; 2) INSERT transactions (amount חיובי, category='other', type=income/expense); 3) INSERT <code>family_audit_log</code> (action='adjust_balance', performed_by מהסשן); 4) <code>logActivity</code> 'finance'/'balance_adjust' — בעסק "תיקון יתרה/בונוס לעובד: ₪X — סיבה", במשפחה "הפרשת דמי כיס: ₪X — סיבה".</div>
+<div>שלבי עיבוד</div><div>adjust — בטרנזקציה אחת (<code>ARC-11</code>, עם FOR UPDATE על שורת היתרה): 1) postTransaction (INSERT transactions, amount חיובי, category='other', type=income/expense), שקורא ל-postEntry על ארנק (user, ILS_FAMILY) ומעדכן את users.balance כשדה נגזר (<code>ARC-15</code>); 2) INSERT ל-audit_log המאוחד (action='adjust_balance', actor מהסשן, <code>ARC-19</code>); 4) <code>logActivity</code> 'finance'/'balance_adjust' — בעסק "תיקון יתרה/בונוס לעובד: ₪X — סיבה", במשפחה "הפרשת דמי כיס: ₪X — סיבה".</div>
 <div>חישובים</div><div><ul><li>בעסק השדות מקבלים שמות ייעודיים במיגרציה: <code>hourly_rate</code> (היום allowance_amount, ₪ לשעה), <code>monthly_hours_target</code> (היום interest_rate, יעד שעות מינימום חודשי), <code>base_salary</code> — הערכים מועתקים 1:1, הממשק והחישובים קוראים את השדות החדשים (<code>BIZ-27</code>).</li><li>adjust: <code>actAmount = type==='deduct' ? -amount : amount</code>; <code>balance += actAmount</code>. סיבות ברירת מחדל: "בונוס/מענק מיוחד" / "הפחתה תפעולית יזומה".</li></ul></div>
 <div>מכונת מצבים</div><div>—</div>
 <div>תופעות לוואי</div><div>תנועת יתרה כ-entry בספר היתרות (<code>ARC-15</code>).</div>
 <div>ממשק</div><div>ללא שינוי בטפסים (תעריף לשעה, יעד שעות, משכורת בסיס; סכום+סיבה+סוג).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BIZ-22</code> — טקסטים לפי סביבה (עסק: עובד/תיקון יתרה; משפחה: ללא שינוי).</li><li><code>BIZ-27</code> — שדות ייעודיים hourly_rate/monthly_hours_target בעסק (מיגרציה 1:1).</li><li><code>ARC-11</code> — adjust בטרנזקציה אמיתית.</li><li><code>BIZ-13</code> — נתיב משותף מוצהר.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BIZ-22</code> — טקסטים לפי סביבה (עסק: עובד/תיקון יתרה; משפחה: ללא שינוי).</li><li><code>BIZ-27</code> — שדות ייעודיים hourly_rate/monthly_hours_target בעסק (מיגרציה 1:1).</li><li><code>ARC-11</code> — adjust בטרנזקציה אמיתית.</li><li><code>BIZ-13</code> — נתיב משותף מוצהר.</li><li><code>RECON-19</code> — תיקון היתרה עובר דרך postTransaction/postEntry ולא UPDATE ישיר ל-users.balance, כמו ב-tobe-family וב-tobe-arch. הרישום ב-audit_log המאוחד (<code>RECON-20</code>).</li></ul></div>
 </div></section>
 
 <h2 class="grp">נוכחות (GPS) ושכר</h2>
@@ -675,7 +675,7 @@
 <div>מטרה וטריגר</div><div>Cron כל 5 דקות (worker יחיד, <code>ARC-23</code>).</div>
 <div>הרשאות</div><div>מערכת.</div>
 <div>קלט ואימותים</div><div>לכל חוק is_active: טריגרי מצב — אם ההתראה האחרונה של החוק נוצרה לפני פחות מ-cooldown_minutes (ברירת מחדל 60) → דילוג (ללא שינוי). טריגרים מבוססי-אירוע (new_order) <b>אינם כפופים ל-cooldown</b> (<code>BIZ-41</code>).</div>
-<div>שלבי עיבוד</div><div>לכל הודעה: INSERT התראה (alert_notifications / notifications המאוחד, <code>ARC-16</code>) (group_id,rule_id,trigger_type,message,reference_key); לפי channels: email → <code>sendAlertEmail</code> ל-admin_email (נושא "⚡ התראה: {name}"); whatsapp → sendWhatsApp לטלפון המנהל. בסוף: UPDATE alert_rules.last_run_at=NOW().</div>
+<div>שלבי עיבוד</div><div>לכל הודעה: INSERT לטבלת notifications המאוחדת (<code>ARC-16</code>; alert_notifications ממוגרת אליה, trigger_type→type, reference_key→ref) (group_id,rule_id,trigger_type,message,reference_key); לפי channels: email → <code>sendAlertEmail</code> ל-admin_email (נושא "⚡ התראה: {name}"); whatsapp → sendWhatsApp לטלפון המנהל. בסוף: UPDATE alert_rules.last_run_at=NOW().</div>
 <div>חישובים</div><div><ul>
 <li><code>timeclock_no_punch_in</code>: משתמשים שאינם ADMIN ללא punch_in מאז חצות (Asia/Jerusalem) → הודעה אחת עם כל השמות.</li>
 <li><code>timeclock_no_punch_out</code>: רשומה פתוחה מעל max_hours (10) → הודעה לכל עובד.</li>
@@ -690,7 +690,7 @@
 <div>מכונת מצבים</div><div>—</div>
 <div>תופעות לוואי</div><div>הבאדג' בממשק מתעדכן כל 60 שניות (<code>updateAlertBadge</code>) — ללא שינוי.</div>
 <div>ממשק</div><div>—</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BIZ-41</code> — new_order לפי last_run_at ללא cooldown (לא מפספס); ערוץ whatsapp.</li><li><code>ARC-23</code> / <code>ARC-25</code> — worker יחיד; חצות לפי שעון ישראל.</li><li><code>ARC-16</code> — כתיבה למודל ההתראות המאוחד.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BIZ-41</code> — new_order לפי last_run_at ללא cooldown (לא מפספס); ערוץ whatsapp.</li><li><code>ARC-23</code> / <code>ARC-25</code> — worker יחיד; חצות לפי שעון ישראל.</li><li><code>ARC-16</code> — כתיבה למודל ההתראות המאוחד.</li><li><code>RECON-18</code> — הכתיבה רק ל-notifications המאוחדת, כמו ב-tobe-arch וב-tobe-sa.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="alert notifications unread badge read-all manual low_stock reference_key"><h3>התראות בפעמון — קריאה, סימון ויצירה ידנית</h3>
@@ -727,12 +727,12 @@
 <li>גלובלי: רק POST/PUT/PATCH/DELETE; רק status 200-399; רק כשיש principal biz (אין עוד legacy).</li>
 <li>רשימת המדלגים (מתועדים ייעודית) — ללא שינוי: /api/ai/actions, /api/store/orders/status, /api/store/coupons, /api/biz/customer-chats, /api/biz/chat-assistant; sport freeze, work-orders status, professional-leads/:id, service-calls/:id, beauty appointments/:id, logistics orders/invoices status, customer-chats/:id/message.</li>
 <li>body מסוכם: עד 12 מפתחות, ללא מפתחות /password|token|secret|signature/i.</li></ul></div>
-<div>שלבי עיבוד</div><div>INSERT biz_audit_log(group_id,user_id,actor_name,action_type,entity_type,entity_id,description,metadata JSON) — fire&amp;forget עם רישום כשל ללוג (לא בליעה שקטה, <code>ARC-33</code>). גלובלי: action_type='HTTP_'+method, entity_type='route', entity_id=path. <b>actor_name</b> נגזר מ-users.nickname לפי req.principal.userId (cache בזיכרון) גם ב-HTTP_* (<code>BIZ-43</code>); אין רשומה ללא user_id אלא אם actor='system'/'FamliAI'.</div>
+<div>שלבי עיבוד</div><div>INSERT ל-audit_log המאוחד (<code>ARC-19</code>; actor_type='biz', actor_id=user_id, actor_name, group_id, action=action_type, entity=entity_type, entity_id, diff=metadata, description). biz_audit_log ממוגרת אליו, ומסך יומן הביקורת העסקי קורא ממנו דרך אותו נתיב — fire&amp;forget עם רישום כשל ללוג (לא בליעה שקטה, <code>ARC-33</code>). גלובלי: action_type='HTTP_'+method, entity_type='route', entity_id=path. <b>actor_name</b> נגזר מ-users.nickname לפי req.principal.userId (cache בזיכרון) גם ב-HTTP_* (<code>BIZ-43</code>); אין רשומה ללא user_id אלא אם actor='system'/'FamliAI'.</div>
 <div>חישובים</div><div>action_types ייעודיים ללא שינוי: UPDATE_ORDER_STATUS, UPDATE_CATALOG_PRICE, TOGGLE_CATALOG_ITEM, CREATE_COUPON, PANTRY_AUTO_DEDUCT, UPDATE_RECIPE_INGREDIENT, UPDATE_SC_STATUS, UPDATE_CASE_STATUS, UPDATE_LEAD_STATUS, FREEZE_MEMBER, CANCEL_MEMBER, DELETE_MEMBER, UPDATE_APPT_STATUS, UPDATE_DELIVERY_STATUS, UPDATE_INVOICE_STATUS, REPLY_CUSTOMER_CHAT, SA_AI_*; נוספים: PAYROLL_RUN, ADHOC_PAYMENT, TASK_APPROVED, AI_AUTO_APPROVE.</div>
 <div>מכונת מצבים</div><div>append-only.</div>
 <div>תופעות לוואי</div><div>—</div>
 <div>ממשק</div><div>אין מסך ייעודי ב-BIZ (ללא שינוי); הצריכה דרך FamliAI (עד 150 רשומות, סינון actor_name ILIKE — עכשיו מוצא גם HTTP_*). המודל המאוחד audit_log (<code>ARC-19</code>) כיעד ארכיטקטוני.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BIZ-43</code> — actor_name ו-user_id בכל רשומה.</li><li><code>BIZ-02</code> — endpoint השליפה מאובטח ל-ADMIN של הקבוצה.</li><li><code>ARC-19</code> / <code>ARC-33</code> — יומן מאוחד; כשלי כתיבה נרשמים.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BIZ-43</code> — actor_name ו-user_id בכל רשומה.</li><li><code>BIZ-02</code> — endpoint השליפה מאובטח ל-ADMIN של הקבוצה.</li><li><code>ARC-19</code> / <code>ARC-33</code> — יומן מאוחד; כשלי כתיבה נרשמים.</li><li><code>RECON-20</code> — הכתיבה ל-audit_log המאוחד של tobe-arch. כל אזכור של biz_audit_log, family_audit_log או sa_audit_log במפרט הזה הוא שם לוגי של אותה טבלה, מסונן לפי actor_type ו-group_id.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="activity log feed logactivity family_audit_log"><h3>פיד פעילות (activity_log)</h3>
@@ -745,7 +745,7 @@
 <div>מכונת מצבים</div><div>—</div>
 <div>תופעות לוואי</div><div>—</div>
 <div>ממשק</div><div>ללא שינוי; טקסטי הפעולות לפי סביבה (<code>BIZ-22</code>).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BIZ-02</code> — זהות מהסשן; לא ניתן לצפות בפיד של משתמש אחר.</li><li><code>BIZ-22</code> — טקסטים עסקיים בפעולות כספיות.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BIZ-02</code> — זהות מהסשן; לא ניתן לצפות בפיד של משתמש אחר.</li><li><code>BIZ-22</code> — טקסטים עסקיים בפעולות כספיות.</li><li><code>RECON-20</code> — פיד הפעילות נשמר במלואו. הרשומות נכתבות ל-audit_log המאוחד (<code>ARC-19</code>), והפיד קורא אותן משם דרך אותו נתיב, באותו תוכן ואותם אייקונים.</li></ul></div>
 </div></section>
 
 <h2 class="grp">תקשורת — פיד צוות, צ'אטים ותיבת הודעות</h2>
@@ -885,14 +885,14 @@
 <section class="proc" data-f="ai generate gemini direct newsletter content sport compose callgeminidirect model fallback"><h3>ניסוח טקסט חופשי (/api/ai/generate) ו-callGeminiDirect</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>מחולל ניוזלטר (<code>generateNLAI</code> 14371), ניסוח הודעות ספורט, תוכן אתר מקצועי.</div>
-<div>הרשאות</div><div>verifyFamilyOrBiz; groupId מהסשן; ניכוי סוללה (handleAITokens 'generate') לפני הקריאה (<code>SA-13</code>).</div>
-<div>קלט ואימותים</div><div>חובה context או query → 400 "נתונים חסרים"; BATTERY_EMPTY → 429. שגיאת מודל מוחזרת כ-success:false (ללא שינוי).</div>
+<div>הרשאות</div><div>verifyFamilyOrBiz; groupId מהסשן. בלי ניכוי סוללה, כי הנתיב לא צורך סוללה היום (<code>ARC-30</code> מתוקן). במקום זה rate limit (<code>ARC-29</code>) ורישום ב-ai_usage_log.</div>
+<div>קלט ואימותים</div><div>חובה context או query → 400 "נתונים חסרים"; חריגת rate limit → 429. שגיאת מודל מוחזרת כ-success:false (ללא שינוי).</div>
 <div>שלבי עיבוד</div><div>prompt = context + "\n\nבקשה: " + query. <code>callGeminiDirect</code> — מימוש יחיד (ההגדרה הכפולה ב-6054 נמחקת; נשמרת זו שב-6260 שגוברת היום): רשימת מודלים מ-Google, סינון gemini עם generateContent, סדר flash-lite/flash-8b → flash → אחר, עד 4 מודלים × 3 ניסיונות; בעומס (high demand/overloaded/RESOURCE_EXHAUSTED/quota/503/429) המתנה attempt×2000ms; שגיאה אחרת — זריקה מיד. מודלים ומפתח ב-config (<code>ARC-30</code>).</div>
 <div>חישובים</div><div>backoff = attempt×2000ms.</div>
 <div>מכונת מצבים</div><div>—</div>
-<div>תופעות לוואי</div><div>ניכוי טוקן; ai_usage_log.</div>
+<div>תופעות לוואי</div><div>ai_usage_log (בלי ניכוי טוקן).</div>
 <div>ממשק</div><div>ללא שינוי; הצגת BATTERY_EMPTY כמו בשאר כלי ה-AI.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>SA-13</code> (BIZ-07) — אימות + ניכוי סוללה.</li><li><code>ARC-30</code> — gateway ומימוש יחיד.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>SA-13</code> (BIZ-07) — אימות + ניכוי סוללה.</li><li><code>ARC-30</code> — gateway ומימוש יחיד.</li><li><code>RECON-24</code> — אין חיוב סוללה ב-/api/ai/generate, לפי <code>ARC-30</code> המתוקן (סוללה רק בפיצ'רים שצורכים אותה היום). האימות נשמר.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="ai insights tasks generate budget forecast goals pantry tutor image generation flux pollinations"><h3>כלי AI נקודתיים לעסק</h3>
@@ -1034,12 +1034,12 @@
 <div>מטרה וטריגר</div><div><code>runRetentionCron</code> — ריצה יומית 09:00 Asia/Jerusalem ב-worker (<code>BTY-14</code>, <code>ARC-23</code>).</div>
 <div>הרשאות</div><div>מערכת.</div>
 <div>קלט ואימותים</div><div>beauty_client_records עם avg_visit_interval_days&gt;0 ו-last_visit_at, שבהם last_visit_at + interval ≤ NOW, וללא תור עתידי (scheduled/confirmed עם segment start_time&gt;NOW) לאותו לקוח — כולל לקוחות לא מקושרים (התאמה לפי client_record_id) (<code>BTY-14</code>).</div>
-<div>שלבי עיבוד</div><div>INSERT ל-<code>alert_notifications</code> של העסק (במקום group_notifications שאינה קיימת, <code>ARC-13</code>): trigger_type='beauty_retention', כותרת "לקוח/ה {שם} לא ביקר/ה זמן מה", גוף "ממוצע ביקור כל N יום — כדאי ליצור קשר", reference_key = client_id + תאריך הביקור האחרון ⇒ פעם אחת לכל מחזור. שגיאה פר-לקוח נרשמת ללוג.</div>
+<div>שלבי עיבוד</div><div>INSERT לטבלת notifications המאוחדת דרך notify() (<code>ARC-16</code>, BTY-14; במקום group_notifications שאינה קיימת, ARC-13): type='beauty_retention', כותרת "לקוח/ה {שם} לא ביקר/ה זמן מה", גוף "ממוצע ביקור כל N יום — כדאי ליצור קשר", reference_key = client_id + תאריך הביקור האחרון ⇒ פעם אחת לכל מחזור. שגיאה פר-לקוח נרשמת ללוג.</div>
 <div>חישובים</div><div>מועד צפוי = last_visit_at + avg_visit_interval_days.</div>
 <div>מכונת מצבים</div><div>—</div>
 <div>תופעות לוואי</div><div>ההתראה מופיעה בפעמון.</div>
 <div>ממשק</div><div>ההתראות בפעמון (קיים).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BTY-14</code> (BIZ-51) — כתיבה לטבלה קיימת, dedup לפי מחזור, לקוחות לא מקושרים, 09:00.</li><li><code>ARC-13</code> / <code>ARC-23</code> — מיפוי טבלת רפאים; worker.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-14</code> (BIZ-51) — כתיבה לטבלה קיימת, dedup לפי מחזור, לקוחות לא מקושרים, 09:00.</li><li><code>ARC-13</code> / <code>ARC-23</code> — מיפוי טבלת רפאים; worker.</li><li><code>RECON-18</code> — התראת השימור נכתבת ל-notifications (type=beauty_retention), כמו ב-tobe-beauty וב-tobe-arch, ולא ל-alert_notifications.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="demo businesses reset cron snapshot restore"><h3>Cron איפוס עסקי דמו</h3>

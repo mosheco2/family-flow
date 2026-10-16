@@ -162,20 +162,20 @@
 <li>טוקן: cookie, או <code>Authorization</code> ואם הוא ריק <code>x-sa-token</code>. קידומת "Bearer " מוסרת אם קיימת.</li>
 <li>אין טוקן, או שאין שורה תקפה (hash, expires_at&gt;NOW, revoked_at NULL) → 403 <code>{error:'Forbidden'}</code>, כמו היום. שגיאה → 500 "Auth error".</li>
 <li>sa_users.status!=='active' → revoke + 403 Forbidden.</li>
-<li>requireSAPermission: למשתמש בלי ההרשאה (ובלי 'all') → 403 <code>{error:'אין הרשאה לפעולה זו', required}</code>. המיפוי זהה ל-checkTabAccess: support→support; devops; stats; comm; biz; content; hr→users; inbox/marketing→marketing; finance/insights→stats; adslots/legal→content; masterconfig→all. pulse, dashboard, clients, templates, partners ו-pricing פתוחים לכל סשן SA תקף.</li>
+<li>requireSAPermission: למשתמש בלי ההרשאה (ובלי 'all') → 403 <code>{error:'אין הרשאה לפעולה זו', required}</code>. המיפוי זהה ל-checkTabAccess: support→support; devops; stats; comm; biz; content; hr→users; inbox/marketing→marketing; finance/insights→stats; adslots/legal→content; masterconfig→all. pulse, dashboard, clients, templates, sysmap, partners, pricing, וכל לשונית שאין לה דרישה ב-checkTabAccess (feed, shuka, games, marketing, kol-haam, livegames, auditlog, archive, whatsapp, ai-builder), פתוחים לכל סשן SA תקף. התחזות דורשת impersonate או all. זו המפה SA_TAB_PERMS של tobe-arch ו-tobe-sa.</li>
 <li>בדיקות SA inline (server.js:41090, 41424, 41453) מוסרות. נתיבי המודרציה של קול העם משתמשים ב-middleware משולב <code>saOrZm</code> (AUTH-42).</li>
 </ul></div>
-<div>שלבי עיבוד</div><div><ol><li>SELECT sessions JOIN sa_users JOIN sa_teams לפי sha256(token).</li><li>UPDATE last_seen והארכה מתגלגלת של 12 שעות.</li><li><code>req.saUser={id,name,email,permissions}</code>. משמש ליומני ביקורת: <code>req.saUser.name</code> מחליף את ה-fallback הקבוע 'SA'.</li></ol></div>
-<div>חישובים</div><div>טבלה: sessions עם principal_type='sa' ו-principal_id=sa_user_id (ARC-01, ARC-07). הטוקן נשמר כ-sha256 (AUTH-16). תוקף: 12 שעות מתגלגלות (ARC-09, AUTH-20). מיגרציה: טוקנים גולמיים קיימים ב-sa_sessions מגובבים ומקושרים ל-Master.</div>
-<div>מכונת מצבים</div><div>סשן SA: active → revoked (logout, חסימת המשתמש, מחיקה) → נמחק (ניקוי). active → expired אחרי 12 שעות בלי פעילות.</div>
+<div>שלבי עיבוד</div><div><ol><li>SELECT sessions JOIN sa_users JOIN sa_teams לפי sha256(token).</li><li>UPDATE last_seen והארכה מתגלגלת של 12 שעות, עד תקרה מוחלטת של created_at+7 ימים (SA-06).</li><li><code>req.saUser={id,name,email,permissions}</code>. משמש ליומני ביקורת: <code>req.saUser.name</code> מחליף את ה-fallback הקבוע 'SA'.</li></ol></div>
+<div>חישובים</div><div>טבלה: sessions עם principal_type='sa' ו-principal_id=sa_user_id (ARC-01, ARC-07). הטוקן נשמר כ-sha256 (AUTH-16). תוקף: 12 שעות מתגלגלות (<code>ARC-09</code>, AUTH-20), ותקרה מוחלטת של 7 ימים מיצירת הסשן (SA-06). מיגרציה: טוקנים גולמיים קיימים ב-sa_sessions מגובבים ומקושרים ל-Master.</div>
+<div>מכונת מצבים</div><div>סשן SA: active → revoked (logout, חסימת המשתמש, מחיקה) → נמחק (ניקוי). active → expired אחרי 12 שעות בלי פעילות, או 7 ימים מהיצירה.</div>
 <div>תופעות לוואי</div><div>שינוי status של sa_users לערך שאינו 'active' (enum: active, blocked) מבטל את כל הסשנים שלו.</div>
-<div>ממשק</div><div>applyUserPermissions ו-checkTabAccess בלקוח נשארים כפי שהם (הצגה). ההרשאות נקראות מתגובת השרת ולא מ-ofl_sa_user שניתן לעריכה.</div>
+<div>ממשק</div><div>applyUserPermissions ו-checkTabAccess בלקוח קוראים את SA_TAB_PERMS המשותפת (SA-09), עם אותה תוצאה כמו היום. ההרשאות נקראות מתגובת השרת ולא מ-ofl_sa_user שניתן לעריכה.</div>
 <div>שינויים מהקיים</div><div><ul>
 <li><code>ARC-07</code> (AUTH-14) — sa_user_id בסשן, req.saUser, ו-requireSAPermission בשרת.</li>
 <li><code>AUTH-16</code> — טוקן כגיבוב, ביטול בחסימה, ותוקף של 12 שעות מתגלגל (בגרסה המתוקנת).</li>
 <li><code>AUTH-42</code> — בדיקות inline מוחלפות ב-verifySA או saOrZm.</li>
 <li><code>ARC-01</code> — טבלת sessions המאוחדת.</li>
-</ul></div>
+<li><code>RECON-04</code> — תקרה מוחלטת של 7 ימים לסשן SA (SA-06), כמו ב-tobe-arch וב-tobe-sa.</li><li><code>RECON-07</code> — מיפוי requireSAPermission זהה ל-SA_TAB_PERMS של tobe-arch ו-tobe-sa, כולל הלשוניות הלא ממופות שפתוחות היום.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="verifyzonemanager zone manager sessions zm token db status saorzm"><h3>Middleware ‏verifyZoneManager + סשנים בזיכרון</h3>
@@ -544,13 +544,13 @@
 <div class="kv">
 <div>מטרה וטריגר</div><div>במודל ההרשאות העסקי (רדיו <code>perm-role-type</code>, מסונן לפי <code>isFeatureLicensed</code>), בהצטרפות, ובשלב <code>my_role</code> בוויזארד.</div>
 <div>הרשאות</div><div><code>PATCH /api/users/:id/role-type</code>: verifyFamilyOrBiz, ADMIN ואותה קבוצה.</div>
-<div>קלט ואימותים</div><div><ul><li>ערך מתוך <code>EMPLOYEE_ROLE_TYPES</code> שמורשה לפי licensed_features של הקבוצה, או null. אחרת 400 "סוג תפקיד לא חוקי" (AUTH-30). חריג: ב-/api/join ערך לא חוקי נשמר NULL.</li></ul></div>
+<div>קלט ואימותים</div><div><ul><li>ערך מתוך EMPLOYEE_ROLE_TYPES, או null. אחרת 400 "סוג תפקיד לא חוקי" (AUTH-30). הרישוי (licensed_features/addon) נדרש רק כשהמבצע אינו ADMIN. בנתיב הזה המבצע הוא תמיד ADMIN, כמו היום (<code>ARC-06</code>). חריג: ב-/api/join ערך לא חוקי נשמר NULL.</li></ul></div>
 <div>שלבי עיבוד</div><div>UPDATE users SET employee_role_type.</div>
 <div>חישובים</div><div>הרשימה מוגשת ללקוחות מהשרת.</div>
 <div>מכונת מצבים</div><div>אין.</div>
 <div>תופעות לוואי</div><div>משפיע על verifyBeautyClientAccess, על verifyBeautyPractitionerAccess ועל הרחבת הטאבים (ROLE_TYPE_TABS), בשרת ובלקוח.</div>
 <div>ממשק</div><div>שלב <code>my_role</code> בוויזארד (business-app.js:23023) שולח דרך apiFetch עם Bearer, ולכן הבחירה נשמרת (AUTH-28).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>AUTH-30</code> — whitelist ורישוי.</li><li><code>AUTH-28</code> — שלב הוויזארד עובד.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-30</code> — whitelist ורישוי.</li><li><code>AUTH-28</code> — שלב הוויזארד עובד.</li><li><code>RECON-12</code> — כלל הרישוי יושר ל-<code>ARC-06</code> ול-tobe-biz: ADMIN אינו נחסם, וה-whitelist נאכף.</li></ul></div>
 </div></section>
 
 <h2 class="grp">BIZ — הרשמה, כניסה ושחזור</h2>
@@ -660,9 +660,9 @@
 <section class="proc" data-f="impersonation sa biz-impersonate-token isimpersonating sessionstorage audit takeover"><h3>השתלטות SA על סביבת לקוח (Impersonation)</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>SA לוחץ "השתלטות" (sa-app.js <code>impersonateGroup</code>).</div>
-<div>הרשאות</div><div>verifySA + requireSAPermission('support') או 'all' (ARC-07).</div>
-<div>קלט ואימותים</div><div><ul><li><code>POST /api/sa/biz-impersonate-token {groupId,userId}</code>: חסר groupId → 400. קבוצה לא קיימת → 404.</li><li>משתמש: userId שהתבקש, אם הוא שייך לקבוצה. אחרת ה-ADMIN הראשון. אם אין ADMIN → 400 "אין משתמש מנהל בסביבה" (AUTH-21).</li></ul></div>
-<div>שלבי עיבוד</div><div><ol><li>שרת: <code>createSession(groupId, userId, 'sa-impersonation', {ttl: 1h, impersonated_by: req.saUser.id})</code>. הסוג נקבע לפי סוג הקבוצה.</li><li>INSERT sa_audit_log (sa_user_id, group_id, user_id, זמן) (AUTH-21, ARC-07).</li><li>לקוח: פותח טאב חדש (<code>/business.html</code> או <code>/</code>) ומעביר את הטוקן לטאב החדש בלבד. הטאב שומר אותו ב-<code>sessionStorage</code> יחד עם <code>{user,group,isImpersonating:true}</code>, בלי לגעת ב-<code>ofl_session</code>, ב-<code>wfz_token</code> או ב-<code>ofl_sa_token</code> של הטאבים האחרים. <code>ofl_sa_return_token</code> מוסר.</li></ol></div>
+<div>הרשאות</div><div>verifySA + requireSAPermission('impersonate') או 'all' (<code>ARC-07</code> מתוקן). המיגרציה מעניקה impersonate לכל צוות קיים.</div>
+<div>קלט ואימותים</div><div><ul><li><code>POST /api/sa/biz-impersonate-token {groupId,userId}</code>: חסר groupId → 400. קבוצה לא קיימת → 404.</li><li>משתמש: userId שהתבקש, אם הוא שייך לקבוצה. אחרת ה-ADMIN הראשון. אם אין ADMIN → 409 {code:'NO_ADMIN', error:'אין משתמש מנהל לסביבה'} (SA-08, AUTH-21). הלקוח מציע "צור מנהל והיכנס", כמו ב-tobe-sa.</li></ul></div>
+<div>שלבי עיבוד</div><div><ol><li>שרת: <code>createSession(groupId, userId, 'sa-impersonation', {ttl: 1h, impersonated_by: req.saUser.id})</code>. הסוג נקבע לפי סוג הקבוצה.</li><li>INSERT ל-audit_log המאוחד (actor_type='sa', actor_id=sa_user_id, action IMPERSONATE, group_id, user_id) (AUTH-21, <code>ARC-07</code>, <code>ARC-19</code>).</li><li>לקוח: פותח טאב חדש (<code>/business.html</code> או <code>/</code>) ומעביר את הטוקן לטאב החדש בלבד. הטאב שומר אותו ב-<code>sessionStorage</code> יחד עם <code>{user,group,isImpersonating:true}</code>, בלי לגעת ב-<code>ofl_session</code>, ב-<code>wfz_token</code> או ב-<code>ofl_sa_token</code> של הטאבים האחרים. <code>ofl_sa_return_token</code> מוסר.</li></ol></div>
 <div>חישובים</div><div>תוקף שעה קבוע, בלי הארכה.</div>
 <div>מכונת מצבים</div><div>סשן התחזות: active → expired (שעה) / revoked (התנתקות מהבאנר).</div>
 <div>תופעות לוואי</div><div>רשומת ביקורת.</div>
@@ -670,7 +670,7 @@
 <div>שינויים מהקיים</div><div><ul>
 <li><code>AUTH-21</code> — 400 כשאין ADMIN, יומן ביקורת, sessionStorage בלבד, והסרת ofl_sa_return_token.</li>
 <li><code>ARC-07</code> (AUTH-14) — דרישת הרשאת support או all.</li>
-</ul></div>
+<li><code>RECON-09</code> — ההרשאה impersonate (ממוגרת לכל הצוותים), כמו ב-tobe-arch.</li><li><code>RECON-10</code> — אין ADMIN מחזיר 409 NO_ADMIN (לא 400), עם מסלול "צור מנהל והיכנס", כמו ב-tobe-sa וב-tobe-arch. הרישום ב-audit_log המאוחד.</li></ul></div>
 </div></section>
 
 <h2 class="grp">SUPER-ADMIN</h2>
@@ -703,7 +703,7 @@
 <div>מטרה וטריגר</div><div>sa.html, שלב master. מוסתר אם <code>/api/settings/login-mode</code> מחזיר <code>smsEnabled=false</code> (system_settings <code>sms_login_enabled</code>, ברירת מחדל true).</div>
 <div>הרשאות</div><div>ציבורי מוצהר. כש-<code>sms_login_enabled=false</code>, ה-endpoints מחזירים 403 (AUTH-17, שהוחל דרך ARC-29).</div>
 <div>קלט ואימותים</div><div><ul>
-<li>send: <code>phone !== process.env.SUPERADMIN_PHONE</code> (אחרי נרמול) או env חסר → <code>{success:false, error:"מספר הטלפון שהוזן אינו מורשה…"}</code> (200), כמו היום. Rate: 3 בשעה ו-10 ביום.</li>
+<li>send: <code>phone !== process.env.SUPERADMIN_PHONE</code> (אחרי נרמול) או env חסר → <code>HTTP 403 {success:false, error:"מספר הטלפון שהוזן אינו מורשה…"}. הגוף כמו היום, והסטטוס לפי <code>ARC-33</code> ו-SA-58. Rate: 3 בשעה ו-10 ביום.</li>
 <li>verify: אין רשומה → "לא נמצאה בקשת התחברות פעילה למספר זה". פג (10 דק') → מחיקה. קוד שגוי → "הקוד שהוקלד אינו תקין". אחרי 5 ניסיונות הקוד נפסל (ARC-07, ARC-29).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div>קוד 6 ספרות נשמר בטבלת OTP ב-DB (purpose 'sa_master', HMAC) במקום ב-<code>otpCache</code> (ARC-24). SMS. ב-verify: מחיקה, ו-<code>createSession</code> לשורת ה-Master (sa) לתוקף 12 שעות. התגובה באותו מבנה: <code>user:{id,name:'Super Admin Master',role:'master',email,permissions:['all']}</code>.</div>
@@ -715,7 +715,7 @@
 <li><code>ARC-29</code> (AUTH-17) — הגבלת ניסיונות ושליחות, ו-403 כש-SMS כבוי.</li>
 <li><code>ARC-07</code> — הסשן מקושר לשורת ה-Master.</li>
 <li><code>ARC-24</code> — OTP ב-DB.</li>
-</ul></div>
+<li><code>RECON-26</code> — שגיאה מוחזרת ב-4xx ולא ב-200, כמו ב-tobe-sa (SA-58). הלקוח קורא את error מהגוף.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="sa staff teams rbac permissions sa_users create status blocked revoke"><h3>ניהול צוות SA (RBAC)</h3>
@@ -782,7 +782,7 @@
 <li>send: phone חובה. <code>cleanPhone</code> מחושב ב-normalizePhone (ספרות בלבד, 972→0), ונדרשות 9–15 ספרות, אחרת "מספר טלפון לא תקין". ערוץ email: email מה-body או מהלקוח הקיים, עם regex, אחרת "כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח".</li>
 <li>Rate: 3 בשעה ו-10 ביום לכל טלפון, לפי otp_send_log → "נשלחו יותר מדי קודים — נסה שוב מאוחר יותר" (ARC-29).</li>
 <li>verify: OTP אחרון שלא נוצל ובתוקף. <code>attempts&gt;=5</code> → used=true + "יותר מדי ניסיונות — שלח קוד חדש". bcrypt.compare נכשל → attempts+1 + "קוד שגוי". ללא שינוי.</li>
-<li>כל התגובות HTTP 200 עם <code>success:false</code>, כמו היום. כל handler עטוף ב-try/catch, ושגיאה מחזירה 500 (AUTH-38, ARC-33).</li>
+<li>שגיאות מוחזרות עם קוד HTTP לפי <code>ARC-33</code> (400 ולידציה, 429 מגבלה, 502 כשל שליחה), והגוף {success:false, error} נשאר כמו היום. sc-auth.js קורא את ה-JSON בכל סטטוס, ולכן ההודעות לא משתנות. כל handler עטוף ב-try/catch, ושגיאה מחזירה 500 (AUTH-38, ARC-33).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol><li>send: קוד 6 ספרות, bcrypt(10) (ARC-31), תוקף 10 דק', INSERT storefront_otp(channel, email). שליחה במייל או ב-SMS (E.164). הדפסת הקוד ללוג רק בסביבה שאינה production. תגובה <code>{isNew, smsSent, channel}</code>.</li><li>verify בהצלחה: used=true. אין לקוח, או לקוח "שקט" בלי PIN → <code>{isNew:true, phone, registration_token}</code>. registration_token הוא randomBytes(32), ה-hash שלו נשמר ב-storefront_otp עם purpose='register', תוקף 15 דק', חד-פעמי וקשור לטלפון (AUTH-04). לקוח עם PIN → <code>createSession</code> (storefront) → <code>{token, customer}</code> בלי pin_hash.</li></ol></div>
 <div>חישובים</div><div>OTP: 10 דק' (כמו היום ל-OTP כניסה), 5 ניסיונות.</div>
@@ -794,7 +794,7 @@
 <li><code>AUTH-38</code> — try/catch בכל handler.</li>
 <li><code>ARC-29</code> — 3 בשעה ו-10 ביום (במקום 3 ל-10 דק').</li>
 <li><code>ARC-31</code> — bcrypt cost 10. <code>AUTH-34</code> — normalizePhone.</li>
-</ul></div>
+<li><code>RECON-26</code> — אין יותר success:false עם HTTP 200 (<code>ARC-33</code>). הגוף נשאר, כמו ב-tobe-services.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="storefront sc-auth register pin customer family_group solo shopper registration_token"><h3>הרשמת לקוח חנות (sc-auth/register)</h3>
@@ -839,8 +839,8 @@
 <div>מטרה וטריגר</div><div>כפתור מעבר ל-OFL (sc-auth.js <code>goToOFL</code>) → טאב חדש <code>/?sso_token=…</code> → app.js.</div>
 <div>הרשאות</div><div>my-families ו-sso-token: סשן storefront. sso-login: ציבורי מוצהר, וה-sso_token הוא ההוכחה.</div>
 <div>קלט ואימותים</div><div><ul>
-<li><code>GET /api/sc-auth/my-families</code>: לכל לקוח מוחזר רק <code>family_group_id</code>. מסלול ריבוי המשפחות של <code>SC_MULTI_FAMILY_TEST_PHONE</code> פעיל רק כש-NODE_ENV!='production' (ARC-31).</li>
-<li><code>GET /api/sc-auth/sso-token[?familyGroupId]</code>: ברירת המחדל היא family_group_id של הלקוח. בחירה ידנית רק במסלול הבדיקה, עם אימות users.phone.</li>
+<li><code>GET /api/sc-auth/my-families: כל המשפחות הפעילות (FAMILY, account_kind≠shopper/member) שבהן קיים משתמש active שהטלפון המנורמל שלו תואם לטלפון של הלקוח המאומת. יותר ממשפחה אחת → בחירה, לכל לקוח (כמו ב-tobe-services). הקבוע SC_MULTI_FAMILY_TEST_PHONE מוסר מהקוד (<code>ARC-31</code>).</li>
+<li><code>GET /api/sc-auth/sso-token[?familyGroupId]: ברירת המחדל היא family_group_id של הלקוח. familyGroupId שנבחר חייב להיות ברשימת my-families של הלקוח, עם אימות users.phone.</li>
 <li><code>GET /api/family/sso-login?token</code>: token שלא נוצל ובתוקף, אחרת "טוקן לא תקין או פג". אין family_group_id → "אין חשבון משפחה מקושר". type BUSINESS → 403 "חשבון עסקי אינו נגיש דרך חנות לקוח". <b>המשתמש נבחר לפי טלפון</b>: users active בקבוצה שהטלפון המנורמל שלהם שווה לטלפון של storefront_customer. אין התאמה → 403 "לא נמצא משתמש משפחה תואם למספר זה", בלי fallback ל-ADMIN (AUTH-05). כמה התאמות → <code>{choose:[{user_id,nickname}]}</code>, והלקוח בוחר ושולח שוב עם user_id (ה-token נשאר תקף עד שנוצל או פג).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div>sso-token: randomBytes(48).hex, תוקף 60 שניות, INSERT storefront_sso_tokens. sso-login: used=true. <code>createSession(fgId, matchedUser.id, 'storefront-sso')</code> → <code>{familyGroup, user: sanitizeUser, sessionToken}</code>. לקוח: חוסם BUSINESS, ושומר את <code>ofl_session</code> ואת <code>wfz_token</code>. ללא שינוי, חוץ מהמפתח. מוחק את <code>ofl_sa_token</code>.</div>
@@ -848,7 +848,7 @@
 <div>מכונת מצבים</div><div>sso-token: תקף → נוצל / פג.</div>
 <div>תופעות לוואי</div><div>יצירת סשן משפחה.</div>
 <div>ממשק</div><div>ללא שינוי, חוץ ממסך בחירה כשיש כמה משתמשים תואמים. לקוח חנות שנרשם יצר משתמש ADMIN עם הטלפון שלו, ולכן ההתאמה קיימת במסלול הרגיל.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>AUTH-05</code> — הסשן נפתח למשתמש בעל הטלפון בלבד, עם בחירה כשיש כמה, ובלי fallback ל-ADMIN.</li><li><code>ARC-31</code> — טלפון הבדיקה רק בפיתוח.</li><li><code>AUTH-07</code> — sanitizeUser.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>AUTH-05</code> — הסשן נפתח למשתמש בעל הטלפון בלבד, עם בחירה כשיש כמה, ובלי fallback ל-ADMIN.</li><li><code>ARC-31</code> — טלפון הבדיקה רק בפיתוח.</li><li><code>AUTH-07</code> — sanitizeUser.</li><li><code>RECON-35</code> — בחירת משפחה זמינה לכל לקוח שהטלפון המאומת שלו תואם למשתמש פעיל ביותר ממשפחה אחת (כמו ב-tobe-services), והקבוע של טלפון הבדיקה מוסר.</li></ul></div>
 </div></section>
 
 <h2 class="grp">אחסון טוקנים בלקוח וצירופם לבקשות</h2>

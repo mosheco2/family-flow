@@ -292,7 +292,7 @@
 
 <section class="proc" data-f="routines overdue grace deadline mark cleanup retention delete cascade daily escalation reminder move_requested"><h3>סימון פיגור וניקוי לפי תקופת שמירה</h3>
 <div class="kv">
-<div>מטרה וטריגר</div><div><code>markOverdueRoutineOccurrences</code> (server.js:7005) רץ כשלב 3 של ה-cron, כל 15 דקות. ‏<code>cleanupExpiredRoutineRecords</code> (7022) הוא משימת worker יומית, בשעה 03:00 בשעון ישראל (<code>ARC-23</code>), במקום setInterval של 24 שעות.</div>
+<div>מטרה וטריגר</div><div><code>markOverdueRoutineOccurrences</code> (server.js:7005) רץ כשלב 3 של ה-cron, כל 15 דקות. ‏<code>cleanupExpiredRoutineRecords</code> (7022) הוא משימת worker יומית, בשעה 03:10 בשעון ישראל (<code>ARC-23</code>; 03:00 שמור לניקוי הסשנים), במקום setInterval של 24 שעות.</div>
 <div>הרשאות</div><div>system.</div>
 <div>קלט ואימותים</div><div><ul>
 <li>פיגור (<code>RTN-23</code>): <code>status='open' AND grace_deadline IS NOT NULL AND grace_deadline &lt; NOW()</code>. מופע in_progress (סבב פתוח) לא עובר לפיגור.</li>
@@ -317,7 +317,7 @@
 <li><code>RTN-24</code> — התראות פיגור, אסקלציה ותזכורת.</li>
 <li><code>RTN-20</code> — TIMESTAMPTZ ושעון ישראל.</li>
 <li><code>ARC-23</code> — ניקוי כמשימת worker יומית.</li>
-</ul></div>
+<li><code>RECON-32</code> — שעת הניקוי 03:10, כמו בטבלת תהליכי הרקע ב-tobe-arch.</li></ul></div>
 </div></section>
 
 <h2 class="grp">ביצוע מופעים, לוחות מעקב ואישורים</h2>

@@ -304,7 +304,7 @@
 <div>שלבי עיבוד</div><div><ol>
 <li>קוד אקראי 6 ספרות (<code>crypto.randomInt</code>), נשמר מגובב (<code>ARC-31</code>).</li>
 <li>INSERT <code>temp_table_reservations(... sms_code_hash, sms_sent_at=NOW(), attempts=0)</code>, expires_at=NOW()+10min.</li>
-<li><code>sms_debug_code</code> פעיל רק כש-NODE_ENV≠production (<code>RST-16</code>, <code>ARC-31</code>).</li>
+<li><code>sms_debug_code: מחוץ לייצור כמו היום; בייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן, RST-16, <code>ARC-31</code>).</li>
 <li>SMS דרך <code>sendSMSviaTwilio</code>; 0 → +972; גוף כקיים (שם העסק, שם, תאריך he-IL, שעה, סועדים, קוד, "נשלח דרך WEFLOWZ").</li>
 <li>verify: איתור לקוח לפי טלפון → <code>customer_group_id</code> (כקיים).</li>
 <li>אישור אוטומטי (<code>RST-17</code>): אם <code>auto_approve_max_guests</code> מוגדר, <code>numGuests ≤</code> הערך ויש שולחן פנוי מתאים → <code>status='approved'</code> + <code>reserved_table_number</code> + SMS אישור (נוסח האישור של "אישור הזמנה ע"י העסק"); אחרת <code>pending</code>.</li>
@@ -320,7 +320,7 @@
 <li><code>RST-16</code> — הגבלת ניסיונות ושליחות, ניקוי רשומות, קוד דיבאג רק מחוץ לייצור (עם <code>ARC-29</code>: 6 ספרות, 10 דק').</li>
 <li><code>RST-15</code> — זמינות לפי שעה וקיבולת, ובדיקה חוזרת ב-verify.</li>
 <li><code>RST-17</code> — אישור אוטומטי חל גם על הזמנה ציבורית.</li>
-</ul></div>
+<li><code>RECON-05</code> — קוד הדיבאג חל בייצור רק על טלפוני הבדיקה (SA-49 מתוקן), כמו ב-tobe-sa וב-tobe-arch.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="table reservation calendar events auto approve auto_approve_max_guests reserved_table_number inbox app family ai"><h3>יצירת הזמנת שולחן דרך היומן (אפליקציית משפחה / AI / עסק) ואישור אוטומטי</h3>
@@ -439,9 +439,9 @@
 <div class="kv">
 <div>מטרה וטריגר</div><div><code>POST /api/restaurant/customer</code>, <code>GET /api/restaurant/customers?search=</code> — נשמרים כיכולת (<code>RST-22</code> מתוקן), כממשק מעל טבלת הלקוח המאוחדת.</div>
 <div>הרשאות</div><div>verifyBiz; בעלי טאב customers (כקיים בנראות); groupId מהסשן (<code>RST-01</code>).</div>
-<div>קלט ואימותים</div><div><ul><li>שם חובה (חדש, <code>ARC-34</code>); טלפון מנורמל; UNIQUE(group_id, phone_normalized) (<code>ARC-14</code>).</li></ul></div>
+<div>קלט ואימותים</div><div><ul><li>שם חובה (חדש, <code>ARC-34</code>); טלפון מנורמל; UNIQUE(group_id, phone_normalized) WHERE NOT shared_phone (<code>ARC-14</code>). טלפון קיים מעדכן את הלקוח הקיים, כמו היום.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li>מיגרציה: כל שורות <code>restaurant_customers</code> עוברות ל-<code>customers</code> (מיזוג לפי טלפון), עם <code>restaurant_customer_profile(customer_id, visits_total, status)</code>; אין מחיקת נתונים.</li>
+<li>מיגרציה: כל שורות <code>restaurant_customers</code> עוברות ל-<code>customers</code> (מיזוג לפי טלפון), עם restaurant_guest_profile(customer_id, visits_total, status) (השם הקנוני של tobe-arch); אין מחיקת נתונים.</li>
 <li>Upsert כקיים: טלפון קיים → UPDATE name/email/notes/updated_at ו-<code>updated:true</code>; אחרת INSERT (status active, visits_total 0).</li>
 <li>רשימה כקיים: search → ILIKE שם/טלפון, LIMIT 50 לפי שם; בלי → LIMIT 100 לפי <code>visits_total DESC</code>; כולל <code>last_visit</code>. מונה הביקורים כולל גם הזמנות completed של הלקוח (כרטיס לקוח מאוחד, STR-43).</li>
 </ol></div>
@@ -449,7 +449,7 @@
 <div>מכונת מצבים</div><div>status: active ↔ inactive.</div>
 <div>תופעות לוואי</div><div>אין.</div>
 <div>ממשק</div><div>אין ממשק ייעודי היום; הנתונים מוצגים בכרטיס הלקוח המאוחד (טאב customers).</div>
-<div>שינויים מהקיים</div><div><ul><li><code>RST-22</code> (מתוקן) — היכולת נשמרת מעל customers המאוחד; נתונים מועברים ולא נמחקים; שם חובה.</li><li><code>RST-01</code> — אימות.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>RST-22</code> (מתוקן) — היכולת נשמרת מעל customers המאוחד; נתונים מועברים ולא נמחקים; שם חובה.</li><li><code>RST-01</code> — אימות.</li><li><code>RECON-16</code> — האילוץ חלקי (shared_phone), כמו ב-tobe-arch.</li><li><code>RECON-17</code> — טבלת ההרחבה נקראת restaurant_guest_profile, כמו ב-tobe-arch.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="restaurant visit check-in checkout self-visit restaurant_visits guests"><h3>ביקור: צ'ק-אין (עסק/עצמי), ביטול וצ'ק-אאוט</h3>

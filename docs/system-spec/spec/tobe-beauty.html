@@ -4,7 +4,7 @@
 <ul>
 <li><code>BTY-03</code> — ההצעה אפשרה "להסיר" את <code>/availability</code> → בדיקת זמינות היא יכולת → <b>כלל סופי:</b> <code>/availability</code> מאוחד בפונקציית הזמינות של <code>/slots</code> (פרמטר <code>check</code>), לא נמחק כיכולת; נשאר ציבורי רק בתצורת תפוסה ללא שמות.</li>
 <li><code>BTY-04</code> — ההצעה הגבילה מטפלות לעריכת "תורים שלהן" בלבד ולא כללה פעולות כרטיס לקוח לכל התפקידים → היום כל מטפלת פועלת על כל תור ביומן ועל כל פעולות כרטיס הלקוח → <b>כלל סופי:</b> therapist/nail_tech/makeup_artist שומרות כתיבה על כל תורי היומן (יצירה, עריכה, השלמה, לא הגיע, ביטולים, אישור בקשות); כל תפקיד עם גישת לקוחות שומר את כל פעולות כרטיס הלקוח (פורמולות, תמונות, מכירה/מימוש מנוי, אישור גבייה). ההגבלה החדשה חלה רק על מה שלא נחשף להם בממשק (עמלות של אחרות, ניהול קטלוג, מלאי, RFQ, דשבורד מנהל) ועל תפקידים שאינם תפקידי יופי.</li>
-<li><code>BTY-08</code> — ההצעה ביטלה את הודעת ה-wa.me שהעסק שולח → <b>כלל סופי:</b> הסיסמה לא מוצגת לעולם; העסק ממשיך לשלוח הודעת הצטרפות ב-wa.me (וכן נשלח SMS אוטומטי), אך ההודעה נושאת קישור הפעלה חד-פעמי (72 שעות) במקום סיסמה.</li>
+<li><code>BTY-08</code> — ההצעה ביטלה את הודעת ה-wa.me שהעסק שולח → <b>כלל סופי (מיושר ל-AUTH-37 ו-<code>ARC-31</code>, <code>RECON-27</code>): הסיסמה הזמנית נשמרת רק כ-bcrypt ומוחזרת פעם אחת להצגה ולהודעת wa.me, כמו היום. מערכת לא שולחת סיסמה ב-SMS או במייל.</li>
 <li><code>BTY-14</code> — ההצעה כתבה ל-<code>alert_notifications</code> → יישור ל-ARC-13/ARC-16 → <b>כלל סופי:</b> התראת שימור נכתבת לטבלת <code>notifications</code> המאוחדת (type=<code>beauty_retention</code>, recipient = העסק) עם מפתח dedup client_record_id+last_visit_at.</li>
 <li><code>BTY-16</code> — ההצעה אסרה כל מעבר מ-completed/no_show/cancelled ואסרה בחירת "הושלם" בעריכה → היום מסך העריכה מאפשר לבחור כל סטטוס ולתקן טעויות → <b>כלל סופי:</b> ה-select בעריכה ממשיך להציע הושלם/לא הגיע/בוטל/מאושר; בחירת "הושלם" מפעילה את זרימת complete (עם התופעות), "לא הגיע" את זרימת no-show; החזרה ממצב סופי ל-confirmed ("שחזור תור") מותרת ל-ADMIN/senior_therapist/branch_manager, ומ-completed היא מבטלת עמלות שטרם שולמו ורושמת תנועת הכנסה הפוכה. כל מעבר אחר שאינו בטבלה ⇒ 409.</li>
 <li><code>BTY-24</code> — ההצעה אפשרה עקיפה רק ל-ADMIN → היום כל עובד יומן קובע תור בכל משבצת → <b>כלל סופי:</b> הפרת available_days / allowed_practitioner_ids / שעות עבודה בקביעה פנימית מחזירה 409 <code>AVAILABILITY_RULE</code> עם פירוט, וכל תפקיד עם כתיבת יומן רשאי "לקבוע בכל זאת" (<code>force:true</code>, נרשם ב-audit). התנגשות מטפלת/משאב נשארת חסימה קשיחה כמו היום. בחנות — אכיפה מלאה ללא עקיפה.</li>
@@ -483,11 +483,11 @@
 <section class="proc" data-f="storefront booking request sms verify calendar_events pending approve beauty appointment synthetic"><h3>בקשת תור מהחנות הציבורית ואישורה (המרה לתור יופי)</h3>
 <div class="kv">
 <div>מטרה וטריגר</div><div>לקוחה בחנות פותחת את מודאל ההזמנה: נטענים <code>/practitioners/public</code> ו-<code>/services/public</code>, נבחרים שירות, מטפלת ("ללא העדפה"), תאריך ושעה מתוך <code>/slots</code> (BTY-42), ונשלחת בקשה. העסק מאשר מהבאנר.</div>
-<div>הרשאות</div><div>request/verify: ציבורי עם rate limit (ARC-29) ודרישת התחברות storefront בלקוח (ללא שינוי). אישור/דחייה (<code>PUT /api/calendar/events/:id/status</code>, <code>deleteCalendarEvent</code>): סשן biz עם כתיבת יומן ובעלות על האירוע (BTY-02).</div>
+<div>הרשאות</div><div>request/verify: Bearer של sc-auth נאכף בשרת (SRV-36, כמו ב-tobe-services), כי הממשק כבר מחייב התחברות (scAuth.requireLogin); rate limit (<code>ARC-29</code>). שם וטלפון שהוזנו בטופס נשמרים כפרטי הקשר של הבקשה. אישור/דחייה (<code>PUT /api/calendar/events/:id/status</code>, <code>deleteCalendarEvent</code>): סשן biz עם כתיבת יומן ובעלות על האירוע (BTY-02).</div>
 <div>קלט ואימותים</div><div><ul>
 <li>לקוח: שם, טלפון, תאריך ושעה חובה, "יש למלא שם, טלפון, תאריך ושעה"; <code>scAuth.requireLogin</code> (ללא שינוי).</li>
 <li>request-booking-sms: אותם שדות, אחרת 400 "חסרים פרטים חובה"; service_id ו-preferred_practitioner_id שייכים לעסק; המשבצת פנויה לפי computeSlots (אחרת 409 "השעה כבר לא פנויה").</li>
-<li>verify-booking-sms: קוד באורך שנקבע ב-ARC-29 (6 ספרות, 10 דקות, 5 ניסיונות); temp pending ושייך לעסק, אחרת 404; קוד שגוי ⇒ 400 "קוד שגוי"; פג ⇒ "קוד פג תוקף". קוד דיבאג רק מחוץ לייצור (ARC-31).</li>
+<li>verify-booking-sms: קוד באורך שנקבע ב-ARC-29 (6 ספרות, 10 דקות, 5 ניסיונות); temp pending ושייך לעסק, אחרת 404; קוד שגוי ⇒ 400 "קוד שגוי"; פג ⇒ "קוד פג תוקף". קוד דיבאג: מחוץ לייצור כמו היום, ובייצור רק לטלפונים שב-sms_test_phones (SA-49 מתוקן, <code>ARC-31</code>).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>request: קוד אקראי; <code>INSERT temp_booking_requests</code> (service_id, preferred_practitioner_id, client_name, client_phone); SMS: "{biz} — בקשת תור ✅ … קוד אישור: X" (ללא שינוי בנוסח).</li>
@@ -497,7 +497,7 @@
 <ol><li><code>UPDATE calendar_events SET status='converted' WHERE id AND group_id AND status='pending' RETURNING *</code>; 0 שורות ⇒ 409 "הבקשה כבר טופלה" (BTY-41).</li>
 <li>שירות מהקטלוג: name, duration_minutes, price (ללא קטלוג: dur=60, שם = שם השירות מהבקשה). מטפלת = practitioner_id שנבחר באישור, או המועדפת (BTY-40).</li>
 <li>בדיקת התנגשות וזמינות (כמו ביצירה, עם force ב-biz).</li>
-<li><code>INSERT beauty_appointments(booking_source='storefront', status='confirmed', total_price = מחיר השירות, client_family_id=customer_group_id, client_record_id, client_name, client_phone)</code>; <code>INSERT segment(1, 'active', service_name, service_catalog_id, start, end, dur, price, practitioner_id)</code>; <code>calendar_events.converted_appointment_id</code> = id התור.</li>
+<li><code>INSERT beauty_appointments(booking_source='storefront', status='confirmed', total_price = מחיר השירות, client_family_id=customer_group_id, client_record_id, client_name, client_phone)</code>; <code>INSERT segment(1, 'active', service_name, service_catalog_id, start, end, dur, price, practitioner_id)</code>; <code>calendar_events.converted_appointment_id = id התור, ו-beauty_appointments.calendar_event_id UNIQUE (SRV-27) כשומר אידמפוטנטיות.</li>
 <li>COMMIT, ואחריו SMS: "{biz} — התור שלך אושר! ✅ תאריך… שעה… שירות… נתראה! 💅 WEFLOWZ" ו-inbox (sender_name 'הסלון', subject "התור שלך אושר ✅") אם יש customer_group_id (ללא שינוי בנוסח).</li></ol></li>
 <li>אחרי האישור הממשק מנווט ל-beauty_calendar בתאריך התור, בתצוגת יום (ללא שינוי).</li>
 </ol></div>
@@ -512,7 +512,7 @@
 <li><code>BTY-28</code> — סימון "נדרשת בדיקת רגישות" בבקשה.</li>
 <li><code>BTY-02</code> — אישור/דחייה דורשים סשן biz.</li>
 <li><code>BTY-38</code> — התראה על דחייה.</li>
-</ul></div>
+<li><code>RECON-05</code> — קוד הדיבאג בייצור רק לטלפוני בדיקה (SA-49 מתוקן).</li><li><code>RECON-22</code> — request/verify דורשים טוקן sc-auth בשרת (SRV-36), כמו ב-tobe-services. אין צמצום, כי הממשק כבר מחייב התחברות לפני שליחה.</li><li><code>RECON-23</code> — נוסף הקישור UNIQUE calendar_event_id של tobe-services. tobe-services יושר למצב converted ולמחיר מהקטלוג.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="synthetic calendar events bap- is_beauty_internal api calendar storefront availability"><h3>אירועי יומן סינתטיים (bap-*) וזמינות בחנות</h3>
@@ -625,13 +625,13 @@
 <li>שרת: חיפוש users בקבוצות FAMILY לפי טלפון מנורמל, או (בלי טלפון) nickname ILIKE; LIMIT 5; מוחזרים שדות מינימליים (שם, טלפון ממוסך חלקית, family_id) (ARC-32).</li>
 <li>התאמה יחידה: <code>_beautyLinkOneflow</code> ממלא שדות ריקים בלבד (שם, email, id_number, תאריך לידה = birth_year-01-01) ושומר <code>_bncLinkedFamilyId</code> (ללא שינוי).</li>
 <li>כמה התאמות: רשימה לבחירה ידנית (ללא שינוי).</li>
-<li>אין התאמה: "צור חשבון WEFLOWZ וקשר ללקוח" → <code>POST /api/member/create-for-business</code> (business_group_id מהסשן, name, phone, admin_name). החשבון נוצר <b>ללא סיסמה</b>; נוצר קישור הפעלה חד-פעמי בתוקף 72 שעות; SMS אוטומטי עם הקישור; בממשק מוצגים קוד ושם (ללא סיסמה) וכפתור wa.me עם הודעת הצטרפות שכוללת את קישור ההפעלה. לחשבון קיים — הודעה ללא סיסמה (ללא שינוי) (BTY-08).</li>
+<li>אין התאמה: "צור חשבון WEFLOWZ וקשר ללקוח" → <code>POST /api/member/create-for-business</code> (business_group_id מהסשן, name, phone, admin_name). לפי AUTH-37 (תהליך הבעלים ב-tobe-auth ו-<code>ARC-31</code>): סיסמה זמנית אקראית של 10 תווים מוגרלת לפני ה-INSERT, נשמרת רק כ-bcrypt, ומוחזרת פעם אחת בתגובה. בממשק מוצגים קוד, שם וסיסמה זמנית, וכפתור wa.me עם הודעת הצטרפות, כמו היום וכמתואר ב-beauty-guide.html. must_change_password=true. SMS אוטומטי אופציונלי נושא רק קוד וקישור כניסה, בלי סיסמה. לחשבון קיים — הודעה ללא סיסמה (ללא שינוי) (BTY-08).</li>
 </ol></div>
 <div>חישובים</div><div>טלפון ל-wa.me: <code>phone.replace(/^0/,'972')</code> (ללא שינוי).</div>
-<div>מכונת מצבים</div><div>חשבון חבר: נוצר (pending_activation) → active כשהלקוחה מגדירה סיסמה דרך הקישור; קישור שפג ⇒ העסק יכול "שלח קישור מחדש".</div>
+<div>מכונת מצבים</div><div>חשבון חבר: נוצר (pending_activation) → active בכניסה הראשונה, עם החלפת הסיסמה הזמנית (must_change_password).</div>
 <div>תופעות לוואי</div><div>חשבון חבר; SMS הפעלה; WhatsApp ידני דרך wa.me.</div>
 <div>ממשק</div><div>חלון ההצלחה: "החשבון נוצר — נשלח ללקוחה קישור להגדרת סיסמה" + קוד + כפתור "שלח ב-WhatsApp" + "שלח קישור מחדש".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BTY-08</code> — אין סיסמה גלויה; קישור הפעלה 72 שעות; wa.me נשמר עם הקישור (מתוקן).</li><li><code>BTY-29</code> — הבדיקה משמשת גם להצעת קישור בטופס התור.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-08</code> — אין סיסמה גלויה; קישור הפעלה 72 שעות; wa.me נשמר עם הקישור (מתוקן).</li><li><code>BTY-29</code> — הבדיקה משמשת גם להצעת קישור בטופס התור.</li><li><code>RECON-27</code> — create-for-business פועל לפי AUTH-37 (סיסמה זמנית שמוצגת פעם אחת, כמו היום), ולא לפי קישור הפעלה של 72 שעות. הנתיב משותף ל-tobe-auth, tobe-community ו-tobe-family, ולכן יש לו כלל אחד.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="client card modal tabs details appts beauty sub collection"><h3>כרטיס לקוח (מודאל עם טאבים)</h3>
@@ -691,7 +691,7 @@
 <div>הרשאות</div><div>תפקידי לקוחות; הכרטיס שייך לעסק, אחרת 403 "אין הרשאה" (ללא שינוי).</div>
 <div>קלט ואימותים</div><div><ul>
 <li>פורמולה: פרטים חובה, "נא הזן פרטי פורמולה" (ללא שינוי); appointment_id/practitioner_id של העסק.</li>
-<li>תמונה: קובץ (png/jpg/webp, עד 8MB, בדיקת magic bytes — ARC-26) <b>או</b> URL (http/https), אחרת "נא העלי קובץ או הזיני URL לתמונה"; photo_type ∈ before|after|consultation|reference (enum, לא VARCHAR(10)); <code>is_consent_given=true</code> חובה, אחרת 400 "יש לאשר הסכמת הלקוחה לצילום" (BTY-47).</li>
+<li>תמונה: קובץ (png/jpg/webp/gif, ו-HEIC מומר ל-JPEG; עד 8MB, בדיקת magic bytes — <code>ARC-26</code>) <b>או</b> URL (http/https), אחרת "נא העלי קובץ או הזיני URL לתמונה"; photo_type ∈ before|after|consultation|reference (enum, לא VARCHAR(10)); <code>is_consent_given=true</code> חובה, אחרת 400 "יש לאשר הסכמת הלקוחה לצילום" (BTY-47).</li>
 </ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>פורמולה: <code>INSERT beauty_formulas(treatment_type||'כללי', formula_data={}, application_notes, appointment_id?, practitioner_id?, processing_time_min?)</code> (ללא שינוי).</li>
@@ -702,7 +702,7 @@
 <div>מכונת מצבים</div><div>אין.</div>
 <div>תופעות לוואי</div><div>אובייקט באחסון; מחיקת תמונה מוחקת את האובייקט (ARC-26).</div>
 <div>ממשק</div><div>בחלון התמונה: "העלה קובץ" או "הדבק קישור", סוג (לפני/אחרי/ייעוץ/רפרנס), תיבת סימון חובה "הלקוחה אישרה צילום ושמירה".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>BTY-47</code> — העלאת קובץ בנוסף ל-URL, consultation נתמך, הסכמה חובה (מתוקן: URL נשמר, 8MB לפי ARC-26).</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>BTY-47</code> — העלאת קובץ בנוסף ל-URL, consultation נתמך, הסכמה חובה (מתוקן: URL נשמר, 8MB לפי ARC-26).</li><li><code>RECON-06</code> — רשימת הסוגים יושרה ל-<code>ARC-26</code> (gif, והמרת HEIC מצילום טלפון).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="retention cron overdue clients avg visit interval group_notifications"><h3>Cron שימור לקוחות (Retention)</h3>

@@ -453,7 +453,7 @@
 <div>קלט ואימותים</div><div><ul><li>ההזמנה ב-delivered/completed.</li><li>קהילה זכאית: המשפחה המזמינה (<code>family_group_id</code>) approved ב-family_communities, והעסק (<code>group_id</code>) approved ב-community_businesses באותה קהילה. אם יש כמה קהילות: קודם <code>store_orders.community_id</code> אם נשמר (הזמנה שהגיעה בקישור קהילה), ואחרת הקהילה הוותיקה ביותר לפי <code>family_communities.joined_at</code> ASC.</li><li>אין כבר שורת <code>business_platform_dues</code> להזמנה (UNIQUE לפי order_id).</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>טרנזקציה אחת (<code>ARC-11</code>): INSERT ל-<code>business_platform_dues</code> (order_amount, commission_pct, commission_amount, cashback_pct, cashback_amount, community_id, status 'pending').</li>
-<li>אם cashback&gt;0: זיכוי של ארנק הקהילה ב-₪ (<code>community_wallets</code>, balance += , total_earned += , עם FOR UPDATE), ו-INSERT ל-<code>community_wallet_transactions</code> מסוג 'cashback', reference_id=orderId, "קאשבק מהזמנה #X על סך ₪Y" (<code>ARC-15</code>: currency ILS_CASHBACK).</li>
+<li>אם cashback&gt;0: זיכוי של ארנק הקהילה ב-₪ דרך postEntry על (community, ILS_CASHBACK) (<code>ARC-15</code>): FOR UPDATE, INSERT ל-wallet_entries עם reason 'cashback', reference_id=orderId, idempotency_key=cashback:{orderId}, והתיאור "קאשבק מהזמנה #X על סך ₪Y". community_wallets.balance/total_earned ו-community_wallet_transactions נשארים תצוגות נגזרות לקריאה, כמו שהמסכים קוראים היום.</li>
 <li>אם לקהילה יש אזור עם ZM active: INSERT ל-<code>zone_manager_commissions</code> (manager_id, community_id, order_id, amount, commission_pct, "עמלה מהזמנה #X בקהילה").</li>
 <li>COMMIT. כשל מבצע ROLLBACK של הכול, נרשם בלוג, והעבודה מנסה שוב (<code>ARC-33</code>).</li></ol></div>
 <div>חישובים</div><div>
@@ -473,7 +473,7 @@
 <li><code>COM-18</code> — הזכאות דורשת משפחה ועסק approved, עם סדר קהילה מוגדר. 0 נשמר כ-0. הכול בטרנזקציה אחת.</li>
 <li><code>COM-20</code> — סטטוסים pending→invoiced→paid|written_off, והקצאת גבייה FIFO.</li>
 <li><code>COM-27</code>→<code>ARC-11</code> — אין עוד שגיאות שנבלעות.</li>
-<li><code>COM-24</code> — משפחה pending לא מזכה בקאשבק.</li></ul></div>
+<li><code>COM-24</code> — משפחה pending לא מזכה בקאשבק.</li><li><code>RECON-19</code> — הזיכוי עובר דרך postEntry ל-wallet_entries (שמות tobe-arch), והטבלאות הישנות נשארות לקריאה.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="community wallet cashback-info sa community-wallets balance"><h3>ארנק קהילה (₪ קאשבק) — צפייה</h3>
@@ -502,14 +502,14 @@
 <div>קלט ואימותים</div><div><ul><li>actionKey חייב להיות קיים ב-flow_config. בעליית השרת נבדקת רשימה סגורה של המפתחות שהקוד קורא להם, ומפתח חסר נרשם כשגיאה בלוג. בזמן ריצה, מפתח חסר מחזיר שגיאה פנימית שנרשמת, ולא no-op שקט.</li><li>מענק ידני: entityType ∈ family/business/community, reason חובה, amount ≠ 0, והיתרה לא יורדת מתחת ל-0.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
 <li>טעינת <code>personal_amount, community_amount, description</code> של actionKey.</li>
-<li>withTransaction (<code>ARC-11</code>): אם pa&gt;0 ו-entityId: INSERT ל-<code>flow_transactions</code> עם מפתח אידמפוטנטיות (entity_type, entity_id, action_key, reference_id) ו-UNIQUE חלקי. בהתנגשות: no-op ויציאה. אחרת UPSERT ל-<code>flow_wallets(entity_type, entity_id)</code> balance += pa (FOR UPDATE).</li>
+<li>withTransaction (<code>ARC-11</code>): אם pa>0 ו-entityId: postEntry על ארנק (entity, FLOW) (<code>ARC-15</code>) עם idempotency_key = flow:{entity_type}:{entity_id}:{action_key}:{reference_id} (UNIQUE ב-wallet_entries). בהתנגשות: no-op ויציאה. אחרת FOR UPDATE על הארנק, INSERT ל-wallet_entries ועדכון wallets.balance. flow_wallets ו-flow_transactions נשארים תצוגות נגזרות (יתרה והיסטוריה), כמו שהמסכים קוראים היום.</li>
 <li>אם ca&gt;0 ו-communityId: אותו דבר מול ('community', communityId), עם אותו reference_id.</li>
 <li>מפתחות בלי reference טבעי (daily_login): reference_id = <code>todayIL()</code>, כלומר פעם ביום.</li></ol></div>
 <div>חישובים</div><div>ערכי הזריעה (personal / community): join_community 15/5; referral 20/10 (כינוי ישן, לא מוענק); promo_redemption 3/2; profile_complete 12/3; review_business 7/3; bundle_purchase 18/7; daily_login 1/0; ambassador_approved 35/15; promo_community 0/5; bundle_community 0/20; biz_join_approved 20/10; biz_promo_approved 10/5; biz_promo_redeemed 5/5; biz_bundle_sold 10/20; biz_review_received 8/2; biz_lead_received 5/2; pool_join 5/2; pool_bid_accepted 25/10; pool_create 3/1; referral_join 20/0. <b>נוספים לקונפיג:</b> community_post 3/1; post_popular_bonus 5/0; ambassador_bonus_community 0/משתנה (הסכום שה-SA מזין). קונפיג: flow_to_ils_rate=100 (100 Flw = ₪10), flow_min_redeem=100, flow_redeem_quarter=0. CHECK <code>flow_wallets.balance ≥ 0</code>.</div>
 <div>מכונת מצבים</div><div>קוד מימוש FLOW (flow_redemptions): active → used | expired | cancelled. validate מקבל רק active שלא פג. השימוש מעביר ל-used באופן אטומי (<code>UPDATE … WHERE status='active' RETURNING</code>). במיגרציה NULL/pending הופכים ל-active.</div>
 <div>תופעות לוואי</div><div>ארנק FLOW קהילתי: <code>GET /api/flow/community-wallet/:communityId</code> מחזיר balance ו-20 תנועות ("אין הרשאה לקהילה זו" למי שאינו מורשה). ZM רואה אותו ב-community-detail. SA עורך ערכים ב-<code>PUT /api/sa/flow/config</code>, ומזכה או מחייב ידנית ב-<code>POST /api/sa/flow/grant</code> (action_key 'sa_manual', reference_id ייחודי לכל מענק).</div>
 <div>ממשק</div><div>ללא שינוי במסכים.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — אידמפוטנטיות ב-awardFlow, ו-daily_login פעם ביום.</li><li><code>COM-15</code> — רשימת מפתחות סגורה. community_post ו-post_popular_bonus נוספו. promo_used הוסר. מפתח חסר נרשם כשגיאה.</li><li><code>COM-16</code>→<code>SA-34</code> — מחזור חיים אחיד לקוד מימוש, ו-validate עובד.</li><li><code>COM-27</code>→<code>ARC-11</code> — הארנק והתנועה נכתבים בטרנזקציה אחת, בלי שגיאות שנבלעות.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-12</code> — אידמפוטנטיות ב-awardFlow, ו-daily_login פעם ביום.</li><li><code>COM-15</code> — רשימת מפתחות סגורה. community_post ו-post_popular_bonus נוספו. promo_used הוסר. מפתח חסר נרשם כשגיאה.</li><li><code>COM-16</code>→<code>SA-34</code> — מחזור חיים אחיד לקוד מימוש, ו-validate עובד.</li><li><code>COM-27</code>→<code>ARC-11</code> — הארנק והתנועה נכתבים בטרנזקציה אחת, בלי שגיאות שנבלעות.</li><li><code>RECON-19</code> — awardFlow כותב דרך postEntry ל-wallets ו-wallet_entries (tobe-arch), עם אותו מפתח אידמפוטנטיות. flow_wallets ו-flow_transactions נשארים לקריאה.</li></ul></div>
 </div></section>
 
 <h2 class="grp">פיד קהילה, תחומי עניין והתראות</h2>
@@ -546,7 +546,7 @@
 <div>הרשאות</div><div>לייק, תגובה, שיתוף ודיווח: סשן משפחה approved בקהילת הפוסט. בשיתוף לקהילה אחרת, המשפחה צריכה להיות approved גם בקהילת היעד. קריאת תגובות, likers ו-sharers: חבר approved. דף פוסט ציבורי: ציבורי במכוון.</div>
 <div>קלט ואימותים</div><div><ul><li>תגובה: content לא ריק, עד 2000 תווים. parent_comment_id, אם נשלח, שייך לאותו פוסט.</li><li>שיתוף: targetCommunityId אופציונלי, ותנאי החברות שלמעלה.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol>
-<li><b>לייק</b> (toggle): אם קיים, DELETE ו-<code>likes_count=GREATEST(0,−1)</code>. אם לא קיים, INSERT ו-<code>+1</code>. כשהספירה מגיעה בדיוק ל-10 ו-<code>flw_earned=0</code>: <code>flw_earned=5</code>, ו-<code>awardFlow(family, author,'post_popular_bonus', community, postId)</code> (פעם אחת לפוסט). התראה ב-<code>community_notifications</code> עם action_type='like' לכותב, אם הוא לא זה שעשה לייק.</li>
+<li><b>לייק</b> (toggle): אם קיים, DELETE ו-<code>likes_count=GREATEST(0,−1)</code>. אם לא קיים, INSERT ו-<code>+1</code>. כשהספירה מגיעה בדיוק ל-10 ו-<code>flw_earned=0</code>: <code>flw_earned=5</code>, ו-<code>awardFlow(family, author,'post_popular_bonus', community, postId)</code> (פעם אחת לפוסט). התראה לכותב דרך notify() לטבלת notifications המאוחדת (<code>ARC-16</code>; community_notifications ממוגרת אליה) עם type='like', אם הוא לא זה שעשה לייק.</li>
 <li><b>תגובה:</b> INSERT ל-community_post_comments (parent_comment_id לתשובות), comments_count+1, והתראה מסוג 'comment'. ה-GET מחזיר רק תגובות שורש שאינן מוסתרות.</li>
 <li><b>דיווח:</b> INSERT ל-community_post_reports ON CONFLICT DO NOTHING. רק אם נוספה שורה: <code>reports_count = COUNT(DISTINCT reporter)</code>. כשיש ≥ 3 מדווחים שונים: <code>is_hidden=true</code>.</li>
 <li><b>שיתוף:</b> INSERT ל-community_post_shares (ON CONFLICT). אם יש targetCommunityId: פוסט חדש בקהילת היעד עם התוכן <code>"[שותף] " + content</code>. shares_count+1 רק כשנוספה שורה.</li>
@@ -556,7 +556,7 @@
 <div>מכונת מצבים</div><div>community_posts.is_hidden: false → true (3 מדווחים, או SA), ו-true → false (SA).</div>
 <div>תופעות לוואי</div><div>התראות לכותב. FLOW על פוסט פופולרי.</div>
 <div>ממשק</div><div>ללא שינוי בפיד. דף הפוסט המשותף מציג במצב gated כפתור "הצטרפו לקהילה".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-40</code> — reports_count לפי מדווחים שונים. שיתוף, לייק ותגובה רק לחבר approved בקהילת הפוסט והיעד.</li><li><code>COM-09</code> — זהות מהסשן. רשימות likers, sharers ותגובות לא ציבוריות. הפוסט הציבורי מצומצם.</li><li><code>COM-15</code> — post_popular_bonus דרך awardFlow.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-40</code> — reports_count לפי מדווחים שונים. שיתוף, לייק ותגובה רק לחבר approved בקהילת הפוסט והיעד.</li><li><code>COM-09</code> — זהות מהסשן. רשימות likers, sharers ותגובות לא ציבוריות. הפוסט הציבורי מצומצם.</li><li><code>COM-15</code> — post_popular_bonus דרך awardFlow.</li><li><code>RECON-18</code> — התראות הפיד נכתבות ל-notifications המאוחדת (tobe-arch).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="feed unread mark-read community_feed_reads badge"><h3>ספירת פוסטים שלא נקראו</h3>
@@ -943,8 +943,8 @@
 <div>מטרה וטריגר</div><div>SA: <code>loadBannerOrders</code> (10650), <code>openBannerScheduleModal</code>/<code>confirmBannerSchedule</code> (10712/10778) → <code>PUT /api/sa/banner/orders/:id/approve</code>.</div>
 <div>הרשאות</div><div>SA עם הרשאת marketing. ביטול עם החזר: הרשאת finance או marketing.</div>
 <div>קלט ואימותים</div><div><ul><li>ההזמנה קיימת ("הזמנה לא נמצאה") ובמצב pending_approval ("הזמנה לא ממתינה לאישור").</li><li>אם coins_used&gt;0: היתרה ≥ coins (FOR UPDATE). אחרת ROLLBACK ו-400 "יתרת מטבעות לא מספיקה (יתרה: N)".</li><li>התנגשות: הזמנה אחרת <b>active</b> באותו slot, עם חפיפת תאריכים (<code>start ≤ newEnd AND end ≥ newStart</code>, כולל הקצוות) <b>וגם</b> חפיפת קהילות. מערך ריק נחשב כל הקהילות, ולכן חופף לכל. התנגשות מחזירה 409 "תפוס ע"י: ...".</li></ul></div>
-<div>שלבי עיבוד</div><div><ol><li>טרנזקציה על client ייעודי.</li><li>start = <code>body.start_date</code> או <code>todayIL()</code>. <code>end = start + duration_days − 1</code> (כולל).</li><li>בדיקת ההתנגשות, לפני הניכוי.</li><li>ניכוי: UPDATE ל-flow_wallets של העסק במינוס coins, ו-INSERT ל-flow_transactions עם action_key 'banner_purchase', "רכישת שטח פרסום", reference_id=order.</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT ל-billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'unpaid', due_date = היום + 7).</li><li>COMMIT. מוחזר billing_id.</li>
-<li><b>ביטול</b> (<code>PUT .../cancel</code>), בטרנזקציה: מ-pending_approval, status='cancelled' בלי חיוב ובלי ניכוי. מ-active: <code>unusedDays = max(0, end_date − max(todayIL(), start_date) + 1)</code>, ו-<code>refundCoins = floor(coins_used × unusedDays / duration_days)</code> מוחזרים לארנק העסק (flow_transactions 'banner_refund'). ה-billing_record הקשור: אם הוא unpaid, הוא עובר ל-cancelled. אם הוא paid או pending_confirm, נוצר זיכוי יחסי (billing_record שלילי מסוג credit) על החלק במזומן. status='cancelled'.</li></ol></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה על client ייעודי.</li><li>start = <code>body.start_date</code> או <code>todayIL()</code>. <code>end = start + duration_days − 1</code> (כולל).</li><li>בדיקת ההתנגשות, לפני הניכוי.</li><li>ניכוי: UPDATE ל-flow_wallets של העסק במינוס coins, ו-INSERT ל-flow_transactions עם action_key 'banner_purchase', "רכישת שטח פרסום", reference_id=order.</li><li>UPDATE status='active', start_date, end_date.</li><li>אם cash_amount&gt;0: INSERT ל-billing_records (description "פרסום באנר — N ימים", amount_ils=total, coins, cash, payment_status 'issued', due_date = היום + 7).</li><li>COMMIT. מוחזר billing_id.</li>
+<li><b>ביטול</b> (<code>PUT .../cancel</code>), בטרנזקציה: מ-pending_approval, status='cancelled' בלי חיוב ובלי ניכוי. מ-active: <code>unusedDays = max(0, end_date − max(todayIL(), start_date) + 1)</code>, ו-<code>refundCoins = floor(coins_used × unusedDays / duration_days)</code> מוחזרים לארנק העסק (flow_transactions 'banner_refund'). ה-billing_record הקשור: אם הוא issued, הוא עובר ל-void. אם הוא paid או pending_confirm, נוצר זיכוי יחסי (billing_record שלילי מסוג credit) על החלק במזומן. status='cancelled'.</li></ol></div>
 <div>חישובים</div><div>end_date כולל: הבאנר מוצג N ימים בדיוק. החזר יחסי כמתואר.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
 <tr><td>(INSERT)</td><td>pending_approval</td><td>עסק admin / בקשת מבצע</td><td>—</td><td>—</td></tr>
@@ -956,7 +956,7 @@
 עריכת SA (community_ids, slot_id, notes) מותרת ב-pending_approval וב-active. ב-active היא עוברת בדיקת התנגשות מחדש.</div>
 <div>תופעות לוואי</div><div>תצוגה (approved-banners): active ו-<code>start ≤ today ≤ end</code>, כולל יום הסיום, ו-<code>community_ids @&gt; communityId</code> או מערך ריק. זמינות: <code>GET /api/sa/banner/slots/:id/availability</code> (כולל pending_approval). ציר זמן: <code>/api/sa/banner/timeline</code>.</div>
 <div>ממשק</div><div>מודל הביטול מציג את סכום ההחזר המחושב במטבעות ובמזומן לפני האישור. בשאר המסכים אין שינוי.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-21</code> — ביטול עם החזר יחסי וביטול או זיכוי של החיוב. end_date כולל (N ימים ולא N+1). התנגשות לפי חפיפת קהילות.</li><li><code>COM-36</code> — הזמנות promo_request חולקות את אותה מכונת מצבים, במחיר 0.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-21</code> — ביטול עם החזר יחסי וביטול או זיכוי של החיוב. end_date כולל (N ימים ולא N+1). התנגשות לפי חפיפת קהילות.</li><li><code>COM-36</code> — הזמנות promo_request חולקות את אותה מכונת מצבים, במחיר 0.</li><li><code>RECON-15</code> — רשומת חיוב נוצרת כ-issued, ובביטול עוברת ל-void (שמות המצבים של tobe-arch).</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="billing records payment confirmation signature paid pending_confirm ledger"><h3>חיוב, אישור תשלום בחתימה דיגיטלית וסימון "שולם"</h3>
@@ -965,15 +965,15 @@
 <div>הרשאות</div><div>עסק: ADMIN מהסשן, והרשומה שייכת לו. SA: הרשאת finance.</div>
 <div>קלט ואימותים</div><div><ul><li>confirm: signature_data חובה ("חתימה דיגיטלית חסרה"), מאוחסן לפי <code>ARC-26</code>. הרשומה של העסק ("רשומה לא נמצאה"). לא paid ("כבר מסומן כשולם"). אין אישור קודם ("אישור כבר קיים"). הרשומה לא cancelled.</li><li>paid: אסמכתה ותאריך תשלום (<code>ARC-22</code>). sa_note אופציונלי.</li></ul></div>
 <div>שלבי עיבוד</div><div><ol><li>confirm, בטרנזקציה: INSERT ל-payment_confirmations (signature, ip לפי trust proxy, user_agent), ו-UPDATE ל-billing_records.payment_status='pending_confirm'.</li><li>SA paid: payment_status='paid', paid_at, אסמכתה ו-sa_note.</li></ol></div>
-<div>חישובים</div><div>סיכומי SA בשלוש קטגוריות: <code>total_unpaid = Σ cash_amount (unpaid)</code>, <code>total_pending_confirm = Σ cash_amount (pending_confirm)</code>, <code>paid_this_month = Σ cash_amount (paid בחודש הנוכחי, Asia/Jerusalem)</code>. <code>total_outstanding = total_unpaid + total_pending_confirm</code>.</div>
+<div>חישובים</div><div>סיכומי SA בשלוש קטגוריות: <code>total_unpaid = Σ cash_amount (issued)</code>, <code>total_pending_confirm = Σ cash_amount (pending_confirm)</code>, <code>paid_this_month = Σ cash_amount (paid בחודש הנוכחי, Asia/Jerusalem)</code>. <code>total_outstanding = total_unpaid + total_pending_confirm</code>.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
-<tr><td>(INSERT)</td><td>unpaid</td><td>מערכת</td><td>אישור באנר עם מזומן</td><td>—</td></tr>
-<tr><td>unpaid</td><td>pending_confirm</td><td>עסק ADMIN</td><td>חתימה</td><td>badge ל-SA</td></tr>
-<tr><td>unpaid / pending_confirm</td><td>paid</td><td>SA</td><td>אסמכתה</td><td>הודעה לעסק</td></tr>
-<tr><td>unpaid</td><td>cancelled</td><td>מערכת / SA</td><td>ביטול באנר</td><td>—</td></tr></table></div></div>
+<tr><td>(INSERT)</td><td>issued</td><td>מערכת</td><td>אישור באנר עם מזומן</td><td>—</td></tr>
+<tr><td>issued</td><td>pending_confirm</td><td>עסק ADMIN</td><td>חתימה</td><td>badge ל-SA</td></tr>
+<tr><td>issued / pending_confirm</td><td>paid</td><td>SA</td><td>אסמכתה</td><td>הודעה לעסק</td></tr>
+<tr><td>issued</td><td>void</td><td>מערכת / SA</td><td>ביטול באנר</td><td>—</td></tr></table></div></div>
 <div>תופעות לוואי</div><div>יומן הלקוח כולל חיובים, זיכויים ותשלומים.</div>
 <div>ממשק</div><div>במסך החיוב של SA נוספה קטגוריה שלישית, "ממתין לאימות", ושורת "סה"כ פתוח".</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-22</code> — pending_confirm מוצג כקטגוריה, ונוסף total_outstanding.</li><li><code>COM-21</code> — נוסף מצב cancelled, וזיכוי בביטול.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-22</code> — pending_confirm מוצג כקטגוריה, ונוסף total_outstanding.</li><li><code>COM-21</code> — נוסף מצב cancelled, וזיכוי בביטול.</li><li><code>RECON-15</code> — מצבי רשומת החיוב לפי tobe-arch ו-tobe-sa: issued (לשעבר unpaid) ו-void (לשעבר cancelled). שם השדה total_unpaid בתגובה נשמר לתאימות, והתוויות בממשק לא משתנות.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="legacy system banners settings ad_banner top bottom business family public system-banner"><h3>באנרי מערכת סטטיים (הגדרות SA)</h3>
@@ -1078,7 +1078,7 @@ is_hidden (ב-PUT, או PATCH visibility) עצמאי מהסטטוס. משחק מ
 <div>מטרה וטריגר</div><div>עסק (למשל ספורט או שירות) יוצר ללקוח חשבון "חבר WEFLOWZ": <code>POST /api/member/create-for-business</code>, מ-business-app.js:49036/49068/49167/51295. החבר מאשר או דוחה את השיוך: <code>POST /api/member/link/:linkId/respond</code> (app.js:13916/14327).</div>
 <div>הרשאות</div><div>create-for-business: verifyBiz. business_group_id נלקח מהסשן, ופרמטר שונה מחזיר 403. respond: verifyFamily, והקישור חייב להיות של החבר מהסשן (member_group_id).</div>
 <div>קלט ואימותים</div><div><ul><li>name ו-phone חובה ("חסרים שדות חובה"). phone מנורמל.</li><li>זיהוי חבר קיים (<code>_findMemberByIdentifier</code>): קוד בפורמט <code>M\d+</code> מחפש לפי group_code. אחרת מחפש לפי טלפון של ADMIN בקבוצה עם member_type='member'.</li><li>respond: decision ∈ approve/reject. הקישור במצב pending.</li></ul></div>
-<div>שלבי עיבוד</div><div><ol><li>טרנזקציה. חבר חדש: INSERT ל-family_groups (name "{name} - WEFLOWZ"; group_code <code>'M' + 6 ספרות אקראיות</code> עם בדיקת ייחודיות ועד 10 ניסיונות; type FAMILY; member_type 'member'; plan 'solo'; account_status 'pending_activation'; created_by_business_group_id). סיסמה אקראית של 8 תווים base36, שנשמרת <b>רק כ-bcrypt</b> ב-password_hash. solo_temp_password לא נשמר. INSERT ל-users כ-ADMIN active, עם permissions <code>{"tabs":["feed","members","bank","tasks"]}</code> ו-must_change_password=true.</li><li>UPSERT ל-member_business_links (status 'pending', או נשאר 'active' אם כבר active), is_active=true.</li><li>COMMIT. מוחזרים password (רק לחבר חדש, פעם אחת, להצגה ולשליחה ב-WhatsApp), group_code ו-link_status.</li><li>approve: status 'active', והתראה לעסק בעמודות הקיימות (group_id=העסק, trigger_type='member_link', message "שיוך אושר ✅", reference_key <code>mlink_{linkId}_approved</code>). reject: status 'rejected', is_active=false.</li></ol></div>
+<div>שלבי עיבוד</div><div><ol><li>טרנזקציה. חבר חדש: INSERT ל-family_groups (name "{name} - WEFLOWZ"; group_code מ-generateGroupCode האחיד (AUTH-45; הקידומת 'M' לחבר נשמרת); type FAMILY; member_type 'member'; plan 'solo'; account_status 'pending_activation'; created_by_business_group_id). סיסמה זמנית אקראית של 10 תווים (AUTH-37), שנשמרת רק כ-bcrypt ב-password_hash. solo_temp_password לא נשמר. INSERT ל-users כ-ADMIN active, עם permissions <code>{"tabs":["feed","members","bank","tasks"]}</code> ו-must_change_password=true.</li><li>UPSERT ל-member_business_links (status 'pending', או נשאר 'active' אם כבר active), is_active=true.</li><li>COMMIT. מוחזרים password (רק לחבר חדש, פעם אחת, להצגה ולשליחה ב-WhatsApp), group_code ו-link_status.</li><li>approve: status 'active', והתראה לעסק בעמודות הקיימות (group_id=העסק, trigger_type='member_link', message "שיוך אושר ✅", reference_key <code>mlink_{linkId}_approved</code>). reject: status 'rejected', is_active=false.</li></ol></div>
 <div>חישובים</div><div>אין.</div>
 <div>מכונת מצבים</div><div><div class="tbl-wrap"><table><tr><th>מ</th><th>ל</th><th>מי</th><th>תנאי</th><th>תופעות</th></tr>
 <tr><td>(UPSERT)</td><td>pending</td><td>עסק</td><td>—</td><td>חשבון חדש אם צריך</td></tr>
@@ -1087,7 +1087,7 @@ is_hidden (ב-PUT, או PATCH visibility) עצמאי מהסטטוס. משחק מ
 family_groups.account_status של חבר חדש: pending_activation (<code>ARC-05</code>: נתיבי הפעלה בלבד עד החלפת הסיסמה).</div>
 <div>תופעות לוואי</div><div>שינוי סטטוס הזמנה אצל עסק מקושר (active) מפעיל את <code>_sendMemberBizNotif</code>, עם reference_key ייחודי <code>mbiz_order_{id}_{status}</code>.</div>
 <div>ממשק</div><div>ללא שינוי. מוצגים הקוד האישי, השם והסיסמה הזמנית, ויש כפתור "שלח בוואטסאפ" (biz-setup-guide תרחיש ג׳). הקריאות מהעסק נשלחות עם Authorization.</div>
-<div>שינויים מהקיים</div><div><ul><li><code>COM-05</code> — שני הנתיבים מאומתים, והזהות מהסשן.</li><li><code>COM-06</code> — סיסמת החבר נשמרת ב-bcrypt בלבד, ומוחזרת פעם אחת.</li><li><code>COM-29</code> — group_code אקראי עם בדיקת ייחודיות. התראת האישור נכתבת לעמודות הקיימות ונשמרת.</li></ul></div>
+<div>שינויים מהקיים</div><div><ul><li><code>COM-05</code> — שני הנתיבים מאומתים, והזהות מהסשן.</li><li><code>COM-06</code> — סיסמת החבר נשמרת ב-bcrypt בלבד, ומוחזרת פעם אחת.</li><li><code>COM-29</code> — group_code אקראי עם בדיקת ייחודיות. התראת האישור נכתבת לעמודות הקיימות ונשמרת.</li><li><code>RECON-27</code> — אורך הסיסמה הזמנית (10) וקוד הקבוצה (generateGroupCode) יושרו ל-tobe-auth.</li></ul></div>
 </div></section>
 
 <section class="proc" data-f="member app modules unlock request locks my-businesses my-orders upgrade sa"><h3>מודולים נעולים לחבר, בקשות פתיחה ותצוגת עסקים/הזמנות</h3>

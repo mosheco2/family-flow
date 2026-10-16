@@ -1,0 +1,322 @@
+[
+ {
+  "id": "RECON-01",
+  "topic": "OTP / sc-auth — תוקף ומגבלת שליחה של OTP ללקוח חנות",
+  "files": [
+   "tobe-services"
+  ],
+  "resolution": "10 דקות, 3 לשעה ו-10 ליום, לפי ARC-29. tobe-auth הוא בעל התהליך."
+ },
+ {
+  "id": "RECON-02",
+  "topic": "sc-auth / PIN — הרשמה ו-PIN של לקוח חנות: bcrypt, קוד קבוצה, נעילה, enumeration",
+  "files": [
+   "tobe-services"
+  ],
+  "resolution": "הגרסה של tobe-auth: bcrypt 12, generateGroupCode, טבלת pin_attempts ותגובה אחידה. היכולות לא נפגעות, ותיקון האבטחה נשמר."
+ },
+ {
+  "id": "RECON-03",
+  "topic": "OTP — תוקף קוד איפוס PIN שה-SA שולח",
+  "files": [
+   "tobe-sa"
+  ],
+  "resolution": "10 דקות, לפי ARC-29 (כל קודי ה-SMS). נוסח ה-SMS מתעדכן בתוקף בלבד."
+ },
+ {
+  "id": "RECON-04",
+  "topic": "סשן — תקרה מוחלטת לסשן SA",
+  "files": [
+   "tobe-arch",
+   "tobe-auth"
+  ],
+  "resolution": "12 שעות מתגלגלות ותקרה של 7 ימים (SA-06 מאושר). זו החמרה בלי צמצום יכולת."
+ },
+ {
+  "id": "RECON-05",
+  "topic": "SMS debug — קוד דיבאג SMS בייצור ואורכו",
+  "files": [
+   "tobe-arch",
+   "tobe-sa",
+   "tobe-restaurant",
+   "tobe-beauty",
+   "tobe-services"
+  ],
+  "resolution": "הגרסה של SA-49 המתוקן, כי היא שומרת את יכולת הבדיקה של SA בייצור ומשאירה את תיקון האבטחה (קוד אקראי לכל טלפון אחר). קוד הדיבאג באורך 6 ספרות, אחרת שדות הקלט החדשים לא יקבלו אותו."
+ },
+ {
+  "id": "RECON-06",
+  "topic": "קבצים — סוגי העלאה: SVG, HEIC ו-gif",
+  "files": [
+   "tobe-store",
+   "tobe-sa",
+   "tobe-beauty",
+   "tobe-family",
+   "tobe-logistics"
+  ],
+  "resolution": "ARC-26: כל סוג שעולה היום ממשיך לעלות. SVG ו-HEIC מומרים ולא נדחים, ו-gif מותר."
+ },
+ {
+  "id": "RECON-07",
+  "topic": "הרשאות SA — מפת SA_TAB_PERMS",
+  "files": [
+   "tobe-sa",
+   "tobe-auth"
+  ],
+  "resolution": "המפה של tobe-arch, שנגזרת מ-checkTabAccess (הגישה בפועל היום). לשוניות אלה נשארות open, ו-Master יכול לצמצם בעתיד. השרת אוכף את המפה, וכך נשמר תיקון האבטחה. עודכנו 14 תהליכים ב-tobe-sa (מחירון, מחולל AI, WhatsApp, יומן ביקורת, ארכיון, לידים של פיילוט, קמפיינים) ומיפוי verifySA ב-tobe-auth."
+ },
+ {
+  "id": "RECON-08",
+  "topic": "הרשאות SA — toggle של תבניות עסקים (biz_type_visibility)",
+  "files": [
+   "tobe-sa",
+   "tobe-biz"
+  ],
+  "resolution": "פתוח לכל איש צוות של לשונית templates, עם audit, כמו היום."
+ },
+ {
+  "id": "RECON-09",
+  "topic": "הרשאות SA — הרשאת התחזות (כניסה לסביבה)",
+  "files": [
+   "tobe-sa",
+   "tobe-auth"
+  ],
+  "resolution": "ההרשאה impersonate (או all), שממוגרת לכל הצוותים, כי הכפתור זמין היום לכל איש צוות. Master יכול להסיר אותה. audit, שעה קבועה ובאנר נשמרים."
+ },
+ {
+  "id": "RECON-10",
+  "topic": "קודי שגיאה — התחזות לסביבה בלי ADMIN",
+  "files": [
+   "tobe-auth"
+  ],
+  "resolution": "409 NO_ADMIN עם מסלול \"צור מנהל והיכנס\" (SA-08 מתוקן), שמשאיר ל-SA את היכולת להיכנס לעסק בלי מנהל. הרישום ב-audit_log המאוחד."
+ },
+ {
+  "id": "RECON-11",
+  "topic": "הרשאות BIZ — כתיבת רישיונות וממשקי תפקיד (group_licenses)",
+  "files": [
+   "tobe-biz",
+   "tobe-sa",
+   "tobe-arch"
+  ],
+  "resolution": "ה-ADMIN שומר את ההפעלה והכיבוי העצמיים (verifyBizAdminOnly, groupId מהסשן), וגם SA, סשן התחזות והאשף רשאים. המחיר נקבע בשרת. ממשק תפקיד יוצר זכאות addon בחיוב, ו-ss_* נשמר ב-group_settings.self_service, כשהנתיב ממשיך לקבל אותו."
+ },
+ {
+  "id": "RECON-12",
+  "topic": "הרשאות BIZ — שיבוץ employee_role_type לממשק שאינו ברישוי",
+  "files": [
+   "tobe-biz",
+   "tobe-auth"
+  ],
+  "resolution": "ה-whitelist של EMPLOYEE_ROLE_TYPES נאכף תמיד. ADMIN אינו נחסם ברישוי, כמו היום."
+ },
+ {
+  "id": "RECON-13",
+  "topic": "זכאות — מצבים, מקורות וכשל של tenant_entitlements",
+  "files": [
+   "tobe-biz"
+  ],
+  "resolution": "השמות של tobe-arch: status {active, suspended, ended}, ו-trial הוא source. שגיאת DB מחזירה 503. ה-ADMIN יוצר זכאות addon לממשקי תפקיד."
+ },
+ {
+  "id": "RECON-14",
+  "topic": "enum — ערכי business_type",
+  "files": [
+   "tobe-sa",
+   "tobe-arch"
+  ],
+  "resolution": "enum של 15 ערכים, כולל services ו-store_only. אחרת שמירה של עסקים קיימים ומסלול הוויזארד store_only נדחים ב-400."
+ },
+ {
+  "id": "RECON-15",
+  "topic": "מצבים — מצבי רשומת חיוב (billing_records)",
+  "files": [
+   "tobe-sa",
+   "tobe-community",
+   "tobe-arch"
+  ],
+  "resolution": "השמות של tobe-arch: unpaid→issued ו-cancelled→void במיגרציה. התוויות בממשק ושדה total_unpaid בתגובה לא משתנים. paid מחייב אסמכתה ותאריך (ARC-22)."
+ },
+ {
+  "id": "RECON-16",
+  "topic": "לקוח — טלפון משותף (shared_phone)",
+  "files": [
+   "tobe-store",
+   "tobe-restaurant",
+   "tobe-sport"
+  ],
+  "resolution": "האילוץ חלקי בכל מקום. \"צור בכל זאת\" יוצר לקוח נפרד מסומן shared_phone. בספורט, שם שונה יוצר לקוח נפרד, ושם זהה נותן מנוי נוסף לאותו לקוח."
+ },
+ {
+  "id": "RECON-17",
+  "topic": "שמות ישויות — שמות טבלאות ההרחבה של הלקוח",
+  "files": [
+   "tobe-restaurant",
+   "tobe-logistics"
+  ],
+  "resolution": "השמות הקנוניים של tobe-arch. logistics_customers נשאר מזהה טאב ומודול, והטבלה הישנה נשארת לקריאה בלבד עד סוף המיגרציה."
+ },
+ {
+  "id": "RECON-18",
+  "topic": "שמות ישויות — טבלת ההתראות",
+  "files": [
+   "tobe-biz",
+   "tobe-community"
+  ],
+  "resolution": "notifications דרך notify(). הטבלאות הישנות ממוגרות אליה."
+ },
+ {
+  "id": "RECON-19",
+  "topic": "שמות ישויות — ארנקים ויומן יתרות (ledger)",
+  "files": [
+   "tobe-family",
+   "tobe-biz",
+   "tobe-community",
+   "tobe-arch"
+  ],
+  "resolution": "כל שינוי יתרה עובר דרך postEntry על wallets ו-wallet_entries. transactions נשאר היומן הגלוי. flow_wallets, community_wallets ו-users.balance הם שדות או תצוגות נגזרים. customer_ledger הוגדר ב-tobe-arch כיומן חוב שאינו ארנק."
+ },
+ {
+  "id": "RECON-20",
+  "topic": "שמות ישויות — טבלת יומן הביקורת",
+  "files": [
+   "tobe-biz",
+   "tobe-auth"
+  ],
+  "resolution": "audit_log המאוחד, עם actor_type. השמות הישנים במפרטים הם שמות לוגיים. פיד הפעילות ומסכי היומן נשמרים וקוראים מאותה טבלה."
+ },
+ {
+  "id": "RECON-21",
+  "topic": "נתיבים — המרת הצעת מחיר לפקודת עבודה: נתיב קנוני וסטטוס",
+  "files": [
+   "tobe-store",
+   "tobe-services"
+  ],
+  "resolution": "handler יחיד. convert הוא הנתיב הקנוני, to-work-order נשאר alias (ARC-34) ו-/approve מוסר (אין לו קורא). הסטטוס processing גם עם תאריך, כמו היום. עם תאריך, אירוע היומן נוצר בשרת באותה טרנזקציה, והלקוח מפסיק את שתי הקריאות הנפרדות. תופעות הלוואי של /approve מוזגו."
+ },
+ {
+  "id": "RECON-22",
+  "topic": "נתיבים ציבוריים — טפסי ליד ובקשת תור: ציבורי או sc-auth",
+  "files": [
+   "tobe-store",
+   "tobe-beauty",
+   "tobe-arch"
+  ],
+  "resolution": "sc-auth נאכף בשרת (SRV-36). אין צמצום, כי שער ההתחברות כבר קיים בממשק. שורות ה-allowlist ב-tobe-arch עודכנו."
+ },
+ {
+  "id": "RECON-23",
+  "topic": "מצבים — אישור בקשת תור מהחנות בעסק יופי",
+  "files": [
+   "tobe-services",
+   "tobe-beauty"
+  ],
+  "resolution": "בעסק beauty האירוע עובר ל-converted (BTY-41), עם מחיר מהקטלוג (BTY-40) ושני הקישורים: calendar_event_id UNIQUE ו-converted_appointment_id. בשאר העסקים approved."
+ },
+ {
+  "id": "RECON-24",
+  "topic": "AI — חיוב סוללה ב-/api/ai/generate",
+  "files": [
+   "tobe-biz",
+   "tobe-sa"
+  ],
+  "resolution": "בלי סוללה. האימות, rate limit ו-ai_usage_log נשארים. סוללה רק בפיצ'רים שצורכים אותה היום."
+ },
+ {
+  "id": "RECON-25",
+  "topic": "AI — קוד HTTP של BATTERY_EMPTY",
+  "files": [
+   "tobe-store",
+   "tobe-family"
+  ],
+  "resolution": "HTTP 429, עם אותו גוף."
+ },
+ {
+  "id": "RECON-26",
+  "topic": "קודי שגיאה — success:false עם HTTP 200",
+  "files": [
+   "tobe-auth"
+  ],
+  "resolution": "4xx/5xx לפי ARC-33, והגוף לא משתנה. sc-auth.js ו-sa.html קוראים JSON בכל סטטוס, כך שזה בטוח."
+ },
+ {
+  "id": "RECON-27",
+  "topic": "סיסמאות — פרטי כניסה של חשבון חבר שעסק יוצר (create-for-business)",
+  "files": [
+   "tobe-beauty",
+   "tobe-community",
+   "tobe-family"
+  ],
+  "resolution": "AUTH-37: סיסמה זמנית של 10 תווים, ב-bcrypt בלבד, שמוחזרת פעם אחת להצגה ולהודעת wa.me (יכולת קיימת שמתוארת במדריכים). קוד הקבוצה מ-generateGroupCode. SMS אופציונלי בלי סיסמה."
+ },
+ {
+  "id": "RECON-28",
+  "topic": "נתיבים ציבוריים — משחק חי: join ו-answer",
+  "files": [
+   "tobe-arch"
+  ],
+  "resolution": "join ו-answer דורשים סשן family. state, image ו-leaderboard ציבוריים."
+ },
+ {
+  "id": "RECON-29",
+  "topic": "נתיבים ציבוריים — dedup של מונה הצפיות בקול העם",
+  "files": [
+   "tobe-arch"
+  ],
+  "resolution": "30 דקות לפי anon_hash, כמו היום. קול העם הוא בעל התהליך."
+ },
+ {
+  "id": "RECON-30",
+  "topic": "נתיבים ציבוריים — קישורי טוקן חסרים ב-allowlist",
+  "files": [
+   "tobe-arch"
+  ],
+  "resolution": "שני הקישורים נוספו ל-allowlist. בלי זה, default-deny היה שובר את קישורי הספק והמסמך."
+ },
+ {
+  "id": "RECON-31",
+  "topic": "נתיבים ציבוריים — נתיבי ספורט ציבוריים",
+  "files": [
+   "tobe-arch"
+  ],
+  "resolution": "השורה ב-tobe-arch יושרה ל-tobe-sport: ציבורי רק מחירון, לוח וזמינות. רכישה, רישום, תור וצ'ק-אין דורשים sc-auth (הממשק כבר מחייב התחברות)."
+ },
+ {
+  "id": "RECON-32",
+  "topic": "worker — שעת ניקוי רשומות שגרה",
+  "files": [
+   "tobe-routines"
+  ],
+  "resolution": "03:10 לפי tobe-arch. 03:00 שמור לניקוי הסשנים."
+ },
+ {
+  "id": "RECON-33",
+  "topic": "מגבלות — CHECK של business_type בשגרות",
+  "files": [
+   "tobe-family"
+  ],
+  "resolution": "ה-CHECK מתיר 'any' לשגרות נוהל. אחרת זרימת הנהלים של tobe-routines נשברת."
+ },
+ {
+  "id": "RECON-34",
+  "topic": "הרשאות SA — הרשאה ל-test-email",
+  "files": [
+   "tobe-sa"
+  ],
+  "resolution": "devops או all."
+ },
+ {
+  "id": "RECON-35",
+  "topic": "sc-auth — בחירת משפחה ב-SSO מהחנות",
+  "files": [
+   "tobe-auth"
+  ],
+  "resolution": "בחירה לכל לקוח שהטלפון המאומת שלו תואם למשתמש פעיל ביותר ממשפחה אחת. זו הגרסה המתירנית, והזהות עדיין מאומתת ב-OTP. הקבוע מוסר."
+ },
+ {
+  "id": "RECON-36",
+  "topic": "OTP — אורך קוד SMS להזמנת שולחן (RST-16 מול ARC-29)",
+  "files": [],
+  "resolution": "מאומת שהקבצים עקביים (6 ספרות). השארית היחידה, אורך קוד הדיבאג (עד 4), נפתרה ב-RECON-05."
+ }
+]
