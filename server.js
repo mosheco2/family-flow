@@ -234,11 +234,35 @@ const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 const otpCache = new Map();
 
+// ── הגנה מפני SMS pumping (הודעות שנשלחות ע"י בוטים למספרים זרים/רנדומליים) ──
+// כל שליחת SMS במערכת עוברת כאן: רק ניידים ישראליים (+9725XXXXXXXX) או SUPERADMIN_PHONE,
+// מגבלה לכל מספר יעד ומגבלה כוללת לשעה. שליחה חסומה מחזירה null (לא זורקת) כדי לא לשבור את הקוראים.
+const _SMS_ALLOWED_RE = /^\+9725\d{8}$/;
+const _SMS_PER_NUMBER_PER_HOUR = parseInt(process.env.SMS_PER_NUMBER_PER_HOUR || '5', 10);
+const _SMS_GLOBAL_PER_HOUR = parseInt(process.env.SMS_GLOBAL_PER_HOUR || '100', 10);
+const _smsSentLog = []; // [{ts, to}]
+function _smsGuard(to) {
+    const now = Date.now();
+    while (_smsSentLog.length && now - _smsSentLog[0].ts > 3600000) _smsSentLog.shift();
+    const dest = String(to || '').replace(/[^\d+]/g, '');
+    const isSuperAdmin = process.env.SUPERADMIN_PHONE && dest === String(process.env.SUPERADMIN_PHONE).replace(/[^\d+]/g, '');
+    if (!isSuperAdmin && !_SMS_ALLOWED_RE.test(dest)) return 'blocked_destination';
+    if (_smsSentLog.filter(e => e.to === dest).length >= _SMS_PER_NUMBER_PER_HOUR) return 'per_number_limit';
+    if (_smsSentLog.length >= _SMS_GLOBAL_PER_HOUR) return 'global_limit';
+    _smsSentLog.push({ ts: now, to: dest });
+    return null;
+}
+
 async function sendSMSviaTwilio(to, body) {
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
         throw new Error('הגדרות Twilio (SID, Token או מספר טלפון) חסרות במשתני הסביבה של השרת');
     }
-    
+    const _blocked = _smsGuard(to);
+    if (_blocked) {
+        console.warn(`[SMS-GUARD] blocked (${_blocked}) → ${String(to).slice(0, 6)}…`);
+        return null;
+    }
+
     const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
     const basicAuth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
     
