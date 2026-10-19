@@ -238,7 +238,9 @@ const otpCache = new Map();
 // כל שליחת SMS במערכת עוברת כאן: רק ניידים ישראליים (+9725XXXXXXXX) או SUPERADMIN_PHONE,
 // מגבלה לכל מספר יעד ומגבלה כוללת לשעה. שליחה חסומה מחזירה null (לא זורקת) כדי לא לשבור את הקוראים.
 const _SMS_ALLOWED_RE = /^\+9725\d{8}$/;
-const _SMS_PER_NUMBER_PER_HOUR = parseInt(process.env.SMS_PER_NUMBER_PER_HOUR || '5', 10);
+const _SMS_PER_NUMBER_PER_HOUR = parseInt(process.env.SMS_PER_NUMBER_PER_HOUR || '3', 10);
+// רשימת חסימה ידנית (מופרדת בפסיקים, בפורמט +9725XXXXXXXX) — ניתן להגדיר ב-Render בלי פריסה מחדש של קוד
+const _SMS_BLOCKED = new Set(String(process.env.SMS_BLOCKED_NUMBERS || '').split(',').map(s => s.trim().replace(/[^\d+]/g, '')).filter(Boolean));
 const _SMS_GLOBAL_PER_HOUR = parseInt(process.env.SMS_GLOBAL_PER_HOUR || '100', 10);
 const _smsSentLog = []; // [{ts, to}]
 function _smsGuard(to) {
@@ -246,6 +248,7 @@ function _smsGuard(to) {
     while (_smsSentLog.length && now - _smsSentLog[0].ts > 3600000) _smsSentLog.shift();
     const dest = String(to || '').replace(/[^\d+]/g, '');
     const isSuperAdmin = process.env.SUPERADMIN_PHONE && dest === String(process.env.SUPERADMIN_PHONE).replace(/[^\d+]/g, '');
+    if (_SMS_BLOCKED.has(dest)) return 'blocked_number';
     if (!isSuperAdmin && !_SMS_ALLOWED_RE.test(dest)) return 'blocked_destination';
     if (_smsSentLog.filter(e => e.to === dest).length >= _SMS_PER_NUMBER_PER_HOUR) return 'per_number_limit';
     if (_smsSentLog.length >= _SMS_GLOBAL_PER_HOUR) return 'global_limit';
