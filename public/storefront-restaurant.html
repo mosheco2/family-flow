@@ -1071,6 +1071,13 @@ async function initStore() {
     if (!data.success) { showError(data.error || 'חנות לא נמצאה'); return; }
     storeData = data; window.storeData = data; window.API = API; window._scBizId = data.groupId; window._scGroupId = data.groupId;
     catalog = data.catalog || [];
+    if (data.settings?.delivery_enabled === false) {
+      ['seg-delivery','co-seg-delivery','cart-seg-delivery'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      setDeliveryMode(false);
+    }
     document.getElementById('page-title').textContent = data.groupName || 'חנות';
     applyAccent(data.settings?.accent_color || '#e63946');
     renderAll(data);

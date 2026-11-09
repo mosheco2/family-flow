@@ -1292,6 +1292,16 @@ window.injectBusinessUI = function() {
                         <!-- ══ טאב: משלוחים ══ -->
                         <div id="sts-tab-delivery" class="hidden space-y-4">
 
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-700">🛵 אפשר משלוח</div>
+                                        <div class="text-[10px] text-slate-400">כשכבוי, הלקוחות בחנות הציבורית יכולים להזמין איסוף עצמי בלבד</div>
+                                    </div>
+                                    <input type="checkbox" id="store-delivery-enabled" checked onchange="window.saveStoreSettings && window.saveStoreSettings()" class="w-5 h-5 accent-indigo-600">
+                                </label>
+                            </div>
+
                             <!-- זמני משלוח + אפליקציה (מוצג רק בתבניות המתאימות) -->
                             <div id="delivery-eta-block" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3" style="display:none">
                                 <h4 class="font-black text-slate-800 text-sm">⏱️ זמנים ואפליקציה</h4>
@@ -13281,6 +13291,7 @@ window.fetchStoreSettings = async function() {
             window.injectAliasUI(s.store_alias || '');
 
             syncChecks('store-is-active', s.is_active);
+            syncChecks('store-delivery-enabled', s.delivery_enabled !== false);
             // site_mode: ברירת מחדל לעסקי מומחים היא תדמית, לשאר עם חנות
             const defaultBranding = currentGroup?.business_type === 'professional';
             const isBranding = s.site_mode ? s.site_mode === 'branding' : defaultBranding;
@@ -13494,7 +13505,8 @@ async function saveStoreSettings() {
 
         const payload = { 
             groupId: currentGroup.id, 
-            isActive: getChecked('store-is-active'), 
+            isActive: getChecked('store-is-active'),
+            deliveryEnabled: document.getElementById('store-delivery-enabled') ? getChecked('store-delivery-enabled') : true,
             welcomeMessage: getVal('store-welcome-msg'),
             welcomeMessageEn: getVal('store-welcome-msg-en'),
             phone: getVal('store-phone'),
@@ -13502,7 +13514,7 @@ async function saveStoreSettings() {
             slogan: getVal('store-slogan'),
             sloganEn: getVal('store-slogan-en'),
             tickerMessages: getVal('store-ticker-messages').split(',').map(function(s){return s.trim();}).filter(Boolean),
-            storeType: getVal('store-type') || 'retail', 
+            storeType: getVal('store-type') || 'retail',
             logoUrl: getLogoBannerVal('store-logo-base64'),
             bannerUrl: getLogoBannerVal('store-banner-base64'),
             openTime: getVal('store-open-time'), 
@@ -29566,6 +29578,7 @@ window.fetchStoreSettings = async function() { console.trace("[FSS-ACTIVE]");
             }
 
             syncChecks('store-is-active', s.is_active);
+            syncChecks('store-delivery-enabled', s.delivery_enabled !== false);
             // site_mode
             const _defBranding = currentGroup?.business_type === 'professional';
             const _isBranding = s.site_mode ? s.site_mode === 'branding' : _defBranding;
@@ -29727,7 +29740,8 @@ async function saveStoreSettings() {
 
         const payload = { 
             groupId: currentGroup.id, 
-            isActive: getChecked('store-is-active'), 
+            isActive: getChecked('store-is-active'),
+            deliveryEnabled: document.getElementById('store-delivery-enabled') ? getChecked('store-delivery-enabled') : true,
             welcomeMessage: getVal('store-welcome-msg'),
             welcomeMessageEn: getVal('store-welcome-msg-en'),
             phone: getVal('store-phone'),
@@ -29737,8 +29751,8 @@ async function saveStoreSettings() {
             storeType: getVal('store-type') || 'retail',
             logoUrl: getLogoBannerVal('store-logo-base64'),
             bannerUrl: getLogoBannerVal('store-banner-base64'),
-            openTime: getVal('store-open-time'), 
-            closeTime: getVal('store-close-time'), 
+            openTime: getVal('store-open-time'),
+            closeTime: getVal('store-close-time'),
             whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat,
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,

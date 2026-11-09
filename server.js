@@ -13119,9 +13119,10 @@ app.delete('/api/team-posts/:id', async (req, res) => {
 app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_enabled BOOLEAN DEFAULT TRUE`); } catch(_) {}
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
+        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '', delivery_enabled: true } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13142,7 +13143,7 @@ app.post('/api/store/site-mode', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn, banner1Title, banner2Title, customerRequiredFields, siteMode } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn, banner1Title, banner2Title, customerRequiredFields, siteMode, deliveryEnabled } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -13166,6 +13167,7 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS ticker_messages JSONB DEFAULT '[]'`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan_en VARCHAR(255)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_message_en TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_enabled BOOLEAN DEFAULT TRUE`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
         const vatRateVal = parseFloat(vatRate) || 18;
@@ -13221,13 +13223,15 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(e) {}
         const crfVal = customerRequiredFields && typeof customerRequiredFields === 'object' ? JSON.stringify(customerRequiredFields) : '{}';
         const siteModeVal = ['shop','branding'].includes(siteMode) ? siteMode : 'shop';
+        // ריק/לא נשלח = נשאר מופעל כברירת מחדל; מגיע מפורשות false רק כשבעל העסק כיבה בהגדרות
+        const deliveryEnabledVal = deliveryEnabled === undefined ? true : (deliveryEnabled === true || String(deliveryEnabled) === 'true');
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages, slogan_en, welcome_message_en, banner1_title, banner2_title, customer_required_fields, site_mode
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages, slogan_en, welcome_message_en, banner1_title, banner2_title, customer_required_fields, site_mode, delivery_enabled
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -13269,12 +13273,13 @@ app.post('/api/store/settings', async (req, res) => {
                 banner1_title = EXCLUDED.banner1_title,
                 banner2_title = EXCLUDED.banner2_title,
                 customer_required_fields = EXCLUDED.customer_required_fields,
-                site_mode = EXCLUDED.site_mode
+                site_mode = EXCLUDED.site_mode,
+                delivery_enabled = EXCLUDED.delivery_enabled
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
             logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal,
             templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal, JSON.stringify(tickerMsgsVal),
-            sloganEn || '', welcomeMessageEn || '', banner1TitleVal || null, banner2TitleVal || null, crfVal, siteModeVal
+            sloganEn || '', welcomeMessageEn || '', banner1TitleVal || null, banner2TitleVal || null, crfVal, siteModeVal, deliveryEnabledVal
         ]);
         
         res.json({ success: true });
@@ -14497,7 +14502,7 @@ app.post('/api/store/orders', async (req, res) => {
         try {
             const [catRes, settRes, bizRes, varRes] = await Promise.all([
                 pool.query('SELECT id, price, category, product_type FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
-                pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId]),
+                pool.query('SELECT delivery_fee, free_delivery_above, delivery_enabled FROM store_settings WHERE group_id=$1', [groupId]),
                 pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]),
                 pool.query('SELECT id, price_override FROM store_product_variants WHERE group_id=$1 AND is_active=true', [groupId])
             ]);
@@ -14533,6 +14538,11 @@ app.post('/api/store/orders', async (req, res) => {
             }
         } else {
             serverSubtotal = (items || []).reduce((s, it) => s + (parseFloat(it.price)||0) * (parseInt(it.qty||it.quantity)||1), 0);
+        }
+
+        // משלוח כבוי בהגדרות העסק — אין לאפשר הזמנת משלוח גם אם הלקוח שלח isDelivery=true (למשל דף ישן בדפדפן)
+        if (isDeliv && settingsRow && settingsRow.delivery_enabled === false) {
+            return res.status(400).json({ error: 'העסק אינו מציע משלוח כעת — ניתן להזמין איסוף עצמי בלבד' });
         }
 
         // Verify delivery fee

@@ -846,6 +846,10 @@ async function initStore() {
     storeData = await res.json();
     groupId = storeData.groupId; window._scBizId = groupId; window._scGroupId = groupId; window._scBizType = storeData.businessType || storeData.business_type || 'sport'; window.storeData = storeData; window.API = API;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
+    if (storeData.settings?.delivery_enabled === false) {
+      document.getElementById('ful-delivery')?.style && (document.getElementById('ful-delivery').style.display = 'none');
+      setFulfilMode(false);
+    }
     // ברירת מחדל: אם יש שירותים/מנויים, פותחים בתצוגת קטלוג מוצרים (לא מעורבב) — ראו renderTypeTabs
     if (catalog.some(p => p.product_type === 'service')) _filterType = 'catalog';
     applyAccent(storeData.settings?.accent_color || '#FF6A1A');
