@@ -2845,6 +2845,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         };
 
         window.toggleDelivery = function(isDel, skipUpdate = false) {
+            // בעל העסק כיבה משלוחים בהגדרות החנות — איסוף עצמי בלבד
+            if (storeData?.settings?.delivery_enabled === false) isDel = false;
             getEl('is-delivery').value = isDel;
             const btnDel = getEl('btn-delivery-true');
             const btnPick = getEl('btn-delivery-false');
@@ -3006,6 +3008,10 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 if(btnSubmit) btnSubmit.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
 
                 getEl('btn-delivery-false').parentElement.classList.remove('hidden');
+                // משלוחים כבויים בהגדרות החנות — מסתירים את כפתור "משלוח עד הבית" ונשארים באיסוף עצמי
+                const _delOff = storeData?.settings?.delivery_enabled === false;
+                getEl('btn-delivery-true').classList.toggle('hidden', _delOff);
+                if (_delOff && getEl('is-delivery').value === 'true') window.toggleDelivery(false, true);
                 const timeSec3 = getEl('checkout-time-section');
                 if(timeSec3) timeSec3.classList.remove('hidden');
                 getEl('btn-time-asap').classList.remove('hidden');
