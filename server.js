@@ -101,6 +101,26 @@ app.use((req, res, next) => {
 
 app.use(express.json({limit: '20mb'}));
 
+// ── הגבלת קצב לפי IP לכל הנתיבים ששולחים SMS (הגנה מפני בוטים) ──
+// ה-IP נלקח מהערך הימני ב-X-Forwarded-For (זה שה-proxy של Render מוסיף; ערכים משמאל ניתנים לזיוף)
+const _SMS_ROUTE_RE = /^\/api\/(biz\/send-otp|family\/send-otp|family\/login\/send-otp|superadmin\/send-otp|sc-auth\/send-otp|sc-auth\/forgot-pin|calendar\/request-booking-sms|public\/restaurants\/[^/]+\/book-table)$/;
+const _SMS_PER_IP_PER_HOUR = parseInt(process.env.SMS_PER_IP_PER_HOUR || '8', 10);
+const _smsIpLog = new Map();
+app.use((req, res, next) => {
+    if (req.method !== 'POST' || !_SMS_ROUTE_RE.test(req.path)) return next();
+    const xff = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    const ip = xff.length ? xff[xff.length - 1] : (req.socket && req.socket.remoteAddress) || 'unknown';
+    const now = Date.now();
+    const hits = (_smsIpLog.get(ip) || []).filter(t => now - t < 3600000);
+    if (hits.length >= _SMS_PER_IP_PER_HOUR) {
+        console.warn(`[SMS-GUARD] ip limit ${ip} ${req.path}`);
+        return res.status(429).json({ success: false, error: 'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.' });
+    }
+    hits.push(now); _smsIpLog.set(ip, hits);
+    if (_smsIpLog.size > 5000) { for (const [k, v] of _smsIpLog) { if (!v.length || now - v[v.length - 1] > 3600000) _smsIpLog.delete(k); } }
+    next();
+});
+
 // יומן ביקורת אוטומטי לכל פעולת כתיבה עסקית מאומתת (verifyBiz/verifyBizOrLegacy) -
 // רץ ברמת ה-middleware הכללי כך שכל endpoint עסקי קיים/עתידי מכוסה אוטומטית,
 // בלי צורך לחווט כל endpoint בנפרד. לא חוסם/משנה את התגובה - רק מאזין ל-finish.
@@ -240,8 +260,8 @@ const otpCache = new Map();
 const _SMS_ALLOWED_RE = /^\+9725\d{8}$/;
 const _SMS_PER_NUMBER_PER_HOUR = parseInt(process.env.SMS_PER_NUMBER_PER_HOUR || '3', 10);
 // רשימת חסימה ידנית (מופרדת בפסיקים, בפורמט +9725XXXXXXXX) — ניתן להגדיר ב-Render בלי פריסה מחדש של קוד
-const _SMS_BLOCKED = new Set(String(process.env.SMS_BLOCKED_NUMBERS || '').split(',').map(s => s.trim().replace(/[^\d+]/g, '')).filter(Boolean));
-const _SMS_GLOBAL_PER_HOUR = parseInt(process.env.SMS_GLOBAL_PER_HOUR || '100', 10);
+const _SMS_BLOCKED = new Set(('+972533445581,' + String(process.env.SMS_BLOCKED_NUMBERS || '')).split(',').map(s => s.trim().replace(/[^\d+]/g, '')).filter(Boolean));
+const _SMS_GLOBAL_PER_HOUR = parseInt(process.env.SMS_GLOBAL_PER_HOUR || '30', 10);
 const _smsSentLog = []; // [{ts, to}]
 function _smsGuard(to) {
     const now = Date.now();
@@ -7627,6 +7647,15 @@ app.post('/api/biz/send-otp', async (req, res) => {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
         }
 
+        // כניסה/איפוס: שולחים קוד רק לטלפון של מנהל עסק פעיל (אותה התאמה כמו ב-verify-otp). אחרת — תשובה זהה בלי שליחה
+        if (purpose !== 'register') {
+            const _knownBiz = await pool.query(
+                `SELECT 1 FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.status='active'
+                   AND (fg.member_type='biz' OR fg.type='BUSINESS') LIMIT 1`, [phone]);
+            if (!_knownBiz.rows.length) return res.json({ success: true });
+        }
+
         // rate-limit: מקסימום 3 בקשות לשעה לאותו phone+purpose
         const rlRes = await pool.query(
             `SELECT COUNT(*) FROM business_otp WHERE phone=$1 AND purpose=$2 AND created_at > NOW() - INTERVAL '1 hour'`,
@@ -10519,6 +10548,9 @@ app.post('/api/family/login/send-otp', async (req, res) => {
         if (useEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) {
             return res.status(400).json({ success: false, error: 'כתובת מייל לא תקינה' });
         }
+        // כניסה: שולחים קוד רק למספר של משתמש פעיל (אותה התאמה כמו ב-verify-otp). למספר לא רשום — תשובה זהה בלי שליחה
+        const _knownLogin = await pool.query(`SELECT 1 FROM users WHERE phone=$1 AND status='active' LIMIT 1`, [phone]);
+        if (!_knownLogin.rows.length) return res.json({ success: true });
         const rlRes = await pool.query(
             `SELECT COUNT(*) FROM business_otp WHERE phone=$1 AND purpose='family_login' AND created_at > NOW() - INTERVAL '1 hour'`,
             [phone]);
