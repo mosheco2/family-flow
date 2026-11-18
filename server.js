@@ -293,7 +293,9 @@ async function sendSMSviaTwilio(to, body) {
     params.append('To', to);
     params.append('From', TWILIO_PHONE_NUMBER);
     params.append('Body', body);
-    
+    // Twilio SMS Pumping Protection — let Twilio score & block suspicious traffic (set SMS_RISKCHECK=disable to opt out)
+    params.append('RiskCheck', process.env.SMS_RISKCHECK === 'disable' ? 'disable' : 'enable');
+
     const response = await fetch(url, {
         method: 'POST',
         headers: {
